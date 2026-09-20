@@ -1738,6 +1738,173 @@ at their baselines and no kern pair changed.
 
 Proofs: `tools/wedge_serif/shape/weights290/`.
 
+## 32. Round 291 — the hairs and the fractures: a closing, and a union
+
+Owner 2026-09-19, on large renders of common words: *"bold italic 700 has
+errors and glitches and fractures and hairs"*, and then of the 400, *"italic
+has some hairs and stray lines."* Two distinct faults were under those four
+words, and NEITHER was visible to any gate this project had. `cmp_aldine_glitch
+--all` on the BoldItalic reported 23 findings and every one of them was a
+symbol or a punctuation mark; the letters came back clean and the `s` and the
+`g` were not clean. That gate sweeps a RASTER for islands, cracks and splits.
+Both of this round's faults live in the CONTOUR's own point stream, one layer
+above it, and nothing was reading that.
+
+### The first fault: a morphological closing tripled the point count
+
+`geom.close_corners` (round 205b) fills the concave corner a union leaves by
+dilating by `r` and eroding by `r`. Exactly two glyphs in the face call it —
+the `a_s` at `S_BLEND` 18 units and the `_g_roman` the italic `g` is drawn
+from at `G_R_BLEND` 10 — and those are exactly the two glyphs that were
+broken.
+
+Shapely's round buffer lays a fan of `quad_segs` points per quadrant against
+EVERY vertex of its input, and the input here is already a dense polyline at
+this project's `SPACING` of 11 units. Instrumented at the call, the `s` went
+in at 117 points and came out at 338, the `g` in at 322 and out at 841 —
+while the SHAPE moved by 0.19% and 0.07% of its area. So the closing was
+doing essentially nothing to the drawing and everything to the point stream.
+Measured on the built fonts, before:
+
+| glyph | points | segments under 2 units | duplicate points |
+|---|---|---|---|
+| bold italic `s` | 286 | 170 (59%) | 52 |
+| bold italic `g` | 605 | 291 (48%) | 236 |
+| italic 400 `s` | 273 | 149 (55%) | 45 |
+| italic 400 `g` | 599 | 292 (49%) | 234 |
+
+The same measure on the face's own `c e n o` reads 0 to 6%. That is the
+scale of it: two thirds of those two letters' contours were degenerate.
+
+IT COSTS TWICE, and the second cost is the one that was not obvious. The
+exporter rounds every point to the integer em grid, so a run of 0.3-unit
+segments rounds into coincident points and one-unit stair-steps — the
+faceting and the fractures the owner could see. AND `geom.fit_curves` finds a
+contour's corners by the turn between consecutive segments, which on a
+0.3-unit segment carrying a hundredth of a unit of buffer noise is noise:
+every vertex read as a corner, no run was ever long or gentle enough to fit,
+and these two letters would have exported as raw polygons even with
+`ALBO_CURVES` on.
+
+THE FIX is Douglas-Peucker at `geom.CLOSE_TOL`, a tenth of a unit, applied to
+the closing's own output. DP rather than a resample because **it cannot cut a
+corner** — the recursion always keeps the point of greatest deviation, so a
+wedge tip and a finial cut survive exactly while a fan of near-collinear
+points collapses — and the tolerance is the whole guarantee: every point of
+the result lies within 0.10 units of the closed outline, a ten-thousandth of
+the em, a thousandth of a pixel at 13 px. After: the `s` 131 points with 13
+under two units, the `g` 354 with 14, and not one duplicate point left in
+either letter in either style. `ALBO_CLOSE_TOL=0` is the old dense polygon,
+byte for byte.
+
+### The second fault: the union leaves a hairline of white at a shallow join
+
+`geom.ink` ADDS strokes, it does not blend them — the principle `cmp_joints.py`
+has carried since round 179. Where two strokes meet at a shallow angle the
+boolean's boundary runs out along one stroke's edge and straight back along
+the other's, leaving a tapering hairline of WHITE driven into solid ink. The
+italic `x`'s upper join carries one 18 units long closing to 1.0 units; the
+`y`'s tail join one 18 long and 4.7 wide. Both render in FreeType exactly as
+they measure, at any size large enough to resolve them. At 13 px they are a
+quarter of a pixel of gray, which is why sixteen rounds of reading-size
+proofs never caught one and why the owner found them on large renders.
+
+`geom.weld_slivers` splices across such an excursion, and fires only when ALL
+SIX hold: the excursion is one or two vertices long; its ends close to within
+`WELD_WIDTH` 8 units; the path removed is at least `WELD_MIN_LEN` 12 units;
+the area recovered is under `WELD_MAX_AREA` 120 square units; the first and
+last segments are antiparallel to within 40 degrees (`WELD_TURN` 140); and
+the splice ADDS ink.
+
+Two of those six are there because the pass failed without them, and both
+failures are worth recording. **Without the antiparallel test it shaved serif
+tips** — the `l`'s foot and its ascender top both qualify on width, length
+and area, because a wedge tip between two 11-unit facets is narrow and long
+too. **Without the add-ink test it shaved terminals**: a ring's area changes
+by minus the signed area of the spliced run, so the sign of that area is
+exactly "fill" against "shave", and with shaving allowed the pass took eight
+units off the italic `6`'s entry terminal (−0.222% of the glyph) and nicked
+the `9`'s tail (−0.113%). Every weld that survives the test ADDS between
+0.005% and 0.2% of its glyph's ink.
+
+**The designed hairline gap is safe, and the VERTEX COUNT is the reason
+rather than any width.** The Y's and the P's gap (`docs/albo-hairline-gap.md`)
+is about eight units wide — the same order as these cracks — but it is held
+within a unit of that width over 0.04 to 0.10 of the cap, 27 to 67 units,
+which at 11-unit sampling is three to six vertices down each flank. A crack
+is one or two, and a two-vertex splice cannot reach a parallel-sided gap.
+
+### The roman DID move, and the defect is provably in it
+
+The brief for this round said the roman weights should not move at all. They
+moved, because the same fault is in them and this is said explicitly rather
+than quietly: the Regular's `e` at (261, −13) and its `y` at (296, 14) each
+carry an EXACT 180-degree reversal, and the ExtraLight's `m` three. Twelve
+welds land in the Regular, three in the Bold, three in the Black, and each
+one adds between 0.01% and 0.09% of its glyph's ink. No kern pair changed in
+any of the six fonts.
+
+### What is NOT fixed, and the measurement that decided it
+
+The `y`'s crack is still there. Its ends close to 8.52 units against the
+pass's 8, and reaching it needs a width of 12 — at which the pass stops
+repairing and starts blunting. That was not reasoned, it was rendered: a
+before-and-after sheet of all 26 sites a width of 12 would newly touch shows
+the wedge tips cut off the `a h m n u y A K M N Q V W 4 6 9`. Raising the
+antiparallel threshold to 152 degrees cut the new sites to 14 and still
+blunted the `u`, the `M`, the `4` and the `9`. The true repair for these is
+to re-aim the two strokes where they meet, per letter, which is what
+`cmp_joints.py` said in round 179: *the fault is in the direction the edges
+arrive at, not in how fat they are.* That is a drawing decision and it is
+left for a ruling.
+
+### The e is not faulted, and this is the number
+
+The bold italic `e` was reported as having an angular left edge to its eye and
+a terminal that ends on a step. Both are there and neither is a defect.
+`ALBO_CURVES` has been 0 since round 231 (build.py:371, a deliberate ruling),
+so **every contour in this face is a polygon at 11-unit facets** — zero
+off-curve points in any lowercase letter of either style, checked — and the
+integer em grid then leaves one-unit jogs wherever a shallow edge crosses it.
+The `e` carries four such jogs and zero reversals. Eleven units is 0.14 px at
+13 px and 0.44 px at 40; one unit is 0.013 px and 0.04 px. The `e` is
+byte-identical before and after this round. The same reading applies to the
+one-unit "spurs" on `i m n r u`: they are the grid, they are on every letter
+in the face, and the weld's 12-unit minimum path deliberately leaves them.
+
+### The gate
+
+`tools/wedge_serif/cmp_contour_hairs.py` is new. It reads the contour's own
+point stream and fails on a REVERSAL past 165 degrees, on a HAIR (a reversal
+past 150 whose shorter arm is under 8 units), and on DEGENERATE DENSITY (more
+than a quarter of a glyph's segments under two units). `--letters` sweeps only
+the Latin letters, which is the arm now nearly green; the full sweep still
+carries symbol and mark findings, the same territory `cmp_aldine_glitch`
+reports.
+
+Coincident points are collapsed BEFORE any angle is taken, and that is
+load-bearing. A zero-length segment has no direction, so a spike sitting
+beside a duplicate point reads as 90 degrees, or as nothing, or as a division
+by zero, depending on which way the arithmetic falls — and all three readings
+are wrong. This is also the correction to a number that reached this round in
+the brief: an earlier detector reported 9 reversals in the italic `s` and 69
+in its `g`. There are none. Those counts were its own duplicate points being
+measured as directions, which is exactly the trap the collapse exists for.
+The duplicates are counted in their own column instead, where they turned out
+to be the strongest single symptom of the closing bug — 236 of the `g`'s 841
+points.
+
+| font | letters with findings, before | after | all 306 glyphs, before | after |
+|---|---|---|---|---|
+| bold italic 700 | 14 | **3** | 45 | 22 |
+| italic 400 | 19 | **12** | 67 | 50 |
+| extralight 200 | 13 | **9** | 59 | 50 |
+| regular 400 | 8 | **5** | 44 | 32 |
+| bold 700 | 3 | **1** | 24 | 15 |
+| black 900 | 4 | 4 | 36 | 27 |
+
+Proof page: `tools/wedge_serif/shape/weights291/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -1769,3 +1936,9 @@ Proofs: `tools/wedge_serif/shape/weights290/`.
 - Round 287: the `o` and the `c` were measured alongside the `e` and are NOT affected by either fault. Their outer contours read 0.09–0.10 units of circle-fit residual at every weight; the `e`'s read 0.11 at the 400 and 3.92 / 4.12 at the 700 / 900, which is what localised the fault to the tail's handover rather than to the shared ring. The o's counter does wave at the heavy weights (1.53 units at the 900 against 0.05 at the 400) — that is the inward offset of a superellipse at a heavy pen, a separate and much smaller effect, and it was deliberately not touched this round.
 - Round 287: `albo_bumps.py` was run before and after and is unchanged — 202 circles on the roman 900 sheet, 204 on the italic, none of them on the `e` in either build. It cannot see either of this round's faults by design: after its 2026-09-18 recalibration it detects notches and spurs at the pen's scale, having been deliberately moved off the edge-waviness detectors the owner had rejected. This is recorded so the next session does not read its silence as the letter being clean.
 - Round 287: the export curve fitter (`geom.fit_curves`) was checked and ruled out as the cause — `ALBO_CURVES` is 0, so every contour ships as the dense polygon at both the clean 400 and the wavy 900, and the fault reproduces in the design geometry before export. `geom.SPACING`, `close_corners` and the ink-spread mitre were likewise not involved: the defect is present with all three unchanged and absent at the 400 with all three unchanged.
+- Round 291: gates at baseline in all six fonts. Glitch — bold italic 306 swept / 23 findings, italic 400 306 / 20, Regular 306 / 19, Bold 306 / 23, Black 306 / 25, all identical before and after; the ExtraLight fell from 21 findings to 18. Touch — bold italic 0 / 0, italic 400 0 / 0 / 1 exempt, ExtraLight 1 / 3 / 14, Regular 2 / 4 / 14, Bold 4 / 6 / 14, Black 5 / 6 / 14, every one identical and the same named pairs (VI, ff, fi, Q, Q; QQ). Counter dents 0 in the bold italic, the Bold and the Black, 1 in each 400 and the 200 (the ampersand's, the drawn exception), unchanged. Figure spread 1.47× / 1.37× / 1.77× / 1.62× / 1.54× / 1.54×, unchanged. **No GPOS pair value changed in any of the six fonts.**
+- Round 291: `close_corners` has exactly two callers in the whole face — the italic `s` (`S_BLEND` 18) and the `_g_roman` the italic `g` is drawn from (`G_R_BLEND` 10). The `c`'s `C_BLEND` is 0 and its closing is a no-op; the roman `s` and `g` are drawn elsewhere and never call it. Checked by instrumenting the function and logging every call: one call per letter, and the roman 400's whole charset makes none. That is why the density fault was on two glyphs and no others, and why the simplify cannot reach a third.
+- Round 291: the `e` was reported faulted and is not. Zero reversals, four one-unit grid jogs, byte-identical before and after in both italics. Its "angular" eye is the 11-unit polygon every contour in this face is made of (`ALBO_CURVES` = 0 since round 231, deliberately), verified by counting off-curve points: **zero in every lowercase letter of both the Regular and the Italic 400**, so nothing in the face is a curve and the facets are the declared texture rather than a defect.
+- Round 291: the one-unit "spurs" reported on `e i m n r u` are the integer em grid, not the drawing. Each is a 1.0-unit segment between two ~100-degree turns on a shallow edge; the weld's 12-unit minimum path length leaves every one of them, deliberately, and they are present on letters nobody reported. One unit is 0.013 px at 13 px.
+- Round 291: welding was tested at `WELD_WIDTH` 12 (which would reach the `y`'s 8.52-unit crack) and REJECTED on a rendered before/after sheet of all 26 sites it would newly touch — it cuts the tips off the wedge serifs of `a h m n u y A K M N Q V W 4 6 9`. Re-tested at `WELD_TURN` 152 with the same width: 14 new sites, still blunting the `u`, the `M`, the `4` and the `9`. Both arms recorded so the same candidate is not re-proposed.
+- Round 291: the designed hairline gap on the Y and the P is untouched. The weld can splice at most two vertices, and that gap is three to six vertices down each flank by its own measured width and run (`docs/albo-hairline-gap.md`); the italic Y's single weld adds 13.7 square units, 0.015% of the glyph, at its arm junction and not at the gap.

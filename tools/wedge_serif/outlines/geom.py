@@ -5,12 +5,22 @@ arc length -- the same density the round-17 pen used (one sample per ~11
 units, one vertex in four kept by the cut, facets of ~45 units), so the
 cut's texture matches the record."""
 import math
+import os
 import numpy as np
 import shapely
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 
 SPACING = 11.0
+
+# ROUND 291 -- the Douglas-Peucker tolerance `close_corners` puts its result
+# back through, in font units. See that function: a round buffer triples the
+# point count of a polyline it is handed, and the sub-unit segments it leaves
+# are what the em grid turns into stair-steps and hairs. A tenth of a unit is
+# a ten-thousandth of the em and rather better than the 0.076 units of sagitta
+# an 11-unit chord already carries across a 200-unit bowl, so the simplify
+# cannot be the largest error in the outline.
+CLOSE_TOL = float(os.environ.get("ALBO_CLOSE_TOL", 0.10))
 
 def _n(length, spacing): return max(3, int(math.ceil(length / spacing)))
 
@@ -167,27 +177,181 @@ def close_corners(g, r, segs=24):
 
     r must stay well under half the narrowest white the letter is meant to
     keep, because a closing also bridges any channel narrower than 2r.
+
+    ROUND 291 -- AND THEN PUT THE POINT TEXTURE BACK. Owner 2026-09-19:
+    *"bold italic 700 has errors and glitches and fractures and hairs"*, then
+    *"italic has some hairs and stray lines."* The closing was the mechanism
+    for the two worst letters. A round buffer lays a fan of `segs` points per
+    quadrant against EVERY vertex of its input, and the input here is already
+    a dense polyline at `SPACING`, so the dilate-erode pair came back with
+    three times the points it was handed, nearly all of them a fraction of a
+    unit apart: the `s` left with 338 points of which 222 sat under two units
+    and 52 were exact duplicates, the `g` with 841 of which 527 and 236. The
+    shape was right to a fifth of a percent of its area and the POINT STREAM
+    was ruined, which costs twice over --
+
+      the exporter rounds to the integer em grid, and a run of 0.3-unit
+      segments rounds into duplicate points and one-unit stair-steps, which
+      is the faceting and the fractures he can see; and
+
+      `fit_curves` reads the turn between consecutive segments to find a
+      contour's corners, and on a 0.3-unit segment that angle is noise -- so
+      every vertex read as a corner, no run was ever fitted, and these two
+      letters exported as raw polygons while the rest of the face got curves.
+
+    Douglas-Peucker at `CLOSE_TOL` restores the texture. It is the right tool
+    rather than a resample because it cannot cut a corner: the recursion
+    always keeps the point of greatest deviation, so a wedge tip and a finial
+    cut survive exactly while a fan of near-collinear points collapses. The
+    tolerance is the whole guarantee -- every point of the result lies within
+    CLOSE_TOL units of the closed outline, a ten-thousandth of the em, which
+    is a thousandth of a pixel at the 13 px the face is read at. Measured on
+    the built italics: the `s` 338 points -> 131 with no segment under two
+    units, the `g` 841 -> 354 with 27, and the area moved by 0.02%.
+
+    ALBO_CLOSE_TOL=0 is the old dense polygon, byte for byte.
     """
     if not r or r <= 0:
         return g
-    return _largest(g.buffer(r, join_style=1, quad_segs=segs)
-                     .buffer(-r, join_style=1, quad_segs=segs))
+    out = _largest(g.buffer(r, join_style=1, quad_segs=segs)
+                    .buffer(-r, join_style=1, quad_segs=segs))
+    if CLOSE_TOL > 0 and not out.is_empty:
+        out = _largest(out.simplify(CLOSE_TOL, preserve_topology=True))
+    return out
 
 
-def contours(g, min_area=40.0):
+WELD_WIDTH = float(os.environ.get("ALBO_WELD_WIDTH", 8.0))
+WELD_MIN_LEN = float(os.environ.get("ALBO_WELD_MIN_LEN", 12.0))
+WELD_MAX_AREA = float(os.environ.get("ALBO_WELD_MAX_AREA", 120.0))
+WELD_SKIP = int(os.environ.get("ALBO_WELD_SKIP", 2))
+WELD_TURN = float(os.environ.get("ALBO_WELD_TURN", 140.0))
+
+
+def weld_slivers(pts, width=None, min_len=None, max_area=None, skip=None):
+    """ROUND 291 -- WELD THE CRACKS A UNION LEAVES AT A SHALLOW JUNCTION.
+
+    Owner 2026-09-19: *"bold italic 700 has errors and glitches and fractures
+    and hairs"*, and then of the 400, *"italic has some hairs and stray
+    lines."* Two of the three words are this. `ink` ADDS strokes, and where
+    two of them meet at a shallow angle the boolean's boundary runs out along
+    one stroke's edge and straight back along the other's, leaving a tapering
+    hairline of WHITE driven into solid ink. Measured on the built italic:
+    the `x`'s upper join carries a slit 18 units long closing to 1.0, the
+    `y`'s tail join one 18 long and 4.7 wide. Both show plainly in FreeType at
+    a large size, which is where he found them; at 13 px they are a quarter of
+    a pixel of gray and invisible, which is why sixteen rounds of reading-size
+    proofs never caught one.
+
+    This splices across such an excursion. A crack qualifies only when ALL of
+
+      * it is at most `skip` vertices long -- one or two points, a tip;
+      * its two ends close to within `width` units;
+      * the path being removed is at least `min_len` units, so an ordinary
+        corner between two 11-unit facets can never qualify; and
+      * the area recovered is under `max_area`, so nothing with a shape in it
+        can be welded away by accident.
+
+    THE DESIGNED HAIRLINE GAP IS SAFE, and that is the reason for the vertex
+    count rather than a width alone. The Y's and the P's gap
+    (`docs/albo-hairline-gap.md`) is about EIGHT units wide -- the same order
+    as these cracks -- but it is held within a unit of that width over 0.04 to
+    0.10 of the cap, 27 to 67 units, which at this project's 11-unit sampling
+    is three to six vertices down each flank. A crack is one or two. A
+    parallel-sided gap the owner named and made a feature of cannot be reached
+    by a two-vertex splice; a taper that closes to nothing can.
+
+    It does NOT touch the one-unit jogs the integer grid leaves on a shallow
+    edge -- the `e`'s and the `m`'s, whose removed path is 6 units against the
+    12 required. Those are the honest resolution of an 11-unit polygon rounded
+    to a 1000-unit em (`ALBO_CURVES` has been 0 since round 231), they are on
+    every letter in the face, and chasing them would be chasing the grid.
+
+    ALBO_WELD_WIDTH=0 turns the whole pass off.
+    """
+    width = WELD_WIDTH if width is None else width
+    min_len = WELD_MIN_LEN if min_len is None else min_len
+    max_area = WELD_MAX_AREA if max_area is None else max_area
+    skip = WELD_SKIP if skip is None else skip
+    if width <= 0 or len(pts) < 6:
+        return list(pts), 0
+    P = [(float(x), float(y)) for x, y in pts]
+    welds = 0
+    changed = True
+    while changed and len(P) >= 8:
+        changed = False
+        n = len(P)
+        for i in range(n):
+            for k in range(1, skip + 1):
+                if n - k < 6:
+                    continue
+                run = [P[(i + t) % n] for t in range(k + 2)]     # i, the k tip points, and j
+                if math.dist(run[0], run[-1]) > width:
+                    continue
+                L = sum(math.dist(run[t], run[t + 1]) for t in range(len(run) - 1))
+                sa = signed_area(run)
+                if L < min_len or abs(sa) > max_area:
+                    continue
+                # IT MAY ONLY ADD INK. A ring's area changes by -signed_area
+                # of the spliced run, and a ring's area IS its contribution to
+                # the ink whichever way it is wound, so sa < 0 is exactly "this
+                # weld fills something". The other sign is a SHAVE -- ink the
+                # drawing put there -- and shaving is a drawing decision, not a
+                # repair: with it allowed, the pass took eight units off the
+                # italic 6's entry terminal and nicked the 9's tail, which are
+                # the two places in the face where a stroke deliberately runs
+                # out to a point. Measured, every weld that survives this test
+                # adds between 0.005% and 0.2% of its glyph's area.
+                if sa >= 0:
+                    continue
+                # ...AND THE ARMS MUST DOUBLE BACK. This is the condition that
+                # separates a crack from a corner, and without it the pass
+                # shaved serif tips: the `l`'s foot and its ascender top both
+                # qualified on width, length and area, because a wedge tip
+                # between two 11-unit facets is narrow and long too. A crack
+                # leaves along one edge and returns along the other, so its
+                # first and last segments are nearly antiparallel; a tip's
+                # are not.
+                v1 = (run[1][0] - run[0][0], run[1][1] - run[0][1])
+                v2 = (run[-1][0] - run[-2][0], run[-1][1] - run[-2][1])
+                l1 = math.hypot(*v1); l2 = math.hypot(*v2)
+                if l1 < 1e-9 or l2 < 1e-9:
+                    continue
+                d = max(-1.0, min(1.0, (v1[0] * v2[0] + v1[1] * v2[1]) / (l1 * l2)))
+                if math.degrees(math.acos(d)) < WELD_TURN:
+                    continue
+                drop = {(i + t) % n for t in range(1, k + 1)}
+                P = [p for t, p in enumerate(P) if t not in drop]
+                welds += 1
+                changed = True
+                break
+            if changed:
+                break
+    return P, welds
+
+
+WELDS = [0]        # how many cracks the last build spliced -- printed by build.py
+
+
+def contours(g, min_area=40.0, weld=True):
     """[(points, is_hole)] with exteriors wound CCW (positive area) and holes
-    CW -- the nonzero winding TrueType wants. Tiny slivers are dropped."""
+    CW -- the nonzero winding TrueType wants. Tiny slivers are dropped, and
+    since round 291 the cracks a shallow union leaves are welded shut (see
+    `weld_slivers`)."""
     out = []
     polys = [g] if g.geom_type == 'Polygon' else [p for p in getattr(g, 'geoms', []) if p.geom_type == 'Polygon']
     for p in polys:
         if p.area < min_area: continue
         ext = list(p.exterior.coords)[:-1]
         if signed_area(ext) < 0: ext = ext[::-1]
+        if weld:
+            ext, w = weld_slivers(ext); WELDS[0] += w
         out.append((ext, False))
         for r in p.interiors:
             h = list(r.coords)[:-1]
             if abs(signed_area(h)) < min_area: continue
             if signed_area(h) > 0: h = h[::-1]
+            if weld:
+                h, w = weld_slivers(h); WELDS[0] += w
             out.append((h, True))
     return out
 
@@ -206,7 +370,7 @@ def smooth_corners(pts, turn=28.0, window=2, passes=2):
     against Flanker's 0.7-1.4 and Georgia's 1.6-4. This smooths each contour
     BEFORE it is rounded: points whose turn exceeds `turn` degrees are
     corners and stay put; every run between corners is averaged over
-    `window` neighbours on each side, `passes` times. A wedge's tip, a
+    `window` neighbors on each side, `passes` times. A wedge's tip, a
     stem's foot and a bar's end are corners and survive; a bowl's facets do
     not. ALBO_SMOOTH=0 in build.py is the old polygon, byte for byte."""
     n = len(pts)

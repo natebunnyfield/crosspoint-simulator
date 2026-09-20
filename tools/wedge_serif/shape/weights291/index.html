@@ -1,0 +1,84 @@
+<title>Albo Hairs and Fractures</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;--bad:#8a3b2e;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;--bad:#d98b78;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;--bad:#d98b78;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;} .bad{color:var(--bad);} code{font:13px ui-monospace,Menlo,monospace;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Hairs and Fractures</h1>
+    <p class="lede">Round 291. <em>&ldquo;bold italic 700 has errors and glitches and fractures and hairs&rdquo;</em>, and then of the 400, <em>&ldquo;italic has some hairs and stray lines.&rdquo;</em> Two separate faults were under those words and neither was visible to any gate this project had. The first is a POINT-STREAM fault that ruined the <code>s</code> and the <code>g</code> and nothing else. The second is a CRACK the boolean union leaves wherever two strokes meet at a shallow angle, and it is on nineteen letters across all six fonts, roman included. The first is fixed outright. The second is fixed where a repair can be bounded, and the rest is named below with the reason it was left.</p>
+  </header>
+
+  <section><h2>1. The s and the g: a closing that tripled the point count</h2>
+    <p>Both letters end in <code>geom.close_corners</code>, a dilate-and-erode that fills the concave corner a union leaves. A round buffer lays a fan of 24 points per quadrant against <em>every</em> vertex of its input, and the input is already a dense polyline at this project&rsquo;s 11-unit sampling &mdash; so the pair came back with three times the points it was handed, nearly all of them a fraction of a unit apart, while the shape moved by a fifth of a percent of its area. That costs twice: the exporter rounds to the integer em grid, where a run of 0.3-unit segments becomes duplicate points and one-unit stair-steps, and <code>geom.fit_curves</code> reads the turn between consecutive segments to find corners, which on a 0.3-unit segment is noise.</p>
+    <p>The closing now puts its result through Douglas-Peucker at a tenth of a unit. DP is the right tool rather than a resample because it cannot cut a corner &mdash; the recursion always keeps the point of greatest deviation &mdash; and the tolerance is the whole guarantee: a ten-thousandth of the em, a thousandth of a pixel at the 13&nbsp;px this face is read at.</p>
+    <div class="scroll"><table>
+      <tr><th>font / glyph</th><th>points</th><th>segs under 2u</th><th>duplicate points</th><th>ink area</th></tr>
+      <tr><td>bold italic s</td><td>286 &rarr; <span class="ok">131</span></td><td><span class="bad">170 (59%)</span> &rarr; <span class="ok">13 (10%)</span></td><td>52 &rarr; <span class="ok">0</span></td><td>+0.00%</td></tr>
+      <tr><td>bold italic g</td><td>605 &rarr; <span class="ok">354</span></td><td><span class="bad">291 (48%)</span> &rarr; <span class="ok">14 (4%)</span></td><td>236 &rarr; <span class="ok">0</span></td><td>+0.01%</td></tr>
+      <tr><td>italic 400 s</td><td>273 &rarr; <span class="ok">130</span></td><td><span class="bad">149 (55%)</span> &rarr; <span class="ok">7 (5%)</span></td><td>45 &rarr; <span class="ok">0</span></td><td>+0.00%</td></tr>
+      <tr><td>italic 400 g</td><td>599 &rarr; <span class="ok">339</span></td><td><span class="bad">292 (49%)</span> &rarr; <span class="ok">18 (5%)</span></td><td>234 &rarr; <span class="ok">0</span></td><td>+0.01%</td></tr>
+    </table></div>
+    <p>For scale: the same measure on the family&rsquo;s own <code>c e n o</code> reads 0 to 6%. Those two letters were the only ones in the face with this fault, and they were the only two calling the closing.</p>
+    <figure><img src="s-bi-points.png" alt="bold italic s, before and after, with every contour point marked"><figcaption>bold italic s at 1.95 px/unit, every contour point marked &mdash; before (left), after (right). The before&rsquo;s point ring is a continuous red line</figcaption></figure>
+    <figure><img src="g-bi-points.png" alt="bold italic g, before and after, with every contour point marked"><figcaption>bold italic g at 1.34 px/unit, every contour point marked &mdash; before (left), after (right)</figcaption></figure>
+    <figure><img src="s-i400-points.png" alt="italic 400 s, before and after"><figcaption>italic 400 s at 2.13 px/unit, every contour point marked &mdash; before (left), after (right)</figcaption></figure>
+    <figure><img src="g-i400-points.png" alt="italic 400 g, before and after"><figcaption>italic 400 g at 1.42 px/unit, every contour point marked &mdash; before (left), after (right)</figcaption></figure>
+  </section>
+
+  <section><h2>2. The cracks: a union at a shallow angle leaves a hairline of white</h2>
+    <p><code>geom.ink</code> ADDS strokes, it does not blend them. Where two of them meet at a shallow angle the boolean&rsquo;s boundary runs out along one stroke&rsquo;s edge and straight back along the other&rsquo;s, leaving a tapering hairline of WHITE driven into solid ink. The italic <code>x</code> carries one 18 units long closing to 1.0, the <code>y</code> one 18 long and 4.7 wide. They render in FreeType exactly as they measure, which is where the owner found them; at 13&nbsp;px they are a quarter of a pixel of gray, which is why sixteen rounds of reading-size proofs never caught one.</p>
+    <p>A new pass splices across such an excursion, and it may only fire when all five hold: the excursion is one or two vertices long; its ends close to within 8 units; the path removed is at least 12 units; the area recovered is under 120 square units; and the first and last segments are antiparallel to within 40 degrees. The last of those is the condition that separates a crack from a corner, and without it the pass shaved the <code>l</code>&rsquo;s foot serif and its ascender top. A sixth rule is that a weld may only ADD ink: a splice that removes it is shaving something the drawing put there, and with that allowed the pass took eight units off the italic 6&rsquo;s entry terminal.</p>
+    <p><strong>The designed hairline gap is safe, and the vertex count is why.</strong> The Y&rsquo;s and the P&rsquo;s gap is about eight units wide &mdash; the same order as these cracks &mdash; but it is held within a unit of that width over 27 to 67 units, which at 11-unit sampling is three to six vertices down each flank. A crack is one or two.</p>
+    <figure><img src="x-crack.png" alt="italic x junction before and after"><figcaption>italic 400 x, upper join &mdash; FreeType at 3 px/unit, native pixels, no magnification. Before (left), after (right)</figcaption></figure>
+    <figure><img src="w-crack.png" alt="bold italic w junction before and after"><figcaption>bold italic w, first join &mdash; FreeType at 3 px/unit, native pixels. Before (left), after (right)</figcaption></figure>
+    <figure><img src="m-crack.png" alt="bold italic m junction before and after"><figcaption>bold italic m, arch against stem &mdash; FreeType at 3 px/unit, native pixels. Before (left), after (right)</figcaption></figure>
+  </section>
+
+  <section><h2>3. What is left, and why</h2>
+    <p>The <code>y</code>&rsquo;s crack is still there. Its ends close to 8.5 units rather than 8, and reaching it means a width of 12 &mdash; at which the pass stops repairing and starts blunting: every wedge serif tip in the face reads at the same geometry, and at 12 the sweep cut the tips off the <code>a h m n u y A K M N Q V W 4 6 9</code>. That was measured on a before-and-after sheet of all 26 sites it would newly touch, and rejected on it. Raising the antiparallel threshold to 152 degrees did not separate them either. The real fix for these is to re-aim the two strokes where they meet, per letter &mdash; which is what <code>cmp_joints.py</code> has said since round 179: the fault is in the direction the edges arrive at, not in how fat they are. That is a drawing decision and it is left for a ruling rather than taken here.</p>
+    <figure><img src="y-crack.png" alt="italic y junction, unchanged"><figcaption>italic 400 y, tail against arm &mdash; STILL OPEN. FreeType at 3 px/unit, native pixels. Before (left), after (right): identical, by decision</figcaption></figure>
+  </section>
+
+  <section><h2>4. The e is not faulted, and the number says so</h2>
+    <p>The bold italic <code>e</code> was reported as having an angular left edge to its eye and a terminal that ends on a step. Both are real and neither is a defect: <code>ALBO_CURVES</code> has been 0 since round 231, so every contour in this face is a POLYGON at 11-unit facets, and the integer em grid then leaves one-unit jogs on any shallow edge. The <code>e</code> carries four such jogs and zero reversals. Eleven units is 0.14&nbsp;px at 13&nbsp;px and 0.44 at 40; one unit is 0.013 and 0.04. The <code>e</code> is byte-identical before and after and is shown here to prove it.</p>
+    <figure><img src="e-bi-points.png" alt="bold italic e, before and after, identical"><figcaption>bold italic e at 1.88 px/unit, every contour point marked &mdash; before (left), after (right). 194 points both; byte-identical</figcaption></figure>
+  </section>
+
+  <section><h2>5. The gate</h2>
+    <p><code>cmp_contour_hairs.py</code> is new and reads the contour&rsquo;s own point stream, before any raster &mdash; which is the half <code>cmp_aldine_glitch.py</code> cannot see. It fails on a reversal past 165 degrees, on a HAIR (a reversal past 150 whose shorter arm is under 8 units), and on a glyph whose sub-2-unit segments exceed a quarter of its contour. Coincident points are collapsed before any angle is taken: a zero-length segment has no direction, and a spike beside a duplicate point otherwise reads as 90 degrees or as nothing depending on which way the arithmetic falls.</p>
+    <div class="scroll"><table>
+      <tr><th>font</th><th>letters with findings, before</th><th>after</th><th>all 306 glyphs, before</th><th>after</th></tr>
+      <tr><td>bold italic 700</td><td class="bad">14</td><td class="ok">3</td><td>45</td><td class="ok">22</td></tr>
+      <tr><td>italic 400</td><td class="bad">19</td><td class="ok">12</td><td>67</td><td class="ok">50</td></tr>
+      <tr><td>extralight 200</td><td>13</td><td class="ok">9</td><td>59</td><td class="ok">50</td></tr>
+      <tr><td>regular 400</td><td>8</td><td class="ok">5</td><td>44</td><td class="ok">32</td></tr>
+      <tr><td>bold 700</td><td>3</td><td class="ok">1</td><td>24</td><td class="ok">15</td></tr>
+      <tr><td>black 900</td><td>4</td><td>4</td><td>36</td><td class="ok">27</td></tr>
+    </table></div>
+    <p>The roman DID move, and it moved because the same defect is provably in it: the Regular&rsquo;s <code>e</code> and <code>y</code> each carry an exact 180-degree reversal, and the ExtraLight&rsquo;s <code>m</code> three. Twelve welds land in the roman 400 and every one of them adds between 0.01% and 0.09% of its glyph&rsquo;s ink. No kern pair changed in any of the six fonts; the touch sweep, the counter dents and the figure spread are at their baselines, and the ExtraLight&rsquo;s glitch count fell from 21 findings to 18.</p>
+  </section>
+
+  <section><h2>6. At size, before and after</h2>
+    <figure><img src="large-bolditalic.png" alt="sense, bold italic, large"><figcaption>sense at 420 px em &mdash; before (top), after (bottom). Native pixels</figcaption></figure>
+    <figure><img src="large-italic.png" alt="issues, italic, large"><figcaption>issues at 420 px em &mdash; before (top), after (bottom). Native pixels</figcaption></figure>
+    <figure><img src="words-bolditalic.png" alt="bold italic words"><figcaption>these service sense before, bold italic at 108 px em &mdash; before (top), after (bottom). Native pixels</figcaption></figure>
+    <figure><img src="words-italic.png" alt="italic words"><figcaption>these service sense before, italic 400 at 108 px em &mdash; before (top), after (bottom). Native pixels</figcaption></figure>
+    <figure><img src="reading-bolditalic.png" alt="bold italic at reading size"><figcaption>the same words, bold italic at 13 px em, magnified x8 NEAREST &mdash; before (top), after (bottom)</figcaption></figure>
+    <figure><img src="reading-italic.png" alt="italic at reading size"><figcaption>the same words, italic 400 at 13 px em, magnified x8 NEAREST &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+</div>
