@@ -2011,6 +2011,48 @@ before and after.
 
 Proofs: `tools/wedge_serif/shape/weights294/`.
 
+## 36. Round 295 — the spikes the integer grid leaves
+
+Owner 2026-09-20, asked whether the new contour-hair gate should carry an
+exemption table or be driven to green: *"Chase them to zero first."* This
+round is the part of that which can be had for nothing, and an honest account
+of why the rest cannot.
+
+THE GRID MAKES MOST OF THEM. `build` writes each contour by ROUNDING a dense
+polyline to the em grid, and rounding points that are a fraction of a unit
+apart lands two on the same integer, or lands one a unit to the wrong side of
+its neighbours. That is a spike with 1-unit arms in a letter whose drawing is
+clean, and 33 findings across the six fonts had exactly that shape, very
+often an exact 180 degrees. `geom.despike` removes them at export, where they
+are made: duplicates first, then any vertex past 150 degrees whose shorter arm
+is under 6 units AND whose two neighbours lie within 2.5 units of each other
+— which is what "the contour doubled back" means. Cost, measured: the worst
+glyph in any of the six moves 0.02% of its area.
+
+WHAT COULD NOT BE HAD, with the numbers. A second rule was tried for the
+SHALLOW spurs that remain — a vertex sitting within a small distance of the
+chord between its neighbours, which is what the italic q's 3.6-unit spur on a
+373-unit edge is. Three cuts of it all failed the same way:
+
+- Bounding the INK a removal moves eats real corners at light weights. An
+  ExtraLight arrow's tip is a corner holding only a few square units, and
+  `arrowboth` lost 4.1% of itself. A corner is thin, not small.
+- Bounding the DEVIATION and iterating drifts. Each removal is within 1.8
+  units of its own local chord, but the chords move with it, so a long edge
+  walks a little further every pass; the arrows GAINED 4.1%, their concave
+  notches flattened.
+- One non-adjacent sweep at a fixed tolerance still cost `arrowright` 2.9%.
+
+So the shallow rule ships OFF (`ALBO_DESPIKE_DEV` 0) with its code and these
+measurements beside it. The remaining findings — 24 letters across the six
+fonts, down from 33 — are in the DRAWING, where two strokes meet at a shallow
+angle, and want per-letter work rather than a global simplifier. Chasing them
+with one is how 73 glyphs get damaged to help seven.
+
+Moved: 45 / 10 / 5 / 8 / 48 / 12 glyphs by at most 0.02% of their area, in
+the ExtraLight, Regular, Bold, Black, Italic and BoldItalic. No kern pair
+changed; glitch, touch and dent counts unmoved.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

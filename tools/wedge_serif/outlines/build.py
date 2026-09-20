@@ -531,7 +531,8 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
                 if fitted is not None:
                     CURVE_FALLBACKS[0] += fitted[2]; CURVE_FALLBACKS[1] += fitted[3]; fitted = fitted[:2]
                 if fitted is None:
-                    q = [(round(x + dx), round(y)) for x, y in pts]
+                    q = geom.despike([(round(x + dx), round(y)) for x, y in pts])   # round 295
+                    if len(q) < 3: continue
                     pen_.moveTo(q[0])
                     for p in q[1:]: pen_.lineTo(p)
                     pen_.closePath(); continue

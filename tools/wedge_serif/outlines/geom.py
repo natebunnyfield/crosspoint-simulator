@@ -332,6 +332,103 @@ def weld_slivers(pts, width=None, min_len=None, max_area=None, skip=None):
 WELDS = [0]        # how many cracks the last build spliced -- printed by build.py
 
 
+DESPIKE_ARM = float(os.environ.get("ALBO_DESPIKE_ARM", 6.0))    # the longest arm a spike may have, units
+DESPIKE_TURN = float(os.environ.get("ALBO_DESPIKE_TURN", 150.0))  # the turn that makes one, degrees
+DESPIKE_DEV = float(os.environ.get("ALBO_DESPIKE_DEV", 0.0))      # the shallow-spur pass, OFF by measurement -- see pass 2; 1.8 was the tolerance the letters wanted
+DESPIKE_CHORD = float(os.environ.get("ALBO_DESPIKE_CHORD", 2.5)) # or: the neighbours this close together mean the contour doubled back
+
+
+def despike(q, arm=None, turn=None, dev=None, chord_lim=None):
+    """ROUND 295 -- the spikes the INTEGER GRID leaves, removed at export.
+
+    Owner 2026-09-20, having ruled that the contour-hair gate is to go green
+    rather than carry an exemption table: *"Chase them to zero first."* The 33
+    findings across the six fonts share one shape -- a turn past 150 degrees
+    with one arm of a single unit or a few, very often an exact 180 -- and
+    they are not drawing faults. `build` writes each contour by ROUNDING a
+    dense polyline to the em grid, and rounding a run of points that are a
+    fraction of a unit apart lands two of them on the same integer, or lands
+    one a unit to the wrong side of its neighbours. That is a spike with
+    1-unit arms, in a letter whose drawing is clean.
+
+    So it is cured where it is made. Consecutive duplicates go first (a
+    zero-length segment has no direction, which is what made the earlier
+    detector report 9 reversals in the italic s that did not exist), then any
+    vertex whose turn exceeds `turn` with its shorter arm under `arm` -- but
+    only while the vertex sits within `dev` of the chord between its two
+    neighbours, which is what keeps a real corner.
+
+    THE TWO GUARDS ARE ALTERNATIVES, and getting them right took three cuts.
+
+    Bounding the DEVIATION alone lets through the pure spike, where a vertex's
+    two neighbours land on the SAME integer: the chord is then zero, the
+    deviation infinite, and the Regular e's 1-unit 180-degree spur survives.
+    So the second guard asks whether the contour has doubled back -- whether
+    the neighbours sit within `chord_lim` of each other -- which is what a
+    spike is.
+
+    Bounding the INK instead, which was the first cut, is what must NOT be
+    done, and the ExtraLight's arrows are why: at that weight an arrow's tip
+    is a real corner holding only a few square units, so an area guard eats
+    it. Measured, `arrowboth` lost 4.1% of itself under a 12-unit area bound
+    while the letters it was meant to help barely moved. A corner is thin, not
+    small.
+
+    A wedge tip fails both tests -- its neighbours are tens of units apart and
+    it stands tens of units off their chord -- and the Y's and P's designed
+    hairline gap is between two contours, which is not reachable from inside
+    one.
+    """
+    arm = DESPIKE_ARM if arm is None else arm
+    turn = DESPIKE_TURN if turn is None else turn
+    dev = DESPIKE_DEV if dev is None else dev
+    chord_lim = DESPIKE_CHORD if chord_lim is None else chord_lim
+    cos_lim = math.cos(math.radians(180.0 - turn))
+    pts = [p for i, p in enumerate(q) if p != q[i - 1]]      # duplicates, wrap included
+    if len(pts) < 4: return pts
+
+    def geom_at(seq, i):
+        a, b, c = seq[i - 1], seq[i], seq[(i + 1) % len(seq)]
+        ax, ay = a[0] - b[0], a[1] - b[1]
+        cx, cy = c[0] - b[0], c[1] - b[1]
+        la = math.hypot(ax, ay); lc = math.hypot(cx, cy)
+        if la < 1e-9 or lc < 1e-9: return None
+        if min(la, lc) > arm: return None
+        if (ax * cx + ay * cy) / (la * lc) < cos_lim: return None
+        return abs(ax * cy - ay * cx), math.hypot(a[0] - c[0], a[1] - c[1])
+
+    # PASS 1 -- the pure spikes, iterated. The contour has doubled back on
+    # itself, so removing one can expose the next, and none of this moves the
+    # drawing: the two neighbours are within `chord_lim` of each other.
+    changed = True
+    while changed and len(pts) > 3:
+        changed = False
+        for i in range(len(pts)):
+            g = geom_at(pts, i)
+            if g is None: continue
+            if g[1] > chord_lim: continue
+            del pts[i]; changed = True; break
+
+    # PASS 2 -- the shallow spurs, ONE sweep and never two in a row.
+    # ITERATING THIS IS THE TRAP: each removal is within `dev` of its own
+    # local chord, but the chords move with it, so a long edge drifts a little
+    # further every pass. Measured, that is what ate the ExtraLight's arrows
+    # -- `arrowboth` GAINED 4.1% of its area, its concave notches flattened
+    # out, while the guard looked innocent at 1.8 units a step. One sweep over
+    # fixed geometry, skipping the neighbour of anything removed, cannot drift.
+    if len(pts) > 3:
+        drop = set(); i = 0
+        while i < len(pts):
+            g = geom_at(pts, i)
+            if g is not None and g[1] > 1e-9 and g[0] / g[1] <= dev:
+                drop.add(i); i += 2           # never the vertex next door
+            else:
+                i += 1
+        if drop and len(pts) - len(drop) >= 3:
+            pts = [p for i, p in enumerate(pts) if i not in drop]
+    return pts
+
+
 def contours(g, min_area=40.0, weld=True):
     """[(points, is_hole)] with exteriors wound CCW (positive area) and holes
     CW -- the nonzero winding TrueType wants. Tiny slivers are dropped, and
