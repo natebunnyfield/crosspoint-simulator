@@ -583,7 +583,7 @@ def _w(c):
     return c["wf"]
 
 
-def st(x, y0, y1, head=False, foot=True, w=1.0, foot_len=None, foot_w=None):
+def st(x, y0, y1, head=False, foot=True, w=1.0, foot_len=None, foot_w=None, head_w=None):
     """A stem. `head` puts the Aldine angled head across its top; `foot` the
     blunt outstroke to the right at the baseline. `foot_len` overrides the
     outstroke's length (x the stem) for a letter whose exit runs longer."""
@@ -598,7 +598,8 @@ def st(x, y0, y1, head=False, foot=True, w=1.0, foot_len=None, foot_w=None):
         # that corner. The head's angle, weight and left reach (round 84's
         # size ruling) are untouched; only the 0.36 L that ran past the stem
         # is gone.
-        a = math.radians(HEAD_DEG); L = S * HEAD_LEN; hw = S * HEAD_W / 2
+        _hwd = HEAD_W if head_w is None else head_w
+        a = math.radians(HEAD_DEG); L = S * HEAD_LEN; hw = S * _hwd / 2
         d = (math.cos(a), math.sin(a)); n = (-d[1], d[0])
         p0 = (x - d[0] * L * 0.74, y1 - d[1] * L * 0.74 - S * 0.06)
         xr = x + S * w / 2
@@ -609,7 +610,7 @@ def st(x, y0, y1, head=False, foot=True, w=1.0, foot_len=None, foot_w=None):
         ytr = p1[1] + n[1] * hw            # the face's corner on the stem's right edge
         drop = math.tan(math.radians(HEAD_DEG)) * S * w / 2
         parts = [stroke([(x, y0), (x, ytr - drop)], S * w, cut1=math.radians(HEAD_DEG)),
-                 stroke([p0, p1], S * HEAD_W, cut0=CUT)]
+                 stroke([p0, p1], S * _hwd, cut0=CUT)]
     else:
         parts = [stroke([(x, y0), (x, y1)], S * w)]
     if head and not HEAD_FOLLOW:
@@ -6458,6 +6459,34 @@ if ON:
     # DOWN by this fraction of the x-height each, above stem 84 only, so the
     # 400 is untouched and the two strokes leave the stem further apart.
     K_SPREAD = float(os.environ.get("ALBO_ALD_K_SPREAD", 0.0)) if pen.S > 84.0 else 0.0
+    # ...and the owner ruled which white he meant: *"spacing under kick do not
+    # split up two branches"* -- the air goes UNDER THE KICK, and the arm and
+    # leg stay where they are. That wedge is the white between the stem's own
+    # foot outstroke and the descending leg. Measured: 14,396 square units at
+    # the Italic 400 with a widest disc of 83.5, against 8,415 and 55.5 at the
+    # BoldItalic, whose apex also sits 35 units lower -- the wedge is squeezed
+    # shut from above by a foot that reaches as far as ever while the leg
+    # beside it thickens. The k is not in HM_EXIT_BY, so it takes the longest
+    # exit in the alphabet, the n's. K_FOOT shortens the k's OWN foot
+    # outstroke, x the stem, above stem 84 only; it touches neither branch.
+    # RULED, owner 2026-09-20: *"d for bolditalic k kick"* -- 0.40, which puts
+    # the k's foot at 0.32 of the stem against FOOT_LEN's 0.80 and brings the
+    # wedge's widest disc to 81.5 units against the Italic 400's 83.5. The
+    # wedge's total AREA stays smaller (10,317 against 14,396) because the leg
+    # beside it is genuinely thicker at this weight; the disc is the measure
+    # that tracks what the eye reads as air.
+    K_FOOT = float(os.environ.get("ALBO_ALD_K_FOOT", 0.40)) if pen.S > 84.0 else 0.0
+    # ROUND 293 -- AND THE HEAD, which he asked for in the same breath:
+    # *"thicken top serif and whatever else balances letter."* Measured on the
+    # BoldItalic, the k's head is the LIGHTEST of the ascenders -- 11,208
+    # units of ink against b 12,546, d 12,628, h 12,731 and l 12,738, and
+    # 77.6 thick at its middle against their 85 to 95 -- on the one letter
+    # carrying an arm and a leg to its right, so the top reads starved while
+    # the bottom right is crowded. K_HEAD_W multiplies the head's weight for
+    # the k alone. The same imbalance is in the Italic 400 (head ink 6,309
+    # against l's 7,739) and is NOT touched here: the 400 is shipped and this
+    # was asked of the BoldItalic.
+    K_HEAD_W = float(os.environ.get("ALBO_ALD_K_HEAD_W", 0.0)) if pen.S > 84.0 else 0.0
     # 2026-09-18 -- THE k's HEAD COMES DOWN ONTO THE ASCENDER LINE. The k's ink
     # topped at 806 where d 771, h 774 and l 774: +32 over the line, 7% of the
     # x-height, and the tallest thing in the lowercase. The cause is not the
@@ -6519,7 +6548,9 @@ if ON:
                     [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
                      (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
         return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"] * K_ASC, head=True,
-                            w=K_STEM_W) + [arm, leg])
+                            w=K_STEM_W,
+                            foot_len=(FOOT_LEN * K_FOOT) if K_FOOT else None,
+                            head_w=(HEAD_W * K_HEAD_W) if K_HEAD_W else None) + [arm, leg])
 
 
     # ------------------------------------------------------------------ CAPS

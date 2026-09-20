@@ -1938,6 +1938,38 @@ heavy weights (`ALBO_ALD_K_SPREAD`, default 0). Neither changes a glyph.
 
 Proofs: `tools/wedge_serif/shape/weights292/`.
 
+## 34. Round 293 — the BoldItalic k, the white under its kick
+
+Owner 2026-09-20: *"BoldItalic 700 k needs spacing inside"*, then, when the
+first cut opened the wrong white, *"spacing under kick do not split up two
+branches."* The second message is the ruling: the air goes UNDER THE KICK and
+the arm and the leg stay where they are.
+
+WHICH WHITE, and the measurement. The wedge between the stem's own foot
+outstroke and the descending leg reads 8,415 square units at the BoldItalic
+against the Italic 400's 14,396, with a widest inscribed disc of 55.5 against
+83.5, and its apex sits 35 units lower — it is squeezed shut from ABOVE by a
+foot that reaches as far as it ever did while the leg beside it thickens with
+the weight. The k is not in `HM_EXIT_BY`, so it takes the longest outstroke
+in the alphabet, the n's.
+
+`K_FOOT` shortens the k's OWN foot (a new `head_w`/`foot_len` pair on `st`
+carries it), above stem 84 only, touching neither branch. Laddered at
+0.80 / 0.56 / 0.44 / 0.32 of the stem and RULED at *"d"* — 0.32, which brings
+the widest disc to 81.5 against the 400's 83.5. The wedge's total area stays
+smaller at 10,317 because the leg beside it is genuinely thicker; the disc is
+the measure that tracks what the eye reads as air, and the area is not.
+
+TRIED AND DROPPED on his ruling: `K_SPREAD`, which pushed the arm's start up
+and the leg's down to open the pocket where the two branches leave the stem.
+It works (that pocket goes 30,592 → 34,099 at 0.12) and it is the wrong
+white. The dial is left in the file at 0, with his words beside it.
+
+Moved: the k and its two composites in the BoldItalic alone. Every other
+weight byte-identical; glitch, touch and dent counts unchanged.
+
+Proofs: `tools/wedge_serif/shape/weights293/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

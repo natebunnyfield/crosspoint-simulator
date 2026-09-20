@@ -305,6 +305,14 @@ terminal did not, and the floor between them ran out of room to rise (headroom
 arc with its outgoing handle eased 1.6x. The 400s, the 200 and both italics
 are byte-identical.
 
+**Ruling 2026-09-20 (owner): the BoldItalic k's air goes UNDER THE KICK**
+("spacing under kick do not split up two branches", then "d" on a four-rung
+ladder) -- `ALBO_ALD_K_FOOT` 0.40 shortens the k's own foot outstroke to 0.32
+of the stem above stem 84, opening the wedge between that foot and the leg
+from a widest disc of 55.5 to 81.5 against the Italic 400's 83.5. The arm, the
+leg and their junction are untouched: `K_SPREAD`, which separated the two
+branches, was tried and ruled out.
+
 **Ruling 2026-09-20 (owner): the italic g is thinned to its family's COLOR**
 ("italic 400 g needs to be thinned out", then "e wins" on a five-rung
 ladder) -- `ALBO_ALD_G_WALL` 0.82 scales both of the g's ring width tables in
