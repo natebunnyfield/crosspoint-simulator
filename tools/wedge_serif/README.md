@@ -305,6 +305,13 @@ terminal did not, and the floor between them ran out of room to rise (headroom
 arc with its outgoing handle eased 1.6x. The 400s, the 200 and both italics
 are byte-identical.
 
+**Ruling 2026-09-20 (owner): the BoldItalic k's MID SERIF is thickened**
+("not top serif, the mid serif", then "b wins") -- `ALBO_ALD_K_ARM_END` 1.25
+on the arm's terminal above stem 84. It had been 26.4 units thick against the
+c's reference finial at 38.8, and thinner in absolute units than the Italic
+400's, because the arm's widths are declared in units that do not follow the
+pen. The k's HEAD is a separate, unruled matter: `K_HEAD_W` stays at 0.
+
 **Ruling 2026-09-20 (owner): the BoldItalic k's air goes UNDER THE KICK**
 ("spacing under kick do not split up two branches", then "d" on a four-rung
 ladder) -- `ALBO_ALD_K_FOOT` 0.40 shortens the k's own foot outstroke to 0.32

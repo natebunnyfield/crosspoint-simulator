@@ -1970,6 +1970,47 @@ weight byte-identical; glitch, touch and dent counts unchanged.
 
 Proofs: `tools/wedge_serif/shape/weights293/`.
 
+## 35. Round 294 — the BoldItalic k's mid serif
+
+Owner 2026-09-20: *"thicken top serif and whatever else balances letter"*,
+then the correction that decides the round — *"not top serif, the mid
+serif."* On this letter the mid serif is the ARM's terminal, the finial at
+x-height on the right.
+
+MEASURED against the c's top end, which is the family's reference finial and
+the very shape round 276 built this one from: the k's arm reads 30.1 units
+thick at the Italic 400 against the c's 30.9 — a match — and 26.4 against
+38.8 at the BoldItalic. A third thinner, and thinner in ABSOLUTE units than
+the 400's, so it got lighter as the letter got heavier. The cause is that the
+arm's width table is declared in design units that do not follow the pen,
+while the c's finial floor does.
+
+`K_ARM_END` multiplies the arm's final width above stem 84 (and half as much
+at the 0.70 key before it, so the taper does not step). Laddered at
+1.00 / 1.25 / 1.50 / 1.75 and RULED at *"b"* — 1.25.
+
+JUDGED ON THE RENDER, and that is a method note worth keeping: thickening
+this end also LENGTHENS the arm, because the family's finial swells before
+its face, so the reach runs 502 to 519 units across the ladder. Every attempt
+to measure the terminal in isolation was confounded by the face's angle
+moving with the tip — a fixed x-slab at the tip reported the terminal getting
+THINNER as it was thickened, and an ink-in-a-disc measure put the c's own
+terminal lighter at the Bold than at the Regular, which is impossible. The
+numbers above are the honest ones; the choice was the eye's.
+
+NOT RULED, and left off: `K_HEAD_W`, the k's head weight, built on the first
+reading of "top serif". The measurement behind it stands — the k's head is
+the lightest of the bold italic's ascenders, 11,208 units of ink against
+b 12,546, d 12,628, h 12,731, l 12,738 — and thickening an angled head also
+raises its top, on a letter already standing 17 units above h and l, so any
+future cut has to pair the two. Nobody has asked for it.
+
+Moved: the k and its one composite in the BoldItalic alone. Every other
+weight byte-identical; glitch, touch and contour-hair findings identical
+before and after.
+
+Proofs: `tools/wedge_serif/shape/weights294/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

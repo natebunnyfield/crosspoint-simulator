@@ -6487,6 +6487,22 @@ if ON:
     # against l's 7,739) and is NOT touched here: the 400 is shipped and this
     # was asked of the BoldItalic.
     K_HEAD_W = float(os.environ.get("ALBO_ALD_K_HEAD_W", 0.0)) if pen.S > 84.0 else 0.0
+    # ROUND 294 -- THE MID SERIF, which is what he meant: *"not top serif, the
+    # mid serif."* On this letter that is the ARM's terminal, the finial at
+    # x-height on the right. Measured against the c's top end, which is the
+    # family's reference finial and what round 276 built this one from: at the
+    # Italic 400 the arm's tip is 30.1 thick against the c's 30.9, a match; at
+    # the BoldItalic it is 26.4 against 38.8 -- a THIRD thinner, and thinner in
+    # absolute units than the 400's, because the arm's width table is declared
+    # in design units that do not follow the pen while the c's finial floor
+    # does. K_ARM_END multiplies the arm's final width above stem 84.
+    # RULED, owner 2026-09-20: *"b wins"* -- 1.25. Laddered at 1.00 / 1.25 /
+    # 1.50 / 1.75 and judged on the render rather than on a number, because
+    # thickening this end also lengthens the arm (the family's finial swells
+    # before its face, so the reach runs 502 to 519 units across the ladder)
+    # and every attempt to measure the terminal in isolation was confounded by
+    # the face's angle moving with it.
+    K_ARM_END = float(os.environ.get("ALBO_ALD_K_ARM_END", 1.25)) if pen.S > 84.0 else 1.0
     # 2026-09-18 -- THE k's HEAD COMES DOWN ONTO THE ASCENDER LINE. The k's ink
     # topped at 806 where d 771, h 774 and l 774: +32 over the line, 7% of the
     # x-height, and the tallest thing in the lowercase. The cause is not the
@@ -6529,8 +6545,8 @@ if ON:
         # tapers to 22 and is not a ball; it stays.
         arm = d_pen([P(150, J + 0.02 + K_SPREAD), P(196, 0.60 + K_SPREAD * 0.55), P(238, 0.70), P(270, 0.79),
                      P(286, 0.885), P(292, 0.955)],
-                    [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 44),
-                     (1.00, 48)], u, tw=K_TW, fin1=True)
+                    [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 44 * (1.0 + (K_ARM_END - 1.0) * 0.5)),
+                     (1.00, 48 * K_ARM_END)], u, tw=K_TW, fin1=True)
         # ROUND 189 -- THE KICK GOES BELOW THE BASELINE. Owner 2026-09-17:
         # *"bring k kick down below baseline."* It ended at +0.115 of the
         # x-height, curling back UP above the line, which is a foot rather than
