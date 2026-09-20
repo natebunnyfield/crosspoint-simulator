@@ -305,6 +305,15 @@ terminal did not, and the floor between them ran out of room to rise (headroom
 arc with its outgoing handle eased 1.6x. The 400s, the 200 and both italics
 are byte-identical.
 
+**Ruling 2026-09-20 (owner): the TestFlight refresh WAITS for the italic
+cleanup.** The refresh itself was ruled on 2026-09-19 ("refresh through
+validation") and has been held twice while the drawing moved; asked whether to
+ship the round-290 fonts now or wait, the owner chose to wait, so the build
+carries the s, the re-spacing, the e and round 291's italic cleanup together.
+One deploy, one contact sheet, and the standing question about the 400's
+paleness is asked on THAT raster rather than on a page. Do not ship a refresh
+before round 291 lands.
+
 **Ruling 2026-09-19 (owner), rounds 285-286, on the s:** on a page of five
 flow options, *"b wins, but the space on the top loop needs to be reduced and
 the bottom space needs to increase"*, then *"plus .01 wins"*. The shipped
