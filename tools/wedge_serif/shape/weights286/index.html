@@ -1,0 +1,65 @@
+<title>Albo s Option B Shipped</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo s Option B Shipped</h1>
+    <p class="lede">Round 286. <em>"b wins, but the space on the top loop needs to be reduced and the bottom space needs to increase"</em>, then on the ladder <em>"plus .01 wins."</em> Option b draws the upper bowl in toward the letter&rsquo;s axis so the lower bowl is the wider of the two, and trims the top terminal. The amendment rides the waist 0.01 of the x-height higher, which shrinks the top space and grows the bottom in one move. Measured on the convex hull minus the ink, the two spaces go from 0.994 before round 285 to 0.896. The italic already carried that proportion (0.739 at the 400), so its spine is untouched; what changed there is its top terminal, which now has a stated ratio of its own instead of inheriting the roman option&rsquo;s. Before (round 284) then after, native pixels.</p>
+  </header>
+  <section><h2>The five options, for the record</h2>
+    <figure><img src="options.png" alt="the five options"><figcaption>a b c d e &mdash; b ships, with the waist raised 0.01 on top of what is drawn here; 0.43 px per unit</figcaption></figure>
+  </section>
+  <section><h2>Measured (the Regular, design units)</h2>
+    <div class="scroll"><table>
+      <tr><th>measure</th><th>before 285</th><th>option b</th><th>b, waist +0.01</th></tr>
+      <tr><td>top space</td><td>33717</td><td>31849</td><td class="ok">30990</td></tr>
+      <tr><td>bottom space</td><td>33923</td><td>33494</td><td class="ok">34571</td></tr>
+      <tr><td>top / bottom</td><td>0.994</td><td>0.951</td><td class="ok">0.896</td></tr>
+      <tr><td>lower bowl / upper</td><td>0.994</td><td>1.039</td><td class="ok">1.04</td></tr>
+      <tr><td>top terminal</td><td>69</td><td>63</td><td class="ok">63</td></tr>
+      <tr><td>s right / left white (em)</td><td>0.103 / 0.111</td><td>&mdash;</td><td class="ok">0.100 / 0.108</td></tr>
+    </table></div>
+    <p>The lowercase median is 0.108 em, so round 284&rsquo;s spacing still holds with no bearing change. Gates at baseline in all six fonts: only the s and its composites moved, no kern pair changed, glitch and touch counts unchanged, no dents.</p>
+    <figure><img src="terminals.png" alt="the s at three weights"><figcaption>the s as it now stands &mdash; roman 400, italic 400, roman 900, 0.76 px/unit</figcaption></figure>
+  </section>
+  <section><h2>Roman 400</h2>
+    <figure><img src="roman-400-runs.png" alt="roman 400 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="roman-400-vec.png" alt="roman 400 assess"><figcaption>assess at 0.34 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Italic 400</h2>
+    <figure><img src="italic-400-runs.png" alt="italic 400 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="italic-400-vec.png" alt="italic 400 assess"><figcaption>assess at 0.34 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Roman 700</h2>
+    <figure><img src="roman-700-runs.png" alt="roman 700 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="roman-700-vec.png" alt="roman 700 assess"><figcaption>assess at 0.34 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Bold Italic 700</h2>
+    <figure><img src="bold-italic-700-runs.png" alt="bold italic runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="bold-italic-700-vec.png" alt="bold italic assess"><figcaption>assess at 0.34 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Roman 900</h2>
+    <figure><img src="roman-900-runs.png" alt="roman 900 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="roman-900-vec.png" alt="roman 900 assess"><figcaption>assess at 0.34 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Roman 200</h2>
+    <figure><img src="roman-200-runs.png" alt="roman 200 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="roman-200-vec.png" alt="roman 200 assess"><figcaption>assess at 0.34 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+</div>

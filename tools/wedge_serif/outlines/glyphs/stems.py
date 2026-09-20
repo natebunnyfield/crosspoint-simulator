@@ -482,14 +482,41 @@ def g_a(c):
     solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=6)
     return geom.ink([st, hd, solid])
 
-S_HEAD_X = float(os.environ.get("ALBO_ROM_S_HEAD_X", 0.93))   # round 283: the head's reach, x the s's width -- 0.93 as drawn (owner, on the ladder: ".93/.82 wins"; round 282's per-weight reach is gone)
+# ROUND 285 -- THE s's FLOW AND THE SIZE OF ITS TOP, AS OPTIONS. Owner
+# 2026-09-19: *"give me more options with an improved flow and smaller top."*
+# Read off the drawing as it stands (option a): the two bowls are the SAME
+# width (lower/upper 0.994, where a humanist s carries the lower wider), and
+# the spine has a second inflection at t 0.03, right at the head, where the
+# curve reverses for a thirtieth of its length before it turns the right way.
+# Each option moves some of: `up` (how far the UPPER bowl reaches toward the
+# letter's axis, 1.00 as drawn), the head's start, the arch's overshoot, the
+# spine's tension, the two mid points, and S_FOOT_RATIO (the foot's end ink
+# over the head's, which is what trims the top terminal).
+S_OPTS = {
+    'a': {},                                                                                     # the drawing before round 285
+    'b': dict(up=0.88, ratio=1.30, waist=0.01),                                                  # SHIPPED, round 286: the owner's pick plus his amendment ("plus .01 wins")
+    'c': dict(up=0.80, head=(0.90, 0.85), over=0.75, ratio=1.30),
+    'd': dict(up=0.80, head=(0.88, 0.86), over=0.60, tens=0.62, ratio=1.30),
+    'e': dict(up=0.74, head=(0.88, 0.87), over=0.55, tens=0.62, ratio=1.45, mid=(0.74, 0.80), midy=(0.44, 0.17)),
+}
+S_OPT = os.environ.get("ALBO_ROM_S_OPT", "b")   # round 286: b ships (owner: "b wins")
+if S_OPT not in S_OPTS: S_OPT = "a"
+_SO = S_OPTS[S_OPT]
+S_UP    = float(os.environ.get("ALBO_ROM_S_UP",   _SO.get('up', 1.00)))
+S_OVER  = float(os.environ.get("ALBO_ROM_S_OVER", _SO.get('over', 0.90)))
+S_TENS  = float(os.environ.get("ALBO_ROM_S_TENS", _SO.get('tens', 0.55)))
+S_MID   = _SO.get('mid', (0.78, 0.82))
+S_MIDY  = _SO.get('midy', (0.42, 0.16))
+S_WAIST = float(os.environ.get("ALBO_ROM_S_WAIST", _SO.get('waist', 0.0)))   # round 286: the waist raised by this x the x-height -- it shrinks the TOP space and grows the BOTTOM together
+S_HEAD_X = float(os.environ.get("ALBO_ROM_S_HEAD_X", _SO.get("head", (0.93, 0.82))[0]))   # round 283: the head's reach, x the s's width -- 0.93 as drawn (owner, on the ladder: ".93/.82 wins"; round 282's per-weight reach is gone)
 S_FOOT_X = float(os.environ.get("ALBO_ROM_S_FOOT_X", 0.11))   # round 283: the foot's reach, the head's mirrored about the apexes (0.42 - (0.93 - 0.62)); 0.06 before
-S_FOOT_RATIO = float(os.environ.get("ALBO_S_FOOT_RATIO", 1.12))   # round 284: the foot's end ink, x the head's -- "the bottom needs to be slightly bigger than the top"; both styles solve to this
+S_FOOT_RATIO = float(os.environ.get("ALBO_S_FOOT_RATIO", _SO.get("ratio", 1.12)))   # round 284: the foot's end ink, x the head's -- "the bottom needs to be slightly bigger than the top"; both styles solve to this
 S_HEAD_END = float(os.environ.get("ALBO_S_HEAD_END", 0.0))        # override: the head's end width x the foot's, fixed; 0 = solve for S_FOOT_RATIO
+S_FOOT_RATIO_IT = float(os.environ.get("ALBO_S_FOOT_RATIO_IT", 1.30))   # round 286: the italic's own foot/head end ink. It rode the roman's option field until this line, so picking a roman option silently re-cut the italic's top; 1.30 is the value the owner's pick carries and it is stated here rather than inherited.
 S_SMOOTH = float(os.environ.get("ALBO_ROM_S_SMOOTH", 0.6))   # round 283: the deburr -- the pen widths averaged over +/- this x the stem of path, above stem 84 (89 units at the 900); 0.35 leaves the nubs
 S_HEAD_SPAN = float(os.environ.get("ALBO_S_HEAD_SPAN", PR.FINIAL_SPAN))   # round 284 ladder: the head's taper runs over this fraction of the path (the c's 0.13)
 S_FOOT_SWELL = float(os.environ.get("ALBO_S_FOOT_SWELL", PR.FINIAL_SWELL))  # round 284 ladder: the foot's swell into its face (the c's 1.10)
-S_HEAD_Y = float(os.environ.get("ALBO_ROM_S_HEAD_Y", 0.82))   # round 282: the head's height, x the x-height (0.80 before)
+S_HEAD_Y = float(os.environ.get("ALBO_ROM_S_HEAD_Y", _SO.get("head", (0.93, 0.82))[1]))   # round 282: the head's height, x the x-height (0.80 before)
 @glyph('s')
 def g_s(c):
     """One smooth spine on the pen's own widths (round 51's s: no spine
@@ -505,6 +532,18 @@ def g_s(c):
     (PR.finial_widths / PR.finial_cut, the head held to rounds.c_top_width()
     -- 60.8 at the 400, the c's own), the head's start raised 0.80 -> 0.82
     xh so its face tops out where the c's does (397 against 397).
+
+    ROUND 285/286 -- THE FLOW, AND THE TWO SPACES. Owner 2026-09-19, on a
+    page of five: *"b wins, but the space on the top loop needs to be reduced
+    and the bottom space needs to increase."* Option b draws the UPPER bowl
+    in toward the letter's axis (`S_UP` 0.88) so the lower bowl is the wider
+    of the two -- the drawing before it had them equal at 0.994, which is
+    what read stiff -- and trims the top terminal (S_FOOT_RATIO 1.30). His
+    amendment is `S_WAIST`: the waist rides higher, which shrinks the top
+    space and grows the bottom in one move, measured on the convex hull
+    minus the ink. Laddered at +0.01 / +0.02 / +0.04 / +0.06 of the
+    x-height, and his: *"plus .01 wins"* -- top over bottom 0.951 -> 0.90.
+    The other options stay in S_OPTS as the record.
 
     ROUND 283 -- THE HEAD AS DRAWN, THE FOOT ITS EQUAL, AND NO BURRS. Owner,
     on a ladder of head starts: *".93/.82 wins"* -- the reach stays at 0.93
@@ -533,9 +572,12 @@ def g_s(c):
     (`_smooth_widths`, before the finials) -- 0.35 leaves the nubs, 0.6
     clears both; the 400 and the 200 keep the pen's own widths."""
     xh = c["xh"]; wf = c["wf"]; w = 370 * wf; o = OVER - TH_H / 2
-    pts = [(w * S_HEAD_X, xh * S_HEAD_Y), (w * 0.62, xh + o * 0.9), (w * 0.20, xh * 0.86), (w * 0.22, xh * 0.60),
-           (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * S_FOOT_X, xh * 0.19)]
-    spine = catmull(pts, tension=0.55)
+    _ax = w * 0.50   # round 285: the upper bowl's two points reach toward this axis by S_UP
+    _wq = S_WAIST * 0.35   # round 286: the two points either side of the waist move a third as far
+    pts = [(w * S_HEAD_X, xh * S_HEAD_Y), (w * 0.62, xh + o * S_OVER),
+           (_ax + (w * 0.20 - _ax) * S_UP, xh * (0.86 + _wq)), (_ax + (w * 0.22 - _ax) * S_UP, xh * (0.60 + S_WAIST)),
+           (w * S_MID[0], xh * (S_MIDY[0] + S_WAIST)), (w * S_MID[1], xh * (S_MIDY[1] + _wq)), (w * 0.42, -o * 0.9), (w * S_FOOT_X, xh * 0.19)]
+    spine = catmull(pts, tension=S_TENS)
     if PR.BOWL and PR.BOWL.get('widen'):
         prof = widen_terminal(widen_terminal(None, True), False)
         return geom.ink([stroke(spine, pen_widths(spine, prof), cut0=CUT, cut1=CUT)])

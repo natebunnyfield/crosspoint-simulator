@@ -4487,13 +4487,13 @@ if ON:
         # top"): the foot keeps the finial held to `fin_floor`; the head
         # tapers into its face by whatever `stems.s_head_end` has to take
         # off to leave the foot's end ink 1.12 x the head's. Both weights.
-        from .stems import S_HEAD_SPAN, S_FOOT_SWELL, s_head_end
+        from .stems import S_HEAD_SPAN, S_FOOT_SWELL, s_head_end, S_FOOT_RATIO_IT
         foot = PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], False, floor=fl, swell=S_FOOT_SWELL)
         _c0, _c1 = PR.finial_cut(q, True), PR.finial_cut(q, False)
         def _mk(he):
             _wf = PR.finial_widths(foot, True, floor=0.0, swell=he * foot(1.0) / foot(0.0), span=S_HEAD_SPAN)
             return stroke(q, _wf, cut0=_c0, cut1=_c1, raw=True), q[0], q[-1], _wf(0.0), _wf(1.0)
-        parts = [_mk(s_head_end(_mk))[0]]
+        parts = [_mk(s_head_end(_mk, target=S_FOOT_RATIO_IT))[0]]
         return geom.close_corners(geom.ink(parts), S_BLEND * u)
 
     # ------------------------------------------------------------ THE g, round 132

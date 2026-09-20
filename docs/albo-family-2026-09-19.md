@@ -1476,6 +1476,38 @@ five composites moved, no kern pair changed.
 
 Proofs: `tools/wedge_serif/shape/weights284/`.
 
+## 28. Rounds 285 and 286 — the s's flow, and its two spaces
+
+Owner 2026-09-19: *"give me more options with an improved flow and smaller
+top."* Read off the drawing, the two bowls were the SAME width (lower over
+upper 0.994) where a humanist s carries the lower wider, and that equality
+is what made the letter read stiff. Five options went out
+(`stems.S_OPTS`, `ALBO_ROM_S_OPT`, a = the drawing as it stood, byte-identical):
+b draws the upper bowl in toward the letter's axis (`S_UP` 0.88) and trims
+the top terminal (`S_FOOT_RATIO` 1.30); c, d and e go further on both, e also
+moving the mid points.
+
+**Ruled: b, with an amendment.** *"b wins, but the space on the top loop
+needs to be reduced and the bottom space needs to increase"*, then on the
+ladder of waist heights *"plus .01 wins."* `S_WAIST` rides the waist 0.01 of
+the x-height higher, which shrinks the top space and grows the bottom in one
+move — measured on the convex hull minus the ink, top over bottom 0.994
+(before 285) → 0.951 (b) → 0.896 (shipped). Round 284's spacing holds with
+no bearing change (0.100 / 0.108 em against the lowercase median of 0.108).
+
+One thing that could NOT be had: the spine carries a second inflection at a
+thirtieth of its length, at the head. Every head placement that removed it
+stood the terminal's face up past the arch as a notch, so it stays, and the
+flow gain is the bowl balance rather than the inflection count.
+
+The ITALIC's spine is untouched: it already carried the proportion the
+amendment asks for (top over bottom 0.739 at the 400, 0.765 at the 700).
+What did change there is its top terminal — it had been reading the roman
+option's `ratio` field, so picking a roman option silently re-cut the italic;
+`S_FOOT_RATIO_IT` states it (1.30) instead.
+
+Proofs: `tools/wedge_serif/shape/weights286/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

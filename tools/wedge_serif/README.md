@@ -295,6 +295,16 @@ both sides on the lowercase median -- and the head's size is SOLVED per weight
 (`stems.s_head_end`) for a foot/head end ink of 1.12 rather than declared as a
 flat multiplier.
 
+**Ruling 2026-09-19 (owner), rounds 285-286, on the s:** on a page of five
+flow options, *"b wins, but the space on the top loop needs to be reduced and
+the bottom space needs to increase"*, then *"plus .01 wins"*. The shipped
+drawing is `stems.S_OPTS['b']` -- the upper bowl drawn in toward the letter's
+axis so the lower bowl is the wider of the two, the top terminal trimmed --
+with `S_WAIST` 0.01 raising the waist, which shrinks the top space and grows
+the bottom together (top over bottom 0.994 -> 0.896). The other four options
+stay in the table as the record. The italic's spine is NOT changed: it
+already carries that proportion.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
