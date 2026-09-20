@@ -1569,13 +1569,13 @@ the ExtraLight, the Regular, the Italic and the Bold Italic are byte-identical
 THE INSTRUMENT FIRST, because the one this project already has cannot see
 either fault. `albo_bumps.py` returned nothing on the roman `e` at the 900,
 before or after — 202 circles on the sheet either way, none of them on this
-letter. That is correct behaviour, not a miss: after its 2026-09-18
+letter. That is correct behavior, not a miss: after its 2026-09-18
 recalibration it looks for NOTCHES and SPURS, features of the ink at the pen's
 scale, and it was deliberately moved off exactly the edge-waviness detectors
 that the owner had called a complete miss. A wave in an edge is not a notch.
 So two measures were written for this round (`efinal.py`, in the round's
 scratch): the deepest REVERSAL on the outer contour (a turn over 150 degrees,
-with its depth from the chord of its neighbours) and the lower counter's
+with its depth from the chord of its neighbors) and the lower counter's
 FLOOR read left to right as y(x), counted by turning points. A floor that is
 one curve falls to the bowl's low point and rises to the tip: one turning
 point. Every extra one is a wave.
@@ -1634,10 +1634,10 @@ corner.
 
 THE WEIGHT, measured before it was moved. Against its own CONSTRUCTION family
 at the 900 — the rounds, o c a b d g p q s, and NOT the case group, which
-flags the alphabet rather than the drawing — the `e`'s colour is 0.418 against
+flags the alphabet rather than the drawing — the `e`'s color is 0.418 against
 the family's median 0.457, −8.5%, and on `cmp_weight_survey.py`'s chamfer-ridge
 stroke median it is 72.3 against 103.5, −30%, the LIGHTEST of the family. Only
-the `c` is lighter on colour, and the `c` is legitimately lighter for being an
+the `c` is lighter on color, and the `c` is legitimately lighter for being an
 open letter. So heavier is a CORRECTION, not a departure. (For the record, the
 case-grouped survey reads the `e` at −48% of the lowercase median; that is the
 grouping CLAUDE.md warns about, and it is not the number this round acted on.)
