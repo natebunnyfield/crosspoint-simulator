@@ -6014,6 +6014,45 @@ if ON:
     # out on shape.
     DIAG_ENTRY_Y = d_dial("DIAG_ENTRY_Y", 0.755)
 
+    # ROUND 298 -- THE ENTRY IS A TABLE, AND IT IS VARIED ON PURPOSE. Owner
+    # 2026-09-20, on the round-297 measurement: *"vary the entry to slightly
+    # improve legibility within common english words"*. So the fix is NOT to
+    # put the five diagonals on the alphabet's one line and stop: a line every
+    # letter shares is a difference the reader does not get
+    # (`docs/albo-imperfections.md`). The lift closes the fourteenth of an
+    # x-height these five hang below the alphabet; the TABLE then separates
+    # them again by a cutter's amount.
+    #
+    # It is a TABLE and never a jitter -- the doctrine's first rule -- and the
+    # deltas are in REFERENCE units at A_UNIT 429, inside the 2-7 unit band the
+    # face's other cuts are held to. The pairs the table is FOR, in running
+    # English rather than in the alphabet:
+    #
+    #   v / w   the w IS the v doubled, and this module already records that
+    #           it "reads as a blot where the v reads as a letter" (W_THICK).
+    #           Opposite signs, the widest spread of the three.
+    #   v / y   above the baseline the y IS the v; `very` and `vary` and
+    #           `every` put them a letter apart. The y takes the v's sign at
+    #           half its size so the two do not land level.
+    #   x   z   entered by an ARM and by a BAR TIP, not by a wedge diagonal --
+    #           already distinct in construction, so they ride the line.
+    #
+    # ARMS: the ladder of round 298. `a` is the shipped drawing untouched, so
+    # an unset env is byte-identical to build 205.
+    _ENTRY_ARMS = {
+        'a': (DIAG_ENTRY_Y, {}),                                      # shipped
+        'b': (0.815, {}),                                             # the one line, flat
+        'c': (0.815, {'v': +3.0, 'w': -3.0, 'y': +1.5}),              # the line, cut by 3
+        'd': (0.815, {'v': +7.0, 'w': -7.0, 'y': +3.5}),              # the line, cut by 7
+        'e': (0.800, {'v': +7.0, 'w': -7.0, 'y': +3.5}),              # short of the line, cut by 7
+    }
+    _ENTRY_ARM = os.environ.get("ALBO_ALD_ENTRY_ARM", "a").lower()
+    _E_BASE, _E_ADJ = _ENTRY_ARMS.get(_ENTRY_ARM, _ENTRY_ARMS['a'])
+
+    def entry_y(ch):
+        """The y this letter's entry stroke starts at, x the x-height."""
+        return _E_BASE + _E_ADJ.get(ch, 0.0) / A_UNIT
+
     # ROUND 297 -- THE TOP RIGHT SERIF OF THE v IS THE ONE THAT IS LOW. Owner
     # 2026-09-20: *"top right serif of v, not topleft"*. Measured on the
     # shipped Italic 400 as the top of each letter's own right-hand half:
@@ -6063,7 +6102,7 @@ if ON:
     @glyph('v')
     def a_v(c):
         P, u = d_frame(c, V_W); X = V_VX
-        thick = d_pen([P(5, DIAG_ENTRY_Y), P(32, 0.90), P(76, 0.95), P(109, 0.75),
+        thick = d_pen([P(5, entry_y('v')), P(32, 0.90), P(76, 0.95), P(109, 0.75),
                        P(138, 0.50), P(161, 0.25), P(X - 4, 0.07), P(X, -0.018)],
                       [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 66),
                        (0.90, 52), (1.00, 30)], u, tw=V_TW)
@@ -6125,7 +6164,7 @@ if ON:
         thin = [(0.00, 30), (0.15, 24), (0.55, 25), (0.72, 32),
                 (0.88, 44), (1.00, 48)]
         return geom.ink([
-            d_pen([P(5, DIAG_ENTRY_Y), P(32, 0.90), P(77, 0.95), P(110, 0.75), P(136, 0.50),
+            d_pen([P(5, entry_y('w')), P(32, 0.90), P(77, 0.95), P(110, 0.75), P(136, 0.50),
                    P(156, 0.25), P(164, 0.07), P(166, -0.022)], thick, u, tw=W_TW),
             # the inner rise stops at the apex, so it keeps the hairline all
             # the way up and never grows the v's terminal
@@ -6167,7 +6206,7 @@ if ON:
     @glyph('x')
     def a_x(c):
         P, u = d_frame(c, X_W)
-        thick = d_pen([P(8, DIAG_ENTRY_Y), P(34, 0.89), P(70, 0.95), P(105, 0.83),
+        thick = d_pen([P(8, entry_y('x')), P(34, 0.89), P(70, 0.95), P(105, 0.83),
                        P(140, 0.75), P(193, 0.50), P(246, 0.25), P(282, 0.09),
                        P(318, 0.018), P(356, 0.058), P(378, 0.135), P(368, 0.185)],
                       [(0.00, 24), (0.08, 52), (0.20, 66), (0.60, 62),
@@ -6308,7 +6347,7 @@ if ON:
         # entry hook and the junction are pinned and neither the fork's meeting
         # point nor the tail's start moves at any value of the dial. Zero is
         # the round-176 stroke exactly.
-        _yp = [(48, DIAG_ENTRY_Y), (72, 0.89), (110, 0.95), (140, 0.86),
+        _yp = [(48, entry_y('y')), (72, 0.89), (110, 0.95), (140, 0.86),
                (165, 0.75), (206, 0.50), (234, 0.25), (250, 0.10), (256, 0.02)]
         if Y_LBOW:
             _i0, _i1 = 2, len(_yp) - 1
@@ -6450,7 +6489,7 @@ if ON:
     @glyph('z')
     def a_z(c):
         P, u = d_frame(c, Z_W); D = Z_DIAG
-        top = d_pen([P(8, DIAG_ENTRY_Y), P(26, 0.855), P(64, 0.902), P(126, 0.928),
+        top = d_pen([P(8, entry_y('z')), P(26, 0.855), P(64, 0.902), P(126, 0.928),
                      P(196, 0.910), P(234, 0.922), P(268, 0.972)],
                     [(0.00, 14), (0.05, 20), (0.17, 26), (0.23, 34),
                      (0.30, 41), (0.36, 48), (0.43, 52), (0.50, 54),

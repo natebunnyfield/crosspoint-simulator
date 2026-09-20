@@ -2524,3 +2524,108 @@ and z**. The five diagonals hang a fourteenth of an x-height below the
 alphabet's one entry line. `DIAG_ENTRY_Y` is in the file at its shipped 0.755,
 so every letter is byte-identical on that axis. It is recorded rather than acted
 on, because it is not what was asked about.
+
+
+## 39. Round 298 — the entry becomes a table, and the 9's tail is still on its counter
+
+Owner 2026-09-20, ruling on the four open items rendered at
+`claude.ai/artifact/BQcMcb3sghy6xWnSDMd7H8`:
+
+1. *"vary the entry to slightly improve legibility within common english words"*
+2. *"improve '8' roman, fix 9 to not have its tail overlapping its counter"*
+3. *"need an improved version center. show me roman and italic 'g' to compare."*
+4. *"leave as is"* — **the E's bars are closed.** The 24%-heavy measurement
+   stands in the record; it is no longer an open item and does not return to
+   triage.
+
+### The entry is a TABLE now, not one number
+
+`DIAG_ENTRY_Y` was a single dial and the round-297 record proposed lifting all
+five diagonals onto the alphabet's one entry line. The ruling is the other
+thing: **lift, then separate again.** A line every letter shares is a
+difference the reader does not get (`docs/albo-imperfections.md`), so
+`entry_y(ch)` in `outlines/glyphs/aldine.py` is a base plus a per-letter delta
+in reference units at A_UNIT 429, inside the face's 2-to-7 unit band.
+
+The table is FOR the pairs that meet in running English, and not for the
+alphabet: **v/w**, because the w is the v doubled and this module already
+records that it "reads as a blot where the v reads as a letter"; and **v/y**,
+because above the baseline the y IS the v and *every*, *very* and *vary* put
+them a letter apart. The **x** and the **z** ride the line — entered by an arm
+and by a bar tip respectively, they are already distinct in construction.
+
+`ALBO_ALD_ENTRY_ARM` selects the ladder; **`a` is shipped and was verified
+byte-identical** (0 glyphs differ against build 205's italic), so an unset env
+changes nothing. Arms b–e touch exactly 12 glyphs: `v w x y z`, `wcircumflex`,
+`yacute ycircumflex ydieresis`, `zacute zcaron zdotaccent`.
+
+Measured on a raster — the lowest ink in the leftmost ink column of the
+letter's TOP BAND:
+
+| arm | v | w | x | y | z |
+|---|---|---|---|---|---|
+| a shipped | .698 | .698 | .698 | .693 | .693 |
+| b flat line | .757 | .757 | .757 | .751 | .751 |
+| c cut by 3 | .762 | .746 | .757 | .757 | .751 |
+| d cut by 7 | .767 | .741 | .757 | .762 | .751 |
+| e short of the line, cut by 7 | .761 | .723 | .750 | .750 | .739 |
+
+`i m n r u` read .746 on every arm — they are not touched.
+
+**THE BAND COMES FIRST, AND THAT IS THE INSTRUMENT'S WHOLE CORRECTNESS.** The
+first measure taken here read the leftmost point of the whole letter and
+returned 0.455 for the `n`: on a sheared face the stem's BOTTOM-LEFT corner is
+further left than the entry serif, so a whole-letter measure reads the foot.
+Round 297 met the same shape of bug at the other end of the stroke. **These
+figures are also NOT the 0.815 / 0.745 of the round-297 record** — that measure
+is defined differently, and the two must never be compared; what is comparable
+is the gap, .048 xh here against .067 there, and the ordering, which agrees.
+Noise floor about ±0.005 (arm e reads the untouched `i` 0.004 high).
+
+### The 9's tail is on its counter, and rounds 211–212 did not finish it
+
+The owner's report is exact. At 560 px the tail's inner edge runs through the
+ring's wall and leaves a **white sliver in the ink at the counter's lower
+right**. `NINE_JOIN_SINK_IT` was set to 30 in round 211 for this very fault
+(*"the tail's inner edge crossed the counter and bit a notch out of it"*), with
+the diagnostic that sinking DEEPER makes it worse. It is still there.
+
+Four arms, all reached by existing env dials, no code change:
+`b` exit −35°, `c` entry width 0.30 over 0.40 of the run, `d` join sink 45,
+`e` exit −35 with the wider entry. Page:
+`claude.ai/artifact/CsEcYnbMi33ZzrrPTjh3RL`.
+
+### What the 8 and the g are waiting on
+
+The 8 is the construction job round 195 named and declined: its rings want
+putting on the pen the way the g's were in round 182, and `ring(con=)` cannot
+invent the direction-dependence a nib has. The g's item was found STALE while
+rendering it — see the correction below.
+
+### The compound g flag is attached to a letter the face retired
+
+**Checked rather than assumed, and the open-items record was wrong.** Building
+the italic with `ALBO_ALD_G_COMPOUND=1` changes **zero glyphs**. The flag is
+read inside the *cursive* g (`G_STYLE == 'cursive'`, rounds 197–225) and the
+face has shipped `ALBO_ALD_G_STYLE=roman` since round 226, so round 196's
+compound work — recorded as "built, inert, one located fault from finishing" —
+sits on a construction the type no longer draws. Confirmed by diff: shipped vs
+cursive differs in 5 glyphs (`g gcircumflex gbreve gdotaccent uni0123`), and
+cursive vs cursive+compound differs in the same 5. So it is not one fix from
+shipping; the owner's *"need an improved version center"* is a ruling on the
+CURSIVE arm.
+
+### An interactive spacing bench
+
+Owner, same day: *"make an update interactive page for me to give letter
+spacing feedback on using real words"* —
+`claude.ai/artifact/VCbkYNuYmZgV2m5Udd6ruy`. Eighteen real English words, each
+opened at one pair, with a slider in thousandths of an em and a verdict.
+
+**The slider's zero has to be what ships, and that costs a kern lookup.**
+Splitting a word to put an adjustable gap in it loses the font's own kern at
+exactly that pair, so every item carries its GPOS pair value (roman and italic
+separately), read out of the built font by `kernlookup.py`, and the page
+re-applies it. Every other pair in the word keeps the font's kerning. The
+verdicts persist in the artifact's own store under `spacing/<word>`, which is
+where the next spacing round reads them from.
