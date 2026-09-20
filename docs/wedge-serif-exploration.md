@@ -10,7 +10,8 @@
   round-94 letters. **The VF is no longer rebuilt or shipped.** Kerning goes
   in as a GPOS class `kern` feature and ligatures as `liga`, because those two
   are exactly what the reader's `.cpfont` can carry (class matrix in 4.4 px,
-  quantum 18.5 units on the phone / 37 on the X3; pair table <= 255,
+  quantum 1.16 units on the phone / 2.31 on the X3 (corrected round 299;
+  18.5 / 37 was one whole pixel, not the format's 1/16); pair table <= 255,
   cmap-encoded at FB00-FB06 or PUA); nothing else in GSUB/GPOS reaches the
   device. Measurements, the three kerning options, the ligature set and the
   ranked feature list: round 95 at the foot. Queued there too: the 8 without
@@ -2837,10 +2838,18 @@ the device:
   fixed-point pixels** (range -8.0 .. +7.9 px, quantum 1/16 px). The
   extractor reads the GPOS `kern` feature (PairPos format 1 AND 2, Extension
   unwrapped, subtables overlaid first-wins since 2026-09-07) and the legacy
-  `kern` table, GPOS winning per pair. The quantum in design units: **18.5 at
-  13 pt on the 2x app (54 px em), 37 at 13 pt on the X3 (27 px em)**. A kern
-  under ~18 units does nothing on the phone and under ~37 nothing on the
-  device; the useful range is 40..150 units. Applied at draw and at every
+  `kern` table, GPOS winning per pair. The quantum in design units:
+  **CORRECTED 2026-09-20 (round 299) -- 1.16 at 13 pt on the 2x app (54 px em)
+  and 2.31 at 13 pt on the X3 (27 px em)**, and the 18.5 / 37 that stood here
+  is what ONE WHOLE PIXEL costs, not the 1/16 px the format actually carries.
+  `fontconvert_sdcard.py` encodes `round(du * (ppem/upm) * 16)`. So the
+  sentence that followed -- "a kern under ~18 units does nothing on the phone
+  and under ~37 nothing on the device" -- was wrong by 16x and is withdrawn:
+  a 2-unit kern is 2/16 px on the phone, and the -24 lowercase median this
+  file calls sub-quantum below is 20/16 px, a pixel and a quarter. **The
+  CLAMP is the real limit at the other end**: +-8.0 px is +-148 units at 54
+  ppem, so the -216 cells (T+A, V/W+A) ship clamped on the phone and unclamped
+  on the desktop. Applied at draw and at every
   measure path, including the SD advance-table fast path (`getMeasureKern`,
   2026-08-22 fix).
 - **Ligatures are a flat PAIR table**, <= 255 per style, from GSUB `liga` /
