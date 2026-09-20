@@ -439,6 +439,105 @@ if _ALD is None or not _ALD.ON:
     # is the drawing's, in caps_straight.py g_Q, and that is where it is fixed.
 
 
+# ======================= ROUND 299 -- THE OWNER'S BENCH VALUES ==============
+# Owner 2026-09-20, from the interactive bench
+# (claude.ai/artifact/VCbkYNuYmZgV2m5Udd6ruy): eighteen real English words,
+# each opened at ONE pair, judged at reading size, roman and italic set
+# SEPARATELY -- his own ruling, *"roman and italic need different settings"*.
+# The numbers are DELTAS on what the pair already carries, because that is
+# what the bench rendered: its slider's zero re-applied the shipped GPOS value
+# for that pair, so a number he left is a correction and not a replacement.
+#
+# THE QUANTUM PARAGRAPH AT THE TOP OF THIS FILE IS WRONG BY 16x, and it is
+# the reason the lowercase was left unkerned. `fontconvert_sdcard.py` encodes
+# `raw = round(du * (ppem/upm) * 16)` into a 4.4 signed fixed-point int8 --
+# 1/16 PX resolution, not one pixel. The quantum is therefore **1.16 design
+# units on the phone** (54 ppem) and **2.31 on the X3** (27 ppem), not the 18.5
+# and 37 this file and CLAUDE.md both claim. Every value below survives to the
+# device: the smallest, the italic's +2 on `wi`, is 2/16 px on the phone and
+# 1/16 on the X3. So "a median of -24 from the lowercase pairs, below the
+# quantum" was never below it -- it is 20/16 px on the phone.
+#
+# (Found the same way: ('T','A') and ('VW','A') at -216 are -11.66 px at 54
+# ppem, outside the 4.4 range of -8.0..+7.94, so the PHONE clamps them to -8
+# and the desktop does not. Recorded, not changed -- it is a separate fault.)
+#
+# OFF by default: `ALBO_KERN_BENCH` is "" (unset) and neither table moves, so
+# a build is byte-identical to build 205's kerning. "pairs" writes exactly the
+# eighteen pairs he judged; "classes" generalises each to the class cell it
+# belongs to, averaging where two of his words land in one cell and rounding
+# to STEP.
+#
+# ONE ROW OF THE BENCH WAS MISLABELLED AND THE AUDIT IS WHY IT IS HERE. The
+# `away` row said `w a` and opened the word at the wrong index: what it
+# actually rendered, and what he judged, is **a y** -- the round into the
+# descending diagonal at the end of the word. His -4 / +17 is that pair and it
+# is recorded as that pair. `w a` was never shown and carries no value; a new
+# `wander` row was added to the bench for it. Every one of the nineteen rows
+# was then checked by rebuilding its label from its own index, which is the
+# check that found this one: one mislabel of eighteen, and it would have
+# shipped a kern on a pair nobody looked at.
+BENCH_DELTAS = {
+    'roman': {
+        ('v','e'): 17, ('a','y'): -4, ('y','e'): -5, ('r','e'): -1, ('r','o'): 12,
+        ('f','t'): 4, ('s','s'): 12, ('s','y'): 6, ('s','e'): 18, ('w','i'): 2,
+        ('V','i'): 13, ('W','a'): 41, ('Y','e'): 12, ('T','o'): 24, ('Q','u'): 37,
+        ('A','v'): 12, ('y','comma'): -22, ('y','quoteright'): -50, ('y','quotesingle'): -50,
+    },
+    'italic': {
+        ('v','e'): 13, ('a','y'): 17, ('y','e'): 4, ('r','e'): 3, ('r','o'): 13,
+        ('f','t'): -6, ('s','s'): 3, ('s','y'): 18, ('s','e'): 5, ('w','i'): 21,
+        ('V','i'): -9, ('W','a'): 12, ('Y','e'): 42, ('T','o'): 16, ('Q','u'): 11,
+        ('A','v'): 16, ('y','comma'): -1,
+        # ('y','quoteright') / ('y','quotesingle') were never set in the italic
+        # pass -- 17 of 18. Left
+        # absent rather than carried over from the roman's -50: the roman's is
+        # the largest correction in the whole bench and the italic's apostrophe
+        # sits over a sheared descender, which is a different meeting.
+    },
+}
+#
+# BOTH APOSTROPHES CARRY THE ROMAN'S -50. The bench renders `story's` with the
+# ASCII apostrophe (U+0027 quotesingle) and the first table keyed only
+# `quoteright` (U+2019), so the pair he actually judged took no value at all
+# while the class arm -- whose `quote` class holds both -- moved. It is the
+# same meeting either way: a descender under a raised mark.
+BENCH_MODE = os.environ.get("ALBO_KERN_BENCH", "").strip().lower()
+
+def _class_cell(l, r):
+    """The (left class, right class) cell a glyph pair falls in, or None."""
+    lc = next((k for k, gs in LEFT.items() if l in gs), None)
+    rc = next((k for k, gs in RIGHT.items() if r in gs), None)
+    return (lc, rc) if lc and rc else None
+
+def _shipped(l, r):
+    if (l, r) in PAIRS: return PAIRS[(l, r)]
+    cell = _class_cell(l, r)
+    return CLASS_PAIRS.get(cell, 0) if cell else 0
+
+def _apply_bench():
+    if BENCH_MODE not in ('pairs', 'classes'): return
+    style = 'italic' if (_ALD is not None and _ALD.ON) else 'roman'
+    deltas = BENCH_DELTAS[style]
+    if BENCH_MODE == 'pairs':
+        for (l, r), d in deltas.items():
+            PAIRS[(l, r)] = _shipped(l, r) + d
+        return
+    by_cell = {}
+    for (l, r), d in deltas.items():
+        cell = _class_cell(l, r)
+        if cell is None:                      # no class covers it: keep the pair
+            PAIRS[(l, r)] = _shipped(l, r) + d
+            continue
+        by_cell.setdefault(cell, []).append(d)
+    for cell, ds in by_cell.items():
+        mean = sum(ds) / len(ds)
+        step = int(round(mean / STEP)) * STEP          # cells must be multiples of STEP
+        if step: CLASS_PAIRS[cell] = CLASS_PAIRS.get(cell, 0) + step
+
+_apply_bench()
+
+
 def feature_text():
     lines = ['languagesystem DFLT dflt;', 'languagesystem latn dflt;']
     for k, gs in LEFT.items(): lines.append(f"@L_{k} = [{' '.join(gs)}];")

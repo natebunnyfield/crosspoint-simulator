@@ -2629,3 +2629,81 @@ separately), read out of the built font by `kernlookup.py`, and the page
 re-applies it. Every other pair in the word keeps the font's kerning. The
 verdicts persist in the artifact's own store under `spacing/<word>`, which is
 where the next spacing round reads them from.
+
+
+## 40. Round 299 — the owner's bench values, and the quantum that was wrong by 16x
+
+Owner 2026-09-20, having used the bench: *"roman and italic need different
+settings. i just updated roman settings, how do you get them?"* and then
+*"saved italic"*. The values are read straight out of the artifact's own store
+(`read_db` on the bench artifact), not exported by hand.
+
+His 35 judgments are DELTAS on what each pair already carries — the bench's
+slider zero re-applies the shipped GPOS value for that pair, so a number he
+left is a correction. They live in `BENCH_DELTAS` in `outlines/kern.py`,
+per style, with `ALBO_KERN_BENCH` unset by default (a build is byte-identical
+to build 205's kerning, verified).
+
+**The shape of his answer.** Capitals into lowercase want OPENING in both
+styles (roman `W a` +41, `Q u` +37, `T o` +24; italic `Y e` +42). Lowercase
+running text barely moves in the roman (−5 to +18) and moves consistently
+POSITIVE in the italic (mean +9). Both roman punctuation pairs want closing
+hard — `y '` −50 is the largest correction in the bench — where the italic's
+comma wants −1.
+
+### THE DEVICE QUANTUM IS 1.16 UNITS, NOT 18.5
+
+`kern.py`'s own docstring says its 18-unit step is "one sixteenth of a pixel
+at 13 pt on the 2x app", and `CLAUDE.md` repeats it as "quantum 18.5 units on
+the phone / 37 on the X3". **Both are wrong by a factor of 16**, and the error
+is load-bearing: it is the stated reason the lowercase is not kerned at all
+("a median of −24 from the 69 lowercase pairs — below the quantum").
+
+`fontconvert_sdcard.py` encodes `raw = round(du * (ppem/upm) * 16)` into a 4.4
+signed fixed-point int8 — 1/16 PX resolution, not one pixel. So:
+
+| | ppem | quantum (design units, upm 1000) |
+|---|---|---|
+| phone, 13 pt at 2x | 54 | **1.16** |
+| X3, 13 pt at 1x | 27 | **2.31** |
+
+Every value in the bench survives to the device. The smallest, the italic's
++2 on `w i`, is 2/16 px on the phone and 1/16 on the X3; the −24 lowercase
+median that was called sub-quantum is 20/16 px, a pixel and a quarter.
+
+**Found alongside, and NOT changed:** `('T','A')` and `('VW','A')` at −216
+units are −11.66 px at 54 ppem, outside the 4.4 format's −8.0…+7.94 range, so
+**the phone clamps them to −8 px and the desktop does not**. A separate fault;
+recorded rather than quietly fixed inside a kerning round.
+
+### The instrument was wrong twice, and both were caught before the type moved
+
+1. **One bench row was mislabelled.** `away` was opened at the wrong index: the
+   row said `w a` and rendered **a y**. His −4 / +17 is that pair and is
+   recorded as that pair. Every one of the nineteen rows was then audited by
+   rebuilding its label from its own index — one mislabel of eighteen. `w a`
+   has never been shown; a new `wander` row carries it.
+2. **The apostrophe pair missed the glyph it was judged on.** The bench renders
+   `story's` with U+0027 quotesingle and the table keyed only U+2019
+   quoteright, so the largest correction in the bench landed on a glyph the
+   page never drew — and the fault was invisible in the class arm, whose
+   `quote` class holds both. Both keys carry it now.
+
+Rule this is an instance of, and it is the same one round 297 met: **a bench
+that renders a pair is not the same thing as a table that names one.** Rebuild
+the label from the data and compare, every round.
+
+### Two arms, and the trade between them
+
+Page: `claude.ai/artifact/GhW3SNViaQ5RzHHENnqcRM`.
+
+- **Arm A, `pairs`** — each judged pair becomes a single-glyph exception at
+  exactly his number. Nothing he did not look at moves. It does not
+  generalize: `v e` is corrected while `v o`, `v a` and `v c` are not.
+- **Arm B, `classes`** — each judgment moves the class cell it belongs to and
+  two words in one cell are averaged. This is the face's own mechanism and the
+  shape the `.cpfont` stores natively. **Its cost is the STEP rule**: cells
+  must be multiples of 18, so six of his lowercase corrections round to
+  nothing, `v e` +17 among them.
+
+Not ruled yet; the owner picks.
