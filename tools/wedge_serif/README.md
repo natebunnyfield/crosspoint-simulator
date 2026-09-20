@@ -328,14 +328,23 @@ of 0.275. It was the heaviest letter in the italic lowercase. The stroke
 median would have been 0.90; the color median is the rung he picked, and the
 two differ because the g packs two bowls and a neck into one x-height.
 
-**Ruling 2026-09-20 (owner): the TestFlight refresh WAITS for the italic
-cleanup.** The refresh itself was ruled on 2026-09-19 ("refresh through
-validation") and has been held twice while the drawing moved; asked whether to
-ship the round-290 fonts now or wait, the owner chose to wait, so the build
-carries the s, the re-spacing, the e and round 291's italic cleanup together.
-One deploy, one contact sheet, and the standing question about the 400's
-paleness is asked on THAT raster rather than on a page. Do not ship a refresh
-before round 291 lands.
+**Ruling 2026-09-20 (owner): the TestFlight refresh is ON CALL, not pending.**
+It was ruled on 2026-09-19 ("refresh through validation"), then held for the
+italic cleanup, which landed as round 291 -- and five more rounds landed after
+that, because the owner kept finding things to fix and every one of them was
+worth fixing. Asked whether to ship after round 296, ship immediately, or
+stop treating it as pending, he chose the last: *"Keep holding, I will call
+it."*
+
+So the refresh is NOT an open item and must not be raised again as one. Keep
+drawing; he asks for it when he wants to read the face on the device rather
+than on a page. The recipe for it, when he does call: four TTFs into
+`crosspoint-reader/lib/EpdFont/local_fonts/Albo/`, delete the stale
+`Albo-SemiBold.ttf`, correct that family's recipe comment in
+`scripts/sd-fonts.yaml` (it still says 470 glyphs, five cuts and 11 degrees of
+slant; the build is 486, four, and 13), `build-sd-fonts.py --only Albo` at 1x
+and `--scale 2`, `tools/validate_seed_fonts.py`, a 1x contact sheet, then the
+deploy through `ios/deploy.applescript` with `CROSSPOINT_SEED_FONTS_DIR`.
 
 **Ruling 2026-09-19 (owner), rounds 285-286, on the s:** on a page of five
 flow options, *"b wins, but the space on the top loop needs to be reduced and
