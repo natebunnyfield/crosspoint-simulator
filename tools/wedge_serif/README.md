@@ -429,3 +429,25 @@ does not, because `fit_aldine` measures in unsheared space. Counter-dent COUNTS
 are unchanged but not byte-identical (the Italic 9's dent shrank), and the
 touching-pair count of two is the Regular's, not "the roman's". Full account:
 `docs/albo-family-2026-09-19.md` section 38.
+
+**CALLED AND SHIPPED 2026-09-20: the TestFlight font refresh went out as
+build 205.** Owner: *"build 400 and 700 regular and italic and ship to
+testflight"*. Four cuts (Regular 400, Bold 700, Italic 400, BoldItalic 700) at
+round 297, SemiBold 600 retired and deleted, seed fonts rebuilt at 1x and 2x,
+`validate_seed_fonts.py` green, archive verified at 144 .cpfont files matching
+the tree, `UPLOAD SUCCEEDED`, tag `build-205` pushed. The refresh is therefore
+no longer on call; the next one is a fresh ask.
+
+Three traps it hit, all now recorded so the next deploy does not re-find them:
+`build/seedfonts` had **no Albo in it**, so the old deploy note would have
+shipped the app with no in-house face and a silent Noto fallback; `fs_/fonts`
+carried three built-but-unclaimed families (DanteMT, LutetiaNova, WarblerText,
+dropped by owner ruling the same day) and was missing the installed
+AtkinsonHyperlegibleNext (promoted onto the card the same day), so neither tree
+was shippable alone; and a stale `file(GLOB CONFIGURE_DEPENDS)` in
+`build/ios-dev` kept naming families the tree no longer held, which `rm -rf
+build/ios-dev` clears. `fs_/fonts` now equals `installed_families` exactly in
+both directions and validates standalone.
+
+**NOT device-confirmed.** The face on the phone is the owner's to judge; the
+figures above are what the build gates measured, not what the glass shows.
