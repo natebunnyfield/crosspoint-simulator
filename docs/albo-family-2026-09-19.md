@@ -2021,17 +2021,17 @@ of why the rest cannot.
 THE GRID MAKES MOST OF THEM. `build` writes each contour by ROUNDING a dense
 polyline to the em grid, and rounding points that are a fraction of a unit
 apart lands two on the same integer, or lands one a unit to the wrong side of
-its neighbours. That is a spike with 1-unit arms in a letter whose drawing is
+its neighbors. That is a spike with 1-unit arms in a letter whose drawing is
 clean, and 33 findings across the six fonts had exactly that shape, very
 often an exact 180 degrees. `geom.despike` removes them at export, where they
 are made: duplicates first, then any vertex past 150 degrees whose shorter arm
-is under 6 units AND whose two neighbours lie within 2.5 units of each other
+is under 6 units AND whose two neighbors lie within 2.5 units of each other
 — which is what "the contour doubled back" means. Cost, measured: the worst
 glyph in any of the six moves 0.02% of its area.
 
 WHAT COULD NOT BE HAD, with the numbers. A second rule was tried for the
 SHALLOW spurs that remain — a vertex sitting within a small distance of the
-chord between its neighbours, which is what the italic q's 3.6-unit spur on a
+chord between its neighbors, which is what the italic q's 3.6-unit spur on a
 373-unit edge is. Three cuts of it all failed the same way:
 
 - Bounding the INK a removal moves eats real corners at light weights. An
