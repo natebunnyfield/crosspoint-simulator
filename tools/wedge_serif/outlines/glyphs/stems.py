@@ -949,47 +949,53 @@ G_OPEN_OPTS = {
     # 3. THE c's LOWER TERMINAL, short and shallow. A stub hook that thins to
     #    0.70 of the pen and stops on the family's 20-degree cut, which is
     #    exactly how the c's bottom ends. The shallowest of the ten.
-    'c':     dict(rx=0.94, frm=-16.0, kind='cubic', reach=-0.30, depth=0.46, tipdeg=186.0,
+    'c':     dict(rx=0.94, frm=-16.0, kind='cubic', reach=-0.34, depth=0.60, tipdeg=188.0,
                   c1=0.58, c2=0.42, prof=[(0.0, 1.00), (0.45, 0.95), (1.0, 0.70)],
                   floor=0.0, end='cut', ear='g'),
     # 4. THE WEDGE. A medium hook stopped by a SERIF rather than by a taper:
-    #    the v/y/x diagonal end wedge, on the tail's outer (lower) side.
-    'wedge': dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.50, depth=0.74, tipdeg=168.0,
-                  c1=0.66, c2=0.44, prof=[(0.0, 1.00), (0.40, 0.94), (1.0, 0.80)],
-                  floor=0.0, end='wedge', wedge_side=1, wedge_scale=0.80, ear='g'),
+    #    the v/y/x diagonal end wedge. Side -1 (the UPPER corner, an upturned
+    #    flag) after a ladder: on the lower corner at 0.90 and 0.60 the wedge
+    #    hangs off the tip as a droop, which reads as a fault rather than as
+    #    a serif. The stroke also has to arrive near full width (prof ends at
+    #    0.98) or there is nothing for the wedge to sit on.
+    'wedge': dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.52, depth=0.74, tipdeg=170.0,
+                  c1=0.66, c2=0.44, prof=[(0.0, 1.00), (0.40, 0.94), (1.0, 0.98)],
+                  floor=0.0, end='wedge', wedge_side=-1, wedge_scale=0.75, ear='g'),
     # 5. DEEP. The full descender -- the p's own -281 -- taken in one near
     #    vertical drop with a late, tight turn. The depth axis at its maximum.
-    'deep':  dict(rx=0.94, frm=-8.0, kind='cubic', reach=-0.30, depth=1.00, tipdeg=196.0,
+    'deep':  dict(rx=0.94, frm=-8.0, kind='cubic', reach=-0.28, depth=0.98, tipdeg=198.0,
                   c1=0.80, c2=0.30, prof=[(0.0, 1.00), (0.55, 0.92), (1.0, 0.44)],
                   floor=0.0, end='cut', ear='g'),
-    # 6. PART-CLOSED. The hook curls left and back UP toward the bowl, so the
-    #    letter reads as a loop that was never shut. `gap` in the report is the
-    #    white left between the tail's tip and the bowl's underside.
-    'curl':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.58, depth=0.80, tipdeg=104.0,
-                  c1=0.74, c2=0.70, prof=[(0.0, 1.00), (0.40, 0.92), (1.0, 0.52)],
+    # 6. PART-CLOSED. The hook curls left, turns, and comes back up so the
+    #    letter reads as a loop that was never shut: measured mouth 66 units
+    #    (the shortest white from the tip to the bowl or to the tail's own
+    #    first 60%). A tip aimed further round than this FOLDS -- see the
+    #    negative results at the foot of this block.
+    'curl':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.56, depth=0.44, tipdeg=56.0,
+                  c1=0.84, c2=0.54, prof=[(0.0, 1.00), (0.40, 0.92), (1.0, 0.52)],
                   floor=0.0, end='cut', ear='g'),
     # 7. HOOKS RIGHT. Down, then OUT to the right and up, ending in the c's
     #    finial -- the e's arm direction given to a descender. The only one of
     #    the ten whose tail leaves the bowl's own footprint on the right.
-    'out':   dict(rx=0.94, frm=-26.0, kind='cubic', reach=1.12, depth=0.72, tipdeg=38.0,
-                  c1=0.70, c2=0.52, prof=[(0.0, 1.00), (0.45, 0.88), (1.0, 0.74)],
+    'out':   dict(rx=0.94, frm=-20.0, kind='cubic', reach=1.30, depth=0.80, tipdeg=52.0,
+                  c1=0.74, c2=0.54, prof=[(0.0, 1.00), (0.45, 0.88), (1.0, 0.74)],
                   floor=0.0, end='finial', ear='g'),
     # 8. THE o's BOWL, exactly (rx 1.00), with a restrained hook so the bowl is
     #    what the eye is asked about. The bowl axis.
-    'o':     dict(rx=1.00, frm=-10.0, kind='cubic', reach=-0.42, depth=0.70, tipdeg=172.0,
+    'o':     dict(rx=1.00, frm=-10.0, kind='cubic', reach=-0.44, depth=0.90, tipdeg=174.0,
                   c1=0.70, c2=0.46, prof=[(0.0, 1.00), (0.42, 0.92), (1.0, 0.62)],
                   floor=0.0, end='cut', ear='g'),
     # 9. THE HAIRLINE. The tail resolves the way a pen LIFTS: no floor and a
     #    profile that lets the run-out reach the bowl's own hair. The contrast
     #    axis -- and the one most at risk from the four-level pipeline at 13 px,
     #    which is the size he reads at (rounds.O_FLOOR_ADJ's ruling).
-    'hair':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.62, depth=0.78, tipdeg=166.0,
+    'hair':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.66, depth=0.90, tipdeg=168.0,
                   c1=0.70, c2=0.50, prof=[(0.0, 1.00), (0.34, 0.86), (0.72, 0.52), (1.0, 0.30)],
                   floor=0.0, end='cut', ear='g'),
     # 10. NO EAR. The canonical single-storey g: the bowl and the tail and
     #     nothing else. The ear axis, and the arm that says what the ear is
     #     actually worth on a letter this shape.
-    'bare':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.52, depth=0.76, tipdeg=166.0,
+    'bare':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.56, depth=0.90, tipdeg=168.0,
                   c1=0.70, c2=0.48, prof=[(0.0, 1.00), (0.40, 0.92), (1.0, 0.66)],
                   floor=0.0, end='finial', ear='none'),
 }
@@ -1011,8 +1017,8 @@ G_OPEN_C2      = _gof('c2', 0.48)        # 'cubic': the handle back from the tip
 G_OPEN_W0      = _gof('w0', 1.00)        # the tail's width AT THE ROOT, x the ring's own width there. 1.0 is THE ONE RULE; anything else steps.
 G_OPEN_FLOOR   = _gof('floor', 0.0)      # the tail's least width, x the stem
 G_OPEN_END     = os.environ.get("ALBO_G_OPEN_END", _GO.get('end', 'cut'))
-G_OPEN_WSIDE   = _gof('wedge_side', 1.0)     # 'wedge': which side of the tail's end the serif sits on (+1 = outer/below)
-G_OPEN_WSCALE  = _gof('wedge_scale', 0.80)   # ... and its size, x the family's diagonal end wedge
+G_OPEN_WSIDE   = _gof('wedge_side', -1.0)    # 'wedge': which corner of the tail's end the serif sits on (-1 = upper, the one that works)
+G_OPEN_WSCALE  = _gof('wedge_scale', 0.75)   # ... and its size, x the family's diagonal end wedge
 # THE SHOULDER CUT, and the fault it exists for. Rooting the tail on the
 # ring's centreline makes the departure tangent-continuous (above), but BELOW
 # the root the two run side by side: the ring's centreline turns left toward
@@ -1033,12 +1039,57 @@ G_OPEN_WSCALE  = _gof('wedge_scale', 0.80)   # ... and its size, x the family's 
 # gave the bent g's loop shoulder -- so the tail carries the weight through
 # the sector it shares with the ring and the rest of the ring is untouched.
 # At 1.0 the bowl is the o's ring exactly.
-G_OPEN_CUT_W   = _gof('cut_w', 0.58)     # the ring's width through the shared sector, x its own
-G_OPEN_CUT_AT  = _gof('cut_at', 320.0)   # where the cut is centred, degrees (0 = due east)
-G_OPEN_CUT_ARC = _gof('cut_arc', 62.0)   # and how far it reaches either side
+G_OPEN_CUT_W   = _gof('cut_w', 0.55)     # the ring's width through the shared sector, x its own
+G_OPEN_CUT_AT  = _gof('cut_at', 310.0)   # where the cut is centred, degrees (0 = due east)
+G_OPEN_CUT_ARC = _gof('cut_arc', 36.0)   # and how far it reaches either side
 G_OPEN_EAR     = os.environ.get("ALBO_G_OPEN_EAR", _GO.get('ear', 'g'))
-G_OPEN_EAR_AT  = _gof('ear_at', 44.0)    # where the ear is rooted on the ring, degrees (g_g's own is 44)
-G_OPEN_PROF    = _GO.get('prof', [(0.0, 1.00), (0.40, 0.92), (1.0, 0.66)])
+# WHERE THE EAR SITS. g_g roots its ear at 44 degrees, on a bowl only 0.66
+# of the x-height tall; on a FULL x-height bowl the same 44 degrees is a
+# different place on the letter, and at 30 / 44 / 58 / 70 the ear reads as a
+# nub on the right wall / a spur / an ear on the shoulder / a flag off the
+# crown. 52 is where it sits on the shoulder, which is where the binocular
+# g's own ear sits relative to ITS bowl (0.61 of the way up from the bowl's
+# centre; 44 degrees here is 0.64, 52 is 0.79 -- so the angle that matches
+# the PLACE is not the angle that matches the number).
+G_OPEN_EAR_AT  = _gof('ear_at', 52.0)    # where the ear is rooted on the ring, degrees (g_g's own number is 44)
+# The profile is overridable too, as "t:w,t:w,..." -- so an option is never
+# the only way to reach a shape.
+def _open_prof():
+    e = os.environ.get("ALBO_G_OPEN_PROF")
+    if not e: return _GO.get('prof', [(0.0, 1.00), (0.40, 0.92), (1.0, 0.66)])
+    return [tuple(float(x) for x in kv.split(':')) for kv in e.split(',')]
+G_OPEN_PROF    = _open_prof()
+
+# ---- WHAT WAS TRIED AND DID NOT WORK, with its numbers. -------------------
+#
+# 1. ROOTING THE TAIL LOW, on the bowl's underside (frm -45 to -60), so the
+#    ring and the tail never run side by side and no shoulder cut is needed.
+#    The ring's clockwise tangent at -45 is 42 degrees off vertical and at
+#    -60 it is 55, so a stroke leaving TANGENT there heads down-LEFT and a
+#    deep descender then needs an S-bend to straighten. Abandoned on the
+#    geometry rather than on a picture: the alternative to the S is to leave
+#    NOT tangent, which is the notch rule again (section 1b).
+#
+# 2. THE SHOULDER CUT OVER A WIDE ARC. At 320 degrees / 62 degrees the cut
+#    reaches the bowl's widest point and its floor: g/o walls read 0.87 at
+#    0 degrees and 0.85 at 345 where the four reference open g's (Futura,
+#    Verdana, Trebuchet, Skia) hold 0.94-1.00. 310/36 touches neither.
+#
+# 3. A TAIL THAT FOLDS BACK ON ITSELF to close the loop properly (tip at
+#    reach +0.12 to +0.42 with the tip pointing up-RIGHT). The centreline
+#    then crosses itself and `stroke()`'s offset edges cross with it, which
+#    leaves white slivers INSIDE the stroke -- three built and all three
+#    broken. `stroke(..., pieces=True)` is the face's own cure for a
+#    self-crossing centreline (the ampersand, the at-sign) and would be the
+#    way in if this is ever wanted; the shape it makes is not this letter.
+#
+# 4. THE RIGHT-HOOKING TAIL (option 7) IS NOT A g. Measured as ink overlap
+#    against this face's own q, both rasterised at one x-height and aligned
+#    on their counters' centroids: the binocular g scores 0.137, the o
+#    against the q 0.599 (the yardstick -- a q IS an o with a stem), and
+#    option 7 scores 0.651, the worst of the ten. At 13 px "a foggy gauge"
+#    reads "a foqqy qauqe". It ships as an option because the owner asked
+#    for the axis, not because it works.
 
 
 def _open_bowl(cx, cy, rx, ry, w_scale, floor):
@@ -1087,7 +1138,7 @@ def _g_open(c):
         C1 = (P0[0] + T0[0] * chord * G_OPEN_C1, P0[1] + T0[1] * chord * G_OPEN_C1)
         C2 = (P3[0] - T3[0] * chord * G_OPEN_C2, P3[1] - T3[1] * chord * G_OPEN_C2)
         path = cubic(P0, C1, C2, P3)
-    prof = widths([(t, w * G_OPEN_W0 if t == 0.0 else w) for t, w in G_OPEN_PROF])
+    prof = widths([(t, (w * G_OPEN_W0) if t == 0.0 else w) for t, w in G_OPEN_PROF])
     base = PR.bowl_widths(path, prof, floor=S * G_OPEN_FLOOR)
     parts = [bowl]
     if G_OPEN_END == 'finial':
