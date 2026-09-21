@@ -2707,3 +2707,57 @@ Page: `claude.ai/artifact/GhW3SNViaQ5RzHHENnqcRM`.
   nothing, `v e` +17 among them.
 
 Not ruled yet; the owner picks.
+
+
+## 41. Round 301 — every common pair, measured off his own books
+
+Owner 2026-09-20: *"set those aside and give me all remaining common pairs
+including To to Ot ot"*. The four he names are the ask in miniature: the same
+two letters in both ORDERS and both CASES, because `To`, `to`, `Ot` and `ot`
+are four different meetings and a bench that shows one of them has said
+nothing about the other three.
+
+**"Common" is MEASURED, not guessed.** `tools/wedge_serif/pair_census.py`
+counts pairs over the corpus `outlines.cmp.corpus` already uses — the epubs
+under `~/src/claude-tools`, the reader's real-world books — and picks the
+commonest real word carrying each pair. An English frequency table written for
+someone else's prose would have done, badly: this is what HIS reader renders.
+
+| | |
+|---|---|
+| books | 36 |
+| words | 508,518 |
+| distinct pairs | 1,486 |
+| pair instances | 2,007,794 |
+| top 50 pairs | 49.9% of all instances |
+| top 250 pairs | 91.1% |
+| pairs carrying a CAPITAL | 771 distinct, **3.9%** of instances |
+| pairs carrying a MARK | 271 distinct, **4.2%** |
+
+That last pair of rows is the finding worth keeping: **the lowercase is where
+the reading is.** 92% of every letter meeting in his books is lowercase beside
+lowercase, which is also why this face's fitting rule (round 3) carries the
+lowercase and its kern table is capitals and punctuation.
+
+### The bench is 396 rows now, and the cut is stated
+
+A naive expansion of his ask produced **627 rows** — every case and order
+variant of every seeded pair that the corpus contains — and most of the extra
+was rare capital noise (`Ot` itself occurs 59 times). The shipped cut:
+
+- **lowercase**, a pair occurring 1,200 times or more (241 rows);
+- **capital + lowercase**, where the capital is one whose own shape changes
+  the meeting — `A C F G J L O P Q R S T V W Y`, an overhang, a diagonal, a
+  round or an open corner — and the pair occurs 50 times or more (108 rows);
+- **marks**, 400 times or more (47 rows);
+- B D E H I K M N U are deliberately absent as a first letter: they are flat
+  on the side that matters and their pairs are the fitting's job, not the
+  kern table's.
+
+**397 rows, 94.7% of every pair instance in his books.** His 35 existing
+judgments keep their own rows and their stored values; 18 pairs were already
+covered and are not duplicated.
+
+The page groups by class, pages 40 at a time, filters to what is still unset,
+and shows each pair's own corpus count beside it so he can spend his attention
+where the reading is.
