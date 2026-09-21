@@ -1167,21 +1167,23 @@ ALT051_H = float(os.environ.get("ALBO_ALT051_H", 1.62))   # its ink height, x th
 # measurement of the reference, not a dial, and re-deriving them on every build
 # would make the letter depend on a raster.
 ALT051_SPINE = [
-    (268.1,490.2), (247,490.2), (209.2,481.3), (194.8,472.4),
-    (178.1,455.7), (172.6,446.8), (161.4,421.3), (150.3,363.5),
+    (283.7,458), (285.9,465.7), (285.9,479.1), (277,486.8),
+    (267,491.3), (254.8,491.3), (209.2,481.3), (194.8,472.4),
+    (178.1,455.7), (168.1,438), (161.4,421.3), (150.3,363.5),
     (150.3,354.6), (155.9,335.7), (168.1,313.5), (159.2,304.6),
     (150.3,288), (137,276.8), (113.7,252.4), (101.4,234.6),
     (95.9,224.6), (88.1,202.4), (79.2,156.8), (79.2,136.8),
-    (81.4,132.4), (82.6,121.3), (93.7,93.5), (109.2,69.1),
-    (128.1,50.2), (151.4,33.5), (173.7,23.5), (195.9,16.8),
-    (219.2,12.4), (235.9,12.4), (309.2,22.4), (339.2,33.5),
-    (373.7,54.6), (398.1,76.8), (415.9,99.1), (438.1,138),
-    (451.4,180.2), (459.2,246.8), (454.8,269.1), (453.7,290.2),
-    (449.2,308), (457,315.7), (509.2,313.5), (543.7,306.8),
-    (581.4,302.4), (610.3,300.2), (645.9,301.3), (685.9,305.7),
-    (708.1,311.3), (733.7,322.4), (754.8,336.8), (774.8,358),
-    (791.4,388), (800.3,415.7), (808.1,466.8), (802.6,491.3),
-    (792.6,509.1), (777,525.7), (764.8,532.4),
+    (81.4,132.4), (82.6,121.3), (95.9,89.1), (109.2,69.1),
+    (128.1,50.2), (141.4,40.2), (151.4,33.5), (173.7,23.5),
+    (195.9,16.8), (219.2,12.4), (235.9,12.4), (277,16.8),
+    (318.1,24.6), (339.2,33.5), (361.4,45.7), (398.1,76.8),
+    (424.8,112.4), (441.4,146.8), (452.6,186.8), (459.2,246.8),
+    (454.8,269.1), (453.7,290.2), (449.2,308), (457,315.7),
+    (509.2,313.5), (560.3,304.6), (610.3,300.2), (645.9,301.3),
+    (685.9,305.7), (717,314.6), (741.4,326.8), (754.8,336.8),
+    (774.8,358), (787,378), (795.9,399.1), (800.3,415.7),
+    (808.1,466.8), (802.6,491.3), (790.3,512.4), (777,525.7),
+    (765.9,532.4), (734.8,533.5), (712.6,528),
 ]
 ALT051_SPUR = [
     (291.4,225.7), (305.9,254.6), (320.3,274.6), (341.4,294.6),
@@ -1192,6 +1194,47 @@ ALT051_NIB_H = float(os.environ.get("ALBO_ALT051_NIB_H", 1.62))   # ink height, 
 ALT051_THICK = float(os.environ.get("ALBO_ALT051_THICK", 0.86))   # x the stem -- the Aldine o's own pen
 ALT051_THIN = float(os.environ.get("ALBO_ALT051_THIN", 0.20))     # x the thick
 ALT051_PHI = float(os.environ.get("ALBO_ALT051_PHI", 35.0))       # the nib's angle, degrees
+ALT051_WAIST = [
+    (168.1,313.5), (179.2,309.1), (203.7,305.7), (227,305.7),
+    (242.6,310.2),
+]
+
+# ROUND 315 -- THE STROKE'S OWN WIDTH, MEASURED OFF THE SOURCE.
+#
+# Owner: *"trace more of the line to get the red covered"*. Tracing more LINE
+# closed the features (the waist, the spur, both tips); what stayed red was a
+# rim down the outside of the bowl, and that is not a missing stroke -- it is
+# weight. The reference's width along the main stroke runs **12 to 77 design
+# units**, a 6:1 range, and a nib's width goes as |sin(direction - phi)|, which
+# cannot be both the arm's hairline and the bowl's heaviest place.
+#
+# So the width comes from the SOURCE and the nib MODULATES it: at every sample
+# the width is the reference's own half-width (its distance transform, doubled)
+# times the nib's own factor raised to ALT051_NIB_MIX. At mix 0 the stroke is
+# the reference's weight exactly; at 1 it is all nib. The letter keeps the
+# face's direction-dependence without pretending a broad pen produced a
+# 6:1 taper.
+ALT051_WIDTHS = {
+  "main": [
+    (0,34.2), (0.0435,33.6), (0.087,24.8), (0.1304,49.1), (0.1739,52.1), (0.2174,32.9),
+    (0.2609,53.9), (0.3043,76.8), (0.3478,71.5), (0.3913,55.6), (0.4348,36.4), (0.4783,24.5),
+    (0.5217,25.8), (0.5652,38.9), (0.6087,55.2), (0.6522,58.3), (0.6957,46.4), (0.7391,43.9),
+    (0.7826,34.6), (0.8261,21.7), (0.8696,27.6), (0.913,46.9), (0.9565,57.7), (1,11.9),
+  ],
+  "waist": [
+    (0,56.2), (0.0435,54.7), (0.087,52.8), (0.1304,50.3), (0.1739,47.6), (0.2174,45.3),
+    (0.2609,43.6), (0.3043,42.1), (0.3478,40.9), (0.3913,40.1), (0.4348,38.8), (0.4783,37.8),
+    (0.5217,37.1), (0.5652,36.1), (0.6087,35.3), (0.6522,34.7), (0.6957,34.1), (0.7391,32.7),
+    (0.7826,30.5), (0.8261,28.3), (0.8696,25.3), (0.913,22.6), (0.9565,21.4), (1,20.1),
+  ],
+  "spur": [
+    (0,14.8), (0.0435,15.3), (0.087,16.1), (0.1304,16.8), (0.1739,17.7), (0.2174,18.4),
+    (0.2609,19.5), (0.3043,20.9), (0.3478,21.8), (0.3913,22.4), (0.4348,23.7), (0.4783,25.4),
+    (0.5217,25.8), (0.5652,25.5), (0.6087,25.9), (0.6522,27.5), (0.6957,30.3), (0.7391,35.4),
+    (0.7826,40.4), (0.8261,43.7), (0.8696,48.2), (0.913,53.5), (0.9565,58.8), (1,62.2),
+  ],
+}
+ALT051_NIB_MIX = float(os.environ.get("ALBO_ALT051_NIB_MIX", 0.45))
 ALT051_BALL = float(os.environ.get("ALBO_ALT051_BALL", 0.62))     # round 314: the terminal discs, x the stroke's width there
 
 def alt051_nib(c):
@@ -1205,11 +1248,25 @@ def alt051_nib(c):
     k = (c["xh"] * ALT051_NIB_H) / (max(ys) - min(ys))
     S_ = pen.S
     th = S_ * ALT051_THICK
-    def draw(pts, taper, ball_ends=()):
+    def draw(pts, taper, ball_ends=(), key=None):
         p = [( (x - min(xs)) * k, (y - min(ys)) * k ) for x, y in pts]
         p = geom.catmull(p, tension=0.5)
         w = nib_widths(p, th, th * ALT051_THIN, target=None, smooth=9,
                        taper=taper, boost=None)
+        if key in ALT051_WIDTHS:                      # round 315, above
+            tab = ALT051_WIDTHS[key]; n = len(w)
+            mean = sum(w) / n
+            for i in range(n):
+                t = i / (n - 1)
+                # the source's width at t, linear between its 24 stops
+                for j in range(len(tab) - 1):
+                    if tab[j][0] <= t <= tab[j+1][0]:
+                        f = (t - tab[j][0]) / max(1e-9, tab[j+1][0] - tab[j][0])
+                        src = tab[j][1] + (tab[j+1][1] - tab[j][1]) * f
+                        break
+                else:
+                    src = tab[-1][1]
+                w[i] = src * k * ((w[i] / mean) ** ALT051_NIB_MIX)
         parts = [_stroke(p, widths(list(zip([i/(len(w)-1) for i in range(len(w))], w))))]
         # ROUND 314 -- THE TERMINALS SWELL, they do not run out. The coverage
         # map against the source (59.1% covered, 1.7% extra -- the drawing was
@@ -1221,8 +1278,15 @@ def alt051_nib(c):
         for idx in ball_ends:
             parts.append(dot(p[idx][0], p[idx][1], w[idx] * ALT051_BALL))
         return geom.ink(parts)
-    g = geom.ink([draw(ALT051_SPINE, True, ball_ends=(0, -1)),
-                  draw(ALT051_SPUR, True)])
+    # ROUND 315 -- THE WAIST IS ITS OWN STROKE, because it is a DEAD END.
+    # Owner: *"trace more of the line to get the red covered"*. Measured on the
+    # skeleton rather than by eye: the routes covered 81.5% of its pixels, and
+    # the largest thing missing was the E's middle bar -- 67 pixels that no
+    # route between two waypoints can ever include, because the bar terminates
+    # instead of leading anywhere. A branch that ends has to be asked for.
+    g = geom.ink([draw(ALT051_SPINE, True, ball_ends=(0, -1), key="main"),
+                  draw(ALT051_WAIST, True, key="waist"),
+                  draw(ALT051_SPUR, True, key="spur")])
     if pen.SLANT:                      # build.draw will shear; hold the reference's own slope
         g = aff.skew(g, xs=-float(getattr(pen, 'SLANT', 0.0) or 0.0), ys=0.0,
                      origin=(0, 0), use_radians=False)   # SLANT IS DEGREES ALREADY

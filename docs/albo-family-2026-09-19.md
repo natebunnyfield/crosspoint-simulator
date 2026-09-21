@@ -3342,3 +3342,57 @@ still reads as this face. Closing it would mean adopting Poetica's pen, which
 is the opposite of the ask. Recorded, not chased.
 
 Page: `claude.ai/artifact/5VkadSSzQQRb8KUaUh4i8f`.
+
+
+## 53. Round 315 — more of the line, and then the width
+
+Owner 2026-09-21: *"please trace more of the line to get the red covered"*.
+Coverage of the source: **75.4% → 80.0% → 94.7%**. Two different things were
+red and only one of them was line.
+
+### How much of the line was traced: 81.5%, measured on the skeleton
+
+Not judged by eye — the routes were intersected with the skeleton's own pixels.
+The untraced 18.5% was three features, not noise:
+
+- **the E's waist, 67 px.** A **DEAD END**: the bar terminates instead of
+  leading anywhere, so no BFS route between two waypoints can ever include it.
+  *A branch that ends has to be asked for.* It is now its own stroke.
+- **the curl's top, 47 px** and **the hook's tip, 43 px** — both stubs PAST the
+  first and last waypoints. The route ended exactly where it was told to, one
+  feature short at each end.
+
+With those the trace reaches **89.5%** of the skeleton and the source's ink
+coverage rose to 80.0%.
+
+### What stayed red was WEIGHT, and no amount of tracing closes it
+
+A rim down the outside of the bowl. Measuring the reference's own width along
+the spine (its distance transform, doubled) says why: the main stroke runs
+**12 to 77 design units, a 6:1 range**, and a nib's width goes as
+|sin(direction − φ)| and nothing else. One thick cannot be both the arm's
+hairline and the bowl's heaviest place.
+
+So the width comes from the SOURCE and the nib MODULATES it: at every sample,
+the reference's own width times the nib's factor raised to `ALBO_ALT051_NIB_MIX`.
+
+| mix | covered | extra | IoU |
+|---|---|---|---|
+| 0.00, the source's weight | 94.7% | 7.6% | 0.880 |
+| **0.45, ships** | 91.6% | 9.6% | 0.836 |
+| 0.80, mostly nib | 86.4% | 14.5% | 0.754 |
+
+**0.45 is the default and the trade is stated rather than hidden:** it covers
+91.6% with the nib still doing work, where mix 0 covers three points more and
+is, in weight, Poetica's letter with Albo's ink treatment on it. If the ask
+turns out to be the reference reproduced, it is one dial.
+
+### The method note worth keeping
+
+Two ways of being wrong were separated by two different measurements: "is the
+LINE traced" is answered against the skeleton, "is the INK covered" against the
+filled reference. Either one alone would have sent the work the wrong way —
+the skeleton number said trace more, and once it was high the ink number said
+the rest was never a line at all.
+
+Page: `claude.ai/artifact/XL3oYrGnZvp3dX4NxGDgM5`.
