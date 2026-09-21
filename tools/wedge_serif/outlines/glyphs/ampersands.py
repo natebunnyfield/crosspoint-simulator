@@ -1260,9 +1260,39 @@ ALT051_HOLD = float(os.environ.get("ALBO_ALT051_HOLD", 0.46))     # the fraction
 #     ...SQUEEZE=0.28 -> 1.09 / 1.58 / 1.94, a little more swash
 #     ...SQUEEZE=0.38 -> 1.09 / 1.57 / 2.07, more again
 #
-# Not made the default: `g` stays the faithful trace, and the owner has not
-# ruled on which of these ships.
+# RULED 2026-09-21: **squeeze 0.38 wins** (owner). What follows damps the thing
+# he asked for next.
+#
+# ROUND 318 -- THE TOP-RIGHT CURL. Owner: *"reduce the visual distraction of a
+# large top right extended stroke"*. Measured on the spine: the arm runs level
+# at y ~ 305 and its tail then climbs to y ~ 534, so the curl stands about 230
+# design units -- more than half an x-height -- above the arm's own line, at
+# the corner of the letter where nothing else in the face reaches. CURL scales
+# that rise about the springing point (1.0 = the reference), CURL_CUT drops a
+# fraction of the tail's length so the hook ends earlier.
+ALT051_CURL = float(os.environ.get("ALBO_ALT051_CURL", 1.0))
+ALT051_CURL_CUT = float(os.environ.get("ALBO_ALT051_CURL_CUT", 0.0))
 ALT051_BALL = float(os.environ.get("ALBO_ALT051_BALL", 0.62))     # round 314: the terminal discs, x the stroke's width there
+
+def _damp_curl(pts):
+    """The tail's rise, scaled about where it springs -- and optionally cut
+    short. The springing point is found rather than named: walking back from
+    the end, it is the last place the stroke was still on the arm's own level,
+    so the damping cannot creep into the arm however hard it is applied."""
+    ys = [q[1] for q in pts]
+    arm = sorted(ys)[len(ys) // 2]                  # the arm's level: the median y
+    i = len(pts) - 1
+    while i > 0 and ys[i] > arm + 20:               # back to the springing point
+        i -= 1
+    head, tail = list(pts[:i + 1]), list(pts[i + 1:])
+    if not tail: return list(pts)
+    if ALT051_CURL_CUT > 0:
+        keep = max(2, int(round(len(tail) * (1.0 - ALT051_CURL_CUT))))
+        tail = tail[:keep]
+    y0 = pts[i][1]
+    tail = [(x, y0 + (y - y0) * ALT051_CURL) for x, y in tail]
+    return head + tail
+
 
 def alt051_nib(c):
     """The reference's spine, drawn with this face's nib: the width at every
@@ -1284,6 +1314,8 @@ def alt051_nib(c):
         def sq(xv):
             xv = (xv - min(xs)) * k
             return xv if xv <= hold else hold + (xv - hold) * ALT051_SQUEEZE
+        if key == "main" and (ALT051_CURL != 1.0 or ALT051_CURL_CUT > 0):
+            pts = _damp_curl(pts)
         raw = [( (x - min(xs)) * k, (y - min(ys)) * k ) for x, y in pts]
         p = [( sq(x), (y - min(ys)) * k ) for x, y in pts]
         p = geom.catmull(p, tension=0.5)

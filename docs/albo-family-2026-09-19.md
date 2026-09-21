@@ -3503,3 +3503,49 @@ with `ALBO_ALT051_WEIGHT=1.36 ALBO_ALT051_CON=0.45`. Recorded in the source;
 not made the default, and not ruled.
 
 Page: `claude.ai/artifact/XU95DBQqUEPhcWvQ7VkMVx`.
+
+
+## 56. Round 318 — the top-right curl, damped
+
+Owner 2026-09-21: *"squeeze 0.38 wins but reduce the visual distraction of a
+large top right extended stroke"*. The squeeze is **ruled and fixed at 0.38**
+(README); what follows is only the curl.
+
+**What the distraction measures.** On the spine the arm runs level at y ≈ 305
+and its tail climbs to y ≈ 534 — the curl stands about **230 design units,
+more than half an x-height, above the arm's own line**, in the one corner of
+the letter where nothing else in the face reaches.
+
+`ALBO_ALT051_CURL` scales that rise about the springing point;
+`ALBO_ALT051_CURL_CUT` drops a fraction of the tail so the hook ends earlier.
+**The springing point is FOUND rather than named**: walking back from the end,
+it is the last place the stroke was still on the arm's median level, so the
+damping cannot creep into the arm however hard it is applied.
+
+| arm | | curl's top, down the letter | weight | advance |
+|---|---|---|---|---|
+| a | untouched | 0.0% | 1.09 | 2.07 |
+| b | rise × 0.75 | 1.9% | 1.08 | 2.08 |
+| c | rise × 0.55 | 9.6% | 1.09 | 2.08 |
+| d | rise × 0.40 | 15.7% | 1.08 | 2.09 |
+| e | × 0.55, cut 25% | 10.0% | 1.08 | 2.09 |
+| f | × 0.70, cut 35% | 8.7% | 1.06 | 2.10 |
+
+At arm a the curl IS the top of the letter (0%). Weight and advance barely move
+across the set, so this changes one gesture and nothing else.
+
+**Damping and cutting are not the same thing** and both are offered: damping
+keeps the hook's length and lowers it, cutting ends the stroke earlier so the
+curl is shorter rather than lower. Recommended **f**, with **d** if the hook's
+shape should be kept intact and simply brought down. Not ruled.
+
+### A measurement that was wrong, and how it showed
+
+The first check used the letter's overall INK HEIGHT and reported no change
+past arm b — which reads as "the damping stopped working". It had not: past
+that point the **E's top hook** becomes the tallest thing in the letter, so the
+bounding box stops responding while the curl goes on dropping. Measuring the
+right third alone shows what is moving. *A whole-glyph measure cannot see a
+feature that is no longer the extreme.*
+
+Page: `claude.ai/artifact/4mi8L8EfRAxsPc2FVqDkJy`.

@@ -331,6 +331,15 @@ of 0.275. It was the heaviest letter in the italic lowercase. The stroke
 median would have been 0.90; the color median is the rung he picked, and the
 two differ because the g packs two bowls and a neck into one x-height.
 
+**Ruling 2026-09-21 (owner): the italic ampersand's SQUEEZE IS 0.38.** On the
+round-317 ladder, which holds the E and the bowl at full width and compresses
+only the swash: *"squeeze 0.38 wins"*. With `ALBO_ALT051_WEIGHT=1.36` and
+`ALBO_ALT051_CON=0.45` that measures 1.09 x the face's body letters, contrast
+1.57, advance 2.07 x the o — against the shipped ampersand's 1.09 / 1.54 /
+1.87. His next ask on the same letter, *"reduce the visual distraction of a
+large top right extended stroke"*, is round 318's `ALBO_ALT051_CURL` /
+`ALBO_ALT051_CURL_CUT` and is NOT yet ruled.
+
 **Ruling 2026-09-21 (owner): THE ITALIC HAS NO LIGATURES, AND THE ROMAN KEEPS
 ITS FIVE.** *"remove italic ligatures"* — done, the italic's `liga` feature is
 empty and its FB00–FB04 glyphs stay drawn and encoded so a text literally
