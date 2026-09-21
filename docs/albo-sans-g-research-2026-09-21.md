@@ -132,3 +132,30 @@ both — at the face's own descender, with the face's own pen, all five clean on
    depth but it MEANS bowl-relative position — its first point is the bowl's
    right edge. Scaled vertically, ±1.0 became ±441 units and the tips ran to
    x −715. X is matched to Albo's own ring at the root.
+
+## Round 329 — a bpqd serif instead of the ear
+
+Owner: *"make some bpqd style serifs to choose from, not the ear"*.
+
+`b d p q` are all one function, `bowl_stem`, and every one of them finishes its
+stem with **`stem(..., top='left')`** — a single wedge on the bowl side of the
+stem's top. So the serif is taken from that same call rather than drawn again:
+a short stem stub stands on the ring at `ALBO_G_OPEN_SER_AT` (38°) and carries
+the family's own top, with the ring as the wall it stands on. `foot=None`
+always — that end is a join, not a foot.
+
+`ALBO_G_OPEN_EAR` now takes, besides `g` (the old diagonal ear) and `none`:
+
+| key | `stem(top=)` | what it is |
+|---|---|---|
+| `dtop` | `'left'` | **the d's and q's own top serif** — the wedge points into the bowl |
+| `btop` | `'right'` | the wedge the other way, off the bowl |
+| `both` | `'both'` | a full flat serif, both wedges |
+| `plus` | `'left+'` | the d's, plus the small 0.4 × 0.6 counter-wedge (the I's, the U's right stem) |
+| `flat` | `None` | the stub squared off, no wedge at all |
+
+Three more dials: `_SER_LEN` (the stub's height, × the stem), `_SER_SCALE`
+(the wedge's size, × the family's) and `_SER_OVER` (how much of the ring's
+overshoot the stub's top takes).
+
+All five build clean on `cmp_contour_hairs.py`. Nothing ships.

@@ -1134,7 +1134,11 @@ G_OPEN_EAR     = os.environ.get("ALBO_G_OPEN_EAR", _GO.get('ear', 'g'))
 # g's own ear sits relative to ITS bowl (0.61 of the way up from the bowl's
 # centre; 44 degrees here is 0.64, 52 is 0.79 -- so the angle that matches
 # the PLACE is not the angle that matches the number).
-G_OPEN_EAR_AT  = _gof('ear_at', 52.0)    # where the ear is rooted on the ring, degrees (g_g's own number is 44)
+G_OPEN_EAR_AT  = _gof('ear_at', 52.0)
+G_OPEN_SER_AT    = _gof('ser_at', 38.0)     # where the bpqd serif stands on the ring, degrees
+G_OPEN_SER_LEN   = _gof('ser_len', 1.05)    # the stub's height, x the stem
+G_OPEN_SER_SCALE = _gof('ser_scale', 1.0)   # the wedge's size, x the family's
+G_OPEN_SER_OVER  = _gof('ser_over', 1.0)    # how much of the overshoot the stub's top takes    # where the ear is rooted on the ring, degrees (g_g's own number is 44)
 # The profile is overridable too, as "t:w,t:w,..." -- so an option is never
 # the only way to reach a shape.
 def _open_prof():
@@ -1238,8 +1242,23 @@ def _g_open(c):
         parts.append(stroke(path, base))
     else:                                  # 'cut': the c's lower terminal
         parts.append(stroke(path, base, cut1=CUT))
-    # --- the ear: g_g's, unchanged, or none
-    if G_OPEN_EAR != 'none':
+    # --- ROUND 329 -- A bpqd SERIF INSTEAD OF AN EAR.
+    # Owner 2026-09-21: *"make some bpqd style serifs to choose from, not the
+    # ear"*. b d p q are all `bowl_stem`, and every one of them finishes its
+    # stem with `stem(..., top='left')` -- one wedge, on the bowl side of the
+    # stem's top. That is the serif being asked for, so it is taken from the
+    # same call rather than drawn again: a short stem stub stands on the ring
+    # at G_OPEN_SER_AT and carries the family's own top, and the ring is the
+    # wall it stands on. `foot=None` always -- this end is a join, not a foot.
+    if G_OPEN_EAR in ('dtop', 'btop', 'both', 'plus', 'flat'):
+        rx0, ry0 = _open_on(cx, cy, crx, cry, G_OPEN_SER_AT)
+        top_y = xh + OVER * G_OPEN_SER_OVER
+        y0 = min(top_y - S * G_OPEN_SER_LEN, ry0)
+        kind = {'dtop': 'left', 'btop': 'right', 'both': 'both',
+                'plus': 'left+', 'flat': None}[G_OPEN_EAR]
+        parts.append(stem(rx0, y0, top_y, top=kind, foot=None,
+                          ent_span=(0.0, top_y), top_scale=G_OPEN_SER_SCALE))
+    elif G_OPEN_EAR != 'none':
         ex, ey = _open_on(cx, cy, crx, cry, G_OPEN_EAR_AT); L = 96 * wf * g_ear_scale()
         ear_c = [(ex, ey), (ex + L, ey + L * math.tan(math.radians(8)))]
         parts.append(stroke(ear_c, PR.bowl_widths(ear_c, widths([(0.0, 0.4), (0.35, 1.0), (1.0, 1.05)]),
