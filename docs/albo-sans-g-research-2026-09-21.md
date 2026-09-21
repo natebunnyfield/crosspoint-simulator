@@ -547,3 +547,49 @@ the italic's 18 is applied where `_ALD.ON` answers.
 **Third time today** a value was written to a table the shipping path does not
 consult — after the env-var prefix and the `G_LRING` bypass. The symptom is
 always the same: the measurement does not move.
+
+## Round 341 — axis options for the italic loop, and why two asks collide
+
+Owner: *"give me options for the axis on the italic G bottom loop and be sure
+to thin it out when it hits 10 o'clock."*
+
+`ALBO_ALD_G_LOOP_PHI` is the axis. Wall by angle, 0 = east and counterclockwise,
+so **150° is 10 o'clock** and 330° is the bottom right:
+
+| axis | 0 | 30 | 60 | 90 | 120 | **150** | 180 | 210 | 240 | 270 | 300 | **330** | min |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 40 | 48 | 70 | 70 | 62 | 17 | **16** | 45 | 66 | 54 | 34 | 20 | **17** | 16 |
+| 55 | 39 | 73 | 79 | 72 | 28 | **17** | 38 | 70 | 63 | 43 | 30 | **19** | 17 |
+| 70 (ships) | 32 | 72 | 82 | 81 | 39 | **26** | 29 | 69 | 67 | 53 | 42 | **27** | 26 |
+| 85 | 27 | 65 | 87 | 88 | 50 | 39 | 24 | 63 | 71 | 59 | 50 | 39 | 24 |
+| 100 | 30 | 54 | 86 | 90 | 53 | 47 | 28 | 51 | 68 | 59 | 53 | 49 | 28 |
+| 115 | 40 | 40 | 81 | 88 | 54 | 53 | 36 | 37 | **1** | 58 | 54 | 54 | **1** |
+
+**Only 40, 55 and 70 are thinnest AT 10 o'clock**, which is the constraint he
+set. 85 and 100 move the thin off it.
+
+### The two asks are diametrically opposed, and that is geometry
+
+**150° and 330° are exactly 180° apart**, and a nib gives two thicks and two
+thins 180° apart — so a single axis cannot thin at 10 o'clock and keep the
+bottom right full. Round 339 asked for the bottom right thicker; this round
+asks 10 o'clock thinner; they are the same lever pulled both ways:
+
+| axis | 10 o'clock | bottom right |
+|---|---|---|
+| 40 | 16 | 17 |
+| 55 | 17 | 19 |
+| 70 | 26 | 27 |
+| 85 | 39 | 39 |
+
+The two columns track each other because they are the same pair of nib angles.
+
+**To have both** the loop's width has to stop being a pure nib function — a
+local cut at 150 on a raised cosine, the way round 324 cut the bent g's
+shoulder and round 332 the counter's top. That is a small change and it is NOT
+built; it needs a ruling first, because it means the loop is no longer one
+pen's trace.
+
+**115 is the limit and is ruled out**: it leaves a **1-unit** wall at 240°, a
+near-break the contour gate does not catch because a thin wall is not a
+reversal. All the others gate clean.
