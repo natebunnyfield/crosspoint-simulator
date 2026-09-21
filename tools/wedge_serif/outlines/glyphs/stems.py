@@ -725,7 +725,7 @@ def g_q(c): return bowl_stem(c, 'right', c["xh"], -c["desc"])
 # TRACE_X 1.14; the ITALIC keeps the closed binocular one, which is a separate
 # construction in `aldine` and is not touched by this. 'bent' is the
 # two-storey roman of rounds 324-332, 'plain' the one before it.
-G_STYLE = os.environ.get("ALBO_G_STYLE", "open").lower()       # 'bent' | 'plain'
+G_STYLE = os.environ.get("ALBO_G_STYLE", "open").lower()       # open (ships) | bent | plain
 G_BENT_LOOP_RX = float(os.environ.get("ALBO_G_BENT_LOOP_RX", 205.0))  # wf units, against the plain g's 190
 G_BENT_LOOP_H = float(os.environ.get("ALBO_G_BENT_LOOP_H", 0.40))     # x the descender, against 0.50
 G_BENT_LOOP_DX = float(os.environ.get("ALBO_G_BENT_LOOP_DX", -4.0))
@@ -854,6 +854,8 @@ def _g_bent(c):
 
 
 # ===================== ROUND 327 -- THE OPEN-LOOP ROMAN g ==================
+# THIS IS WHAT SHIPS since round 335 (ALBO_G_STYLE defaults to `open`). The
+# header below is from when it did not, and was wrong for six rounds:
 # EXPLORATION ONLY, behind ALBO_G_STYLE=open. Nothing here ships: `bent` is
 # still the default and an unset build is byte-identical (proved by comparing
 # every glyph's RecordingPen output, never the TTF's md5 -- fontTools stamps

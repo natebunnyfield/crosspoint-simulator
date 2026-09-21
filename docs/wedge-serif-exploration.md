@@ -14,7 +14,11 @@
   about half a phone pixel. Method, and the four instrument bugs it cost:
   `docs/albo-spacing-method.md`, final section. **The kern quantum stated
   elsewhere in this file was wrong by 16x and is corrected below.**
-- **THE BENT ROMAN g SHIPS, 2026-09-21 (rounds 324-325).** Owner:
+- **SUPERSEDED at round 335 -- THE ROMAN g IS THE OPEN ONE.** `ALBO_G_STYLE`
+  defaults to `open` (`stems.py`), not `bent`. The entry below is kept for the
+  bent letter's history; see `docs/albo-sans-g-research-2026-09-21.md` rounds
+  331-341 for what actually ships.
+- **THE BENT ROMAN g SHIPPED FOR ROUNDS 325-334.** Owner:
   *"make a roman version of this, but reduce the lower loop top heaviness"*.
   `ALBO_G_STYLE` defaults to `bent` since round 325 (`plain` = up to 324,
   and round 324's mistake was leaving it behind the flag for a ruling): the italic's

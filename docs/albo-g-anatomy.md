@@ -1,5 +1,10 @@
 # The binocular g, measured — the scan, Flanker, Pagella, and Albo
 
+> **The ROMAN g is no longer binocular.** Since round 335 it is the
+> single-storey letter (`ALBO_G_STYLE=open`); this file is the ITALIC's
+> record, plus the roman's history up to round 334. Current state:
+> `docs/albo-sans-g-research-2026-09-21.md`.
+
 2026-09-16. Owner: *"do a better job connecting the ear of 'g', refer to scans
 and reference fonts"*, then *"redo 'g' based on flanker, pagella and the scan
 detail"*.
@@ -643,7 +648,7 @@ free — 49 units at 120 against 63 at 150 before.
 Verified on the default build: the `g` raises no `cmp_contour_hairs.py`
 finding and the whole-face `--letters` sweep returns the same rows as before.
 
-Page: `claude.ai/artifact/` — round 326 figure, the trace drawn on each letter
+Page: `claude.ai/artifact/ApvJMGpp8QKoaojuoXTWoF` — round 326, the trace drawn on each letter
 with the reversal circled.
 
 ## Round 327 — the owner's own dragged params, and the three faults in them
