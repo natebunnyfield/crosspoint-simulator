@@ -3069,8 +3069,50 @@ void zenPreWarmLayout() {
     layoutPad(static_cast<int>(outW), static_cast<int>(outH));
 }
 
+// WHICH INPUT PATH IS LIVE, said once per launch, in the log the owner can
+// actually reach (diagnostics/firmware.log, armed by the Settings.app
+// Diagnostics Log switch). It exists because S-041 took a session to find and
+// the whole question is one bit: did a pointer click arrive, and did it become
+// a finger?
+//
+//   mouse seen + finger(synthesized)  -> iPhone Mirroring or a trackpad,
+//                                        working through SDL's mouse->touch
+//                                        bridge
+//   mouse seen, NO finger line        -> the bridge is off again (S-041); the
+//                                        pad is dead and gestures still work
+//   finger(direct) only               -> an ordinary finger on the glass
+//   neither                           -> nothing is reaching SDL at all, and
+//                                        the fault is above this file
+//
+// Once per PROCESS, not per launch of the sleep loop: the iOS reboot longjmps
+// back through here with statics intact, and a line per wake would bury the
+// one that matters. Purely observational -- no mouse event is acted on here,
+// because SDL has already synthesized the finger that is.
+void notePointerPath(const SDL_Event *e) {
+  static bool loggedFinger = false;
+  static bool loggedMouse = false;
+  if (!loggedFinger && e->type == SDL_EVENT_FINGER_DOWN) {
+    loggedFinger = true;
+    const bool synth = e->tfinger.touchID == SDL_MOUSE_TOUCHID;
+    SDL_Log("[input] first finger: touchID %llu -- %s",
+            static_cast<unsigned long long>(e->tfinger.touchID),
+            synth ? "SYNTHESIZED FROM A POINTER (iPhone Mirroring or a "
+                    "trackpad); the mouse->touch bridge is live"
+                  : "a direct touch on the glass");
+  } else if (!loggedMouse && (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                              e->type == SDL_EVENT_MOUSE_BUTTON_UP)) {
+    loggedMouse = true;
+    SDL_Log("[input] first pointer button: this session is being driven by an "
+            "indirect pointer. A '[input] first finger' line must follow it, "
+            "or SDL_HINT_MOUSE_TOUCH_EVENTS is off and the pad is dead "
+            "(S-041).");
+  }
+}
+
 bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
   float outW = 0, outH = 0;
+
+  notePointerPath(e);
 
   switch (e->type) {
     case SDL_EVENT_FINGER_DOWN: {
