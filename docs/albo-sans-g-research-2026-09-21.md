@@ -593,3 +593,31 @@ pen's trace.
 **115 is the limit and is ruled out**: it leaves a **1-unit** wall at 240°, a
 near-break the contour gate does not catch because a thin wall is not a
 reversal. All the others gate clean.
+
+
+## Round 342 — the axis ruled at 45
+
+Owner: *"try 35 or a better angle"*. **35 meets the 10-o'clock criterion but
+barely differentiates it** — 150 reads 17 and 330 reads 18, so the thin sits in
+both places at once. Across the band that keeps 150 the *thinnest* point
+(35–50; at 30 the thinnest jumps to 300 and the criterion fails outright), 45
+separates them best and carries the strongest ring:
+
+| axis | 0 | 30 | 60 | 90 | 120 | **150** | 180 | 210 | 240 | 270 | 300 | **330** | ratio |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 35 | 48 | 69 | 69 | 58 | 17 | **17** | 47 | 65 | 51 | 30 | 18 | 18 | 4.17 |
+| **45 — ships** | 44 | 70 | 76 | 66 | 20 | **15** | 43 | 67 | 57 | 39 | 24 | 17 | **4.97** |
+| 50 | 42 | 71 | 77 | 69 | 25 | **14** | 39 | 68 | 60 | 41 | 27 | 16 | 5.53 |
+
+**Stated rather than buried:** every one of these is well under the 28-unit
+bowl hairline at its thin, which is what round 339 was about. That is inherent
+at this contrast while 150 and 330 are 180° apart — a single nib cannot thin
+one and fill the other. The local cut that would break the tie is in round 341
+and is **not built**.
+
+### The new tooling caught its first thing on its first use
+
+`gates.sh` reported *"GATES unchanged, but an APPROVED GLYPH moved"* — the
+italic g no longer drew what round 341 recorded. That is correct and it is a
+NEW ruling, so `approved.py --add` re-recorded it against this round and the
+owner's words. Exactly the check that round 336 needed and did not have.

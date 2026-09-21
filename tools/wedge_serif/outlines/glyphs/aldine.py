@@ -5145,7 +5145,24 @@ if ON:
     # THE TWO ASKS PULL AGAINST EACH OTHER and this is the balance: the
     # bottom right goes 12 -> 36 and NOTHING in the loop is under the
     # hairline, at the cost of the ratio, 5.68 -> 2.84.
-    G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 70.0))
+    # ROUND 342 -- 45, not 70. Owner: *"try 35 or a better angle"*. 35 meets
+    # his 10-o'clock criterion but barely differentiates it: 150 reads 17 and
+    # 330 reads 18, so the thin sits in both places at once. Across the band
+    # that keeps 150 the THINNEST point (35-50; at 30 the thinnest jumps to
+    # 300 and the criterion fails), 45 separates them best and carries the
+    # strongest ring:
+    #
+    #            0   30   60   90  120  150  180  210  240  270  300  330  ratio
+    #     35    48   69   69   58   17   17   47   65   51   30   18   18   4.17
+    #     45    44   70   76   66   20   15   43   67   57   39   24   17   4.97
+    #     50    42   71   77   69   25   14   39   68   60   41   27   16   5.53
+    #
+    # STATED: every one of these is well under the 28-unit bowl hairline at
+    # its thin, which round 339 was about. That is inherent at this contrast
+    # and with 150 and 330 being 180 degrees apart -- a single nib cannot thin
+    # one and fill the other. The local cut that would break that tie is
+    # described in round 341 and is NOT built.
+    G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 45.0))
     # ROUND 204 -- AN EVEN OVAL COUNTER, AND A HAND PRESSED BACK INTO IT.
     # `PR.ovalise` fits the counter's own ellipse and pulls it on; 1.0 is the
     # ellipse, 0.0 the round-203 letter to the bit. OVAL_WALL is the guard --
