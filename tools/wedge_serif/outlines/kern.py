@@ -628,7 +628,16 @@ def feature_text():
                      # and weight tried in round 309. Reaching them is
                      # U+FB06 / U+E004; switching them on is one line here,
                      # once the join is drawn properly.
-                     '    sub T h by uniE005;\n'
+                     # ROUND 310 -- THE Th IS WITHDRAWN. Owner 2026-09-21,
+                     # having seen it set: *"Th ligature is worse"*. It went in
+                     # on the corpus count (8,589) and it comes straight back
+                     # out on his eye, which outranks the count: the tuck buys
+                     # a tighter pair and costs the T its own air, and `The` at
+                     # the head of a sentence is the most-looked-at word in a
+                     # book. The glyph stays drawn at U+E005 and NOTHING
+                     # substitutes into it. Do not re-propose it; a gentler
+                     # TH_TUCK is a different proposal and needs its own ask.
+
                      '} liga;')
     return '\n'.join(lines) + '\n'
 

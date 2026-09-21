@@ -328,6 +328,19 @@ of 0.275. It was the heaviest letter in the italic lowercase. The stroke
 median would have been 0.90; the color median is the rung he picked, and the
 two differ because the g packs two bowls and a neck into one x-height.
 
+**Ruling 2026-09-21 (owner): THE ITALIC HAS NO LIGATURES, AND THE ROMAN KEEPS
+ITS FIVE.** *"remove italic ligatures"* — done, the italic's `liga` feature is
+empty and its FB00–FB04 glyphs stay drawn and encoded so a text literally
+containing U+FB01 still sets in Albo. *"take pass at adding other ligatures to
+roman"* — the pass drew fb fh fj fk (rejected on his own corpus: 13 occurrences
+in two million pairs, six inside `Kafka`), st and ct (wanted badly — st is the
+commonest pair in his books — but the joining arc reads as a spur off the s and
+is NOT shipped), and Th, which shipped for one round and was withdrawn the same
+day: *"Th ligature is worse"*. **The roman feature is ff · fi · fl · ffi · ffl
+and nothing else.** Every rejected glyph stays drawn behind its codepoint
+(U+E000–E005, U+FB06). Do not re-propose any of them; a differently drawn st,
+or a gentler Th tuck, is a new proposal and needs its own ask.
+
 **Ruling 2026-09-20 (owner): THE ROMAN 8 IS LEFT AS IS.** Rounds 305 and 306
 built the levers it would need -- `ring(nib=...)` for a true nib,
 `ALBO_8_OVAL` / `ALBO_8_STRESS` reaching the roman at last, `ALBO_FIG_NIB` for

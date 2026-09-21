@@ -3111,3 +3111,26 @@ construction, not another height.
 Roman feature now: **ff · fi · fl · ffi · ffl · Th**. Italic: none.
 
 Page: `claude.ai/artifact/4PKvHFH6gyQ6xT34XuQVHb`.
+
+
+## 48. Round 310 — the Th is withdrawn, one round after it shipped
+
+Owner 2026-09-21, having seen it set: *"Th ligature is worse"*.
+
+It went in on the corpus count — 8,589 occurrences, the second commonest
+sequence in his books — and it comes straight back out on his eye, which
+outranks the count. What the count could not see: the tuck buys a tighter pair
+and spends the T's own air to do it, and `The` at the head of a sentence is the
+most-looked-at word in a book, so the pair a reader meets most often is exactly
+the one that can least afford to look crowded.
+
+**The roman feature is back to ff · fi · fl · ffi · ffl.** The glyph stays
+drawn at U+E005 with nothing substituting into it, as fb fh fj fk (E000–E003)
+and st/ct (FB06, E004) already do.
+
+**The general lesson, and it is the second time in two days:** a frequency
+count says which pairs are worth DRAWING, never whether a drawing is good. The
+corpus chose the candidate list correctly — st, Th and ct really are the three
+sequences his books are full of — and it had nothing to say about whether any
+of them should ship once drawn. Round 304 learned the same shape of thing about
+a group mean. Measure to choose what to attempt; render to decide what ships.
