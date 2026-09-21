@@ -14,9 +14,10 @@
   about half a phone pixel. Method, and the four instrument bugs it cost:
   `docs/albo-spacing-method.md`, final section. **The kern quantum stated
   elsewhere in this file was wrong by 16x and is corrected below.**
-- **A BENT ROMAN g EXISTS AND IS NOT SHIPPED, 2026-09-21 (round 324).** Owner:
+- **THE BENT ROMAN g SHIPS, 2026-09-21 (rounds 324-325).** Owner:
   *"make a roman version of this, but reduce the lower loop top heaviness"*.
-  `ALBO_G_STYLE=bent` in `stems.py` (default `plain`, unchanged): the italic's
+  `ALBO_G_STYLE` defaults to `bent` since round 325 (`plain` = up to 324,
+  and round 324's mistake was leaving it behind the flag for a ruling): the italic's
   wide shallow loop and diving bent connector rebuilt on the ROMAN's pen,
   loop/bowl 1.34 w and 0.79 h against Flanker's 1.53/0.79. `ALBO_G_BENT_TOP_W`
   cuts the loop's shoulder where the connector lands -- **150 degrees, not the

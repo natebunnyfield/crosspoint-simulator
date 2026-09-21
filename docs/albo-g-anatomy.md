@@ -585,5 +585,17 @@ outer is pre-resampled here with `geom.resample` so the index the function is
 handed maps back to a known point, which is the same trick the ampersand's ear
 uses. `ring()` itself has no per-angle lever.
 
-Nothing ships: `ALBO_G_STYLE` defaults to `plain`.
 Page: `claude.ai/artifact/XmB9amhkmvtQBV8LAucPeW`.
+
+### Round 325 — it ships
+
+Owner, immediately after: *"need a roman bent g. please do what I keep
+asking."* Round 324 built the letter and left it behind the flag for a ruling,
+which was the mistake — the ask was for the letter, not for a ladder.
+`ALBO_G_STYLE` defaults to **`bent`** and `ALBO_G_BENT_TOP_W` to **0.65**
+(the loop's shoulder at 150 degrees: 79 → 63 units, below the plain g's own 68
+at 180). `plain` still builds the letter that shipped up to round 324.
+
+Verified on the default build: the `g` raises no `cmp_contour_hairs.py`
+finding, and the whole-face `--letters` sweep returns the same rows it did
+before the change — no new fault anywhere else in the roman.

@@ -716,7 +716,10 @@ def g_q(c): return bowl_stem(c, 'right', c["xh"], -c["desc"])
 # 69-71 and 78-80. That upper-right shoulder, where the connector lands, is
 # the heaviness; G_BENT_TOP_W cuts it, centred on G_BENT_TOP_AT and falling to
 # nothing over G_BENT_TOP_ARC, so the rest of the ring is untouched.
-G_STYLE = os.environ.get("ALBO_G_STYLE", "plain").lower()      # 'bent' = round 324
+# SHIPS. Owner 2026-09-21: *"need a roman bent g. please do what I keep
+# asking."* Round 324 built this and left it behind the flag; that was the
+# mistake. `plain` is the letter that shipped up to round 324.
+G_STYLE = os.environ.get("ALBO_G_STYLE", "bent").lower()       # 'plain' = up to round 324
 G_BENT_LOOP_RX = float(os.environ.get("ALBO_G_BENT_LOOP_RX", 205.0))  # wf units, against the plain g's 190
 G_BENT_LOOP_H = float(os.environ.get("ALBO_G_BENT_LOOP_H", 0.40))     # x the descender, against 0.50
 G_BENT_LOOP_DX = float(os.environ.get("ALBO_G_BENT_LOOP_DX", -4.0))
@@ -733,7 +736,7 @@ G_BENT_PHI = float(os.environ.get("ALBO_G_BENT_PHI", 0.0))
 # lands somewhere else: their neck comes down the middle into the loop's
 # top, this one dives left and enters at G_BENT_TO. The mass is where the
 # connector lands, so that is where the cut goes.
-G_BENT_TOP_W = float(os.environ.get("ALBO_G_BENT_TOP_W", 0.70))   # x the ring's own width, at the shoulder
+G_BENT_TOP_W = float(os.environ.get("ALBO_G_BENT_TOP_W", 0.65))   # x the ring's own width, at the shoulder; 79 -> 63 units at 150 deg
 G_BENT_TOP_AT = float(os.environ.get("ALBO_G_BENT_TOP_AT", 150.0))  # where that cut is centred, degrees
 G_BENT_TOP_ARC = float(os.environ.get("ALBO_G_BENT_TOP_ARC", 85.0))  # and how far it reaches
 G_BENT_FROM = float(os.environ.get("ALBO_G_BENT_FROM", 256.0))  # the neck leaves the bowl here
