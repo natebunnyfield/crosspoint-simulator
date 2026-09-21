@@ -1235,6 +1235,15 @@ ALT051_WIDTHS = {
   ],
 }
 ALT051_NIB_MIX = float(os.environ.get("ALBO_ALT051_NIB_MIX", 0.45))
+# ROUND 316 -- THE THREE THINGS THAT ARE OUT OF BALANCE, each measured against
+# the face rather than guessed. At mix 0.45 the letter's mean stroke is 1.29x
+# the italic's body letters (o e n c s a d g u), its contrast 1.79 against
+# their 1.40-1.66, and its advance 2.93x the o's -- nearly three letters wide.
+# A reference's proportions are not this face's, and a traced letter carries
+# them in whole.
+ALT051_WEIGHT = float(os.environ.get("ALBO_ALT051_WEIGHT", 1.0))   # x the traced width
+ALT051_CON = float(os.environ.get("ALBO_ALT051_CON", 1.0))         # <1 pulls the contrast toward the face's
+ALT051_SQUEEZE = float(os.environ.get("ALBO_ALT051_SQUEEZE", 1.0)) # x the width; the swash is most of it
 ALT051_BALL = float(os.environ.get("ALBO_ALT051_BALL", 0.62))     # round 314: the terminal discs, x the stroke's width there
 
 def alt051_nib(c):
@@ -1249,7 +1258,10 @@ def alt051_nib(c):
     S_ = pen.S
     th = S_ * ALT051_THICK
     def draw(pts, taper, ball_ends=(), key=None):
-        p = [( (x - min(xs)) * k, (y - min(ys)) * k ) for x, y in pts]
+        # round 316: the squeeze is HORIZONTAL only, about the left edge -- the
+        # swash is nearly all of this letter's width, so squeezing x shortens
+        # the arm and leaves the bowl's height alone.
+        p = [( (x - min(xs)) * k * ALT051_SQUEEZE, (y - min(ys)) * k ) for x, y in pts]
         p = geom.catmull(p, tension=0.5)
         w = nib_widths(p, th, th * ALT051_THIN, target=None, smooth=9,
                        taper=taper, boost=None)
@@ -1267,6 +1279,11 @@ def alt051_nib(c):
                 else:
                     src = tab[-1][1]
                 w[i] = src * k * ((w[i] / mean) ** ALT051_NIB_MIX)
+            if ALT051_CON != 1.0:                     # round 316: toward the face
+                gm = sum(w) / len(w)
+                w = [gm * (x / gm) ** ALT051_CON for x in w]
+            if ALT051_WEIGHT != 1.0:
+                w = [x * ALT051_WEIGHT for x in w]
         parts = [_stroke(p, widths(list(zip([i/(len(w)-1) for i in range(len(w))], w))))]
         # ROUND 314 -- THE TERMINALS SWELL, they do not run out. The coverage
         # map against the source (59.1% covered, 1.7% extra -- the drawing was

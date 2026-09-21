@@ -3396,3 +3396,53 @@ the skeleton number said trace more, and once it was high the ink number said
 the rest was never a line at all.
 
 Page: `claude.ai/artifact/XL3oYrGnZvp3dX4NxGDgM5`.
+
+
+## 54. Round 316 — the ampersand balanced against the face, not by eye
+
+Owner 2026-09-21: *"make variations that achieve more optically and styled
+balance"*. A traced letter carries the REFERENCE's proportions whole, and they
+are not this face's.
+
+### The target is the face's own ampersand, measured
+
+| | weight, x the face's body letters | contrast | advance, x the o |
+|---|---|---|---|
+| the italic's body letters (o e n c s a d g u) | 1.00 | 1.40–1.66 | — |
+| **the shipped italic &** | **1.09** | **1.54** | **1.87** |
+| the roman & | 1.03 | 1.43 | 1.41 |
+| **the faithful trace (round 315)** | **1.29** | **1.79** | **2.93** |
+
+So the fault was measurable before anything was drawn: 29% too heavy, more
+contrast than any letter in the face, and nearly three o's wide.
+
+### Three dials, one per fault
+
+`ALBO_ALT051_WEIGHT` (x the traced width), `ALBO_ALT051_CON` (<1 pulls the
+contrast toward the face's, re-spreading about the stroke's own mean) and
+`ALBO_ALT051_SQUEEZE` (horizontal only, about the left edge — the swash is
+nearly all of this letter's width, so squeezing x shortens the arm and leaves
+the bowl's height alone). All 1.0 by default.
+
+| arm | weight | contrast | advance |
+|---|---|---|---|
+| a, the faithful trace | 1.29 | 1.79 | 2.93 |
+| e | 0.90 | 1.57 | 2.06 |
+| f | 1.05 | 1.59 | 1.94 |
+| g, more swash kept | 1.06 | 1.59 | 2.24 |
+| **h, recommended** | **1.05** | **1.51** | **1.95** |
+
+**h lands on the shipped ampersand's own numbers** (1.09 / 1.54 / 1.87), so it
+is the same letter's job done by a different form rather than a visitor in the
+line. g is the alternative if the swash is wanted: same weight and contrast, a
+fifth wider.
+
+### The trade, stated
+
+The squeeze is a real departure from the source, and coverage of the reference
+FALLS when the letter is compressed. That is correct rather than a regression:
+it stops being a copy at the moment it starts being Albo's. Round 315's 94.7%
+was the right number for a trace and is the wrong target for a member of this
+family.
+
+Page: `claude.ai/artifact/MaVinR7yBddSRxKVfBU9UV`. Not ruled.
