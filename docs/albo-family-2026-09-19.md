@@ -3446,3 +3446,60 @@ was the right number for a trace and is the wrong target for a member of this
 family.
 
 Page: `claude.ai/artifact/MaVinR7yBddSRxKVfBU9UV`. Not ruled.
+
+
+## 55. Round 317 — the left side held, and the three bugs that hid behind it
+
+Owner 2026-09-21: *"keep the left side strokes the same"*. Round 316's squeeze
+compressed the whole letter, narrowing the E and the bowl along with the swash
+— and those two are the part that already reads as this face.
+
+`ALBO_ALT051_HOLD` (0.46) is the fraction of the width held at full size; the
+squeeze applies only past it, so the E, the bowl, the waist and the spur are
+untouched at any squeeze and the arm carries all of it.
+
+### Checking the hold actually held found THREE bugs
+
+Making the squeeze positional was one line. Measuring whether the left was
+genuinely unchanged — the same PHYSICAL strip, best alignment allowed — said
+**6.3% of its ink still moved** between squeezes. Three causes, each found by
+measurement:
+
+1. **The width profile was indexed on the SQUEEZED path.** The source's widths
+   are a function of distance along the stroke, so shortening the arm slid
+   every width toward the start, left side included. Indexed on the unsqueezed
+   path now. (7.2% → 6.5%: real, and not the main cause.)
+2. **Both normalisers moved with the squeeze.** The nib mix divides by the mean
+   of the nib's own widths and the contrast dial re-spreads about their
+   geometric mean; both were taken over the whole stroke. Pinned to the
+   unsqueezed path, they are constants of the letter. (6.5% → 6.3%.)
+3. **The widths were handed to `stroke` on a UNIFORM index.** `stroke` maps a
+   width table across its own parameterisation, so a uniform `t` paired with
+   points that are no longer evenly spaced slides every width a little. Paired
+   with the squeezed path's own arc length: **6.3% → 1.6%**, which at a 400 px
+   raster is edge noise plus the spline's legitimate change near the hold line.
+
+**How the third was diagnosed is the transferable part**: the residual was
+spread EVENLY across the strip rather than clustering at the hold boundary. A
+boundary effect looks like a boundary; a parameterisation error looks like
+this. Asking *where* the error was, not just how big, is what named it.
+
+Fixing (3) changed the letter's effective weight, so the tuning was redone
+rather than kept.
+
+### The balanced set, after the fixes
+
+Target — the face's own italic ampersand: **1.09 / 1.54 / 1.87** (weight x the
+body letters, contrast, advance x the o).
+
+| squeeze | weight | contrast | advance |
+|---|---|---|---|
+| **0.22** | **1.07** | **1.56** | **1.86** |
+| 0.28 | 1.09 | 1.58 | 1.94 |
+| 0.38 | 1.09 | 1.57 | 2.07 |
+| round 316, whole letter | 1.05 | 1.51 | 1.95 |
+
+with `ALBO_ALT051_WEIGHT=1.36 ALBO_ALT051_CON=0.45`. Recorded in the source;
+not made the default, and not ruled.
+
+Page: `claude.ai/artifact/XU95DBQqUEPhcWvQ7VkMVx`.

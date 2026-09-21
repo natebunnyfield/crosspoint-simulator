@@ -1244,6 +1244,24 @@ ALT051_NIB_MIX = float(os.environ.get("ALBO_ALT051_NIB_MIX", 0.45))
 ALT051_WEIGHT = float(os.environ.get("ALBO_ALT051_WEIGHT", 1.0))   # x the traced width
 ALT051_CON = float(os.environ.get("ALBO_ALT051_CON", 1.0))         # <1 pulls the contrast toward the face's
 ALT051_SQUEEZE = float(os.environ.get("ALBO_ALT051_SQUEEZE", 1.0)) # x the width; the swash is most of it
+# ROUND 317 -- THE SQUEEZE HOLDS THE LEFT SIDE. Owner 2026-09-21: *"keep the
+# left side strokes the same"*. Round 316 compressed the whole letter, which
+# narrows the E and the bowl along with the swash -- and those two are the part
+# that already reads as this face. The compression now starts at ALT051_HOLD of
+# the letter's width and applies only past it, so the E, the bowl, the waist
+# and the spur are untouched at any squeeze and the arm carries all of it.
+ALT051_HOLD = float(os.environ.get("ALBO_ALT051_HOLD", 0.46))     # the fraction held at full width
+#
+# THE BALANCED SET, round 317, measured against the face's own ampersand
+# (weight 1.09x the body letters, contrast 1.54, advance 1.87x the o):
+#
+#     ALBO_ALT051_WEIGHT=1.36 ALBO_ALT051_CON=0.45 ALBO_ALT051_SQUEEZE=0.22
+#         -> 1.07 / 1.56 / 1.86, the closest of the ladder
+#     ...SQUEEZE=0.28 -> 1.09 / 1.58 / 1.94, a little more swash
+#     ...SQUEEZE=0.38 -> 1.09 / 1.57 / 2.07, more again
+#
+# Not made the default: `g` stays the faithful trace, and the owner has not
+# ruled on which of these ships.
 ALT051_BALL = float(os.environ.get("ALBO_ALT051_BALL", 0.62))     # round 314: the terminal discs, x the stroke's width there
 
 def alt051_nib(c):
@@ -1261,15 +1279,40 @@ def alt051_nib(c):
         # round 316: the squeeze is HORIZONTAL only, about the left edge -- the
         # swash is nearly all of this letter's width, so squeezing x shortens
         # the arm and leaves the bowl's height alone.
-        p = [( (x - min(xs)) * k * ALT051_SQUEEZE, (y - min(ys)) * k ) for x, y in pts]
+        span = (max(xs) - min(xs)) * k
+        hold = span * ALT051_HOLD
+        def sq(xv):
+            xv = (xv - min(xs)) * k
+            return xv if xv <= hold else hold + (xv - hold) * ALT051_SQUEEZE
+        raw = [( (x - min(xs)) * k, (y - min(ys)) * k ) for x, y in pts]
+        p = [( sq(x), (y - min(ys)) * k ) for x, y in pts]
         p = geom.catmull(p, tension=0.5)
+        # ROUND 317 -- THE WIDTH PROFILE IS INDEXED ON THE UNSQUEEZED PATH.
+        # The source's widths are a function of how far along the STROKE a
+        # point is, and squeezing the arm shortens the stroke -- so indexing on
+        # the squeezed path slides every width toward the start, including on
+        # the left side that the hold is supposed to leave alone. Measured: the
+        # left strip moved 7.2% of its ink between two squeezes before this.
+        base = geom.catmull(raw, tension=0.5)
+        acc = [0.0]
+        for q0, q1 in zip(base, base[1:]):
+            acc.append(acc[-1] + ((q1[0]-q0[0])**2 + (q1[1]-q0[1])**2) ** 0.5)
+        tot = acc[-1] or 1.0
+        tpos = [a / tot for a in acc]
         w = nib_widths(p, th, th * ALT051_THIN, target=None, smooth=9,
                        taper=taper, boost=None)
+        # ...and so are the two NORMALISERS. The nib mix divides by the mean of
+        # the nib's own widths and the contrast dial re-spreads about their
+        # geometric mean; both are taken over the whole stroke, so both move
+        # when the arm is squeezed and both then scale the LEFT side with it.
+        # Taken on the unsqueezed path they are constants of the letter.
+        wbase = nib_widths(base, th, th * ALT051_THIN, target=None, smooth=9,
+                           taper=taper, boost=None)
         if key in ALT051_WIDTHS:                      # round 315, above
             tab = ALT051_WIDTHS[key]; n = len(w)
-            mean = sum(w) / n
+            mean = sum(wbase) / len(wbase)
             for i in range(n):
-                t = i / (n - 1)
+                t = tpos[i] if i < len(tpos) else 1.0
                 # the source's width at t, linear between its 24 stops
                 for j in range(len(tab) - 1):
                     if tab[j][0] <= t <= tab[j+1][0]:
@@ -1280,11 +1323,21 @@ def alt051_nib(c):
                     src = tab[-1][1]
                 w[i] = src * k * ((w[i] / mean) ** ALT051_NIB_MIX)
             if ALT051_CON != 1.0:                     # round 316: toward the face
-                gm = sum(w) / len(w)
+                gm = sum(wbase) / len(wbase)
                 w = [gm * (x / gm) ** ALT051_CON for x in w]
             if ALT051_WEIGHT != 1.0:
                 w = [x * ALT051_WEIGHT for x in w]
-        parts = [_stroke(p, widths(list(zip([i/(len(w)-1) for i in range(len(w))], w))))]
+        # ...and the width list is handed to `stroke` on the SQUEEZED path's own
+        # arc length, not on a uniform index. `stroke` maps a width table across
+        # its own parameterisation, so a uniform t paired with points that are
+        # no longer uniformly spaced slides every width a little -- which is why
+        # the residual on the left was spread evenly rather than sitting at the
+        # hold boundary.
+        sacc = [0.0]
+        for q0, q1 in zip(p, p[1:]):
+            sacc.append(sacc[-1] + ((q1[0]-q0[0])**2 + (q1[1]-q0[1])**2) ** 0.5)
+        stot = sacc[-1] or 1.0
+        parts = [_stroke(p, widths(list(zip([a / stot for a in sacc], w))))]
         # ROUND 314 -- THE TERMINALS SWELL, they do not run out. The coverage
         # map against the source (59.1% covered, 1.7% extra -- the drawing was
         # thin, not wrong) shows the two misses that are FEATURES rather than
