@@ -575,10 +575,10 @@ def _apply_bench():
 # Values are his, ADDED to what the pair already carried.
 _BENCH_PAIRS_ROM = ((('Y','e'), 12), (('T','o'), 24), (('A','v'), 12),
                     (('W','a'), 41), (('V','i'), 13), (('Q','u'), 37))
-# ...each MINUS 4 in the italic, for the same reason the capital bearings are:
-# the lowercase's new +4 left side has already opened the pair.
-_BENCH_PAIRS_ITA = ((('G','r'), 4), (('Q','u'), 7), (('R','e'), 4),
-                    (('V','i'), -13), (('T','h'), -13), (('T','o'), 12))
+# ROUND 304: raw again -- round 303's minus-4 was compensation for the italic
+# lowercase tracking, which the fuller data withdrew.
+_BENCH_PAIRS_ITA = ((('G','r'), 8), (('Q','u'), 11), (('R','e'), 8),
+                    (('V','i'), -9), (('T','h'), -9), (('T','o'), 16))
 for _p, _d in (_BENCH_PAIRS_ITA if (_ALD is not None and _ALD.ON) else _BENCH_PAIRS_ROM):
     PAIRS[_p] = _shipped(*_p) + _d
 

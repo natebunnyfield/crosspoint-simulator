@@ -2879,3 +2879,62 @@ later pass.
   `Ya Yo Ys` which the ladder's pair arm could not.
 
 Page: `claude.ai/artifact/UBp6sqFxjrGLNEf4H4GVuz`.
+
+
+## 44. Round 304 — 37 more judgments refuted one of round 303's two lowercase changes
+
+Owner 2026-09-20, later the same evening: *"updated more"*. The bench is at
+**232 judgments** (117 roman, 115 italic), up from 189.
+
+### The italic lowercase tracking is WITHDRAWN
+
+Round 303 gave every italic lowercase letter +4 per side — a uniform +8 per
+pair — fitted on 17 judgments averaging **+8.3, sd 7.9**, and called it
+"genuinely uniform". With 37 more rows it reads **n=54, mean +1.4, sd 12.5**,
+and broken out by the left letter it is **round −1.5 (n17) against flat +1.7
+(n33)**. That is not a tracking signal; it is "leave the italic lowercase
+alone".
+
+Withdrawn rather than retuned, and everything that leaned on it goes back with
+it: round 303's italic capitals, marks and leftover pairs each carried his
+number MINUS 4 precisely to compensate for that tracking, and all of them are
+raw again.
+
+**The lesson is the sample, not the arithmetic.** +8.3 with sd 7.9 on n=17
+looked like the most solid finding in the whole decomposition — 12 of 17 within
+half a phone pixel — and it was the one that did not survive. The roman's
+round-lowercase +11 was fitted on n=24 against n=38 the same day and the new
+rows CONFIRMED it (round **+12.2** n27 against flat **+0.8** n41, a wider
+separation than the +11/+2 it was fitted on). Same round, same method, same
+sample sizes, opposite outcomes — so the rule is not "n=17 is too small", it is
+that a group mean is a claim about a population and has to be re-checked when
+the population grows.
+
+### What the new rows do say, and is NOT acted on
+
+The italic **diagonals** want about +11: left-letter +10.8 on four readings,
+right-letter +17.5 on two. Six readings are not a bearing. Recorded as the
+question for the next pass.
+
+### Measured against all 232, both builds
+
+| group | n | round 303 | round 304 |
+|---|---|---|---|
+| roman capitals | 6 | 0.0 | 0.0 |
+| roman lowercase | 72 | −1.0 | −1.0 |
+| roman marks | 39 | −0.1 | −0.1 |
+| italic capitals | 29 | +1.0 | **0.0** |
+| italic lowercase | 54 | +6.6 | **−1.4** |
+| italic marks | 32 | +3.1 | **+2.3** |
+
+Mean error in design units between what the built font does to each pair and
+what he asked for, measured with `gap_measure.py` on the built fonts. Nothing
+in the roman moved this round.
+
+### Checked and CLEAN
+
+No glyph's shape changed against build 205 in either style (same point count,
+one constant offset). Collisions unchanged: roman 1 touching (`VI`,
+pre-existing) and 3 under the floor, italic 0 and 0.
+
+Page: `claude.ai/artifact/6bveomeUiBiey7qsxD37i5`.

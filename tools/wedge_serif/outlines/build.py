@@ -242,10 +242,10 @@ ALD_PUNCT_ADJ = {',': (-37, 43), '!': (0, -39), '?': (0, -48)}
 # letter. Both are subtracted here, and `cmp_bench_gaps.py` re-checks the
 # built font against his targets rather than against these constants.
 ROM_PUNCT_ADJ = {"'": (-47, -33), ',': (-19, 0), '.': (-17, 0), ':': (-11, 0), ';': (-13, 0)}
-ALD_PUNCT_ADJ.update({'.': (-10, 0), ':': (-10, 0)})
+# ROUND 304: his raw numbers, now that the italic lowercase tracking is gone.
+ALD_PUNCT_ADJ.update({'.': (-6, 0), ':': (-6, 0)})
 # ...and the italic COMMA reads +1.0 on eleven pairs, which is "leave it where
-# it is" -- so it takes -4 to cancel the lowercase tracking rather than nothing.
-ALD_PUNCT_ADJ[','] = (ALD_PUNCT_ADJ[','][0] - 4, ALD_PUNCT_ADJ[','][1])
+# it is" -- and with the tracking withdrawn that is literally nothing to do.
 # ROUND 221 -- THE QUOTES' RIGHT SIDE. Owner 2026-09-18: *"take a pass at all
 # spacing including 'apostrophe s'."* Round 220 judged the quotes in band on
 # `s'` -- the letter BEFORE the mark -- and never measured `'s`, the pair he
@@ -345,14 +345,26 @@ except ImportError:                      # the module is optional, exactly as in
 # It belongs in ALD.BEARINGS['o'] -- (-18, 58) -> (-18, 86) -- and is held here
 # only because glyphs/aldine.py was being edited by another hand on the day.
 ALD_BEARING_ADJ = {'o': (0, 28)}
-# ROUND 303 -- AND THE ITALIC LOWERCASE WANTS +8, UNIFORMLY. His 17 italic
-# lowercase judgments average +8.3 with sd 7.9 and 12 of them sit within half a
-# phone pixel of that: unlike the roman's, this one really is one number. Split
-# +4 / +4 so each letter keeps its own centring in its advance, which adds
-# exactly 8 units to every lowercase pair. The o keeps round 211's +28 on top.
-for _c in "abcdefghijklmnopqrstuvwxyz":
-    _b = ALD_BEARING_ADJ.get(_c, (0, 0))
-    ALD_BEARING_ADJ[_c] = (_b[0] + 4, _b[1] + 4)
+# ROUND 304 -- AND THE ITALIC LOWERCASE WANTS NOTHING. WITHDRAWN.
+#
+# Round 303 gave every italic lowercase letter +4 per side, a uniform +8 per
+# pair, on 17 judgments averaging +8.3 with sd 7.9. He judged 37 more the same
+# evening and the number did not survive: **n=54, mean +1.4, sd 12.5**. Broken
+# out by the left letter it is round -1.5 (n17), flat +1.7 (n33) -- which is
+# "leave the italic lowercase alone", and the opposite of a tracking change.
+#
+# So the +8 is GONE rather than retuned, and the italic's capitals, marks and
+# leftover pairs go back to his raw numbers with it: each of those carried his
+# target MINUS 4 precisely because this tracking was under them.
+#
+# The one thing the new data does say is that the italic DIAGONALS want about
+# +11 (left-letter diag +10.8 on n=4, right-letter +17.5 on n=2). Four and two
+# readings are not a bearing, so nothing is applied; it is the question the
+# next bench pass should answer.
+#
+# The ROMAN's round-lowercase +11 is the opposite story and was CONFIRMED by
+# the same 37 rows: round +12.2 (n27) against flat +0.8 (n41), where round 303
+# fitted +11 on n=24 against +2 on n=38. It stands.
 
 
 def fit_aldine(ch, conts):

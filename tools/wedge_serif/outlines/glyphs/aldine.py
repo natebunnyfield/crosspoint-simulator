@@ -10879,9 +10879,9 @@ CAP_BEARING_ADJ = {
 # This also answers round 300's Ye ladder without it: +50 on the Y's right is
 # his own +42 on `Ye` and +57 on `Yo`, measured a day apart, and it reaches
 # `Ya Yo Ys` which the ladder's pair arm could not.
-# Each is his number MINUS 4: round 303 also gives every italic lowercase
-# letter +4 on its left side, so a Cap+lowercase pair has already opened by 4
-# before the capital is touched. `cmp_bench_gaps.py` checks the built pairs
-# against his targets, which is the number that has to land.
-for _c, _d in (('A', 4), ('C', 1), ('F', -44), ('P', -24), ('W', 9), ('Y', 46)):
+# ROUND 304: his numbers RAW. Round 303 carried each one minus 4, because it
+# also gave every italic lowercase letter +4 on its left side; that tracking
+# was withdrawn when 37 more judgments took the italic lowercase from +8.3
+# (n17) to +1.4 (n54), so the compensation goes with it.
+for _c, _d in (('A', 8), ('C', 5), ('F', -40), ('P', -20), ('W', 13), ('Y', 50)):
     _b = CAP_BEARING_ADJ[_c]; CAP_BEARING_ADJ[_c] = (_b[0], _b[1] + _d)
