@@ -449,3 +449,41 @@ references' 0.79–0.89. That interacts with the still-unruled width ladder of
 round 335 (arms a/b/c), and the two are probably best ruled together.
 
 The roman is untouched: **0 of 493 glyph outlines differ**.
+
+## Round 338 — the italic g's contrast and ear, and an instrument that could not see either
+
+Owner: *"make more improvements to the italic G, including the contrast and
+improve legibility in a word image and trimming down the ear to match the style
+of elbow"*.
+
+### Three contrast levers looked dead. Two are; the instrument was the problem
+
+`cmp_aldine_g`'s **"loop stroke L/R" samples two points, and both land near the
+loop's thick** — so it reads 50/54 whatever the contrast does. Measured per
+angle instead (`scratchpad/albo/loopwall.py`), the loop already ran **17 to 72
+units, a ratio of 4.24**, and `LOOP_CON` moves it properly:
+
+| | loop wall min–max | ratio | what the two-point measure said |
+|---|---|---|---|
+| before | 17–72 | 4.24 | 50 / 54 |
+| **CON 7.0 — ships** | **12–66** | **5.68** | 46 / 49 |
+| `G_LRING` table rewritten | 17–72 | 4.24 | 50 / 54 |
+| `LOOP_THIN_F` 0.22 | 19–78 | 4.00 | 53 / 57 |
+
+The other two really are dead, and now recorded as such: **`G_LRING` is ignored
+while `G_LOOP_PEN` is set** (the ring takes the pen model instead of the width
+table), and **`LOOP_THIN_F` moves the ratio the wrong way**.
+
+Two different `G_LRING` tables produced byte-identical numbers, which is the
+signature this file already records for an env var that never arrived — here it
+was a live variable reaching dead code, which looks the same from outside.
+
+### The ear, trimmed to the elbow
+
+`EAR_X` 350 → 322, `EAR_T` 35 → 27, `EAR_TIP` 0.79 → 0.62. Reach past the
+crown **152 → 122**. The references reach 184–214, so this deliberately goes
+the other way: the elbow is a taut, light stroke and the ear now matches its
+scale rather than the references' heavier one.
+
+Gate clean, and the whole italic `--letters` sweep returns the same rows as
+before. The roman is untouched.

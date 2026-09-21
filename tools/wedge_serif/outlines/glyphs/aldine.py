@@ -4655,8 +4655,10 @@ if ON:
     # fall against 28) and runs the reference's distance, so its top edge stays
     # under the bowl's crown for its whole length and the bowl is the letter's
     # highest ink again.
-    G_EAR_X = float(os.environ.get("ALBO_ALD_G_EAR_X", 350.0))  # the ear's right tip
-    G_EAR_T = float(os.environ.get("ALBO_ALD_G_EAR_T", 35.0))   # its thickness
+    # ROUND 338 -- the ear trimmed to the elbow's scale (owner: *"trimming down
+    # the ear to match the style of elbow"*). Reach past the crown 152 -> 122.
+    G_EAR_X = float(os.environ.get("ALBO_ALD_G_EAR_X", 322.0))  # the ear's right tip
+    G_EAR_T = float(os.environ.get("ALBO_ALD_G_EAR_T", 27.0))   # its thickness
     G_EAR_Y = float(os.environ.get("ALBO_ALD_G_EAR_Y", 0.86))  # the tip's height, x xh
     G_EAR_ROOT = float(os.environ.get("ALBO_ALD_G_EAR_ROOT", 0.30))  # root, x rx from the bowl's centre
     G_EAR_RY = float(os.environ.get("ALBO_ALD_G_EAR_RY", 0.955))     # the root's height, x xh  -- its UPPER EDGE lands on the crown, so the centre sits one half-width under it
@@ -4841,7 +4843,7 @@ if ON:
     # so it is thinnest where it starts. That is what these dials now say.
     G_EAR_ROOT_W = float(os.environ.get("ALBO_ALD_G_EAR_ROOT_W", 0.60))  # x G_EAR_T at the bowl
     G_EAR_FLARE = float(os.environ.get("ALBO_ALD_G_EAR_FLARE", 1.02))    # its widest, at 0.82 along
-    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.79))        # at the CUT, not a point
+    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.62))        # at the CUT, not a point
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
     G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 21.0))   # its waist
@@ -5112,7 +5114,15 @@ if ON:
     # because the owner asked for the weight and not for the contrast.
     G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 60.0))
     G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.62))
-    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 3.70))
+    # ROUND 338 -- the loop's contrast, and why three levers looked dead.
+    # `cmp_aldine_g`'s "loop stroke L/R" samples TWO points and both land near
+    # the loop's thick, so it reads 50/54 whatever the contrast does. Measured
+    # per angle instead (scratchpad/albo/loopwall.py), the loop runs 17 to 72
+    # units -- a ratio of 4.24 -- and CON 7.0 takes it to 12/66, 5.68. The
+    # other two levers really are dead: G_LRING is ignored while G_LOOP_PEN is
+    # set (the ring takes the pen model instead of the table), and LOOP_THIN_F
+    # moves the ratio the WRONG way, 4.24 -> 4.00 at 0.22.
+    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 7.00))
     # ROUND 203 -- EACH RING GETS ITS OWN NIB ANGLE. G_SKEW shears the ring and
     # does NOT move where the thick falls: a pen-drawn ring takes its stress
     # from the nib, so the axis lever has to be the nib's angle. 50 is the
