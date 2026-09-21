@@ -2761,3 +2761,54 @@ covered and are not duplicated.
 The page groups by class, pages 40 at a time, filters to what is still unset,
 and shows each pair's own corpus count beside it so he can spend his attention
 where the reading is.
+
+
+## 42. Round 302 — 189 judgments, and what they are actually saying
+
+Owner 2026-09-20, having worked the 396-row bench: *"updated"*. 111 roman and
+78 italic values, read out of the artifact's store.
+
+**They are not 189 kerns.** Sorted by what they have in common, most of them
+are four or five decisions about LETTERS:
+
+| group | n | mean | sd | reading |
+|---|---|---|---|---|
+| roman · marks | 39 | −17 | 14 | per MARK, not one number (below) |
+| roman · lowercase | 66 | +5 | 14 | by the LEFT letter: round +11, flat +2 |
+| roman · capitals | 6 | +23 | 12 | all six positive |
+| italic · lowercase | 17 | +8 | 8 | **uniform** — 12 of 17 within half a phone pixel |
+| italic · capitals | 29 | +2 | 20 | **not** uniform: −41 to +57, real per-pair work |
+| italic · marks | 32 | −5 | 15 | small; the italic already tucks its marks |
+
+**The clearest single finding: the roman apostrophe is 41 units too far out.**
+He pulled it in on all seven words carrying one, mean −41 with a spread of ±9
+— nothing else in the bench is that consistent. Period −12, comma −15, colon
+−7, semicolon −6. That is a ruling on the MARK'S OWN BEARING: one change to
+one glyph, against a kern for every letter that can precede it.
+
+**The clearest structural finding: in the roman lowercase, the LEFT letter
+predicts his number and the right one does not.** A round letter before
+anything wants +11 where a flat one wants +2 (the right-hand letter: +5
+either way). So the roman's round lowercase — `b c d e g o p q s` — is fitted
+about a third of a phone pixel too tight on its right side. A bearing, not 66
+kerns.
+
+**And one place the structure is genuinely absent**: the italic capitals, mean
++2 with a −41..+57 range. Generalising there would spend his work badly, so
+the model leaves them alone and they stay per-pair.
+
+### Two arms, and why neither is the recommendation
+
+`bench_values.json` carries both, per style, and `ALBO_KERN_BENCH=literal|model`
+builds them (`docs` page: `claude.ai/artifact/L39ZyK3hi4PomUDBg52wJR`).
+
+- **literal** — 111 + 78 pairs at exactly his numbers. Safe, inconsistent:
+  `o n` corrected while `o m` is not, though they are the same meeting.
+- **model** — 395 + 314 pairs: his numbers where he gave one, the structure
+  above where he did not.
+
+**Recommended and NOT yet ruled:** neither, quite. The marks and the roman's
+round lowercase are BEARING faults — fix them in the drawing, where each costs
+one number and reaches every pair nobody will ever judge — then kern what is
+left, which is the capitals. About six letter changes plus ~40 kern pairs,
+against 709.

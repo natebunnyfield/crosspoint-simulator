@@ -23,6 +23,7 @@ the punctuation that tucks under one.
 """
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.dirname(HERE))
+import json
 from fontTools.ttLib import TTFont
 from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
 
@@ -504,6 +505,35 @@ BENCH_DELTAS = {
 # same meeting either way: a descender under a raised mark.
 BENCH_MODE = os.environ.get("ALBO_KERN_BENCH", "").strip().lower()
 
+# ROUND 302 -- the bench grew to 396 rows (every common pair in his own books,
+# `pair_census.py`) and he judged 189 of them. `bench_values.json` carries two
+# readings of that, per style, as pair -> delta:
+#
+#   "literal"  only the pairs he actually moved.
+#   "model"    his answers generalised to the pairs he did not reach, by the
+#              structure IN the answers: marks by which mark, the roman's
+#              lowercase by the LEFT letter's class (round +11 against flat
+#              +2 -- a bearing signal, not 66 kerns), the italic's lowercase
+#              by one number (+8, sd 7.9: it really is uniform), and the
+#              roman's capitals by one (+23, all six positive).
+#              The italic's CAPITALS are deliberately NOT generalised: mean
+#              +2 with sd 20 and a -41..+57 range is not one number.
+BENCH_FILE = os.path.join(HERE, "..", "bench_values.json")
+
+def _apply_bench_file(which):
+    with open(BENCH_FILE) as fh: table = json.load(fh)[which]
+    style = 'italic' if (_ALD is not None and _ALD.ON) else 'roman'
+    cmap_names = {}
+    for pair, d in table[style].items():
+        if not d: continue
+        l, r = _gname(pair[0]), _gname(pair[1])
+        if l and r: PAIRS[(l, r)] = _shipped(l, r) + d
+
+_AGL = {'.': 'period', ',': 'comma', ':': 'colon', ';': 'semicolon',
+        "'": 'quotesingle', '"': 'quotedbl', '-': 'hyphen', '!': 'exclam', '?': 'question'}
+def _gname(ch):
+    return ch if ch.isalpha() else _AGL.get(ch)
+
 def _class_cell(l, r):
     """The (left class, right class) cell a glyph pair falls in, or None."""
     lc = next((k for k, gs in LEFT.items() if l in gs), None)
@@ -516,6 +546,8 @@ def _shipped(l, r):
     return CLASS_PAIRS.get(cell, 0) if cell else 0
 
 def _apply_bench():
+    if BENCH_MODE in ('literal', 'model'):
+        _apply_bench_file(BENCH_MODE); return
     if BENCH_MODE not in ('pairs', 'classes'): return
     style = 'italic' if (_ALD is not None and _ALD.ON) else 'roman'
     deltas = BENCH_DELTAS[style]
