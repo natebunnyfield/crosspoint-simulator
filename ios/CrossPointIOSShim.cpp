@@ -3121,12 +3121,23 @@ void traceInput(const SDL_Event *e) {
     // pointer; SDL_MOUSE_TOUCHID is the virtual device the mouse->touch bridge
     // reports on.
     const bool synth = e->tfinger.touchID == SDL_MOUSE_TOUCHID;
-    SDL_Log("[input] %s  %s  id=%lld  norm=%.3f,%.3f  zen=%d asleep=%d "
-            "sheet=%d fingers=%d",
+    // geo=0 IS A VERDICT, not a detail. padWatch's FINGER_DOWN `break`s
+    // outright when windowPixelSize fails, with no log and no other effect, so
+    // a finger that fails this gate is indistinguishable from a finger that
+    // never arrived. It fails when SDL_GetWindowFromID cannot resolve the
+    // event's own windowID -- the fallback to g_windowId only covers a ZERO id,
+    // not an unrecognised non-zero one. Reported rather than repaired: if a
+    // remote session ever does deliver a touch stamped with a window SDL does
+    // not know, this line says so in one session, where widening the fallback
+    // would have quietly changed behaviour and left the cause unproven.
+    float gw = 0.0f, gh = 0.0f;
+    const int geo = windowPixelSize(e->tfinger.windowID, &gw, &gh) ? 1 : 0;
+    SDL_Log("[input] %s  %s  id=%lld  norm=%.3f,%.3f  win=%u geo=%d  "
+            "zen=%d asleep=%d sheet=%d fingers=%d",
             what, synth ? "SYNTHESIZED-FROM-POINTER" : "direct-touch",
             static_cast<long long>(e->tfinger.fingerID), e->tfinger.x,
-            e->tfinger.y, g_zen ? 1 : 0, asleep, sheet,
-            g_zenVerbs.activeFingers());
+            e->tfinger.y, static_cast<unsigned>(e->tfinger.windowID), geo,
+            g_zen ? 1 : 0, asleep, sheet, g_zenVerbs.activeFingers());
   } else {
     SDL_Log("[input] %s  button=%d at %.1f,%.1f  zen=%d asleep=%d sheet=%d "
             "-- a finger line must accompany this one, or SDL's mouse->touch "
