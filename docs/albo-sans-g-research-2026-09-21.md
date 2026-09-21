@@ -487,3 +487,63 @@ scale rather than the references' heavier one.
 
 Gate clean, and the whole italic `--letters` sweep returns the same rows as
 before. The roman is untouched.
+
+## Rounds 339–340 — the loop's bottom right, and the g's fitting
+
+### 339, the bottom right (owner: *"needs to be thicker to balance it out"*)
+
+Measured per angle it WAS the thinnest place in the loop — **12 units at 315°**
+against the family's 28-unit bowl hairline — and round 338's own contrast raise
+is what put it there (18 at CON 3.7, 12 at 7.0). The nib's ANGLE decides where
+the thin falls, so that moved rather than the contrast alone:
+
+| | 0 | 45 | 90 | 135 | 180 | 225 | 270 | 315 | min | ratio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| phi 29, con 7.0 | 49 | 66 | 48 | 12 | 47 | 52 | 19 | **12** | 12 | 5.68 |
+| **phi 70, con 4.4** | 32 | 81 | 81 | 31 | 29 | 73 | 52 | **36** | **29** | 2.84 |
+
+**The two asks pull against each other** and this is the balance: the bottom
+right goes 12 → 36 and nothing in the loop is under the hairline, at the cost
+of the ratio, 5.68 → 2.84.
+
+### 340, the fitting — and the measure that lied
+
+Both g's were redrawn this session, so the bench-fitted bearings no longer
+matched them. **The first fit was wrong and the render caught it.**
+
+The bbox gap (`rsb + kern + lsb`, `gap_measure.py`) said the italic g ran **73
+units tight** on its left, uniformly, on every neighbour. Applied, the word
+image came back visibly LOOSER — *dig ging*, *rug ged*. The 2D closest approach
+says why: the italic g was already **0.024–0.035 em LOOSE**, and the bbox is
+fooled by the tail, which **overhangs at descender level where no neighbour has
+ink**, so the white it counts is not white a reader sees.
+
+That is precisely the trap `docs/albo-spacing-method.md` was written to name —
+"minimum white cannot see an open shape" — and I walked into it anyway. **On an
+open letter, fit with `cmp_space_2d`; the bbox gap is for closed ones.**
+
+2D closest approach against the same pair with an o, mean over a/e/n/o:
+
+| | roman | italic |
+|---|---|---|
+| before | −0.021 | +0.012 |
+| the bbox fit | — | **+0.036** (worse) |
+| **shipped** | **+0.000** | **+0.004** |
+
+The roman's fit was right either way: `BEARING_ADJ['g']` (−11, −19) → (0, −3).
+The italic's is `ALD_LC_ADJ['g'] = (−15, −15)` — tighter, not looser.
+
+### The kern, and a third dead table
+
+`gr` is the one pair that does not follow the bearings — 36 units tight in the
+roman, 18 in the italic, because the r's left side is cut back for the round
+letters and the g's tail swings under it. It was first written into
+`BENCH_DELTAS`, **which does nothing in a shipped build**: that table is gated
+on `ALBO_KERN_BENCH`, the variable is empty by default, and `_apply_bench`
+returns before reading it. The pair now lives in `PAIRS`, and because `PAIRS`
+is shared by both faces and built before the module knows which it is drawing,
+the italic's 18 is applied where `_ALD.ON` answers.
+
+**Third time today** a value was written to a table the shipping path does not
+consult — after the env-var prefix and the `G_LRING` bypass. The symptom is
+always the same: the measurement does not move.

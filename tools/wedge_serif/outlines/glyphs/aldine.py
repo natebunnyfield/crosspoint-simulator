@@ -5122,14 +5122,30 @@ if ON:
     # other two levers really are dead: G_LRING is ignored while G_LOOP_PEN is
     # set (the ring takes the pen model instead of the table), and LOOP_THIN_F
     # moves the ratio the WRONG way, 4.24 -> 4.00 at 0.22.
-    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 7.00))
+    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 4.40))
     # ROUND 203 -- EACH RING GETS ITS OWN NIB ANGLE. G_SKEW shears the ring and
     # does NOT move where the thick falls: a pen-drawn ring takes its stress
     # from the nib, so the axis lever has to be the nib's angle. 50 is the
     # family's, and `nib_widths_closed` already took a phi -- only the dial was
     # missing.
     G_BOWL_PHI = float(os.environ.get("ALBO_ALD_G_BOWL_PHI", 21.0))
-    G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 29.0))
+    # ROUND 339 -- THE BOTTOM RIGHT. Owner: *"the bottom right of the bottom
+    # loop of the italic G needs to be thicker to balance it out with the rest
+    # of the letter"*. Measured per angle, it WAS the thinnest place in the
+    # loop -- 12 units at 315 degrees, against the family's 28-unit bowl
+    # hairline -- and round 338's contrast raise is what put it there (18 at
+    # CON 3.7, 12 at 7.0). The nib's angle is what decides WHERE the thin
+    # falls, so it moves rather than the contrast alone:
+    #
+    #                    0   45   90  135  180  225  270  315   min  ratio
+    #   phi 29 con 7.0  49   66   48   12   47   52   19   12    12   5.68
+    #   phi 60 con 3.7  40   81   77   29   36   72   49   30    29   2.82
+    #   phi 70 con 4.4  32   81   81   31   29   73   52   36    29   2.84
+    #
+    # THE TWO ASKS PULL AGAINST EACH OTHER and this is the balance: the
+    # bottom right goes 12 -> 36 and NOTHING in the loop is under the
+    # hairline, at the cost of the ratio, 5.68 -> 2.84.
+    G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 70.0))
     # ROUND 204 -- AN EVEN OVAL COUNTER, AND A HAND PRESSED BACK INTO IT.
     # `PR.ovalise` fits the counter's own ellipse and pulls it on; 1.0 is the
     # ellipse, 0.0 the round-203 letter to the bit. OVAL_WALL is the guard --

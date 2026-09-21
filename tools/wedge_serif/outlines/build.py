@@ -292,7 +292,15 @@ ROM_LC_ADJ = {'a': (+15, -5), 'c': (+0, +7), 'e': (+8, +7), 'i': (+0, +9), 'l': 
                # an f (unchanged).
                '\ufb01': (0, +9), '\ufb03': (0, +9)}
 ROM_PUNCT_FIT = {"'": (-40, +0), ',': (-12, +0), '.': (-10, +0), ':': (-3, +0), ';': (-4, +0)}
-ALD_LC_ADJ = {'e': (+0, -14), 'h': (+6, +0), 'i': (-5, +7), 'm': (+0, +6), 'n': (+5, -5), 'o': (+8, -5), 'p': (+0, +7), 'r': (+11, +0), 't': (+0, -8), 'u': (+0, +10), 'w': (+0, +10), 'y': (+11, +12)}
+# ROUND 340 -- the g's own fitting, after this session redrew both letters.
+# MEASURED WITH THE 2D CLOSEST APPROACH, not the bbox gap. The bbox measure
+# (rsb + kern + lsb) said this letter was 73 units TIGHT on its left; the
+# render said the opposite and the 2D measure agreed with the render -- it was
+# already 0.024-0.035 em LOOSE. The bbox is fooled by the italic g's tail,
+# which overhangs at DESCENDER level where no neighbour has ink, so the white
+# it counts is not white a reader sees. That is the trap
+# docs/albo-spacing-method.md exists to name, and I walked into it.
+ALD_LC_ADJ = {'g': (-15, -15), 'e': (+0, -14), 'h': (+6, +0), 'i': (-5, +7), 'm': (+0, +6), 'n': (+5, -5), 'o': (+8, -5), 'p': (+0, +7), 'r': (+11, +0), 't': (+0, -8), 'u': (+0, +10), 'w': (+0, +10), 'y': (+11, +12)}
 ALD_PUNCT_FIT = {"'": (-4, +0), ',': (+3, +0), '.': (-5, +0), ':': (-1, +0)}
 
 for _c, _lr in ALD_PUNCT_FIT.items():             # round 308's joint fit
@@ -364,7 +372,10 @@ ALD_QUOTE_LSB = float(os.environ.get("ALBO_ALD_QUOTE_LSB", "-20"))
 # a bearing, applied below to b c d e g o p q s. His per-pair residuals (sd 14)
 # are NOT applied: they are the next pass, and only after this one is judged.
 ROUND_LC_RSB = 11
-BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, -1), 'f': (5, 25), 'g': (-11, -19), 'h': (0, -2), 'i': (0, -1), 'j': (0, 14), 'k': (0, 18), 'l': (-3, 2), 'm': (0, -2), 'n': (4, 0), 'o': (0, -2), 'p': (-11, -1), 'q': (0, 37), 'r': (2, 13), 's': (17, 19), 't': (-11, 0), 'u': (-9, 3), 'v': (-1, -4), 'w': (6, 4), 'x': (42, 0), 'y': (0, 13), 'z': (0, -23), 'ﬀ': (0, 16)}
+# The roman g is a narrower letter since round 335 (advance 512 -> 489) and
+# kept the old bearings: measured the same way it ran 11 tight on the left and
+# 16 on the right against the o. 'g' goes (-11,-19) -> (0,-3).
+BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, -1), 'f': (5, 25), 'g': (0, -3), 'h': (0, -2), 'i': (0, -1), 'j': (0, 14), 'k': (0, 18), 'l': (-3, 2), 'm': (0, -2), 'n': (4, 0), 'o': (0, -2), 'p': (-11, -1), 'q': (0, 37), 'r': (2, 13), 's': (17, 19), 't': (-11, 0), 'u': (-9, 3), 'v': (-1, -4), 'w': (6, 4), 'x': (42, 0), 'y': (0, 13), 'z': (0, -23), 'ﬀ': (0, 16)}
 A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
 J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
 

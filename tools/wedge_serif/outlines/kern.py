@@ -141,6 +141,19 @@ CLASS_PAIRS = {
 # Single-glyph exceptions (written first, so the reader's first-wins overlay
 # takes them over the class value; format-1 subtable before the format-2).
 PAIRS = {
+    # ROUND 340 -- the g's one remaining pair. With its bearings refitted
+    # (build.py's tables) every neighbour tested came within a unit of what the
+    # same pair gets with an o in the g's place -- except `gr`, which reads 36
+    # units tight in the roman and 18 in the italic: the r's left side is cut
+    # back for the round letters and the g's tail swings left under it. A pair
+    # fault, so it belongs here.
+    #
+    # NOT in BENCH_DELTAS, which is where it was first written. That table is
+    # gated on ALBO_KERN_BENCH and the variable is EMPTY in a shipped build, so
+    # `_apply_bench` returns before reading it -- a kern put there does nothing
+    # and the pair measures exactly as it did before. Third time today that a
+    # value was written to a table the shipping path does not consult.
+    ('g', 'r'): 36,
     # ROUND 202 -- the owner's second bench pass, from the phone. His W at -43
     # puts it where the U and the Y already were against the quotes.
     ('U', 'quotedbl'): 36,
@@ -291,6 +304,14 @@ try:
     from .glyphs import aldine as _ALD
 except ImportError:
     _ALD = None
+# ROUND 340 -- and the g's pair is STYLE-SPECIFIC. PAIRS is shared by both
+# faces and is built above, before this module knows which one it is
+# drawing; the roman needs 36 on `gr` and the italic 18, and shipping the
+# roman's number to both left the italic pair 18 units LOOSER than the
+# same pair with an o. Corrected here, where _ALD.ON answers.
+if _ALD is not None and _ALD.ON:
+    PAIRS[('g', 'r')] = 18
+
 if _ALD is not None and _ALD.ON:
     PAIRS[('o', 'c')] = 18
     PAIRS[('o', 'r')] = 18
