@@ -3607,10 +3607,34 @@ void CrossPointHarness_begin() {
     s_identityChecked = true;
   }
 
-  // Touches must arrive as finger events only. Left on, SDL also synthesises
-  // mouse events from the same touch, and HalGPIO consumes mouse events.
+  // TOUCH -> MOUSE stays OFF. A real finger must arrive as a finger event
+  // only; left on, SDL also synthesises a mouse event from the same touch and
+  // HalGPIO consumes mouse events (its SDL_EVENT_MOUSE_BUTTON_DOWN branch
+  // feeds beginTouch, the X4 Pro digitizer).
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
-  SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
+
+  // MOUSE -> TOUCH stays ON, and the direction is the whole point: this is the
+  // one that carries iPhone MIRRORING. Mirroring delivers a click as
+  // UITouchTypeIndirectPointer, and SDL_uikitview.m's touchesBegan/Ended
+  // intercept that type, hand it to indirectPointerPressed/Released -- which
+  // sends SDL_SendMouseButton -- and `continue`, so NO SDL_EVENT_FINGER_DOWN
+  // is ever emitted. padWatch below handles only SDL_EVENT_FINGER_*, so with
+  // this synthesis off the pad, the tap candidate, the zen verb classifier,
+  // the keyboard chip and the read-aloud tap are all dead under Mirroring
+  // while the UIKit recognizers (which take indirect pointer natively) go on
+  // working -- an app that answers gestures and ignores every button.
+  //
+  // SDL's own default on iOS is already true (SDL_mouse.c
+  // SDL_MouseTouchEventsChanged), so this line only re-states it; it is
+  // explicit because a "0" sat here, disabling it, from the harness's first
+  // day. That "0" was the TOUCH_MOUSE comment above applied to the wrong
+  // hint: it defends against nothing, because with touch->mouse off there are
+  // no synthetic mouse events to loop back, and before Mirroring there were no
+  // real ones on a phone either.
+  //
+  // Safe on X3: the synthesised finger reaches HalGPIO as a finger, and its
+  // mouse branch is guarded by BoardConfig::hasTouch(), which is false here.
+  SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
 
 
   // NOT set, and it must stay that way: SDL_HINT_RETURN_KEY_HIDES_IME makes

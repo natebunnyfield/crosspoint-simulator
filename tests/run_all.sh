@@ -180,6 +180,19 @@ run sleep_touch \
 run_direct tap_dispatch_source \
   python3 tests/tap_dispatch_source_test.py
 
+# iPHONE MIRRORING. A click arrives on the phone as UITouchTypeIndirectPointer,
+# which SDL's UIKit backend turns into a MOUSE button and never into a finger
+# (SDL_uikitview.m touchesBegan -> indirectPointerPressed -> continue). padWatch
+# handles only SDL_EVENT_FINGER_*, so the bridge that makes Mirroring work at
+# all is SDL's mouse->touch synthesis -- which the harness disabled, with "0",
+# from its first day. Its neighbour TOUCH_MOUSE must stay "0" for the opposite
+# reason: HalGPIO consumes mouse events, so a real finger delivered both ways
+# reaches the X4 Pro digitizer as well as the pad. Two hints, one character
+# apart, pointing opposite ways; both values compile and both look right to a
+# finger on glass, so the drift is invisible without this.
+run_direct pointer_touch_hints \
+  python3 tests/pointer_touch_hints_test.py
+
 # WHAT EVERY GESTURE DOES (ios/GestureBindings.h), after the owner made the
 # bindings configurable from Settings.app on 2026-08-28 (T-025) and then re-cut
 # the SET twice the same day. What ships is 17 gestures -- single taps on 1 and
