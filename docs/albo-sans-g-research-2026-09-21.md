@@ -412,3 +412,40 @@ defaults are moved to match — and nothing checks that, because both builds are
 clean and both produce a plausible letter. The check that would have caught it
 is the one that did: **hash the shipped glyph against the build the owner
 actually approved.**
+
+## Round 337 — the italic's bottom loop was heavier than its own bowl
+
+Owner: *"italic g: the bottom loop is twice as heavy as it should be, keep it
+optically balanced to what it should be"*.
+
+Measured against the three references, **the loop is supposed to be LIGHTER
+than the bowl**, and Albo's was not:
+
+| | bowl L/R | loop L/R | loop ÷ bowl |
+|---|---|---|---|
+| the scan | 54 / 70 | 70 / **14** | **0.68** |
+| Flanker | 72 / 68 | 73 / 50 | 0.88 |
+| Pagella | 55 / 57 | 49 / 58 | 0.96 |
+| Albo, before | 58 / 57 | 70 / 69 | **1.21** |
+
+`ALBO_ALD_G_LOOP_PEN` **84 → 60** puts it at 50 / 54 and **0.90** — Flanker's
+ratio. The ladder, all gate-clean:
+
+| pen | loop L/R | loop ÷ bowl |
+|---|---|---|
+| 84 (before) | 70 / 69 | 1.21 |
+| 70 | 57 / 61 | 1.03 |
+| **60 — ships** | **50 / 54** | **0.90** |
+| 52 | 45 / 48 | 0.80 |
+| 60 + con 5.2 | 48 / 49 | 0.84 |
+| 52 + con 6.0 | 41 / 45 | 0.75 |
+
+Two things stated rather than quietly done. The references also carry a **thin
+side** this loop does not have — the scan's 14 against its own 70 — and
+`LOOP_CON` raises that; it is left alone because he asked for the weight, not
+the contrast. And thinning the wall **grows the counter**: loop/bowl counter
+goes 1.55 → 1.73 wide and 0.88 → 0.96 tall, the latter now above the
+references' 0.79–0.89. That interacts with the still-unruled width ladder of
+round 335 (arms a/b/c), and the two are probably best ruled together.
+
+The roman is untouched: **0 of 493 glyph outlines differ**.

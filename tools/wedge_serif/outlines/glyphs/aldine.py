@@ -5095,7 +5095,22 @@ if ON:
     # Not higher: at 96 the thickening crown closes on the connector (the glitch
     # gate reads 2.83 units of white left) and at 104 that white is gone, which
     # no gate can see because a filled bay has no concave corner.
-    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 84.0))
+    # ROUND 337 -- THE LOOP WAS HEAVIER THAN ITS OWN BOWL. Owner 2026-09-21:
+    # *"the bottom loop is twice as heavy as it should be, keep it optically
+    # balanced to what it should be"*. Measured against the three references,
+    # the loop is supposed to be LIGHTER than the bowl and this one was not:
+    #
+    #                bowl L/R   loop L/R   loop/bowl
+    #   the scan       54/70      70/14       0.68
+    #   Flanker        72/68      73/50       0.88
+    #   Pagella        55/57      49/58       0.96
+    #   Albo, before   58/57      70/69       1.21
+    #
+    # 84 -> 60 puts it at 50/54 and 0.90, which is Flanker's ratio. The
+    # references also carry a THIN side the loop does not have (the scan's
+    # 14 against its own 70); LOOP_CON raises that and is left alone here,
+    # because the owner asked for the weight and not for the contrast.
+    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 60.0))
     G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.62))
     G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 3.70))
     # ROUND 203 -- EACH RING GETS ITS OWN NIB ANGLE. G_SKEW shears the ring and
