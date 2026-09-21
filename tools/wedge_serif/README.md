@@ -328,6 +328,14 @@ of 0.275. It was the heaviest letter in the italic lowercase. The stroke
 median would have been 0.90; the color median is the rung he picked, and the
 two differ because the g packs two bowls and a neck into one x-height.
 
+**Ruling 2026-09-20 (owner), RESTATED FOR THE BENCH: no refresh until the
+spacing bench is finished.** Asked directly whether to ship now or wait, with
+232 of the 396 bench rows judged, he chose wait -- and the reason is in the
+data: the last 37 rows overturned a shipped decision (round 304 withdrew round
+303's italic lowercase tracking), so a build landing mid-bench would be judged
+against numbers he is still setting. The trigger is the bench finishing, or his
+word. This supersedes nothing below; it names the condition.
+
 **Ruling 2026-09-20 (owner): the TestFlight refresh is ON CALL, not pending.**
 It was ruled on 2026-09-19 ("refresh through validation"), then held for the
 italic cleanup, which landed as round 291 -- and five more rounds landed after
