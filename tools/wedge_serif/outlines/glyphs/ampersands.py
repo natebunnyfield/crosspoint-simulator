@@ -22,12 +22,12 @@ beside the terminal; and a closed loop drawn by `ring_from` folds its
 counter wherever the outer's radius is under the stroke's width, so the
 teardrops take a superellipse top whose radius clears it.
 """
-import math
+import math, os
 import shapely.affinity as aff
 from .. import geom, pen
 from .. import primitives as PR
 from ..geom import line, catmull, superellipse, cubic
-from ..primitives import stroke, pen_widths, bowl_widths, widths, wedge, end_wedge, diagonal, bar, beak, ring, stem
+from ..primitives import stroke, pen_widths, bowl_widths, widths, wedge, end_wedge, diagonal, bar, beak, ring, stem, dot
 from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, WL, WD, DROP
 
 def CAP(c): return c["cap"]
@@ -678,3 +678,377 @@ AMP_OPTIONS = {
     'k': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
               spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.85, egg_power=3.0, bowl_shape='three', bowl_bottom=0.42),     # three points, the bottom further right: a rounder underside
 }
+
+
+
+# ============================================================ THE ITALIC et
+# OWNER'S BRIEF, queued since 2026-09-15 and recorded at
+# docs/wedge-serif-exploration.md:4239 under "Queued, not yet investigated":
+#
+#     "use a flowing and adorned curved E ampersand for italics."
+#
+# restated at docs/albo-italic-capitals.md:123 -- *"the owner asked for a
+# flowing adorned curved E form for the italic, which is the chancery et, and
+# that is a construction question rather than a width one."*
+#
+# WHAT WAS WRONG. The italic has no ampersand of its own: `marks.AMP_OPT`
+# defaults to 'a' under `pen.ITALIC`, which is round 68's `round_bowl` --
+# THE ROMAN LETTER, sheared 13 degrees by `build.draw` and nothing else. Set
+# beside the Aldine lowercase it is the one roman thing left in the line: a
+# ruled diagonal, a teardrop loop and a bowl on `PR.BOWL`, in a word whose
+# e t o are drawn from Griffo's 1501 page on a broad nib. A sheared roman is
+# what round 115 was written to stop being, one letter at a time.
+#
+# A "curved E" is the *et* ligature as a chancery hand writes it: the two
+# arcs of an E bulging LEFT and meeting at a waist right of centre, with the
+# t crossing that waist. It is not a variant of the garalde & -- it is the
+# other construction entirely, which is why none of these is a `bred` dial
+# set and why `AMP_OPTIONS` was the wrong place to put them.
+#
+# DRAWN FROM THE REFERENCE SHELF, not invented. `refs/poetica-std-regular.otf`
+# (Slimbach's chancery, banked round 116c for exactly this work -- "the
+# reference for the queued italic ampersand, the k and r loops, and the swash
+# g") carries SIXTY-ONE ampersands, and they fall into four families. Each arm
+# below is one of them, measured off Poetica at upm 1000 against its own
+# x-height of 394 and read as multiples of it:
+#
+#   family                      Poetica           height      ink width
+#   E + rising t-stroke         alt002 alt003     1.04-1.35   1.13-1.52 xh
+#   E + long flat swash         alt012 alt052     1.54        2.26 xh
+#   e + upright t ("et")        alt004 alt005     1.62        1.63 xh
+#   E + short arm and curl      alt027 alt028     1.04        1.29 xh
+#
+# EVERY ONE OF THEM IS WIDER THAN IT IS TALL (w/h 1.01 to 1.47), where the
+# sheared roman & is 0.89. That is not decoration: the E's two arcs stack
+# vertically and everything else in the letter -- the t's rise, the swash, the
+# arm -- travels right. An arm here that came out taller than wide would be
+# the roman's proportion wearing the chancery's shapes.
+#
+# HOW THEY ARE DRAWN. On the Aldine nib, not on `pen.PEN` and not on
+# `PR.BOWL`: width = thin + (thick - thin) * |sin(direction - phi)| with phi
+# 35, which is `aldine.nib` and the pen the o, the c and the e are built on
+# (aldine.py: "the o's own"). The formula is repeated here rather than
+# imported because `glyphs/__init__` imports `marks` BEFORE `aldine`, and a
+# top-level import would invert that order for a two-line function. thick is
+# declared at the e's own 0.86 S and the contrast at its arm B's 5:1, so a
+# stroke of this & running in a given direction is the same weight as the e's
+# running in that direction -- which is the whole point of drawing it on the
+# same pen.
+#
+# ...WITH ONE FLOOR, and it is the measurement that earned this round its
+# second cut. At phi 35 every member that travels UP AND RIGHT runs along the
+# nib's own edge, so the t's rise, the swash's flat and the arm are all near
+# the pen's thin -- 0.86 S / 5 = 11.5 units at the shipping stem. Measured on
+# the shipped Italic as horizontal ink runs (5th percentile): o 29, x 22,
+# t 26, n 24, s 24, c 18. ELEVEN IS THINNER THAN ANYTHING THE FACE DRAWS, and
+# the first cut of these arms duly rendered the crossing stroke as a stray
+# hairline that disappears at reading size. ET_FLOOR holds every member at
+# 0.30 S, which lands the thin members at 20-26 units measured the same way --
+# inside the face's own range and above the italic X's 15-unit hairline, the
+# thinnest thing in the family that has to survive printing
+# (docs/albo-weight-survey-2026-09-17.md).
+#
+# Ends TAPER (0.62 of the body over the last 12%) instead of taking a wedge.
+# That is the Aldine lowercase's rule and the reason it reads as written --
+# "a brush leaves and arrives". A wedge serif on a chancery et would let the
+# roman back in by another door.
+#
+# Everything is a multiple of S, XH or the cap, so these move with the axes
+# exactly as the `bred` drawings do. Nothing here is registered as '&':
+# `marks.g_ampersand` picks one by ALBO_IT_AMP, and 'a' -- an unset build,
+# which is every build that has ever been made -- is today's drawing.
+ET_PHI   = float(os.environ.get("ALBO_IT_AMP_PHI", 35.0))     # the nib's angle: the o's, the c's and the e's
+ET_THICK = float(os.environ.get("ALBO_IT_AMP_THICK", 0.86))   # x S, across the nib -- ALBO_ALD_E_THICK
+ET_CON   = float(os.environ.get("ALBO_IT_AMP_CON", 5.00))     # thick:thin -- ALBO_ALD_CON, arm B
+ET_FLOOR = float(os.environ.get("ALBO_IT_AMP_FLOOR", 0.30))   # x S: no member thinner than the face draws
+ET_TIP   = float(os.environ.get("ALBO_IT_AMP_TIP", 0.62))     # ALBO_ALD_TIP
+ET_TIP_RUN = float(os.environ.get("ALBO_IT_AMP_TIP_RUN", 0.12))
+ET_WT    = float(os.environ.get("ALBO_IT_AMP_WT", 1.00))      # one dial over every arm's colour
+
+
+def et_nib(deg, thick=None, thin=None, phi=None):
+    """`aldine.nib`, repeated (see the import note above). A broad pen is
+    fullest ACROSS its edge and thinnest ALONG it."""
+    thick = (ET_THICK * S) if thick is None else thick
+    thin = (thick / ET_CON) if thin is None else thin
+    phi = ET_PHI if phi is None else phi
+    return thin + (thick - thin) * abs(math.sin(math.radians(deg - phi)))
+
+
+def et_w(pts, scale=1.0, phi=None, smooth=9, taper=(True, True), tip=None,
+         boost=None, thick=None, floor=None):
+    """Nib widths along a spine -> a width function of t for `stroke`.
+
+    `boost` is f(t) -> multiplier for a member that wants weight the pen's
+    own angle does not give it; `taper` says which ends leave the paper. The
+    moving average is `aldine.nib_widths`'s: a stepped width makes a faceted
+    counter, and a narrow counter shows every facet. The floor is applied
+    BEFORE the taper, so a tip is still a tip."""
+    n = len(pts); ws = []
+    fl = (ET_FLOOR if floor is None else floor) * S
+    for i in range(n):
+        a_ = pts[max(0, i - 1)]; b_ = pts[min(n - 1, i + 1)]
+        d = math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0]))
+        w = et_nib(d, thick=(thick * S if thick else None), phi=phi)
+        if boost: w *= boost(i / max(1, n - 1))
+        ws.append(max(w, fl) * scale * ET_WT)
+    if smooth:
+        ws = [sum(ws[max(0, i - smooth):i + smooth + 1]) /
+              len(ws[max(0, i - smooth):i + smooth + 1]) for i in range(n)]
+    tp = ET_TIP if tip is None else tip
+    if tp < 1.0 and ET_TIP_RUN > 0:
+        run = ET_TIP_RUN
+        for i in range(n):
+            t = i / max(1, n - 1); m = 1.0
+            if taper[0] and t < run:
+                m = min(m, tp + (1 - tp) * (0.5 - 0.5 * math.cos(math.pi * t / run)))
+            if taper[1] and t > 1 - run:
+                u = (1 - t) / run
+                m = min(m, tp + (1 - tp) * (0.5 - 0.5 * math.cos(math.pi * u)))
+            ws[i] *= m
+    m = n - 1
+    return widths([(i / m, w) for i, w in enumerate(ws)])
+
+
+def et_stroke(keys, scale=1.0, tension=0.5, **kw):
+    """A catmull spine through `keys` (absolute units), stroked on the nib."""
+    p = catmull(keys, tension=tension)
+    return stroke(p, et_w(p, scale=scale, **kw)), p
+
+
+def _et_frame(H):
+    """f=0 is the bottom centerline and f=1 the crown's, so a flat top or
+    bottom overshoots the line by OVER exactly as every bowl in the face
+    does. `o` is half the nib's width in the horizontal direction."""
+    o = 0.5 * et_nib(0.0) - OVER
+    return (lambda f: o + f * (H - 2 * o)), o
+
+
+def _et_curved_E(H, WE, pre=(), waist=(0.42, 0.50), crown_x=0.36,
+                 entry=((0.74, 0.75), (0.68, 0.93)), upper=(0.04, 0.74),
+                 low=(0.00, 0.25), bot=(0.36, 0.00),
+                 exit_=((0.74, 0.10), (0.86, 0.24)),
+                 scale=1.0, tension=0.5, **kw):
+    """THE CURVED E -- the owner's own words for it -- as ONE pen movement:
+    in at the upper right, left over the crown, down the upper flank, right
+    through the waist, down the LOWER and fuller flank, round the bottom and
+    out to the right. Shared by arms b and c, which differ in what crosses
+    it; that is the construction question and this is the part that is not in
+    question.
+
+    TWO THINGS MEASURED OFF THE REFERENCE AND NOT GUESSED, both of which the
+    first cut of this round got wrong by drawing the shape from the idea of
+    an epsilon instead of from the page:
+
+    THE LOWER ARC IS FULLER THAN THE UPPER. It reaches further left (0.00 of
+    the width against the upper flank's 0.04) and its bottom carries further
+    right than the crown does. An E whose two arcs are the same size reads as
+    a 3, and every ampersand on the shelf avoids it the same way.
+
+    AND IT IS WIDE. `WE` runs 0.70-0.75 of the height here. Poetica's chancery
+    ampersands are ALL wider than they are tall -- w/h 1.01 to 1.47 over the
+    four families -- where the sheared roman & is 0.89, and the first cut of
+    this arm came out at 0.60 of the height with counters the pen could very
+    nearly close. The width is not decoration: the E's two arcs stack
+    vertically while the t, the swash and the arm all travel right, so the
+    proportion follows from the construction."""
+    Y, _o = _et_frame(H)
+    X = lambda f: f * WE
+    P = lambda q: (X(q[0]), Y(q[1]))
+    keys = [P(q) for q in pre] + [P(entry[0]), P(entry[1]),
+            (X(crown_x), Y(1.00)), P(upper), P(waist),
+            P(low), P(bot), P(exit_[0]), P(exit_[1])]
+    return et_stroke(keys, scale=scale, tension=tension, **kw)
+
+
+def et_b(c):
+    """b -- THE CHANCERY et, COMPACT (Poetica alt002/alt003, ink 1.13-1.52
+    x-heights wide over 1.04-1.35 tall). The curved E with the t crossing its
+    waist and rising to a flicked tip past the crown's shoulder.
+
+    THE READING-SIZE ARM. It is the narrowest of the four and its only member
+    outside the E's own box is the t's rise, so at 13 px it stays one mark
+    instead of breaking into two."""
+    H = CAP(c) * 0.94; WE = H * 0.70
+    Y, _o = _et_frame(H); X = lambda f: f * WE
+    # THE TERMINAL'S DIRECTION IS ITS WEIGHT, and that is why two cuts of
+    # this loop came out as a blunt stub shutting its own counter. An entry
+    # that arrives travelling straight UP is at 86 degrees, which on this nib
+    # is 0.78 of the thick; entering at 57, along the pen's own edge, is 0.37
+    # of it. The terminal is fine because of where it points, and `tip` only
+    # lifts the pen at the very end of it.
+    E, _p = _et_curved_E(H, WE, entry=((0.60, 0.79), (0.73, 0.92)), tip=0.42)
+    # The t. It starts steep, where the nib is full, and flattens as it rises,
+    # so it thins on the way out because of where it is GOING rather than
+    # because a taper was declared on it -- and the hand presses through the
+    # crossing and lifts, which is `boost`. Without that pressure the member
+    # came out at the pen's thin for its whole length and read as a stray
+    # flourish laid over an epsilon rather than as the t of an et; that is
+    # what the first cut of this arm did.
+    # It LEAVES THE BOTTOM ARC, on that stroke's own centreline, rather than
+    # clipping the lower-left flank on its way past. Started at the flank the
+    # two strokes met at about 20 degrees and the t's entry terminal stood
+    # 2.2 units proud of the E's edge -- a HAIR by `cmp_contour_hairs.py`
+    # (turn 151.1 deg, arms 2.2/19.4), which is the one thing in this glyph
+    # that gate found. Buried on the centreline there is no crotch to leave.
+    T, _q = et_stroke([(X(0.26), Y(0.04)), (X(0.44), Y(0.30)),
+                       (X(0.74), Y(0.52)), (X(1.06), Y(0.70)),
+                       (X(1.26), Y(0.84)), (X(1.34), Y(0.98))],
+                      scale=1.04, tension=0.58,
+                      boost=lambda t: 1.0 + 0.55 * math.sin(math.pi * min(1.0, t / 0.66)) ** 1.4)
+    # A BALL ON THE t's TIP. The rise ends near the pen's thin whatever is
+    # done to it, so without a terminal it runs off the page as a hairline --
+    # which is what it did for three cuts. Poetica finishes this member with a
+    # ball (alt002), and so does Albo's own Aldine r (`aldine.d_ball`), so it
+    # is the family's answer and not an import.
+    return geom.ink([E, T, dot(X(1.33), Y(0.97), S * 0.27)])
+
+
+def et_c(c):
+    """c -- THE ADORNED et, WITH THE LONG FLAT SWASH (Poetica alt012/alt052,
+    ink 2.26 x-heights wide). The same E, drawn a little smaller, with the t's
+    exit running out FLAT to the right, dipping, and rising into a curl that
+    closes above the x-height; a lifted entry curl over the crown answers it
+    at the other end.
+
+    This is "flowing and adorned" taken at its word, and it is the arm for a
+    title page or a colophon rather than for running text: at 2.3 x-heights it
+    is nearly twice arm b's width, and the swash reaches into whatever follows
+    it. The curl is part of the SAME movement as the E -- a chancery hand does
+    not lift the pen to add an adornment -- which is why it is `pre` on the E's
+    own key list and not a mark drawn beside it."""
+    H = CAP(c) * 0.89; WE = H * 0.66
+    Y, _o = _et_frame(H); X = lambda f: f * WE
+    # THE SWASH IS WHERE THIS ARM'S ORNAMENT LIVES, and two other places
+    # were tried first and are recorded because both look plausible written
+    # down. A rolled curl over the crown KINKED: a catmull asked to double
+    # back inside a stroke's own width has nowhere to put the turn. A lifted
+    # entry coming in above the crown line from the upper right read as a
+    # SLAB across the top, because it arrives travelling nearly horizontally
+    # and adds its length to the crown's. The E keeps arm b's fine inward
+    # curl, and everything this arm has to say it says to the right.
+    E, _p = _et_curved_E(H, WE, entry=((0.60, 0.79), (0.73, 0.92)),
+                         crown_x=0.36, upper=(0.05, 0.74), waist=(0.44, 0.50),
+                         low=(0.00, 0.24), bot=(0.38, 0.00),
+                         exit_=((0.70, 0.07), (0.80, 0.18)), tip=0.42)
+    # The swash leaves from INSIDE the E's lower flank, so the union has no
+    # seam to show, crosses the waist, and runs away right.
+    SW, _ = et_stroke([(X(0.26), Y(0.34)), (X(0.56), Y(0.50)),
+                       (X(0.96), Y(0.55)), (X(1.34), Y(0.44)),
+                       (X(1.72), Y(0.51)), (X(1.95), Y(0.75)),
+                       (X(1.82), Y(0.92)), (X(1.62), Y(0.83))],
+                      scale=1.02, tension=0.5,
+                      boost=lambda t: 1.0 + 0.40 * math.sin(math.pi * min(1.0, t / 0.55)) ** 1.4)
+    return geom.ink([E, SW])
+
+
+def et_d(c):
+    """d -- THE et WRITTEN OUT (Poetica alt004/alt005/alt026): a round e on
+    the left and an upright t on the right, tied by ONE horizontal that is the
+    e's bar and the t's crossbar at the same time. The only arm a reader can
+    actually spell, and the tallest -- the t stands to the ascender the way
+    the Aldine t does.
+
+    The shared bar IS the ligature. An earlier cut drew the e's bar, the t's
+    crossbar and a joining stroke as three members, and the letter read as two
+    letters with a scratch between them; the references all merge them, and
+    merging is also what makes this one glyph rather than a kerned pair."""
+    H = CAP(c) * 0.99
+    Y, _o = _et_frame(H); U = H
+    xh = U * 0.585                       # the e's band, x the whole height
+    Ye = lambda f: _o + f * (xh - 2 * _o)
+    ew = U * 0.46; Xe = lambda f: f * ew
+    # the e: the Aldine e's own movement at this scale -- out of the bar, over
+    # the crown, down the left, round the flat wide bottom, and up into a
+    # narrow aperture.
+    # The arc starts ABOVE the bar, not on it. At Ye(0.64) its terminal ran
+    # nearly collinear with the bar for its whole first segment and the pair
+    # closed a 169-degree crotch -- a REVERSAL by `cmp_contour_hairs.py`, the
+    # only finding in this arm. It is the same trap round 172c solved on the
+    # Aldine e itself, where the answer was to let the stub follow the arc's
+    # own points; here the members are a bar and an e, so the answer is to
+    # give them an angle to cross at.
+    EA, _ = et_stroke([(Xe(0.86), Ye(0.76)), (Xe(0.56), Ye(1.00)),
+                       (Xe(0.08), Ye(0.72)), (Xe(0.05), Ye(0.28)),
+                       (Xe(0.44), Ye(0.00)), (Xe(0.92), Ye(0.22))],
+                      tension=0.5)
+    # the t's stem: the Aldine head leans in from the left at the top, and the
+    # foot kicks right along the baseline (`aldine.hm_exit`'s gesture).
+    TS, _ = et_stroke([(U * 0.845, Y(0.99)), (U * 0.745, Y(0.62)),
+                       (U * 0.70, Y(0.20)), (U * 0.76, Y(0.02)),
+                       (U * 0.94, Y(0.09))], scale=1.06, tension=0.5,
+                      tip=0.88)   # the Aldine ascender ends in a flat angled HEAD, not a point
+    # the one bar.
+    TB, _ = et_stroke([(Xe(0.02), Ye(0.47)), (Xe(0.95), Ye(0.58)),
+                       (U * 1.02, Y(0.60))], scale=1.02, tension=0.5,
+                      taper=(False, True))
+    return geom.ink([EA, TB, TS])
+
+
+def et_e(c):
+    """e -- THE TWO-BOWL E WITH A t OF ITS OWN (Poetica alt027/alt028, ink
+    1.29 x-heights wide over 1.04 tall). The other half of the chancery
+    family, and the one the first cuts of this round missed entirely: the E's
+    lower arc CLOSES INTO A ROUND BOWL and its upper arc closes over it, so
+    the left of the letter is two bowls stacked -- and the t on the right is
+    not one crossing stroke but TWO members, a crossbar running out nearly
+    flat and a stem sweeping down to a kicked foot.
+
+    That is the difference between alt002/alt027 and alt003/alt051, and it is
+    what makes this arm read as an ampersand where an open epsilon reads as a
+    Greek letter with a flourish on it. It is also the arm that spells `Et`
+    most plainly of the three E-forms: the two bowls are the E, the crossbar
+    and the stem are the t.
+
+    The bowl is `PR.ring` on the round-305 nib -- the same law as every other
+    member here, stated as (thick, thin, phi) -- so the ring's thin falls
+    where the pen's does and not where the family's bowl profile would put it.
+
+    Three things cost a cut each. A bowl at 0.30 of the width read as a
+    leaning oval with a K beside it rather than as the body of a letter, so
+    it is 0.40 and it dominates. The loop's lower end must be BURIED in the
+    ring and not butted onto it -- a terminal that stops on a curve's edge
+    leaves a notch. And the crossbar has to run FLAT: drawn as a second rising
+    diagonal it made an X with the stem and the whole right side collapsed
+    into a saltire."""
+    H = XH * 1.36; WE = H * 0.80
+    Y, _o = _et_frame(H); X = lambda f: f * WE
+    BW, _out, _in = ring(X(0.38), Y(0.32), X(0.38), Y(0.32) - _o,
+                         k=1.78, nib=(ET_THICK, ET_FLOOR, ET_PHI))
+    # the upper bowl: up out of the big bowl's left flank, over the crown,
+    # down the right and back in, so the two counters sit one over the other
+    # SEVEN keys, not five: at five the crown came to a POINT at the upper
+    # left, because a catmull through a wide-spaced turn puts all of the
+    # curvature at one sample. An arc wants points round it.
+    LP, _ = et_stroke([(X(0.12), Y(0.52)), (X(0.05), Y(0.76)),
+                       (X(0.19), Y(0.96)), (X(0.44), Y(1.00)),
+                       (X(0.62), Y(0.88)), (X(0.59), Y(0.68)),
+                       (X(0.44), Y(0.57))], tension=0.5, taper=(False, False))
+    # the t's crossbar and stem -- both STARTED ON THE LOOP'S RIGHT FLANK,
+    # at its centreline. "Bury it deeper" is the wrong instinct on a closed
+    # member and cost this arm a cut: moving the start further LEFT puts it
+    # in the loop's COUNTER, not in its ink, and the square end face then
+    # stands in open white as a nub. Inside a bowl means within half a
+    # stroke of the centreline, which here is x 0.60, not x 0.42.
+    CB, _ = et_stroke([(X(0.60), Y(0.75)), (X(0.90), Y(0.76)),
+                       (X(1.22), Y(0.71)), (X(1.34), Y(0.80))],
+                      scale=1.0, tension=0.5, taper=(False, True), tip=0.45)
+    # THE STEM IS GIVEN REAL AIR PAST THE BOWL, and that is the third thing
+    # this arm cost a cut. Run close alongside a round bowl, a straight-ish
+    # stroke leaves a white wedge that tapers to a point -- a HAIR by
+    # `cmp_contour_hairs.py` (158.2 deg, arms 24.1/2.2) even though both
+    # strokes are full weight, because the DEFECT is in the white and not in
+    # the ink. There is no near miss available here: at the bowl's equator
+    # the two half-widths are 53 units together, so the stem either merges
+    # solidly or it clears by enough to read as counterspace. The reference
+    # clears it, with a wide counter between, so this does too.
+    ST, _ = et_stroke([(X(0.62), Y(0.86)), (X(0.82), Y(0.62)),
+                       (X(0.97), Y(0.32)), (X(1.02), Y(0.08)),
+                       (X(1.20), Y(0.01)), (X(1.38), Y(0.12))],
+                      scale=1.02, tension=0.5, taper=(False, True))
+    return geom.ink([BW, LP, CB, ST])
+
+
+# ALBO_IT_AMP picks one; 'a' is what the italic has always drawn (the sheared
+# roman, `marks.g_ampersand`'s own path), so an unset build is byte-identical.
+ET_OPTIONS = {'b': et_b, 'c': et_c, 'd': et_d, 'e': et_e}

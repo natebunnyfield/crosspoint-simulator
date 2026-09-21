@@ -14,6 +14,16 @@
   about half a phone pixel. Method, and the four instrument bugs it cost:
   `docs/albo-spacing-method.md`, final section. **The kern quantum stated
   elsewhere in this file was wrong by 16x and is corrected below.**
+- **THE ITALIC AMPERSAND, 2026-09-21 (round 311): four chancery arms drawn,
+  none ruled.** The queued request below (*"a flowing and adorned curved E
+  ampersand for italics"*) is answered with `ALBO_IT_AMP` b/c/d/e; **a** ships
+  and is the roman ampersand sheared 13 degrees, which is what every italic
+  build has ever carried. Details, gates and the byte-identity check:
+  `docs/albo-family-2026-09-19.md` §49. **It also turned up that the hand-cut
+  phase is a RUNNING COUNTER consumed per contour in glyph order**, so changing
+  one glyph's contour count moves the cut of every glyph after it (228 of them
+  here) -- pre-existing, and the reason a one-letter A/B is never a clean A/B
+  of the rest of the face.
 - **THE ROMAN 8 IS CLOSED, 2026-09-20 (owner: "leave 8 as is").** Rounds 305-306
   built what it would need -- `ring(nib=...)` for a true nib, `ALBO_8_OVAL` /
   `ALBO_8_STRESS` reaching the roman, `ALBO_FIG_NIB` for the whole figure

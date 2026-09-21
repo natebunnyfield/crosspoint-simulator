@@ -3134,3 +3134,62 @@ corpus chose the candidate list correctly — st, Th and ct really are the three
 sequences his books are full of — and it had nothing to say about whether any
 of them should ship once drawn. Round 304 learned the same shape of thing about
 a group mean. Measure to choose what to attempt; render to decide what ships.
+
+
+## 49. Round 311 — the italic ampersand, four chancery arms
+
+Owner 2026-09-21: *"an italic ampersand as previously requested"*. The request
+was already written down and was found rather than invented:
+`docs/wedge-serif-exploration.md:4239`, under *Queued, not yet investigated* —
+**"use a flowing and adorned curved E ampersand for italics"**, with the note
+that the italic merely shears the roman one. Restated at
+`docs/albo-italic-capitals.md:123`.
+
+**The premise checks out.** `marks.g_ampersand` gives the italic
+`AMP_OPT = 'a'`, which is not in `AMP_OPTIONS`, so it falls through to round
+68's ROMAN drawing and `build.draw` shears it 13 degrees. Every italic build
+ever made has shipped a sheared roman ampersand.
+
+`ALBO_IT_AMP` selects an arm and ships **a**, the current letter. The four new
+ones are drawn on the Aldine nib (φ 35, thick 0.86 S, 5:1 — the o's and e's own
+pen) with tapered ends rather than wedges, each from one of the four families in
+`refs/poetica-std-regular.otf`, which carries 61 ampersands and was banked in
+round 116c for exactly this:
+
+| arm | what it is | the catch |
+|---|---|---|
+| b | chancery *et*, compact — curved E, t crossing to a balled tip | narrowest; the reading-size arm |
+| c | adorned — same E, the t's exit running out flat, dipping, curling up | 2.3 x-heights wide: a colophon letter |
+| d | *et* written out — round e, upright t, one bar serving both | in English it reads as the word: `R&D` sets as "RetD" |
+| e | two closed bowls and a t | shortest; the only arm that adds a counter dent |
+
+**Gates, all five arms:** hairs clean in every one — three were found and fixed
+in the drawing (b's t clipped the E's flank leaving a 2.2-unit hair; d's
+e-terminal ran collinear with its bar, a 169° reversal; e's stem grazed the
+bowl leaving a tapering white wedge). 0 touching pairs, as baseline. Counter
+dents unchanged for b, c, d; **e adds one** in its upper loop — the same class
+as the roman ampersand's drawn exception, fine at the 400 and a problem if ever
+cut heavy.
+
+**Byte identity verified twice.** An unset build against a control with the
+ampersand files at HEAD: **0 of 493 glyphs differ in `glyf`, 0 in `hmtx`**.
+(The raw file md5 differs because the builder stamps a timestamp into `head`;
+two builds of an identical tree differ the same way, which is worth knowing
+before anyone uses md5 as an identity check here.)
+
+### THE FINDING THAT OUTLIVES THIS ROUND: the cut phase is a running counter
+
+`cut.Cutter.phase()` (`build.py:642`) is consumed **once per contour, in glyph
+order**. The shipped ampersand has 3 contours and the new arms have 1, 1, 2 and
+3 — so selecting an arm shifts the hand-cut phase of every glyph drawn AFTER
+it: 228 glyphs move, median area change 0.0%, p95 0.43%, max 3.1%, and 32
+advances shift a unit or two.
+
+It is pre-existing builder behaviour, not something this round introduced, and
+that was proved rather than assumed: switching the ROMAN ampersand between two
+options that happen to share a contour count moves exactly one glyph. What it
+means in practice: **an A/B between two arms of any glyph whose contour count
+differs is not a clean A/B of the rest of the font**, and a diff that shows
+hundreds of glyphs moving after a one-letter change is this, not a bug.
+
+Page: `claude.ai/artifact/3SYRyoxtR1NLuaVyTTNZKT`. Not ruled.

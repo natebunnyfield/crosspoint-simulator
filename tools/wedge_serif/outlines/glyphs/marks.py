@@ -370,7 +370,17 @@ def g_ampersand(c):
     other size checked). `spur_foot`, `point`, `bowl`, `loop`, `arm`,
     `top` -- the lower bowl's own construction and the spur's hooked foot
     -- are untouched; the join there already reads as one gesture."""
-    from .ampersands import bred, VARIANTS2, AMP_OPTIONS
+    # THE CHANCERY et, round 309. Owner, queued 2026-09-15 and recorded at
+    # docs/wedge-serif-exploration.md:4239: *"use a flowing and adorned curved
+    # E ampersand for italics."* The italic has never had an ampersand of its
+    # own -- AMP_OPT's italic default is round 68's roman `round_bowl`, sheared
+    # 13 degrees by build.draw and nothing else. The four arms are a different
+    # CONSTRUCTION, not a `bred` dial set, so they are not in AMP_OPTIONS and
+    # they are picked by their own name. ALBO_IT_AMP defaults to 'a' -- the
+    # drawing below, in either face -- so an unset build is byte-identical.
+    from .ampersands import bred, VARIANTS2, AMP_OPTIONS, ET_OPTIONS
+    if IT_AMP in ET_OPTIONS:
+        return ET_OPTIONS[IT_AMP](c)
     if AMP_OPT in AMP_OPTIONS:   # round 233: the owner's options (R54-R56), see ampersands.AMP_OPTIONS; 'a' is the drawing below
         g = bred(c, **AMP_OPTIONS[AMP_OPT])
         if S > 84.0:
@@ -386,6 +396,7 @@ def g_ampersand(c):
     dials = dict(dict(VARIANTS2)['round_bowl'].dials)
     dials.update(cross=41.2, arm_end='beak')
     return bred(c, **dials)
+IT_AMP = os.environ.get("ALBO_IT_AMP", "a")   # round 309: the chancery et, b-e; 'a' is the drawing above, in both faces
 AMP_OPT = os.environ.get("ALBO_AMP_OPT", "a" if pen.ITALIC else "e")   # round 252: e ships on the roman -- owner 2026-09-18, "ALBO_AMP_OPT d with a b top" / "e wins for ampersand"
 @glyph('%')
 def g_percent(c):
