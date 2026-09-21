@@ -210,6 +210,42 @@ ALD_STOP_BEAR = float(os.environ.get("ALBO_ALD_STOP_BEAR", "1.05"))
 # once; and the ! and the ? are still loose on the right alone (!a 0.206 and
 # ?o 0.190 against 0.167 and 0.142). Units, (left, right), italic only.
 ALD_PUNCT_ADJ = {',': (-37, 43), '!': (0, -39), '?': (0, -48)}
+# ROUND 303 -- THE MARKS COME IN, FROM HIS OWN BENCH. Owner 2026-09-20 judged
+# 39 roman and 32 italic mark pairs on the 396-row bench; sorted by WHICH mark
+# and WHICH SIDE (a letter+mark pair is the mark's LEFT bearing, a mark+letter
+# pair its RIGHT), his answers are a ruling on the marks themselves:
+#
+#     roman   '  lsb -44 (n5, sd 7.1)   rsb -33 (n2)
+#             ,  lsb -15 (n12, sd 7.6)
+#             .  lsb -12 (n12, sd 10.2)
+#             :  lsb  -7 (n5)
+#             ;  lsb  -6 (n3)
+#     italic  .  lsb  -6 (n11)    :  lsb -6 (n4)
+#
+# The apostrophe is the most consistent thing in the whole bench -- five words
+# carrying one, every value between -32 and -50 -- and it is a BEARING and not
+# a kern for the same reason round 211's o was: the fault is the mark's, so a
+# kern per preceding letter would fix the letters he happened to judge and
+# leave every other one shut.
+#
+# NOT APPLIED, and the reason is the spread rather than the sign: the italic's
+# comma (+1.0, n11) says leave it alone; its apostrophe (-6.7 on [-22,-18,+20])
+# and its semicolon (-27 on two values 22 apart) are not evidence yet.
+#
+# THE CONSTANTS ARE SOLVED AGAINST THE OTHER TWO CHANGES, not copied from the
+# table above. His numbers were judged on build 205, and this round also moves
+# the letter on the mark's left: in the roman the round lowercase gains +11 on
+# its right, and across his own judged pairs for each mark that is worth +4.6
+# ('.' and ','), +4.4 (':'), +7.3 (';') and +2.2 ("'") on average -- so a mark
+# given his raw number would land short by that much. In the italic every
+# lowercase letter gains +4 per side, which reaches a mark pair whatever the
+# letter. Both are subtracted here, and `cmp_bench_gaps.py` re-checks the
+# built font against his targets rather than against these constants.
+ROM_PUNCT_ADJ = {"'": (-47, -33), ',': (-19, 0), '.': (-17, 0), ':': (-11, 0), ';': (-13, 0)}
+ALD_PUNCT_ADJ.update({'.': (-10, 0), ':': (-10, 0)})
+# ...and the italic COMMA reads +1.0 on eleven pairs, which is "leave it where
+# it is" -- so it takes -4 to cancel the lowercase tracking rather than nothing.
+ALD_PUNCT_ADJ[','] = (ALD_PUNCT_ADJ[','][0] - 4, ALD_PUNCT_ADJ[','][1])
 # ROUND 221 -- THE QUOTES' RIGHT SIDE. Owner 2026-09-18: *"take a pass at all
 # spacing including 'apostrophe s'."* Round 220 judged the quotes in band on
 # `s'` -- the letter BEFORE the mark -- and never measured `'s`, the pair he
@@ -263,6 +299,14 @@ ALD_QUOTE_LSB = float(os.environ.get("ALBO_ALD_QUOTE_LSB", "-20"))
 # touching at every roman weight while the ligature's own drawing had not
 # moved a unit. The +16 here is the real fix rather than the tool's: after an
 # ff the next letter now stands where it stands after a plain f.
+# ROUND 303 -- THE ROMAN'S ROUND LOWERCASE, +11 ON THE RIGHT. In his 66 roman
+# lowercase judgments the LEFT letter predicts the number and the right one
+# does not: a round letter before anything reads +11, a flat one +2, while the
+# right-hand letter reads +5 whichever it is. So the fault is the round
+# letter's own right side -- about a third of a phone pixel tight -- and it is
+# a bearing, applied below to b c d e g o p q s. His per-pair residuals (sd 14)
+# are NOT applied: they are the next pass, and only after this one is judged.
+ROUND_LC_RSB = 11
 BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, -1), 'f': (5, 25), 'g': (-11, -19), 'h': (0, -2), 'i': (0, -1), 'j': (0, 14), 'k': (0, 18), 'l': (-3, 2), 'm': (0, -2), 'n': (4, 0), 'o': (0, -2), 'p': (-11, -1), 'q': (0, 37), 'r': (2, 13), 's': (17, 19), 't': (-11, 0), 'u': (-9, 3), 'v': (-1, -4), 'w': (6, 4), 'x': (42, 0), 'y': (0, 13), 'z': (0, -23), 'ﬀ': (0, 16)}
 A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
 J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
@@ -301,6 +345,14 @@ except ImportError:                      # the module is optional, exactly as in
 # It belongs in ALD.BEARINGS['o'] -- (-18, 58) -> (-18, 86) -- and is held here
 # only because glyphs/aldine.py was being edited by another hand on the day.
 ALD_BEARING_ADJ = {'o': (0, 28)}
+# ROUND 303 -- AND THE ITALIC LOWERCASE WANTS +8, UNIFORMLY. His 17 italic
+# lowercase judgments average +8.3 with sd 7.9 and 12 of them sit within half a
+# phone pixel of that: unlike the roman's, this one really is one number. Split
+# +4 / +4 so each letter keeps its own centring in its advance, which adds
+# exactly 8 units to every lowercase pair. The o keeps round 211's +28 on top.
+for _c in "abcdefghijklmnopqrstuvwxyz":
+    _b = ALD_BEARING_ADJ.get(_c, (0, 0))
+    ALD_BEARING_ADJ[_c] = (_b[0] + 4, _b[1] + 4)
 
 
 def fit_aldine(ch, conts):
@@ -481,9 +533,14 @@ def fit(ch, conts, c):
         lsb += _ft; rsb += _ft
     if ALD is not None and ALD.ON and ch in ALD_PUNCT_ADJ:
         lsb += ALD_PUNCT_ADJ[ch][0]; rsb += ALD_PUNCT_ADJ[ch][1]
+    if not (ALD is not None and ALD.ON):
+        _rp = ROM_PUNCT_ADJ.get(ch) or (ROM_PUNCT_ADJ["'"] if ch in PUNCT_QUOTES else None)
+        if _rp: lsb += _rp[0]; rsb += _rp[1]
     if ALD is not None and ALD.ON and ch in PUNCT_QUOTES:
         rsb += ALD_QUOTE_RSB; lsb += ALD_QUOTE_LSB
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
+    if not (ALD is not None and ALD.ON) and ch in 'bcdegopqs':
+        rsb += ROUND_LC_RSB                      # round 303, above
     # ROUND 137: the owner's own capital spacing, set live on the bench and
     # applied as a delta on the rule above -- aldine italic only.
     if ALD is not None and ALD.ON and ch in getattr(ALD, 'CAP_BEARING_ADJ', {}):

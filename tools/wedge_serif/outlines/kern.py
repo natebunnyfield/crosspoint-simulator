@@ -567,6 +567,21 @@ def _apply_bench():
         step = int(round(mean / STEP)) * STEP          # cells must be multiples of STEP
         if step: CLASS_PAIRS[cell] = CLASS_PAIRS.get(cell, 0) + step
 
+# ROUND 303 -- THE PAIRS HIS BENCH LEAVES BEHIND, once the bearings have taken
+# what they can (build.py's marks and round lowercase, aldine's capitals). The
+# roman's six capital judgments are one reading each, so none of them can be a
+# letter's bearing; the italic's G Q R V are singles too, and its T's two pairs
+# disagree by 25 units (Th -9, To +16), which is what a kern table is for.
+# Values are his, ADDED to what the pair already carried.
+_BENCH_PAIRS_ROM = ((('Y','e'), 12), (('T','o'), 24), (('A','v'), 12),
+                    (('W','a'), 41), (('V','i'), 13), (('Q','u'), 37))
+# ...each MINUS 4 in the italic, for the same reason the capital bearings are:
+# the lowercase's new +4 left side has already opened the pair.
+_BENCH_PAIRS_ITA = ((('G','r'), 4), (('Q','u'), 7), (('R','e'), 4),
+                    (('V','i'), -13), (('T','h'), -13), (('T','o'), 12))
+for _p, _d in (_BENCH_PAIRS_ITA if (_ALD is not None and _ALD.ON) else _BENCH_PAIRS_ROM):
+    PAIRS[_p] = _shipped(*_p) + _d
+
 _apply_bench()
 
 

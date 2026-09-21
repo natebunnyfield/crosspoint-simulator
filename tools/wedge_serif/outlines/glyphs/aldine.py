@@ -10862,3 +10862,26 @@ CAP_BEARING_ADJ = {
     'U': (   8, CAP_U_RSB), 'V': (  31,  -66), 'W': (  57, CAP_W_RSB), 'X': (   1,  -16),
     'Y': (CAP_Y_LSB, CAP_Y_RSB), 'Z': (   2,  -60),
 }
+# ROUND 303 -- THE ITALIC CAPITALS, FROM HIS OWN BENCH, AS BEARINGS. Owner
+# 2026-09-20 judged 29 italic capital pairs; grouped by the CAPITAL rather than
+# by the pair, six of them are one number and not a scatter:
+#
+#     F  -40.5  (Fi -41, Fo -40)        W  +12.7  (Wh 11, Wa 12, Wi 15)
+#     P  -20.3  (Pa -27, Po -25, Pr -9) Y  +49.5  (Ye 42, Yo 57)
+#     A   +8.0  (An 2, Am 6, Av 16)     C   +5.0  (Ca -1, Ch 6, Co 10)
+#
+# and the S, on seven pairs, reads +0.4 -- so the S is RIGHT as it stands and
+# is deliberately not moved. The singles (G R Q V) and the T, whose two pairs
+# disagree by 25 units (Th -9, To +16), stay PAIRS in kern.py: one reading is
+# not a letter's bearing, and a letter whose pairs disagree is exactly what a
+# kern table is for.
+#
+# This also answers round 300's Ye ladder without it: +50 on the Y's right is
+# his own +42 on `Ye` and +57 on `Yo`, measured a day apart, and it reaches
+# `Ya Yo Ys` which the ladder's pair arm could not.
+# Each is his number MINUS 4: round 303 also gives every italic lowercase
+# letter +4 on its left side, so a Cap+lowercase pair has already opened by 4
+# before the capital is touched. `cmp_bench_gaps.py` checks the built pairs
+# against his targets, which is the number that has to land.
+for _c, _d in (('A', 4), ('C', 1), ('F', -44), ('P', -24), ('W', 9), ('Y', 46)):
+    _b = CAP_BEARING_ADJ[_c]; CAP_BEARING_ADJ[_c] = (_b[0], _b[1] + _d)

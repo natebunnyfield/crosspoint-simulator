@@ -2812,3 +2812,70 @@ round lowercase are BEARING faults — fix them in the drawing, where each costs
 one number and reaches every pair nobody will ever judge — then kern what is
 left, which is the capitals. About six letter changes plus ~40 kern pairs,
 against 709.
+
+
+## 43. Round 303 — the bench, applied: six letters and twelve pairs
+
+Owner 2026-09-20: *"go"*, on round 302's recommendation. Not the literal arm
+and not the model arm: the faults his 189 judgments describe are BEARINGS, so
+they are fixed in the drawing where each costs one number and reaches every
+pair nobody will ever judge, and only what is left becomes kerning.
+
+| change | where | from |
+|---|---|---|
+| roman marks in — `'` `,` `.` `:` `;` | bearing (`ROM_PUNCT_ADJ`) | 39 judgments |
+| roman round lowercase `b c d e g o p q s`, +11 right | bearing (`ROUND_LC_RSB`) | 66 |
+| italic lowercase +8 per pair, split +4/+4 | bearing (`ALD_BEARING_ADJ`) | 17 |
+| italic capitals A C F P W Y | bearing (`CAP_BEARING_ADJ`) | 29 |
+| italic stops `.` `:` | bearing (`ALD_PUNCT_ADJ`) | 32 |
+| 12 pairs: the roman's six capitals, the italic's G Q R V and its T | kern | — |
+
+**Three of his answers said LEAVE IT, and they were obeyed.** The italic `S`
+on seven pairs reads +0.4, so the S is right as it stands. The italic comma
+reads +1.0 on eleven, so it takes **−4** to cancel the new lowercase tracking
+and stay where it is — "no change" is a number here, not an omission. The
+italic apostrophe (−22, −18, +20) and semicolon (two readings 22 apart) are
+not evidence and were left.
+
+### THE CONSTANTS ARE SOLVED AGAINST EACH OTHER, and the first cut was not
+
+His numbers were judged on build 205, one pair at a time. This round moves the
+letter on the mark's left as well, so a mark given his raw number lands short:
+across his own judged pairs the roman's new round-lowercase +11 is worth +4.6
+on average for the period and comma, +4.4 for the colon, +2.2 for the
+apostrophe, and in the italic every lowercase letter's new +4 reaches capitals
+and marks whatever the letter. Each constant therefore carries his target MINUS
+that interaction. The first build did not, and measured 11 units short on
+`e.` and 4 short on every italic capital pair.
+
+**And the instrument that found it was itself wrong first.** The check summed
+the two glyphs' ADVANCES, which counts the right-hand glyph's far side — it
+read the apostrophe's two bearings as one and reported −77 for a −44 change,
+and it made every correct italic pair look +8 wrong. The white between two
+glyphs is `rsb(a) + kern + lsb(b)`; `tools/wedge_serif/gap_measure.py` is that
+measure, and `cmp_bench_gaps` checks the BUILT font against his 189 judgments
+rather than against the constants that wrote it. Rule 1f of the method doc
+again: an instrument that agrees with the thing it measures has tested nothing.
+
+Measured after the solve, mean error per group against his targets: roman caps
+**0.0** (6 of 6 exact), roman lower −1.0, roman punct −0.1, italic lower −0.3,
+italic cap +1.0, italic punct +3.1. The per-pair spread is his own (sd ~14) and
+is deliberately NOT chased: the bearings carry the class, the residuals are a
+later pass.
+
+### What was checked and found CLEAN
+
+- **No shape moved.** Every glyph in both styles has the same point count and
+  ONE constant offset between build 205 and this one — a translation, which is
+  what a bearing is. So the glitch, hair, counter-dent and weight gates cannot
+  have changed, and the metrics gate's single finding (the italic `y`, which
+  has no measured target in any scan we hold) is not from this round.
+- **Collisions unchanged.** The roman keeps exactly its pre-existing 1 touching
+  (`VI`) and 3 under the 0.012 em floor; the italic is 0 and 0. Tightening the
+  marks by up to 47 units introduced nothing. (Note for the record: the
+  Regular's baseline is **1** touching pair, not the 2 quoted in section 32.)
+- **Round 300's Ye ladder is answered without it**: +46 on the italic Y's right
+  is his own +42 on `Ye` and +57 on `Yo`, judged a day apart, and it reaches
+  `Ya Yo Ys` which the ladder's pair arm could not.
+
+Page: `claude.ai/artifact/UBp6sqFxjrGLNEf4H4GVuz`.
