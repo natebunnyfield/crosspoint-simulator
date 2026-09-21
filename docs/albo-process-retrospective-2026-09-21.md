@@ -6,7 +6,7 @@ rounds ~291–341, the four standing docs, the three bench pages and the seven
 gates. **Every headline claim below was re-verified in the main session before
 this file was written**; where I did not re-verify, it says so.
 
-## The finding that pays for the rest: a gate regression shipped
+## The finding that pays for the rest — CORRECTED 2026-09-21, see the note below
 
 **VERIFIED here by building the parent commit**, not taken from the report:
 
@@ -24,6 +24,24 @@ That is false for the Italic 400. `8ce01d5` then shipped *"Regular 400, Bold
 during the round where the owner had said *"Chase them to zero first"*.
 
 Cost to have caught it: one 1.2 s build, one 0.4 s gate run, one diff.
+
+### CORRECTION — the y's row is a FEATURE, not a defect
+
+Shown the four findings, the owner ruled: *"yes to fixing, except **y is
+supposed to have a gap**"*. The row that appeared at round 297 is the
+**hairline gap** — the same one `docs/albo-hairline-gap.md` records for the Y
+and the P, which that file says *"was not designed: it is what two strokes
+happened to leave, the owner saw it, named it, and made it a feature"*, and
+whose whole purpose is to stop the next person closing it as a fault. I was
+about to be that person.
+
+**What stands:** round 297's commit said "every other font unchanged" and the
+Italic 400's row set did change, 16 rows to 17. A commit cannot know a new row
+is wanted, which is exactly why the baseline has to be a reviewable file rather
+than a sentence. **What does not stand:** calling it a regression that shipped.
+It shipped a feature, and the gate could not tell the difference because
+nothing recorded the intent. It does now — `cmp_contour_hairs.py` carries an
+`EXEMPT` table, and the y's row cites the ruling.
 
 ## Ranked, with the fix
 

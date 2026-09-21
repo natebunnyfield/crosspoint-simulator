@@ -169,7 +169,14 @@ def g_h(c):
     left = stem(x0, 0, c["asc"], top='left', foot='both')
     right = stem(x1, 0, 0.66 * xh, top=None, foot='both', ent_span=(0, xh))
     a, cuts = arch(x0, x1, xh, ent_span=(0, xh))
-    return geom.ink([left, right, a], cuts)
+    # ROUND 343 -- close the crotch, as the b and p. Owner 2026-09-21, shown
+    # the four open gate findings: *"yes to fixing, except y is supposed to
+    # have a gap"*. The h's is a 6.3-unit spike at (160, 316) where the arch
+    # meets the left stem. The radius is bounded by the y's deliberate 7.2-7.9
+    # unit hairline gap -- a closing bridges any channel under 2r -- so this is
+    # applied per letter and small, never to the face.
+    g_ = geom.ink([left, right, a], cuts)
+    return geom.close_corners(g_, ARCH_BLEND) if ARCH_BLEND else g_
 
 # R28, owner 2026-09-18, on the feet of the m's 2nd and 3rd stems: "reduce
 # the interior serifs slightly and give me options for the middle stem." The
@@ -177,6 +184,7 @@ def g_h(c):
 # stem's and the right stem's left one; the right stem's right foot faces out
 # and is the family's. `stem()` has one foot length for both sides, so a stem
 # with unequal feet is built as its body plus one one-footed stem per side.
+ARCH_BLEND = float(os.environ.get("ALBO_ARCH_BLEND", 3.0))   # round 343: the smallest radius that clears the finding
 M_INNER_FOOT = 0.85   # the interior feet, length AND depth x this (the wedge keeps its shape)
 # ALBO_ROM_M_MID -- the middle stem's foot, for the owner to pick from:
 #   a  both feet, as today (interior, so both reduced by M_INNER_FOOT)

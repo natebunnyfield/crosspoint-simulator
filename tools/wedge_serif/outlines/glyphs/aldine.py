@@ -3542,7 +3542,14 @@ if ON:
         bowl_ = keyed_ring(x0 + (B_STEM_X + (B_CX - B_STEM_X) * B_COND) * u,
                            B_CY * u, B_RX * B_COND * u, ry, B_BOWL_RING,
                            k=B_K, skew=B_SKEW, unit=u, wscale=ALD_WF_UP)
-        return geom.ink([bowl_, stem, head])
+        # ROUND 343 -- close the crotch. `ink` adds the bowl to the stem and
+        # leaves a notch where they meet at a shallow angle: the gate reads a
+        # 6.4-unit spike at (132, 286). `geom.close_corners` is what round 205
+        # wrote for exactly this on the g's joins. The radius is bounded by
+        # the y's deliberate 7.2-7.9 unit hairline gap -- a closing bridges
+        # any channel under 2r -- so it is applied HERE, per letter, and small.
+        g_ = geom.ink([bowl_, stem, head])
+        return geom.close_corners(g_, ALD_BOWL_BLEND * u) if ALD_BOWL_BLEND else g_
 
     # ------------------------------------------------------------ THE d, round 132
     # THE d IS THE a's BOWL ON AN ASCENDER, and the reference says so in
@@ -3761,7 +3768,10 @@ if ON:
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + P_CX * u, P_CY * u, P_RX * u, ry, B_RING,
                            k=B_K, skew=P_SKEW, unit=u, wscale=ALD_WF_UP)
-        return geom.ink([bowl_, stem, head, pq_foot(xs, ybot, u)])
+        # ROUND 343 -- as the b, and this one the gate also calls a REVERSAL:
+        # a 4.5-unit spike at (162, 285), arms 4.5 / 148.7.
+        g_ = geom.ink([bowl_, stem, head, pq_foot(xs, ybot, u)])
+        return geom.close_corners(g_, ALD_BOWL_BLEND * u) if ALD_BOWL_BLEND else g_
 
     # ------------------------------------------------------------ THE q, round 132
     # THE q IS THE d's BOWL WITH THE STEM RUNNING DOWN INSTEAD OF UP, and the
@@ -3803,7 +3813,13 @@ if ON:
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + Q_RX * u, Q_CY * u, Q_RX * u, ry, A_RING,
                            k=A_K, skew=Q_SKEW, unit=u, wscale=ALD_WF_UP)
-        return geom.ink([bowl_, stem, q_tail(xs, ybot, u)])
+        # ROUND 343 -- the same crotch closing as the b. The q raises no gate
+        # finding of its own; it is here because it is the same construction
+        # and a blend on three of the four bowl letters would be the kind of
+        # inconsistency nobody finds later. (It was first edited by mistake,
+        # while aiming at the p -- kept deliberately, with the reason fixed.)
+        g_ = geom.ink([bowl_, stem, q_tail(xs, ybot, u)])
+        return geom.close_corners(g_, ALD_BOWL_BLEND * u) if ALD_BOWL_BLEND else g_
 
     # THE r, round 132 -- the family's stem and head, then an arm that is the
     # arch's first half made STEEPER, stopped in a ball.
@@ -5162,6 +5178,7 @@ if ON:
     # and with 150 and 330 being 180 degrees apart -- a single nib cannot thin
     # one and fill the other. The local cut that would break that tie is
     # described in round 341 and is NOT built.
+    ALD_BOWL_BLEND = float(os.environ.get("ALBO_ALD_BOWL_BLEND", 3.0))  # round 343: the smallest radius that clears both findings
     G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 45.0))
     # ROUND 204 -- AN EVEN OVAL COUNTER, AND A HAND PRESSED BACK INTO IT.
     # `PR.ovalise` fits the counter's own ellipse and pulls it on; 1.0 is the

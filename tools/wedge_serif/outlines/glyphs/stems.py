@@ -10,6 +10,7 @@ from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, ENT, WL
 from .rounds import o_ring, open_arc
 from .arches import smooth_widths   # R23's sawtooth fix, shared by the f's hook and the a's hood
 
+BOWL_BLEND = float(os.environ.get("ALBO_BOWL_BLEND", 0.0))   # round 343: close_corners radius on b d p q, units
 DOT_R = 0.62 * S   # round 36: a dot 1.24 stems across reads as the stem's weight
 DOT_R_ADJ = 0.58 * S   # round 92 (adj 'i', 'j'): the i a dot with a stalk (band -11%), the j's dot +27%
 def dot_y(xh): return xh + 118 + S * 0.3
@@ -677,7 +678,20 @@ def bowl_stem(c, side, top, bottom):
     # no trap cutouts here: the first version's pointed INTO the strokes
     # (a nick on the outside at each crotch, seen at 500 px); no ruling asks
     # for traps on the bowl letters
-    return geom.ink([solid, st])
+    #
+    # ROUND 343 -- CLOSE THE CROTCH. Owner 2026-09-21, shown the four open gate
+    # findings: *"yes to fixing, except y is supposed to have a gap"*. The b's
+    # and p's are the same fault, a 6.4- and 4.5-unit spike of white where the
+    # ring's outer meets the stem at a shallow angle -- `ink` adds the two
+    # shapes and leaves a notch on one side, which is precisely what
+    # `geom.close_corners` was written for (round 205, the g's joins).
+    #
+    # THE RADIUS IS BOUNDED BY THE y. A closing bridges any channel narrower
+    # than 2r, and this face deliberately keeps a 7.2-7.9 unit hairline gap
+    # (docs/albo-hairline-gap.md) -- so this is applied to the BOWL LETTERS
+    # only, never globally, and r stays small.
+    g_ = geom.ink([solid, st])
+    return geom.close_corners(g_, BOWL_BLEND) if BOWL_BLEND else g_
 
 @glyph('b')
 def g_b(c): return bowl_stem(c, 'left', c["asc"], 0)

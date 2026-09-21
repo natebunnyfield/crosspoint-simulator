@@ -94,6 +94,16 @@ def turn(a, b, c):
     return math.degrees(math.acos(d))
 
 
+# Glyphs whose finding is a DRAWN FEATURE. Keep this short and make every row
+# cite the ruling that put it here; an exemption with no reason is how a gate
+# stops meaning anything.
+EXEMPT = {
+    "y": 'the hairline gap at the join. Owner 2026-09-21, shown the four '
+         'findings: "yes to fixing, except y is supposed to have a gap" -- the '
+         'same feature docs/albo-hairline-gap.md records for the Y and the P',
+}
+
+
 def measure(font, name, short=2.0, rev_turn=165.0, hair_turn=150.0, hair_len=8.0):
     segs = dups = shorts = 0
     revs = []
@@ -158,6 +168,16 @@ def main():
                 continue
             rows.append((name, m))
         faults = [(n, m) for n, m in rows if m["revs"] or m["hairs"] or m["frac"] > a.max_short]
+        # DESIGNED, NOT A FAULT. `docs/albo-hairline-gap.md` exists because the
+        # gap the Y leaves at its join "was not designed -- it is what two
+        # strokes happened to leave, the owner saw it, named it, and made it a
+        # feature", and that file's own warning is that without a record "the
+        # next person to touch the Y would have closed it as a defect". This is
+        # that record, in the gate rather than only in prose. Owner 2026-09-21,
+        # on being shown the four findings: *"yes to fixing, except y is
+        # supposed to have a gap"*.
+        exempt = [(n, m) for n, m in faults if n in EXEMPT]
+        faults = [(n, m) for n, m in faults if n not in EXEMPT]
         print(f"== {os.path.basename(path)}  {len(rows)} glyphs swept, {len(faults)} with findings")
         show = rows if a.verbose else faults
         for name, m in sorted(show, key=lambda r: (-len(r[1]["hairs"]), -r[1]["frac"])):
@@ -175,6 +195,8 @@ def main():
                   f" arms {w[2]:.1f}/{w[3]:.1f}   {'  '.join(tags)}")
             for t, p, ai, ao in (m["hairs"] or m["revs"])[:6]:
                 print(f"       -> {t:.1f} deg at ({p[0]:.0f}, {p[1]:.0f}) arms {ai:.2f} / {ao:.2f}")
+        for name, _ in sorted(exempt):
+            print(f"  {name:<12} finding EXEMPT -- {EXEMPT[name]}")
         bad += len(faults)
     print("FAIL" if bad else "PASS")
     return 1 if bad else 0
