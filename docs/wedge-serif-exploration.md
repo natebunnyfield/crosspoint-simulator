@@ -14,6 +14,18 @@
   about half a phone pixel. Method, and the four instrument bugs it cost:
   `docs/albo-spacing-method.md`, final section. **The kern quantum stated
   elsewhere in this file was wrong by 16x and is corrected below.**
+- **THE ITALIC g IS THE BENT ONE AGAIN, 2026-09-21 (round 323).** Owner: *"there
+  was a recent earlier version of italic g with a bend, find and use that"*.
+  `ALBO_ALD_G_STYLE` defaults to `cursive` (rounds 197-225, byte for byte);
+  `roman` is rounds 227-322. It also restores the loop the references have
+  (loop/bowl counter 1.55 w, 0.88 h against Flanker 1.53/0.79) which the roman
+  arm had drifted off (1.17 and an INVERTED 1.06). **And it corrects round 322:
+  `cmp_aldine_g.py`'s "neck ink at the waist" is the ink on a ROW, so on a flat
+  connector it measures ALONG the stroke** -- measured perpendicular, Flanker is
+  24 and Pagella 22 where the bent g is 24 already, so that round's advice to
+  drive it to 83 would have doubled it. `ALBO_ALD_G_NECK_W` is not dead either,
+  only unselected. The ROMAN g is untouched and has no loop dials.
+  `docs/albo-g-anatomy.md`, round 323.
 - **THE alt051 AMPERSAND'S PATH IS RULED, 2026-09-21 (round 321): owner "c
   wins".** `ALBO_ALT051_PATH` (`off|a|b|c`, **default c**) fixes three faults in
   the RIGHT SIDE's route, not its weight: a curvature reversal at the join

@@ -459,3 +459,62 @@ disappears at 13 px; 1.15 re-widens the letter; 1.30 is the fault. Loop depth
 figure (p q −282, y −297). Pen signature: bowl and loop on one axis, 15°/105°
 at 2.6–2.8:1 — the cursive arm had the loop on a second pen. Rounds 197/205's
 "loop on the baseline" are superseded for the loop's depth by this ruling.
+
+## Round 323 — the bent g is back, and the waist figure is not what it looks like
+
+2026-09-21. Owner: *"there was a recent earlier version of italic g with a bend,
+find and use that"*. That is the **cursive** arm, rounds 197–225, kept byte for
+byte; `ALBO_ALD_G_STYLE` defaults to `cursive` again. Round 227 had replaced it
+on his own instruction (*"redraw 'g' to be the roman style of the italic 'g'"*),
+so this supersedes that round for the STYLE only — its Q ruling stands.
+
+### "Neck ink at the waist" measures ALONG a flat connector
+
+**The most important thing in this file.** `cmp_aldine_g.py`'s waist figure is
+the **total ink on a row** between the two counters. Where the connector is
+steep that is about its thickness; where it is FLAT — which is exactly what a
+bend gives — the row runs along the stroke and the number inflates. The two
+constructions here are not comparable on it, and round 322 recommended driving
+the neck to a waist of 83 on the strength of that.
+
+Measured PERPENDICULAR to the connector (chamfer ridge in the band between the
+counters, x2), at xh 400 in Albo units:
+
+| | perpendicular | the row figure |
+|---|---|---|
+| Flanker | **24** | 68 |
+| Pagella | **22** | 26 |
+| the bent g, as it ships | **24** | 40 |
+| the roman arm (rounds 227–322) | 39 | 40 |
+| bent g, `ALBO_ALD_G_NECK_W` 32 | 42 | 77 |
+| bent g, `ALBO_ALD_G_NECK_W` 36 | 50 | 90 |
+
+**The references' connectors are THIN, and the bent g already matches Flanker
+exactly.** Following round 322's recommendation would have put Albo's connector
+at roughly twice the reference. It ships unchanged.
+
+### The loop came back with it
+
+The roman arm had drifted to a loop counter **1.17** the bowl's width and
+**1.06** its height — taller than the bowl, where all three references hold
+about four fifths. The bent letter reads **1.55 / 0.88**, inside the reference
+band (Flanker 1.53/0.79, Pagella 1.40/0.89). The S1b/S3b loop repairs built in
+round 322 are unnecessary.
+
+### Two corrections to round 322
+
+1. `ALBO_ALD_G_NECK_W` is **not dead**. It reads 21 → 40, 32 → 78, 44 → 108
+   once its own arm is selected. It does nothing only while another arm draws
+   the letter, which is how it was first measured.
+2. The waist recommendation above.
+
+### Still open
+
+The **roman** g is unchanged and still the stacked-circles construction, and it
+has **no loop dials** — its radii are literals in `stems.py`. Giving it the same
+loop means adding them first.
+
+`ALBO_ALD_G_COMPOUND=1` and `ALBO_ALD_G_ONE_STROKE=1` render overlapping spurs
+through the loop; they are faults, not alternatives.
+
+Page: `claude.ai/artifact/X33i91w3AfcZoJXh9pa486`.

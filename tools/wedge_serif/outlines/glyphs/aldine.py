@@ -5190,7 +5190,17 @@ if ON:
     # The owner's report is exact: the shipped italic reaches further right
     # than any of the three references. G_R_EAR is that reach as a fraction of
     # the roman's own 96*wf*1.15, laddered below.
-    G_STYLE = os.environ.get("ALBO_ALD_G_STYLE", "roman").lower()   # 'cursive' = rounds 197-225 to the bit
+    # ROUND 323 -- BACK TO THE CURSIVE ARM. Owner 2026-09-21: *"there was a
+    # recent earlier version of italic g with a bend, find and use that"*.
+    # That is this arm, rounds 197-225, kept byte for byte: its neck comes
+    # out of the bowl, BENDS, and runs into the loop, where round 227's
+    # `roman` arm joins two near-equal circles down their left side. It also
+    # already carries the loop the references have -- loop/bowl counter
+    # 1.55 wide and 0.88 tall against Flanker's 1.53/0.79 and Pagella's
+    # 1.40/0.89, where the roman arm had drifted to 1.17 and an INVERTED
+    # 1.06. This supersedes round 227's *"redraw 'g' to be the roman style
+    # of the italic 'g'"* for the style; that round's Q ruling is untouched.
+    G_STYLE = os.environ.get("ALBO_ALD_G_STYLE", "cursive").lower()  # 'roman' = round 227-322
     # the roman's own numbers, kept as its numbers so the two letters can be
     # read against each other -- rx in units before the italic's oval, heights
     # as fractions of the x-height and the descender
