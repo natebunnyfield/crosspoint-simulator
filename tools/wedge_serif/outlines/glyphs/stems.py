@@ -943,6 +943,24 @@ G_OPEN_OPTS = {
     # 2. THE y's TAIL. One long cubic sweeping left across the whole letter and
     #    ending in the c's top finial on the y's own floor -- the roman y's
     #    tail, aimed at the g's root. The widest reach of the ten.
+    # ROUND 328 -- THE TRACED TAILS. Each is one of the eight measured models,
+    # run at the face's own descender with the face's own pen. The shape is not
+    # mine and not a dial's: it is that font's descender centreline.
+    'futura':    dict(rx=0.94, frm=-14.0, kind='trace', trace='futura',
+                      prof=[(0.0, 1.00), (0.45, 0.90), (1.0, 0.72)],
+                      floor=0.0, end='cut', ear='g'),
+    'avenir':    dict(rx=0.94, frm=-14.0, kind='trace', trace='avenir',
+                      prof=[(0.0, 1.00), (0.45, 0.90), (1.0, 0.72)],
+                      floor=0.0, end='cut', ear='g'),
+    'helvetica': dict(rx=0.94, frm=-14.0, kind='trace', trace='helvetica',
+                      prof=[(0.0, 1.00), (0.45, 0.90), (1.0, 0.72)],
+                      floor=0.0, end='cut', ear='g'),
+    'verdana':   dict(rx=0.94, frm=-14.0, kind='trace', trace='verdana',
+                      prof=[(0.0, 1.00), (0.45, 0.90), (1.0, 0.72)],
+                      floor=0.0, end='cut', ear='g'),
+    'din':       dict(rx=0.94, frm=-14.0, kind='trace', trace='din',
+                      prof=[(0.0, 1.00), (0.45, 0.90), (1.0, 0.72)],
+                      floor=0.0, end='cut', ear='g'),
     'y':     dict(rx=0.94, frm=-14.0, kind='cubic', reach=-0.92, depth=0.86, tipdeg=163.0,
                   c1=0.62, c2=0.52, prof=[(0.0, 1.00), (0.30, 0.92), (1.0, 0.86)],
                   floor=0.0, end='finial', ear='g'),
@@ -1002,6 +1020,71 @@ G_OPEN_OPTS = {
 G_OPEN = os.environ.get("ALBO_G_OPEN", "j").lower()
 if G_OPEN not in G_OPEN_OPTS: G_OPEN = "j"
 _GO = dict(G_OPEN_OPTS[G_OPEN])
+# ===================== ROUND 328 -- THE TAIL IS TRACED ====================
+# Owner 2026-09-21: *"needs to hook back up like a 'g' typically does. you are
+# making weird tails on an 'o' instead. stop and do much better based on traced
+# models of other fonts."* Correct on every count, and the numbers say so.
+#
+# Eight single-storey sans g's had their DESCENDER CENTRELINE traced --
+# skeletonised, the run at or below the baseline ordered from the bowl to the
+# tip (`scratchpad/albo/tailtrace.py`). Every one has the same three-part
+# shape, and none of the ten hand-dialled arms had it:
+#
+#                      deepest at x   tip x    tip y    RISE back up
+#   the eight traced      -14..+17   -147..-190   -59..-147      17..113
+#   the ten dialled       -49..+177   -53..-184  -207..-267       0..77
+#
+# The tail goes down the bowl's RIGHT, reaches its deepest point under the
+# bowl's CENTRE, and then travels left and BACK UP. The dialled arms put their
+# deepest point off to one side and ended within 20-60 units of the bottom --
+# they descend and stop, which is why they read as a tail stuck on an o.
+#
+# The tables are the traces themselves, normalised so each model's own depth is
+# 1.0 and x is in the same units, measured from the bowl's centre with +y up
+# and the baseline at 0. They are a MEASUREMENT of eight faces, frozen here for
+# the same reason the alt051 spine is frozen: re-deriving them per build would
+# make the letter depend on which fonts this machine has installed.
+G_OPEN_TAILS = {
+    'futura': [(+0.873, +0.007), (+0.840, -0.372), (+0.750, -0.632), (+0.657, -0.766), (+0.579, -0.840), (+0.360, -0.955), (-0.012, -1.000), (-0.224, -0.974), (-0.361, -0.933), (-0.480, -0.870), (-0.610, -0.758), (-0.700, -0.628), (-0.748, -0.506)],
+    'avenir': [(+0.977, +0.007), (+0.958, -0.220), (+0.922, -0.383), (+0.796, -0.643), (+0.601, -0.830), (+0.464, -0.906), (+0.323, -0.957), (-0.060, -1.000), (-0.316, -0.978), (-0.518, -0.924), (-0.710, -0.834), (-0.901, -0.690), (-0.897, -0.509)],
+    'avenirnext': [(+1.084, +0.009), (+1.004, -0.371), (+0.920, -0.545), (+0.817, -0.681), (+0.709, -0.779), (+0.563, -0.869), (+0.422, -0.925), (+0.239, -0.967), (-0.075, -1.000), (-0.437, -0.972), (-0.728, -0.920), (-0.981, -0.831), (-1.000, -0.822), (-1.047, -0.671), (-1.108, -0.343)],
+    'verdana': [(+1.098, +0.011), (+1.050, -0.303), (+0.947, -0.546), (+0.855, -0.670), (+0.763, -0.757), (+0.579, -0.870), (+0.368, -0.946), (-0.069, -1.000), (-0.491, -0.984), (-0.940, -0.897)],
+    'trebuchet': [(+1.074, +0.010), (+1.131, -0.275), (+1.063, -0.565), (+1.001, -0.663), (+0.892, -0.767), (+0.633, -0.907), (+0.333, -0.979), (-0.030, -1.000), (-0.429, -0.943), (-0.621, -0.881), (-0.797, -0.798), (-0.983, -0.834)],
+    'helvetica': [(+0.984, +0.009), (+0.925, -0.365), (+0.825, -0.607), (+0.751, -0.708), (+0.628, -0.822), (+0.487, -0.904), (+0.345, -0.954), (+0.012, -1.000), (-0.267, -0.986), (-0.431, -0.954), (-0.600, -0.886), (-0.710, -0.813), (-0.819, -0.685), (-0.879, -0.548)],
+    'din': [(+0.941, +0.010), (+0.884, -0.380), (+0.785, -0.594), (+0.618, -0.776), (+0.384, -0.911), (+0.197, -0.964), (-0.095, -1.000), (-0.439, -0.948), (-0.710, -0.818), (-1.038, -0.807)],
+    'sfrounded': [(+1.207, +0.011), (+1.163, -0.287), (+1.075, -0.497), (+1.003, -0.602), (+0.887, -0.724), (+0.776, -0.807), (+0.611, -0.895), (+0.417, -0.956), (-0.047, -1.000), (-0.400, -0.950), (-0.533, -0.906), (-0.782, -0.762), (-0.986, -0.575), (-1.069, -0.470)],
+}
+
+G_OPEN_TRACE     = os.environ.get("ALBO_G_OPEN_TRACE", _GO.get('trace', "futura"))
+G_OPEN_TRACE_DEP = float(os.environ.get("ALBO_G_OPEN_TRACE_DEP", 1.0))  # x the face's own descender
+G_OPEN_TRACE_X   = float(os.environ.get("ALBO_G_OPEN_TRACE_X", 1.0))    # widen or narrow the tail's sweep
+
+
+def _traced_tail(root, dep, wf, cx):
+    """The chosen model, scaled to `dep` and hung off `root` (the point where
+    the tail leaves the ring). Uniform in y so the model's own proportions
+    survive; G_OPEN_TRACE_X is the one liberty, and it defaults to none."""
+    tab = G_OPEN_TAILS.get(G_OPEN_TRACE) or G_OPEN_TAILS['futura']
+    p0x, p0y = tab[0]
+    # The model's own start sits ON the baseline; Albo's root is wherever the
+    # ring is at G_OPEN_FROM, which is well ABOVE it. Anchoring the first point
+    # and scaling by the descender therefore hung the whole tail high -- the
+    # built letters measured 118 units deep against a 280 target and their tips
+    # came back up to the baseline. The scale is taken from the root DOWN to
+    # the descender line instead, so the model's deepest point lands on it.
+    span = p0y - min(y for _, y in tab)
+    ky = (root[1] + dep) / span if span > 1e-6 else dep
+    # X IS NOT ON THE SAME SCALE AS Y. The model's x is in units of its own
+    # depth but it MEANS bowl-relative position -- its first point is the
+    # bowl's right edge. Scaling x by the vertical factor made the model's
+    # +-1.0 into +-441 units and the tails ran to x -715 against a -190 target.
+    # The start is matched to Albo's own ring instead.
+    kx = (root[0] - cx) / p0x if abs(p0x) > 1e-6 else ky
+    pts = [(root[0] + (x - p0x) * kx * G_OPEN_TRACE_X,
+            root[1] + (y - p0y) * ky) for x, y in tab]
+    return catmull(pts, tension=0.5)
+
+
 _gof = lambda k, d: float(os.environ.get("ALBO_G_OPEN_" + k.upper(), _GO.get(k, d)))
 G_OPEN_RX      = _gof('rx', 0.94)
 G_OPEN_FROM    = _gof('frm', -12.0)
@@ -1126,7 +1209,9 @@ def _g_open(c):
     # --- the tail, rooted on that centreline with that tangent (THE ONE RULE)
     P0 = _open_on(cx, cy, crx, cry, G_OPEN_FROM)
     T0 = _open_tan(crx, cry, G_OPEN_FROM)
-    if G_OPEN_KIND == 'arc':
+    if G_OPEN_KIND == 'trace':
+        path = _traced_tail(P0, desc * G_OPEN_TRACE_DEP, wf, cx)
+    elif G_OPEN_KIND == 'arc':
         drop = (P0[1] + desc) * G_OPEN_RUN
         run_len = drop / max(1e-6, abs(T0[1]))
         P1 = (P0[0] + T0[0] * run_len, P0[1] + T0[1] * run_len)

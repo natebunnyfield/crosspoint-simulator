@@ -87,3 +87,48 @@ Measured with the chamfer ridge used elsewhere here, against o e n s c a d u,
 they read **1.04–1.08×** the body letters; the shipping binocular g reads 0.89.
 Its DEPTH claim, by contrast, reproduces exactly: g ÷ p ≈ 1.0 is real, and this
 survey is where the evidence for it now lives.
+
+## Round 328 — the tail is traced, not dialled
+
+Owner, on the ten: *"needs to hook back up like a 'g' typically does. you are
+making weird tails on an 'o' instead. stop and do much better based on traced
+models of other fonts."* Correct on every count, and the trace says so.
+
+Eight single-storey sans g's had their DESCENDER CENTRELINE traced —
+skeletonised, the run at or below the baseline ordered from bowl to tip
+(`scratchpad/albo/tailtrace.py`). **Every one has the same three-part shape,
+and not one of the ten dialled arms had it:**
+
+| | deepest at x | tip x | tip y | rise back up |
+|---|---|---|---|---|
+| the eight traced | −14…+17 | −147…−190 | −59…−147 | 17…113 |
+| the ten dialled | −49…+177 | −53…−184 | **−207…−267** | 0…77 |
+
+The tail goes down the bowl's RIGHT, reaches its deepest point under the bowl's
+**centre**, then travels left and **back up**. The dialled arms ended within
+20–60 units of the bottom: they descend and stop, which is exactly why they
+read as a tail stuck on an o.
+
+**This also corrects the earlier survey in this file.** What it called "tip x,
+−31 to +6" was measured as the ink at the deepest ROW — that is the DEEPEST
+POINT, not the tip. The real tips are at −147…−190. The rest of that survey
+stands; that one column was mislabelled and the conclusion drawn from it (that
+`o` was the arm inside the band) was drawn from the wrong quantity.
+
+The models are frozen in `stems.py` as `G_OPEN_TAILS`, normalised so each one's
+own depth is 1.0, and selected by `ALBO_G_OPEN=futura|avenir|helvetica|verdana|din`.
+Built: deepest x **−20…+5**, tip x **−138…−190** — inside the traced band on
+both — at the face's own descender, with the face's own pen, all five clean on
+`cmp_contour_hairs.py`.
+
+### Two scaling bugs, both caught by measuring the built letter
+
+1. **Anchoring the model's first point at the ring root** hung the whole tail
+   high: the model's start is ON the baseline, Albo's root is 164 units above
+   it, so the letters built 118 units deep against a 280 target and their tips
+   came back up to the baseline. The scale is taken from the root down to the
+   descender line instead.
+2. **Scaling x by the vertical factor.** The model's x is in units of its own
+   depth but it MEANS bowl-relative position — its first point is the bowl's
+   right edge. Scaled vertically, ±1.0 became ±441 units and the tips ran to
+   x −715. X is matched to Albo's own ring at the root.
