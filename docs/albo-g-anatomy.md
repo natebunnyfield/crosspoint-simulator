@@ -645,3 +645,58 @@ finding and the whole-face `--letters` sweep returns the same rows as before.
 
 Page: `claude.ai/artifact/` — round 326 figure, the trace drawn on each letter
 with the reversal circled.
+
+## Round 327 — the owner's own dragged params, and the three faults in them
+
+2026-09-21. He was given an editable construction
+(`claude.ai/artifact/AbPLk9Vp8Wk7UScMmsLQUf` — the real outline under a
+draggable overlay) and sent back values with three faults named:
+*"top rest on baseline not above; no kink in connector; _DIVE is not going
+left enough"*.
+
+### The kink and the dead dive were ONE fault
+
+A single cubic with one runaway handle does not move its curve left in
+proportion to that handle. Past about 0.7 it **folds**: the traced leftmost
+point jumped from t 0.52 back to t 0.92 and the letter grew a kink at the same
+time. So the dial saturated and produced a defect together, and he was raising
+DIVE to 1.10 trying to make a dead control respond.
+
+**At the leftmost point of an S the tangent is VERTICAL**, because x is at a
+minimum there. That is a constraint, not a preference, and the connector is
+built on it now: the waist is placed directly at
+`(p0.x − gap·DIVE, p0.y − gap·DROP)` and TWO cubics meet it with a vertical
+tangent, so the join is C1 by construction and cannot kink however far the
+waist goes. `G_BENT_DIVE` is a literal distance.
+
+### The loop rests on the baseline
+
+`G_LOOP_TOP` is `TH_H` for the plain g — round 232's reading of "sit on the
+baseline" as the top stroke STANDING on the line with its underside touching.
+`G_BENT_LOOP_TOP` is **0.0**: the loop's topmost point AT the baseline. Both
+readings are defensible; this is the one he wants for this letter. The plain g
+is untouched.
+
+### His DIVE was compensating for the broken dial, and a third fault appeared
+
+At the corrected mapping his 1.10 puts the waist **outside the loop's left
+edge**, and with his `TO=34` the connector then runs **parallel to the loop's
+top wall**, leaving a long thin slot — a REVERSAL at (382, −30) that the gate
+catches. Two cures were tried and both work:
+
+* `G_BENT_LAND` 0.30 steepens the approach and clears the gate at his own
+  `TO=34` (0.55 overcorrects into a HAIR at (238, 134));
+* entering nearer the loop's TOP removes the parallel run outright.
+
+Measured, at his other values, the clean combinations are `TO=100 DIVE=0.45`
+and `TO=115 DIVE=0.55`. `TO=90 DIVE=0.35` leaves a HAIR at (182, −4).
+
+### An instrument limit worth recording
+
+`neck_connect`'s row walk **cannot read a connector that crosses over its own
+loop**: it steps onto the loop's wall and reports the leftmost point at t 0.9
+for every arm regardless of the dive. It is reliable only while the connector
+stays between the counters. Do not quote it on a crossing topology.
+
+Verified on the default build after the construction change: the `g` is clean
+and the whole-face `--letters` sweep is unchanged.

@@ -761,6 +761,15 @@ G_BENT_TO = float(os.environ.get("ALBO_G_BENT_TO", 105.0))      # and enters the
 # the elbow its shape.
 G_BENT_DIVE = float(os.environ.get("ALBO_G_BENT_DIVE", 0.60))   # how far LEFT it dives, x the gap
 G_BENT_DROP = float(os.environ.get("ALBO_G_BENT_DROP", 0.52))   # and how far down before it turns
+G_BENT_WAIST_K = float(os.environ.get("ALBO_G_BENT_WAIST_K", 0.30))  # the vertical handle at the waist, x the gap
+G_BENT_LEAD = float(os.environ.get("ALBO_G_BENT_LEAD", 0.16))   # how far left the stroke leans as it leaves the bowl
+G_BENT_LAND = float(os.environ.get("ALBO_G_BENT_LAND", 0.10))   # and how it comes in to the loop
+# ROUND 327 -- THE LOOP RESTS ON THE BASELINE. Owner: *"top rest on baseline
+# not above"*. `G_LOOP_TOP` is TH_H for the plain g -- round 232's reading of
+# "sit on the baseline" as the top stroke STANDING on the line, its underside
+# touching. This is the other reading and it is the one he wants for this
+# letter: the loop's topmost point AT the baseline. The plain g is untouched.
+G_BENT_LOOP_TOP = float(os.environ.get("ALBO_G_BENT_LOOP_TOP", 0.0))
 
 
 def _bent_loop(lcx, lcy, lrx, lry):
@@ -792,7 +801,7 @@ def _g_bent(c):
     bowl, bo, bi = ring(cx, cy, rx, ry)
     lrx = G_BENT_LOOP_RX * wf + TH_V / 2
     lry = desc * G_BENT_LOOP_H + TH_H / 2
-    lcx = cx + G_BENT_LOOP_DX * wf; lcy = G_LOOP_TOP - lry
+    lcx = cx + G_BENT_LOOP_DX * wf; lcy = G_BENT_LOOP_TOP - lry
     loop, lo, li = _bent_loop(lcx, lcy, lrx, lry)
     crx, cry = rx - TH_V / 2, ry - TH_H / 2
     clrx, clry = lrx - TH_V / 2, lry - TH_H / 2
@@ -804,9 +813,28 @@ def _g_bent(c):
     # The BEND: out of the bowl, down and LEFT past the loop's own left edge,
     # then back right into the loop. A cubic through those two controls is the
     # elbow; catmull would round it away, and the elbow is the whole point.
-    c1 = (p0[0] - gap * G_BENT_DIVE, p0[1] - gap * G_BENT_DROP)
-    c2 = (p3[0] - gap * 0.10, p3[1] + gap * 0.30)
-    neck = cubic(p0, c1, c2, p3)
+    # ROUND 327 -- THE CONNECTOR IS TWO CUBICS THROUGH AN EXPLICIT WAIST.
+    # Owner 2026-09-21, on his own dragged params: *"no kink in connector;
+    # _DIVE is not going left enough"*. Both are the same fault. A single cubic
+    # with one runaway handle does not move its curve left in proportion to the
+    # handle -- past about 0.7 it FOLDS, and the traced leftmost point jumped
+    # from t 0.52 back to t 0.92 while the letter grew a kink. So the dial
+    # saturated and produced a defect at the same time.
+    #
+    # AT THE LEFTMOST POINT OF AN S THE TANGENT IS VERTICAL, because x is at a
+    # minimum there. That is a constraint, not a preference, and it is what
+    # makes this construction safe: the waist is placed directly, both cubics
+    # meet it with a vertical tangent, so the join is C1 by construction and
+    # cannot kink however far left the waist goes. G_BENT_DIVE is now a literal
+    # distance -- the waist's offset left of the bowl exit, x the gap.
+    wx = p0[0] - gap * G_BENT_DIVE
+    wy = p0[1] - gap * G_BENT_DROP
+    k = gap * G_BENT_WAIST_K
+    seg1 = cubic(p0, (p0[0] - gap * G_BENT_LEAD, p0[1] - gap * 0.18),
+                 (wx, wy + k), (wx, wy))
+    seg2 = cubic((wx, wy), (wx, wy - k),
+                 (p3[0] - gap * G_BENT_LAND, p3[1] + gap * 0.26), p3)
+    neck = list(seg1) + list(seg2)[1:]
     nk = stroke(neck, PR.bowl_widths(neck, widths([(0.0, 0.30), (0.16, 0.9),
                                                    (0.45, G_NECK_MID),
                                                    (0.85, 0.9 * min(1.0, G_NECK_END / 0.30)),
@@ -817,6 +845,270 @@ def _g_bent(c):
     ear = stroke(ear_c, PR.bowl_widths(ear_c, widths([(0.0, 0.4), (0.35, 1.0), (1.0, 1.05)]),
                                        floor=S * 0.72), cut1=CUT)
     return geom.ink([bowl, loop, nk, ear])
+
+
+# ===================== ROUND 327 -- THE OPEN-LOOP ROMAN g ==================
+# EXPLORATION ONLY, behind ALBO_G_STYLE=open. Nothing here ships: `bent` is
+# still the default and an unset build is byte-identical (proved by comparing
+# every glyph's RecordingPen output, never the TTF's md5 -- fontTools stamps
+# head.modified, so md5 never compares across two builds).
+#
+# Owner 2026-09-21: *"make an open loop 'g' in roman based on other albo roman
+# lowercase. take ten passes at giving me a variety of options."*
+#
+# WHAT AN OPEN-LOOP g IS, structurally, IN THIS FACE. It is the `q`'s skeleton
+# with the stem's foot replaced by a hook: a FULL x-height bowl -- the o's
+# ring, not the binocular g's 0.66-xh bowl -- whose right wall carries on past
+# the baseline and curls. Every part below is one this face already owns:
+#
+#   the bowl    `ring()` at the o's centreline radius, its weight and its
+#               hairline floor (rounds.O_RX x O_RX_ADJ, O_W_ADJ, O_FLOOR_ADJ)
+#   the tail    a stroke on `PR.bowl_widths` -- the same profile the o's ring,
+#               the a's hood and the e's arm are drawn on
+#   its end     the j's run-out to a point; the c's lower terminal (0.70 of
+#               the pen into the family's 20-degree cut); the c's TOP finial
+#               with the y-tail's floor (PR.finial_widths / PR.finial_cut /
+#               rounds.c_top_width); the v/y/x diagonal end wedge
+#               (PR.end_wedge)
+#   the ear     g_g's ear, unchanged, moved, or absent
+#
+# THE ONE RULE (docs/albo-method.md section 1) decides the root, and it is the
+# only thing here that is not taste. The tail leaves the bowl ON THE RING'S
+# OWN CENTRELINE, with the RING'S OWN CLOCKWISE TANGENT and the RING'S OWN
+# WIDTH there (G_OPEN_W0 = 1.0 means `bowl_th` of that tangent). That is what
+# makes the union tangent-continuous -- section 1b: a union ADDS, it does not
+# blend, and two edges that arrive at an angle leave a notch on one side and a
+# spur on the other that no width can tune away. Rooting the tail anywhere
+# else, or at any other width, puts a step on the letter's right edge where
+# the descender leaves. The negative results are in
+# docs/albo-open-g-2026-09-21.md.
+
+
+def _open_on(cx, cy, rx, ry, deg):
+    a = math.radians(deg); return (cx + rx * math.cos(a), cy + ry * math.sin(a))
+
+
+def _open_tan(rx, ry, deg):
+    """The ring's CLOCKWISE tangent at `deg` -- the direction a stroke running
+    DOWN the bowl's right wall is already travelling when it reaches there."""
+    a = math.radians(deg)
+    tx, ty = rx * math.sin(a), -ry * math.cos(a)
+    L = math.hypot(tx, ty) or 1.0
+    return (tx / L, ty / L)
+
+
+def _open_arc(P0, T0, r, sweep_deg, n=72):
+    """The j's tail: a circular arc leaving P0 along T0. A POSITIVE sweep turns
+    the stroke clockwise on the page (down, then left -- the j's hook); a
+    negative one turns it the other way (down, then right)."""
+    s = 1.0 if sweep_deg >= 0 else -1.0
+    ccx, ccy = P0[0] + s * T0[1] * r, P0[1] - s * T0[0] * r
+    a0 = math.atan2(P0[1] - ccy, P0[0] - ccx)
+    sw = s * math.radians(abs(sweep_deg))
+    return [(ccx + r * math.cos(a0 - sw * i / n), ccy + r * math.sin(a0 - sw * i / n))
+            for i in range(n + 1)]
+
+
+# ---- the dials. Every one takes an ALBO_G_OPEN_* env override, and every one
+# ---- of the ten options below is a row in this same table, so an option is a
+# ---- set of dial values and never a separate code path.
+#
+#   rx      the bowl's centreline radius, x the o's own (rounds.O_RX x
+#           O_RX_ADJ). 1.00 IS the o; the o is 1.036 wide over tall and a g
+#           carrying a descender on its right wall reads wider than that.
+#   frm     where the tail leaves the ring, degrees, 0 = due east (the bowl's
+#           widest point, where the wall runs vertical and the departure is
+#           straight down). NEGATIVE goes round the bottom-right.
+#   kind    'arc' -- a straight run along the ring's tangent for `run`, then a
+#           circular turn of radius `r` through `sweep` degrees: the j's own
+#           construction. 'cubic' -- one curve to a tip declared by `reach`
+#           (x, in ring-centreline radii from the bowl's centre), `depth` (y,
+#           x the descender, positive = below the baseline) and `tipdeg` (the
+#           direction of travel at the tip), with `c1`/`c2` the two handle
+#           lengths as fractions of the chord: the y's and the e's.
+#   prof    the tail's width, x `bowl_th` of its own tangent -- so `prof` is
+#           taste and the DIRECTION carries the contrast (THE ONE RULE).
+#   floor   the least width the tail may have, x the stem.
+#   end     'point' | 'cut' | 'finial' | 'wedge' -- see the doc block above.
+#   ear     'g' the binocular g's ear unchanged | 'none'.
+#   ear_at  where it is rooted on the ring, degrees.
+G_OPEN_OPTS = {
+    # 1. THE j's TAIL. The face's own descender, transplanted: down the bowl's
+    #    right wall, then the j's circular turn (its own radius, its own 118
+    #    degrees of sweep), running out to a point. Rooted HIGH (-10) so the
+    #    descender IS the bowl's right wall rather than a stroke hung off it.
+    'j':     dict(rx=0.94, frm=-10.0, kind='arc', run=0.74, r=125.0, sweep=118.0,
+                  prof=[(0.0, 1.00), (0.42, 0.94), (1.0, 0.18)], floor=0.0,
+                  end='point', ear='g'),
+    # 2. THE y's TAIL. One long cubic sweeping left across the whole letter and
+    #    ending in the c's top finial on the y's own floor -- the roman y's
+    #    tail, aimed at the g's root. The widest reach of the ten.
+    'y':     dict(rx=0.94, frm=-14.0, kind='cubic', reach=-0.92, depth=0.86, tipdeg=163.0,
+                  c1=0.62, c2=0.52, prof=[(0.0, 1.00), (0.30, 0.92), (1.0, 0.86)],
+                  floor=0.0, end='finial', ear='g'),
+    # 3. THE c's LOWER TERMINAL, short and shallow. A stub hook that thins to
+    #    0.70 of the pen and stops on the family's 20-degree cut, which is
+    #    exactly how the c's bottom ends. The shallowest of the ten.
+    'c':     dict(rx=0.94, frm=-16.0, kind='cubic', reach=-0.30, depth=0.46, tipdeg=186.0,
+                  c1=0.58, c2=0.42, prof=[(0.0, 1.00), (0.45, 0.95), (1.0, 0.70)],
+                  floor=0.0, end='cut', ear='g'),
+    # 4. THE WEDGE. A medium hook stopped by a SERIF rather than by a taper:
+    #    the v/y/x diagonal end wedge, on the tail's outer (lower) side.
+    'wedge': dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.50, depth=0.74, tipdeg=168.0,
+                  c1=0.66, c2=0.44, prof=[(0.0, 1.00), (0.40, 0.94), (1.0, 0.80)],
+                  floor=0.0, end='wedge', wedge_side=1, wedge_scale=0.80, ear='g'),
+    # 5. DEEP. The full descender -- the p's own -281 -- taken in one near
+    #    vertical drop with a late, tight turn. The depth axis at its maximum.
+    'deep':  dict(rx=0.94, frm=-8.0, kind='cubic', reach=-0.30, depth=1.00, tipdeg=196.0,
+                  c1=0.80, c2=0.30, prof=[(0.0, 1.00), (0.55, 0.92), (1.0, 0.44)],
+                  floor=0.0, end='cut', ear='g'),
+    # 6. PART-CLOSED. The hook curls left and back UP toward the bowl, so the
+    #    letter reads as a loop that was never shut. `gap` in the report is the
+    #    white left between the tail's tip and the bowl's underside.
+    'curl':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.58, depth=0.80, tipdeg=104.0,
+                  c1=0.74, c2=0.70, prof=[(0.0, 1.00), (0.40, 0.92), (1.0, 0.52)],
+                  floor=0.0, end='cut', ear='g'),
+    # 7. HOOKS RIGHT. Down, then OUT to the right and up, ending in the c's
+    #    finial -- the e's arm direction given to a descender. The only one of
+    #    the ten whose tail leaves the bowl's own footprint on the right.
+    'out':   dict(rx=0.94, frm=-26.0, kind='cubic', reach=1.12, depth=0.72, tipdeg=38.0,
+                  c1=0.70, c2=0.52, prof=[(0.0, 1.00), (0.45, 0.88), (1.0, 0.74)],
+                  floor=0.0, end='finial', ear='g'),
+    # 8. THE o's BOWL, exactly (rx 1.00), with a restrained hook so the bowl is
+    #    what the eye is asked about. The bowl axis.
+    'o':     dict(rx=1.00, frm=-10.0, kind='cubic', reach=-0.42, depth=0.70, tipdeg=172.0,
+                  c1=0.70, c2=0.46, prof=[(0.0, 1.00), (0.42, 0.92), (1.0, 0.62)],
+                  floor=0.0, end='cut', ear='g'),
+    # 9. THE HAIRLINE. The tail resolves the way a pen LIFTS: no floor and a
+    #    profile that lets the run-out reach the bowl's own hair. The contrast
+    #    axis -- and the one most at risk from the four-level pipeline at 13 px,
+    #    which is the size he reads at (rounds.O_FLOOR_ADJ's ruling).
+    'hair':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.62, depth=0.78, tipdeg=166.0,
+                  c1=0.70, c2=0.50, prof=[(0.0, 1.00), (0.34, 0.86), (0.72, 0.52), (1.0, 0.30)],
+                  floor=0.0, end='cut', ear='g'),
+    # 10. NO EAR. The canonical single-storey g: the bowl and the tail and
+    #     nothing else. The ear axis, and the arm that says what the ear is
+    #     actually worth on a letter this shape.
+    'bare':  dict(rx=0.94, frm=-12.0, kind='cubic', reach=-0.52, depth=0.76, tipdeg=166.0,
+                  c1=0.70, c2=0.48, prof=[(0.0, 1.00), (0.40, 0.92), (1.0, 0.66)],
+                  floor=0.0, end='finial', ear='none'),
+}
+G_OPEN = os.environ.get("ALBO_G_OPEN", "j").lower()
+if G_OPEN not in G_OPEN_OPTS: G_OPEN = "j"
+_GO = dict(G_OPEN_OPTS[G_OPEN])
+_gof = lambda k, d: float(os.environ.get("ALBO_G_OPEN_" + k.upper(), _GO.get(k, d)))
+G_OPEN_RX      = _gof('rx', 0.94)
+G_OPEN_FROM    = _gof('frm', -12.0)
+G_OPEN_KIND    = os.environ.get("ALBO_G_OPEN_KIND", _GO.get('kind', 'cubic'))
+G_OPEN_RUN     = _gof('run', 0.74)       # 'arc': the straight run, x the drop from the root to the descender line
+G_OPEN_R       = _gof('r', 125.0)        # 'arc': the turn's radius, wf units (the j's own)
+G_OPEN_SWEEP   = _gof('sweep', 118.0)    # 'arc': degrees of turn (the j's own)
+G_OPEN_REACH   = _gof('reach', -0.52)    # 'cubic': the tip's x, in ring-centreline radii from the bowl's centre
+G_OPEN_DEPTH   = _gof('depth', 0.76)     # 'cubic': the tip's y, x the descender, BELOW the baseline
+G_OPEN_TIPDEG  = _gof('tipdeg', 166.0)   # 'cubic': the direction of travel at the tip
+G_OPEN_C1      = _gof('c1', 0.70)        # 'cubic': the handle along the ring's tangent, x the chord
+G_OPEN_C2      = _gof('c2', 0.48)        # 'cubic': the handle back from the tip, x the chord
+G_OPEN_W0      = _gof('w0', 1.00)        # the tail's width AT THE ROOT, x the ring's own width there. 1.0 is THE ONE RULE; anything else steps.
+G_OPEN_FLOOR   = _gof('floor', 0.0)      # the tail's least width, x the stem
+G_OPEN_END     = os.environ.get("ALBO_G_OPEN_END", _GO.get('end', 'cut'))
+G_OPEN_WSIDE   = _gof('wedge_side', 1.0)     # 'wedge': which side of the tail's end the serif sits on (+1 = outer/below)
+G_OPEN_WSCALE  = _gof('wedge_scale', 0.80)   # ... and its size, x the family's diagonal end wedge
+# THE SHOULDER CUT, and the fault it exists for. Rooting the tail on the
+# ring's centreline makes the departure tangent-continuous (above), but BELOW
+# the root the two run side by side: the ring's centreline turns left toward
+# the bowl's floor while the tail carries on down, so the union spans from the
+# ring's inner edge to the tail's outer one. Measured PERPENDICULAR (a chamfer
+# ridge on a ray from the counter's centroid -- the row-wise measure inflates
+# on a slanted stroke, which is the trap docs/albo-g-anatomy.md round 323
+# records for the g's waist), first cut against the o's own ring:
+#
+#     deg        0    45   285   300   315   330   345
+#     the o     71    57    40    48    57    68    72
+#     first g   73    67    41    49    93    80    75      <- +63% at 315
+#
+# The cure is the p's, not a new one: `bowl_stem` eases the ring's stroke to
+# NEAR_STEM_W within 90 units of the stem's edge so the crotches clear, and
+# the a's bowl does the same thing at its own stem. Here the ring's width is
+# cut on a raised cosine centred on G_OPEN_CUT_AT -- the same shape round 324
+# gave the bent g's loop shoulder -- so the tail carries the weight through
+# the sector it shares with the ring and the rest of the ring is untouched.
+# At 1.0 the bowl is the o's ring exactly.
+G_OPEN_CUT_W   = _gof('cut_w', 0.58)     # the ring's width through the shared sector, x its own
+G_OPEN_CUT_AT  = _gof('cut_at', 320.0)   # where the cut is centred, degrees (0 = due east)
+G_OPEN_CUT_ARC = _gof('cut_arc', 62.0)   # and how far it reaches either side
+G_OPEN_EAR     = os.environ.get("ALBO_G_OPEN_EAR", _GO.get('ear', 'g'))
+G_OPEN_EAR_AT  = _gof('ear_at', 44.0)    # where the ear is rooted on the ring, degrees (g_g's own is 44)
+G_OPEN_PROF    = _GO.get('prof', [(0.0, 1.00), (0.40, 0.92), (1.0, 0.66)])
+
+
+def _open_bowl(cx, cy, rx, ry, w_scale, floor):
+    """The o's ring, with its width cut back through the sector the tail
+    shares with it (G_OPEN_CUT_*). At G_OPEN_CUT_W 1.0 this IS the o's ring."""
+    outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, BOWL_K)[:-1]
+    outer = geom.resample(outer + [outer[0]])[:-1]
+    tans = geom.tangents(outer, closed=True)
+    ws = []
+    for pt, tn in zip(outer, tans):
+        w = max(PR.bowl_th(tn) * w_scale, floor)
+        ang = math.degrees(math.atan2(pt[1] - cy, pt[0] - cx)) % 360.0
+        d = abs((ang - G_OPEN_CUT_AT + 180.0) % 360.0 - 180.0)
+        if d < G_OPEN_CUT_ARC:                  # a raised cosine, so the cut has no edge
+            f = 0.5 * (1.0 + math.cos(math.pi * d / G_OPEN_CUT_ARC))
+            w *= 1.0 - (1.0 - G_OPEN_CUT_W) * f
+        ws.append(w)
+    n = len(ws)
+    return ring_from(outer, widths_fn=lambda t: ws[min(n - 1, max(0, int(round(t * n))))])
+
+
+def _g_open(c):
+    """The open-loop roman g -- a full x-height bowl whose right wall carries
+    on past the baseline and curls, instead of closing into a second bowl."""
+    from .rounds import O_RX, O_RX_ADJ, O_W_ADJ, O_FLOOR_ADJ, c_top_width
+    xh = c["xh"]; wf = c["wf"]; desc = c["desc"]
+    # --- the bowl IS the o's ring (its radius, its weight scale and its
+    # --- hairline floor), narrowed by G_OPEN_RX. Nothing about it is new.
+    rx = O_RX * O_RX_ADJ * G_OPEN_RX * wf + TH_V / 2 * O_W_ADJ
+    ry = xh / 2 + OVER
+    cx, cy = rx, xh / 2
+    bowl, bo, bi = _open_bowl(cx, cy, rx, ry, O_W_ADJ, S * O_FLOOR_ADJ)
+    crx, cry = rx - TH_V / 2, ry - TH_H / 2        # the ring's centreline, g_g's own idiom
+    # --- the tail, rooted on that centreline with that tangent (THE ONE RULE)
+    P0 = _open_on(cx, cy, crx, cry, G_OPEN_FROM)
+    T0 = _open_tan(crx, cry, G_OPEN_FROM)
+    if G_OPEN_KIND == 'arc':
+        drop = (P0[1] + desc) * G_OPEN_RUN
+        run_len = drop / max(1e-6, abs(T0[1]))
+        P1 = (P0[0] + T0[0] * run_len, P0[1] + T0[1] * run_len)
+        path = geom.line(P0, P1)[:-1] + _open_arc(P1, T0, G_OPEN_R * wf, G_OPEN_SWEEP)
+    else:
+        P3 = (cx + G_OPEN_REACH * crx, -desc * G_OPEN_DEPTH)
+        a3 = math.radians(G_OPEN_TIPDEG); T3 = (math.cos(a3), math.sin(a3))
+        chord = math.hypot(P3[0] - P0[0], P3[1] - P0[1])
+        C1 = (P0[0] + T0[0] * chord * G_OPEN_C1, P0[1] + T0[1] * chord * G_OPEN_C1)
+        C2 = (P3[0] - T3[0] * chord * G_OPEN_C2, P3[1] - T3[1] * chord * G_OPEN_C2)
+        path = cubic(P0, C1, C2, P3)
+    prof = widths([(t, w * G_OPEN_W0 if t == 0.0 else w) for t, w in G_OPEN_PROF])
+    base = PR.bowl_widths(path, prof, floor=S * G_OPEN_FLOOR)
+    parts = [bowl]
+    if G_OPEN_END == 'finial':
+        # the c's top, with the y-tail's floor: a tail running out on the pen's
+        # THIN would otherwise swell to 1.10 of nearly nothing (PR.finial_widths)
+        wfn = PR.finial_widths(base, False, floor=c_top_width())
+        parts.append(stroke(path, wfn, cut1=PR.finial_cut(path, False)))
+    elif G_OPEN_END == 'wedge':
+        parts.append(stroke(path, base, cut1=CUT))
+        parts.append(PR.end_wedge(path, base(1.0), False, int(G_OPEN_WSIDE), scale=G_OPEN_WSCALE))
+    elif G_OPEN_END == 'point':
+        parts.append(stroke(path, base))
+    else:                                  # 'cut': the c's lower terminal
+        parts.append(stroke(path, base, cut1=CUT))
+    # --- the ear: g_g's, unchanged, or none
+    if G_OPEN_EAR != 'none':
+        ex, ey = _open_on(cx, cy, crx, cry, G_OPEN_EAR_AT); L = 96 * wf * g_ear_scale()
+        ear_c = [(ex, ey), (ex + L, ey + L * math.tan(math.radians(8)))]
+        parts.append(stroke(ear_c, PR.bowl_widths(ear_c, widths([(0.0, 0.4), (0.35, 1.0), (1.0, 1.05)]),
+                                                  floor=S * 0.72), cut1=CUT))
+    return geom.ink(parts)
 
 
 @glyph('g')
@@ -831,6 +1123,8 @@ def g_g(c):
     the loop at 150 deg; the ear a short heavy stroke off the shoulder at
     the bowl profile, floored at 0.72 S, rising 8 deg, ending in the pen
     cut -- the top-right serif of the round-30 ruling, with weight."""
+    if G_STYLE == 'open':
+        return _g_open(c)        # round 327, exploration only -- see the block above
     if G_STYLE == 'bent':
         return _g_bent(c)
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]
