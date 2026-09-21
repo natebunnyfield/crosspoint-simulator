@@ -3295,3 +3295,50 @@ every weight, which is the honest answer to whether this form belongs in
 running text at all.
 
 Page: `claude.ai/artifact/LBmEsktw6fJKZ8ymGULxnj`.
+
+
+## 52. Round 314 — source against result, and the compact et dropped
+
+Owner 2026-09-21: *"compare source and result and address lacking coverage.
+drop the compact chancery et"*.
+
+### The compact chancery et is gone
+
+`ET_OPTIONS` no longer offers **b**. Its drawing (`et_b`) stays in the file
+because **c is built from it** and deleting it would take c too; what changed
+is that `ALBO_IT_AMP=b` now falls through to the shipped ampersand rather than
+quietly selecting a letter he rejected.
+
+### THE INSTRUMENT SCORED A COPY AT 47% AND HAD TO BE FIXED FIRST
+
+The first comparison rastered both at one ink height and pinned their ink boxes
+at the **top-left corner**. It reported that round 312's CONTOUR TRACE covered
+**47.5% of its own source** — which is impossible, and was a measurement of its
+own misalignment. The fit now searches translation, a small uniform scale and
+SHEAR, and reports the best; the same trace then scores **97.0%**.
+
+That search also returns a fact worth keeping: the trace needs **−14 degrees**
+of shear to sit on the reference, so the built italic's slope is about 14° from
+Poetica's and a counter-sheared trace still leans differently from its source.
+
+### What the map showed, and the three fixes
+
+First nib drawing: **59.1% of the source covered, 1.7% extra.** Almost no blue —
+the letter was not wrong anywhere, it was thin and missing two features.
+
+| fault | what it was | after |
+|---|---|---|
+| the spur was a STUB | both waypoints sat on the ARM's line, so the BFS route between them was the arm, not the inner hook — 80 px where the feature is 162 | the whole arc drawn |
+| terminals ran out | the reference swells into a ball at the hook's tip and the curl's; `taper=True` ran them to nothing | a disc at each end, sized on the stroke's own width there |
+| the pen was light | 0.86 covers 59.9%, **1.15 covers 72.6%**, 1.30 covers 75.4% with twice the extra ink | 1.15, the IoU peak |
+
+**Result: 75.4% covered, 6.1% extra, IoU 0.711 against 0.581.**
+
+### The 24.6% still missing is the PEN, and is not chased
+
+What remains is a thin rim along the outer edge of the bowl and the E: the
+reference is a higher-contrast letter than Albo's nib gives at any weight that
+still reads as this face. Closing it would mean adopting Poetica's pen, which
+is the opposite of the ask. Recorded, not chased.
+
+Page: `claude.ai/artifact/5VkadSSzQQRb8KUaUh4i8f`.

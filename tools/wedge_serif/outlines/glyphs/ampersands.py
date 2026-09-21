@@ -1051,7 +1051,12 @@ def et_e(c):
 
 # ALBO_IT_AMP picks one; 'a' is what the italic has always drawn (the sheared
 # roman, `marks.g_ampersand`'s own path), so an unset build is byte-identical.
-ET_OPTIONS = {'b': et_b, 'c': et_c, 'd': et_d, 'e': et_e,
+# ROUND 314 -- 'b', THE COMPACT CHANCERY et, IS DROPPED. Owner 2026-09-21:
+# *"drop the compact chancery et"*. Its drawing (`et_b`) stays in this file --
+# c is built from it and deleting it would take c with it -- but it is no
+# longer selectable, and `ALBO_IT_AMP=b` now falls through to the shipped
+# ampersand rather than silently choosing a letter he rejected.
+ET_OPTIONS = {'c': et_c, 'd': et_d, 'e': et_e,
               'f': lambda c: alt051_traced(c),     # round 312: alt051, traced
               'g': lambda c: alt051_nib(c)}        # round 313: alt051 on the nib
 
@@ -1151,6 +1156,12 @@ ALT051_H = float(os.environ.get("ALBO_ALT051_H", 1.62))   # its ink height, x th
 # each is guaranteed to be a skeleton pixel; the first cut invented
 # intermediate points and one landed 19 px off the ink.
 #
+# ROUND 314 -- THE SPUR WAS A STUB. Both of its waypoints sat on the ARM's own
+# line (y ~ 260 in pixel space), so the BFS route between them was the arm, not
+# the inner hook, and the coverage map against the source showed the whole arc
+# missing. Its far end is in the bowl's interior at (334, 260); the route from
+# there is 162 px where the stub was 80.
+#
 # 1,356 skeleton pixels became the 59 points of the main stroke (RDP at 1.2
 # units) and 80 became the spur's 5. Those points are frozen here: they are a
 # measurement of the reference, not a dial, and re-deriving them on every build
@@ -1173,13 +1184,15 @@ ALT051_SPINE = [
     (792.6,509.1), (777,525.7), (764.8,532.4),
 ]
 ALT051_SPUR = [
-    (450.3,306.8), (445.9,310.2), (421.4,316.8), (382.6,312.4),
-    (362.6,306.8),
+    (291.4,225.7), (305.9,254.6), (320.3,274.6), (341.4,294.6),
+    (361.4,306.8), (382.6,312.4), (413.7,316.8), (432.6,314.6),
+    (445.9,310.2), (450.3,306.8),
 ]
 ALT051_NIB_H = float(os.environ.get("ALBO_ALT051_NIB_H", 1.62))   # ink height, x the x-height
 ALT051_THICK = float(os.environ.get("ALBO_ALT051_THICK", 0.86))   # x the stem -- the Aldine o's own pen
 ALT051_THIN = float(os.environ.get("ALBO_ALT051_THIN", 0.20))     # x the thick
 ALT051_PHI = float(os.environ.get("ALBO_ALT051_PHI", 35.0))       # the nib's angle, degrees
+ALT051_BALL = float(os.environ.get("ALBO_ALT051_BALL", 0.62))     # round 314: the terminal discs, x the stroke's width there
 
 def alt051_nib(c):
     """The reference's spine, drawn with this face's nib: the width at every
@@ -1192,13 +1205,24 @@ def alt051_nib(c):
     k = (c["xh"] * ALT051_NIB_H) / (max(ys) - min(ys))
     S_ = pen.S
     th = S_ * ALT051_THICK
-    def draw(pts, taper):
+    def draw(pts, taper, ball_ends=()):
         p = [( (x - min(xs)) * k, (y - min(ys)) * k ) for x, y in pts]
         p = geom.catmull(p, tension=0.5)
         w = nib_widths(p, th, th * ALT051_THIN, target=None, smooth=9,
                        taper=taper, boost=None)
-        return _stroke(p, widths(list(zip([i/(len(w)-1) for i in range(len(w))], w))))
-    g = geom.ink([draw(ALT051_SPINE, True), draw(ALT051_SPUR, True)])
+        parts = [_stroke(p, widths(list(zip([i/(len(w)-1) for i in range(len(w))], w))))]
+        # ROUND 314 -- THE TERMINALS SWELL, they do not run out. The coverage
+        # map against the source (59.1% covered, 1.7% extra -- the drawing was
+        # thin, not wrong) shows the two misses that are FEATURES rather than
+        # weight: the top hook's tip and the right curl's tip, where the
+        # reference's stroke thickens into a ball and `taper=True` ran mine to
+        # nothing. Each is a disc at the stroke's own end, sized on the width
+        # there, which is what a broad nib leaves when it stops without lifting.
+        for idx in ball_ends:
+            parts.append(dot(p[idx][0], p[idx][1], w[idx] * ALT051_BALL))
+        return geom.ink(parts)
+    g = geom.ink([draw(ALT051_SPINE, True, ball_ends=(0, -1)),
+                  draw(ALT051_SPUR, True)])
     if pen.SLANT:                      # build.draw will shear; hold the reference's own slope
         g = aff.skew(g, xs=-float(getattr(pen, 'SLANT', 0.0) or 0.0), ys=0.0,
                      origin=(0, 0), use_radians=False)   # SLANT IS DEGREES ALREADY
