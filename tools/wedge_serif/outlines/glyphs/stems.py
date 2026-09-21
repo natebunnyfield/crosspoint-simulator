@@ -1138,7 +1138,8 @@ G_OPEN_EAR_AT  = _gof('ear_at', 52.0)
 G_OPEN_SER_AT    = _gof('ser_at', 38.0)     # where the bpqd serif stands on the ring, degrees
 G_OPEN_SER_LEN   = _gof('ser_len', 1.05)    # the stub's height, x the stem
 G_OPEN_SER_SCALE = _gof('ser_scale', 1.0)   # the wedge's size, x the family's
-G_OPEN_SER_OVER  = _gof('ser_over', 1.0)    # how much of the overshoot the stub's top takes    # where the ear is rooted on the ring, degrees (g_g's own number is 44)
+G_OPEN_SER_OVER  = _gof('ser_over', 1.0)
+G_OPEN_SER_ALIGN = os.environ.get('ALBO_G_OPEN_SER_ALIGN', 'clip')   # ring | x | clip    # how much of the overshoot the stub's top takes    # where the ear is rooted on the ring, degrees (g_g's own number is 44)
 # The profile is overridable too, as "t:w,t:w,..." -- so an option is never
 # the only way to reach a shape.
 def _open_prof():
@@ -1251,12 +1252,31 @@ def _g_open(c):
     # at G_OPEN_SER_AT and carries the family's own top, and the ring is the
     # wall it stands on. `foot=None` always -- this end is a join, not a foot.
     if G_OPEN_EAR in ('dtop', 'btop', 'both', 'plus', 'flat'):
-        rx0, ry0 = _open_on(cx, cy, crx, cry, G_OPEN_SER_AT)
-        top_y = xh + OVER * G_OPEN_SER_OVER
-        y0 = min(top_y - S * G_OPEN_SER_LEN, ry0)
+        # ROUND 330 -- ALIGNED THE WAY b d p q ALIGN. Owner: *"take multiple
+        # passes at aligning the vertical stem with the serif in the same way
+        # bdqp all do"*. Round 329 stood the stub on the ring at 38 degrees,
+        # which is not what those letters do at all. `bowl_stem` places a TRUE
+        # VERTICAL by rule -- its centre half a stem INSIDE the ring's far
+        # centreline -- and then CLIPS the ring to that stem's inner edge, so
+        # the stem's inner edge IS the counter's edge and nothing pokes past
+        # it. Measured here: the x was out by only 6.7 units (0.10 stems), but
+        # the counter's right edge was the RING's at 378.4 where bpqd would put
+        # a straight wall at 344.9. The join was the misalignment, not the x.
         kind = {'dtop': 'left', 'btop': 'right', 'both': 'both',
                 'plus': 'left+', 'flat': None}[G_OPEN_EAR]
-        parts.append(stem(rx0, y0, top_y, top=kind, foot=None,
+        top_y = xh + OVER * G_OPEN_SER_OVER
+        if G_OPEN_SER_ALIGN == 'ring':          # round 329, kept for the record
+            xs, ry0 = _open_on(cx, cy, crx, cry, G_OPEN_SER_AT)
+            y0 = min(top_y - S * G_OPEN_SER_LEN, ry0)
+        else:
+            xs = cx + crx - S * 0.5             # bowl_stem's own rule
+            y0 = top_y - S * G_OPEN_SER_LEN
+        if G_OPEN_SER_ALIGN == 'clip':
+            from shapely.geometry import box as _box
+            edge = xs - TH_V / 2                # the stem's INNER edge
+            keep = _box(-2000, -2000, edge + 5, 4000).union(_box(-2000, -2000, 4000, y0))
+            parts[0] = parts[0].intersection(keep)
+        parts.append(stem(xs, y0, top_y, top=kind, foot=None,
                           ent_span=(0.0, top_y), top_scale=G_OPEN_SER_SCALE))
     elif G_OPEN_EAR != 'none':
         ex, ey = _open_on(cx, cy, crx, cry, G_OPEN_EAR_AT); L = 96 * wf * g_ear_scale()

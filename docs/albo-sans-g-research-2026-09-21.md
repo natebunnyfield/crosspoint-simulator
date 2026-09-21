@@ -159,3 +159,48 @@ Three more dials: `_SER_LEN` (the stub's height, × the stem), `_SER_SCALE`
 overshoot the stub's top takes).
 
 All five build clean on `cmp_contour_hairs.py`. Nothing ships.
+
+## Round 330 — aligning the stem the way b d p q align it
+
+Owner: *"take multiple passes at aligning the vertical stem with the serif in
+the same way bdqp all do"*. Round 329 stood the stub on the ring at 38°, which
+is not what those letters do.
+
+`bowl_stem` does two things, and the second is the one that matters:
+
+1. It places a **true vertical by rule** — the stem's centre half a stem INSIDE
+   the ring's far centreline.
+2. It **clips the ring to that stem's inner edge**, so the stem's inner edge IS
+   the counter's edge and nothing pokes past the stem.
+
+Measured on the open g: the **x was out by only 6.7 units** (0.10 stems). The
+join was the whole misalignment — the counter's right edge was the RING's, at
+378.4, where bpqd puts a straight wall at 344.9.
+
+### The clip was a no-op, and the measurement is what caught it
+
+Passes 1–3 (ring → x by rule → clip) all left the counter's right edge at
+76–80 units off vertical against the d's 58.6. **The clip removed nothing**: at
+a stub 1.05 stems tall the ring is already narrower than the stem's inner edge,
+so there was no ink out there to cut. Nothing in the render said so; the number
+did.
+
+For the bpqd relationship the stem has to run down past the ring's **widest**
+point. Departure from vertical over the counter's upper 60%, in Albo units:
+
+| stub height | the g | the d |
+|---|---|---|
+| 1.05 stems | 80.5 | 58.6 |
+| 2.40 | 76.1 | 58.6 |
+| 3.40 | 76.1 | 58.6 |
+| **4.50** | **57.7** | **58.6** |
+| 5.60 | 56.9 | 58.6 |
+
+**It converges at about 4.5 stems** — there the g's counter edge is the d's, to
+within a unit, because it IS a straight stem edge and not a curve.
+`ALBO_G_OPEN_SER_ALIGN` = `ring` (round 329) | `x` | `clip` (the default), with
+`_SER_LEN` the stub's height. All build clean.
+
+The trade to weigh: a 4.5-stem vertical is a real stem on the g's right, which
+is what makes the join bpqd's — and also what starts to make the letter argue
+with the d and the q. That one is an eye judgment, not a measurement.
