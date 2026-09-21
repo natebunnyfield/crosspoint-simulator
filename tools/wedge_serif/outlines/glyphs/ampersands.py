@@ -1052,7 +1052,8 @@ def et_e(c):
 # ALBO_IT_AMP picks one; 'a' is what the italic has always drawn (the sheared
 # roman, `marks.g_ampersand`'s own path), so an unset build is byte-identical.
 ET_OPTIONS = {'b': et_b, 'c': et_c, 'd': et_d, 'e': et_e,
-              'f': lambda c: alt051_traced(c)}   # round 312: alt051, traced
+              'f': lambda c: alt051_traced(c),     # round 312: alt051, traced
+              'g': lambda c: alt051_nib(c)}        # round 313: alt051 on the nib
 
 
 
@@ -1116,13 +1117,89 @@ def alt051_traced(c, counter_shear=True):
     g = polys[0]
     for q in polys[1:]:                      # even-odd: a ring inside another is a counter
         g = g.symmetric_difference(q)
+    # pen.SLANT IS IN DEGREES (13.0), not a slope. Both counter-shears here first
+    # ran it through atan(), which asks for a shear of 85.6 degrees and turns a
+    # letter into a diagonal streak -- visible instantly on arm g, and present
+    # but less obvious on arm f.
     # the reference is drawn on a 1000 upm with its x-height at 429 of ours
     x0, y0, x1, y1 = g.bounds
     k = (c["xh"] * ALT051_H) / (y1 - y0)
     g = aff.scale(g, k, k, origin=(x0, y0))
     if counter_shear:                        # build.draw will shear by pen.SLANT
-        g = aff.skew(g, xs=-_m.degrees(_m.atan(getattr(pen, 'SLANT', 0.0) or 0.0)),
-                     ys=0.0, origin=(0, 0), use_radians=False)
+        g = aff.skew(g, xs=-float(getattr(pen, 'SLANT', 0.0) or 0.0), ys=0.0,
+                     origin=(0, 0), use_radians=False)   # SLANT IS DEGREES ALREADY
     return geom.ink([aff.translate(g, -geom.bbox(g)[0], -geom.bbox(g)[1])])
 
 ALT051_H = float(os.environ.get("ALBO_ALT051_H", 1.62))   # its ink height, x the x-height
+
+
+# ============ ROUND 313 -- alt051 ON THE ALBO NIB ==========================
+# Owner 2026-09-21: *"make that letter form with the albo nib"*.
+#
+# Round 312 traced the reference's CONTOUR and said plainly that it was not the
+# letter drawn with this face's pen. This is that letter: the reference's own
+# SPINE, with Albo's nib run along it.
+#
+# HOW THE SPINE WAS GOT, after five passes of automation failed in round 312.
+# The glyph is rastered and thinned (Zhang-Suen) to a one-pixel skeleton; the
+# WAYPOINTS below were read by hand off a labelled plot of the skeleton's
+# fragments, and the route between two waypoints is the skeleton's own SHORTEST
+# PATH, found by breadth-first search on the pixel graph. That is what makes it
+# reliable where direction-chaining was not: BFS cannot wander -- if two
+# waypoints are joined through ink it finds the route, and if they are not it
+# fails loudly instead of guessing. Every waypoint is a fragment ENDPOINT, so
+# each is guaranteed to be a skeleton pixel; the first cut invented
+# intermediate points and one landed 19 px off the ink.
+#
+# 1,356 skeleton pixels became the 59 points of the main stroke (RDP at 1.2
+# units) and 80 became the spur's 5. Those points are frozen here: they are a
+# measurement of the reference, not a dial, and re-deriving them on every build
+# would make the letter depend on a raster.
+ALT051_SPINE = [
+    (268.1,490.2), (247,490.2), (209.2,481.3), (194.8,472.4),
+    (178.1,455.7), (172.6,446.8), (161.4,421.3), (150.3,363.5),
+    (150.3,354.6), (155.9,335.7), (168.1,313.5), (159.2,304.6),
+    (150.3,288), (137,276.8), (113.7,252.4), (101.4,234.6),
+    (95.9,224.6), (88.1,202.4), (79.2,156.8), (79.2,136.8),
+    (81.4,132.4), (82.6,121.3), (93.7,93.5), (109.2,69.1),
+    (128.1,50.2), (151.4,33.5), (173.7,23.5), (195.9,16.8),
+    (219.2,12.4), (235.9,12.4), (309.2,22.4), (339.2,33.5),
+    (373.7,54.6), (398.1,76.8), (415.9,99.1), (438.1,138),
+    (451.4,180.2), (459.2,246.8), (454.8,269.1), (453.7,290.2),
+    (449.2,308), (457,315.7), (509.2,313.5), (543.7,306.8),
+    (581.4,302.4), (610.3,300.2), (645.9,301.3), (685.9,305.7),
+    (708.1,311.3), (733.7,322.4), (754.8,336.8), (774.8,358),
+    (791.4,388), (800.3,415.7), (808.1,466.8), (802.6,491.3),
+    (792.6,509.1), (777,525.7), (764.8,532.4),
+]
+ALT051_SPUR = [
+    (450.3,306.8), (445.9,310.2), (421.4,316.8), (382.6,312.4),
+    (362.6,306.8),
+]
+ALT051_NIB_H = float(os.environ.get("ALBO_ALT051_NIB_H", 1.62))   # ink height, x the x-height
+ALT051_THICK = float(os.environ.get("ALBO_ALT051_THICK", 0.86))   # x the stem -- the Aldine o's own pen
+ALT051_THIN = float(os.environ.get("ALBO_ALT051_THIN", 0.20))     # x the thick
+ALT051_PHI = float(os.environ.get("ALBO_ALT051_PHI", 35.0))       # the nib's angle, degrees
+
+def alt051_nib(c):
+    """The reference's spine, drawn with this face's nib: the width at every
+    sample is a function of the DIRECTION the stroke is running, which is what
+    makes it Albo's letter rather than Poetica's outline."""
+    import math as _m
+    from .aldine import nib_widths
+    from ..primitives import stroke as _stroke
+    xs = [p[0] for p in ALT051_SPINE]; ys = [p[1] for p in ALT051_SPINE]
+    k = (c["xh"] * ALT051_NIB_H) / (max(ys) - min(ys))
+    S_ = pen.S
+    th = S_ * ALT051_THICK
+    def draw(pts, taper):
+        p = [( (x - min(xs)) * k, (y - min(ys)) * k ) for x, y in pts]
+        p = geom.catmull(p, tension=0.5)
+        w = nib_widths(p, th, th * ALT051_THIN, target=None, smooth=9,
+                       taper=taper, boost=None)
+        return _stroke(p, widths(list(zip([i/(len(w)-1) for i in range(len(w))], w))))
+    g = geom.ink([draw(ALT051_SPINE, True), draw(ALT051_SPUR, True)])
+    if pen.SLANT:                      # build.draw will shear; hold the reference's own slope
+        g = aff.skew(g, xs=-float(getattr(pen, 'SLANT', 0.0) or 0.0), ys=0.0,
+                     origin=(0, 0), use_radians=False)   # SLANT IS DEGREES ALREADY
+    return geom.ink([aff.translate(g, -geom.bbox(g)[0], -geom.bbox(g)[1])])

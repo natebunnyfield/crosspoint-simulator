@@ -3239,3 +3239,59 @@ round 182 — not from more automation. The skeleton itself is worth keeping: it
 is correct, and it is what those control points should be read from.
 
 Page: `claude.ai/artifact/7vmmknqZTfRgD9BqjB4d8W`. Not ruled.
+
+
+## 51. Round 313 — alt051's form on the Albo nib, and how the spine was finally got
+
+Owner 2026-09-21: *"make that letter form with the albo nib"*. `ALBO_IT_AMP=g`.
+An unset build is **0 of 493 glyphs different**.
+
+Round 312 delivered the reference's CONTOUR and said plainly it was not the
+letter drawn with this face's pen. This is that letter: the reference's SPINE
+with Albo's nib run along it, so the width at every sample is a function of the
+DIRECTION the stroke is travelling (`aldine.nib_widths`, thick 0.86 S, thin
+0.20 of it, φ 35 — the Aldine o's own pen).
+
+### The method that worked, after five that did not
+
+Round 312 failed by chaining skeleton fragments on direction. This succeeds
+because it does not chain:
+
+1. Raster and thin the reference (Zhang-Suen) — 66,848 ink px → 1,861 skeleton.
+2. **Waypoints are read by hand** off a labelled plot of the skeleton's
+   fragments, and every one is a fragment ENDPOINT, so each is guaranteed to be
+   a skeleton pixel. (The first cut invented intermediate points; one landed
+   19 px off the ink and the run failed loudly, which is the behaviour wanted.)
+3. The route between two waypoints is the skeleton's own **shortest path by
+   breadth-first search** on the pixel graph. BFS cannot wander: if two
+   waypoints are joined through ink it finds the route, and if they are not it
+   raises instead of guessing.
+
+1,356 skeleton pixels became the main stroke's 59 points (RDP 1.2) and 80
+became the spur's 5. **Frozen in the source**: they are a measurement of the
+reference, not a dial, and re-deriving them per build would make the letter
+depend on a raster.
+
+**The general rule, and it is worth carrying to the next reference letter:**
+where a heuristic has to decide (which fragment continues which), replace it
+with a search that has a definite answer (is there a path between these two
+points). Five passes of tuning a heuristic lost to one pass of asking a
+question that cannot be answered vaguely.
+
+### A BUG THIS ROUND FOUND IN THE LAST ONE
+
+`pen.SLANT` holds **degrees** (13.0), not a slope, and both counter-shears ran
+it through `atan()` first — a shear of 85.6°. On arm g that turned the letter
+into a diagonal streak, which is how it was caught. **Arm f carried the same
+bug in the page published for round 312**, less obviously. Both fixed; arm f
+rebuilt.
+
+### Not ruled: its weight
+
+A spine says nothing about how heavy the pen is. `ALBO_ALT051_THICK` ladders it
+(0.86 / 1.00 / 1.15 of the stem) and the page carries all three at 120 px, 40 px
+and 13 px. At reading size the long swash collapses to a loop and a tail at
+every weight, which is the honest answer to whether this form belongs in
+running text at all.
+
+Page: `claude.ai/artifact/LBmEsktw6fJKZ8ymGULxnj`.
