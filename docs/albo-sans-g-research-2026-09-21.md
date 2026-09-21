@@ -204,3 +204,40 @@ within a unit, because it IS a straight stem edge and not a curve.
 The trade to weigh: a 4.5-stem vertical is a real stem on the g's right, which
 is what makes the join bpqd's — and also what starts to make the letter argue
 with the d and the q. That one is an eye judgment, not a measurement.
+
+## Round 331 — the letter rebuilt, not its parts adjusted
+
+Owner: *"you are adjusting one part when you need rebuild the whole letter"*.
+Right, and it explains every round before it.
+
+`_g_open` was **the o's ring with things attached to it** — a tail rooted on the
+ring at a tangent, a serif stub standing on the ring, a clip that cut nothing.
+Every round moved one attachment. The open-g report even described the letter
+as *"the q's skeleton with the stem's foot replaced by a hook"*, which is the
+right description of the wrong code: **nothing in it was built on a stem.**
+
+`b d p q` ARE a stem with a bowl clipped to it. `bowl_stem` places the stem
+first, by rule, and intersects the ring with its inner edge. A single-storey g
+is the same letter as the q with one difference — **the stem's foot is a hook
+instead of a serif** — so `_g_qstem` builds it that way, and three things that
+had to be dialled before now fall out of the construction:
+
+| | dialled before | now |
+|---|---|---|
+| counter's right edge off vertical | 76–80, until a 4.5-stem stub was tuned | **g 61.2 · q 59.5 · d 58.6**, untuned |
+| the serif's alignment | `_SER_ALIGN`, `_SER_AT`, `_SER_LEN` | `stem(top='left')`, the same call b d p q make |
+| the tail's root | on the ring, at a tangent | the stem's foot |
+
+The tail measures depth 278, deepest x **+11** (the traced models: −14…+17),
+tip (−117, −130) and a rise of 148. It is inside the models' band on the
+deepest point and a little short of it on the tip.
+
+**And it retires a negative result.** The open-g work recorded that a tail
+rooted low on the ring "needs an S-bend, because the ring's tangent is 42–55°
+off vertical there". True, and a symptom rather than a finding: a g's tail
+leaves a STEM going down, not a ring going sideways. Rooted on the stem there
+is nothing to correct for.
+
+`ALBO_G_OPEN_BUILD=qstem` is the default; `ring` keeps rounds 326–330 for the
+record. Clean on `cmp_contour_hairs.py`. Nothing ships — `ALBO_G_STYLE` is
+still `bent`.

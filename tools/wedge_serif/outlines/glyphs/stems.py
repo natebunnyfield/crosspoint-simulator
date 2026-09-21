@@ -1199,6 +1199,64 @@ def _open_bowl(cx, cy, rx, ry, w_scale, floor):
     return ring_from(outer, widths_fn=lambda t: ws[min(n - 1, max(0, int(round(t * n))))])
 
 
+# ===================== ROUND 331 -- THE LETTER, NOT ITS PARTS =============
+# Owner 2026-09-21: *"you are adjusting one part when you need rebuild the
+# whole letter"*. Right, and it explains every fix that came before it.
+#
+# `_g_open` was the o's ring with things ATTACHED to it -- a tail rooted on the
+# ring at a tangent, a serif stub standing on the ring, a clip that turned out
+# to cut nothing. Each round moved one attachment. The open-g report even
+# described the letter as "the q's skeleton with the stem's foot replaced by a
+# hook", which is the right description of the wrong code: nothing in it was
+# built on a stem.
+#
+# b d p q ARE a stem with a bowl clipped to it -- `bowl_stem` places the stem
+# first, by rule, and the ring is intersected with the stem's inner edge. A
+# single-storey g is the SAME letter as the q, with one difference: the stem's
+# FOOT is a hook instead of a serif. So it is built that way here, and three
+# things that had to be dialled before now fall out for free:
+#
+#   * the serif is `stem(top='left')` on a true vertical -- round 330's
+#     alignment is not a setting, it is what the construction does;
+#   * the counter's right edge is the stem's inner edge, because the ring is
+#     clipped to it exactly as the q's is;
+#   * the tail leaves a STEM going down, not a ring going sideways -- which is
+#     why rooting it on the ring needed an S-bend to reach the descender at
+#     all (the open-g work recorded that as a negative result; it was a symptom
+#     of building the letter out of the wrong part).
+G_OPEN_BUILD = os.environ.get("ALBO_G_OPEN_BUILD", "qstem")   # qstem (round 331) | ring (rounds 326-330)
+G_QS_STEM_Y = _gof('qs_stem_y', 0.0)     # where the stem stops and the hook starts, x the descender
+G_QS_TOP    = os.environ.get("ALBO_G_QS_TOP", "left")   # the serif: bowl_stem's own 'left'
+
+
+def _g_qstem(c):
+    """The q, with the stem's foot replaced by the traced hook."""
+    from shapely.geometry import box as _box
+    xh = c["xh"]; wf = c["wf"]; desc = c["desc"]
+    # --- bowl and stem, placed by `bowl_stem`'s own rule, in its own order
+    rx_c = 214 * wf * (pen.IT_OVAL if pen.ITALIC else 1.0)
+    rx = rx_c + TH_V / 2; ry = xh / 2 + OVER
+    cx = rx; xs = cx + rx_c - S * 0.5; edge = xs - TH_V / 2
+    solid, outer, inner = ring(cx, xh / 2, rx, ry)
+    solid = solid.intersection(_box(-2000, -1000, edge + 5, 2000))
+    y_bot = -desc * G_QS_STEM_Y
+    st = stem(xs, y_bot, xh, top=(None if G_QS_TOP == 'none' else G_QS_TOP),
+              foot=None, ent_span=(y_bot, xh))
+    # --- the hook IS the foot: the traced model hung off the stem's bottom
+    root = (xs, y_bot)
+    path = _traced_tail(root, desc * G_OPEN_TRACE_DEP, wf, cx)
+    prof = widths([(t, (w * G_OPEN_W0) if t == 0.0 else w) for t, w in G_OPEN_PROF])
+    base = PR.bowl_widths(path, prof, floor=S * G_OPEN_FLOOR)
+    parts = [solid, st]
+    if G_OPEN_END == 'finial':
+        from .rounds import c_top_width
+        parts.append(stroke(path, PR.finial_widths(base, False, floor=c_top_width()),
+                            cut1=PR.finial_cut(path, False)))
+    else:
+        parts.append(stroke(path, base, cut1=CUT))
+    return geom.ink(parts)
+
+
 def _g_open(c):
     """The open-loop roman g -- a full x-height bowl whose right wall carries
     on past the baseline and curls, instead of closing into a second bowl."""
@@ -1299,7 +1357,7 @@ def g_g(c):
     the bowl profile, floored at 0.72 S, rising 8 deg, ending in the pen
     cut -- the top-right serif of the round-30 ruling, with weight."""
     if G_STYLE == 'open':
-        return _g_open(c)        # round 327, exploration only -- see the block above
+        return _g_qstem(c) if G_OPEN_BUILD == 'qstem' else _g_open(c)        # round 327, exploration only -- see the block above
     if G_STYLE == 'bent':
         return _g_bent(c)
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]
