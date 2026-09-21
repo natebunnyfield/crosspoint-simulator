@@ -71,85 +71,91 @@ Both are reachable from the network; neither is a crash by a crafted request
 allocation, the case-only MOVE losing a file — were fixed the same day, see
 the hunt doc). Filed so the next pass starts here rather than re-measuring.
 
+### [S-041] Under iPhone Mirroring the app does not receive clicks or taps — OPEN, cause NOT established; the first hypothesis was refuted and an input trace ships in its place
+**severity: high (owner, 2026-09-20: "iphone mirroring ... is not receiving clicks and taps") · scope: not yet localized; `ios/CrossPointIOSShim.cpp` (`padWatch`, `traceInput`) is where the instrument lives · found 2026-09-20 · NOT reproducible on this Mac: Mirroring needs the owner's phone, and both screen-control requests were declined, so every line below is read off sources rather than measured under Mirroring**
+
+**The refuted hypothesis, recorded because it is convincing and wrong.** The
+first diagnosis was that Mirroring delivers a click as
+`UITouchTypeIndirectPointer`, that SDL3's UIKit backend diverts that touch type
+to `SDL_SendMouseButton` and `continue`s without ever emitting
+`SDL_EVENT_FINGER_*` (`SDL_uikitview.m` `touchesBegan:`/`Ended:`/`Moved:` →
+`indirectPointerPressed:`/`Released:`/`Moving:`), that `padWatch` handles only
+finger events, and that the harness had disabled SDL's mouse→touch bridge with
+`SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0")`. Every one of those four
+statements is TRUE against the sources.
+
+The chain still does not run, and adversarial review found why: **the indirect
+branch is never entered, because this bundle does not declare
+`UIApplicationSupportsIndirectInputEvents`.** UIKit only reports
+`touch.type == UITouchTypeIndirectPointer` to an app that declares that key;
+without it UIKit runs its compatibility mode and hands pointer input over as
+ORDINARY DIRECT TOUCHES. SDL says so in its own source — `SDL_InitGCMouse`,
+`src/video/uikit/SDL_uikitevents.m`: *"iOS will not send the new pointer touch
+events if you don't have this key"*, and it logs
+`You need UIApplicationSupportsIndirectInputEvents in your Info.plist for mouse
+support`. Verified absent from `ios/Info.plist.in`, from the built device
+bundle's `Info.plist`, and from every generated `project.pbxproj`; CMake does
+not inject it (`ios/CMakeLists.txt` configures the template verbatim) and
+neither does Xcode or SDL.
+
+So under Mirroring a click should already be arriving as a plain finger event,
+the hint was inert, and the cause of the owner's report is **still unknown**.
+
+**DO NOT close this by adding that key.** Declaring it also connects GCMouse,
+which makes `SDL_HasMouse()` true, which makes
+`indirectPointerPressed:`/`Released:` no-ops at their own `if (!SDL_HasMouse())`
+guards — clicks would then arrive through `OnGCMouseButtonChanged` on a
+**background dispatch queue**, putting `padHitTest` → `PadCore` →
+`injectButtonDown` off the main thread, with `SDL_GetMouseFocus()` as the
+window (NULL skips the synthesis entirely). That is a second plausible patch on
+an unmeasured premise, which is what produced this entry.
+
+**What ships instead: `traceInput` in `padWatch`.** The first 24 finger and
+pointer-button events, each with the state that decides its fate — direct touch
+versus one synthesized from a pointer, the finger id, the normalized position,
+and `zen` / `asleep` / `sheet` / concurrent-finger count. One Mirroring session
+with the Diagnostics Log switch on separates every live candidate:
+
+| What `diagnostics/firmware.log` shows | What it means |
+|---|---|
+| no `[input]` line for a click | nothing reached SDL; the fault is above `padWatch` |
+| `POINTER button` with no `finger` line | it IS indirect pointer after all, and the bridge is the fix |
+| `finger down ... asleep=1` | the firmware slept; only POWER (or, in zen, any finger) wakes it — S-037/S-039 territory |
+| `finger down ... zen=1` | there is no pad to hit; taps are gestures, buttons do not exist |
+| `finger down ... sheet=1` | a colour drawer owns the touch gate |
+| `finger down ... zen=0 asleep=0 sheet=0` and still nothing happens | the hit test or `PadCore`, and the position on the line says which |
+
+The budget is spent only on a line the sink actually writes, because
+`firmwarelog::hostLine` drops text with no buffering while the switch is off —
+a one-shot fired into a closed sink would be spent before the owner armed it,
+and its absence would then read as "no input", the exact wrong answer.
+
+**The hint change was kept anyway**, at `"1"`, with a comment saying plainly
+that it is inert on this bundle and why. It restores SDL's own iOS default, it
+is what the indirect path would need the day that key is ever added, and
+`tests/pointer_touch_hints_test.py` pins both directions so the "0" cannot come
+back by the same confusion that put it there.
+
+**Checked and found CLEAN** in this pass, so the next one does not re-read them:
+the UIKit recognizers are installed `cancelsTouchesInView = NO`,
+`delaysTouchesBegan/Ended = NO` (`ios/CrossPointZenRecognizers.mm:666-668`), so
+none steals touches from SDL; every overlay view over the SDL view sets
+`userInteractionEnabled = NO` (the a11y overlay, the WWDC26-219 page view, the
+volume view, the shake responder, the appearance probe); `padWatch`'s early
+`break`s are all conditional on state the trace now prints; there is **no
+minimum-duration gate** on the deliberate tap that a fast mouse click could
+fail — `ios/ZenVerbs.h:56-57` has a 400 ms ceiling and a 28 px slop and no floor;
+`SDL_EVENT_FINGER_CANCELED` is handled in the same case as UP
+(`ios/CrossPointIOSShim.cpp`), so no drag can latch a `PadCore` slot; a constant
+finger id would not break `PadCore`, `TapCandidate` or `ZenVerbs`; and the
+direct-touch path is unchanged by everything in this entry — measured on an
+iPhone Air simulator, a tap still classifies and turns the page.
+
+**What closing it requires**: one Mirroring session on a build carrying the
+trace, with Settings → Diagnostics Log switched on BEFORE the first click, then
+`diagnostics/firmware.log` read out of Files.
+
 ## FIXED
-
-### [S-041] Under iPhone Mirroring the app answered gestures and ignored every button — the harness turned OFF the one SDL bridge that carries an indirect pointer — FIXED 2026-09-20
-**severity: high (owner: "iphone mirroring ... is not receiving clicks and taps"; every pad button, the keyboard chip, the zen deliberate tap and the read-aloud tap were dead on the Mac, on every build the harness has ever shipped) · scope: `ios/CrossPointIOSShim.cpp` (the two hints set in `CrossPointHarness_begin`) · found 2026-09-20 by reading the SDL3 UIKit backend against `padWatch`; pinned by `tests/pointer_touch_hints_test.py`, which fails against the pre-fix source · device-unconfirmed: it cannot be reproduced on a Mac alone, in the iOS Simulator, or on the phone by hand — only through Mirroring**
-
-**The chain, link by link.** iPhone Mirroring does not deliver a click as a
-finger. It delivers it as `UITouchTypeIndirectPointer`, the same touch type an
-iPad reports for a trackpad, and SDL3 treats that type as a mouse rather than
-as a touch:
-
-- `SDL_uikitview.m` `touchesBegan:`/`touchesEnded:` test `touch.type ==
-  UITouchTypeIndirectPointer`, hand the touch to
-  `indirectPointerPressed:`/`indirectPointerReleased:` — which call
-  `SDL_SendMouseButton` — and then `continue`. **No `SDL_EVENT_FINGER_DOWN`
-  is ever emitted for that touch.** `touchesMoved:` does the same through
-  `indirectPointerMoving:` → `SDL_SendMouseMotion`, and the pointer's position
-  between clicks arrives through a `UIHoverGestureRecognizer` whose
-  `allowedTouchTypes` is that one type.
-- `padWatch` (`ios/CrossPointIOSShim.cpp`) handles `SDL_EVENT_FINGER_DOWN`,
-  `_MOTION`, `_UP` and `_CANCELED`, and nothing else. So with no finger event,
-  the pad hit test never runs, `g_tapCand` never sees a candidate, the zen verb
-  classifier never sees a finger, `hitKeyboardChip` is never asked, and the
-  read-aloud tap adapter is never fed.
-- `HalGPIO::update` does handle `SDL_EVENT_MOUSE_BUTTON_DOWN` — but that branch
-  feeds `beginTouch`, the X4 Pro capacitive digitizer, and `beginTouch` returns
-  immediately on `!BoardConfig::hasTouch()`, which is false for X3. The mouse
-  events were arriving and being dropped by design.
-- **What still worked is the tell.** The UIKit gesture recognizers in
-  `ios/CrossPointZenRecognizers.mm` take indirect pointer natively — that is
-  how a trackpad drives an iPad — so swipes, holds, pinch and rotation went on
-  firing while every button did nothing. An app that answers gestures and
-  ignores its own controls does not read as an input bug; it reads as a layout
-  or hit-test bug, which is where the first hour of this went.
-
-**The line.** SDL's own default for `SDL_HINT_MOUSE_TOUCH_EVENTS` is **true on
-iOS** (`SDL_mouse.c`, `SDL_MouseTouchEventsChanged`: the default is `true` under
-`SDL_PLATFORM_ANDROID || (SDL_PLATFORM_IOS && !SDL_PLATFORM_TVOS)`), and with it
-on, `SDL_PrivateSendMouseButton` and `SDL_PrivateSendMouseMotion` synthesize
-`SDL_EVENT_FINGER_DOWN`/`_UP`/`_MOTION` on `SDL_MOUSE_TOUCHID` from exactly
-those mouse events — which is what makes Mirroring work for an SDL app at all.
-The harness set it to `"0"`:
-
-```
-// Touches must arrive as finger events only. Left on, SDL also synthesises
-// mouse events from the same touch, and HalGPIO consumes mouse events.
-SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
-SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
-```
-
-The comment is correct and it is about the FIRST line. `TOUCH_MOUSE` is
-touch→mouse and must be off, or a real finger is delivered twice — once to
-`padWatch`, once to `HalGPIO`'s mouse branch. `MOUSE_TOUCH` is the opposite
-direction, and the second line was the first line's reasoning applied to it. It
-defended against nothing: with touch→mouse off there are no synthetic mouse
-events to loop back, and before Mirroring existed there were no real ones on a
-phone either. It cost the whole of Mirroring instead.
-
-**Fix.** `SDL_HINT_MOUSE_TOUCH_EVENTS` is set to `"1"` — explicitly rather than
-by deleting the line, so an upstream change to SDL's platform default cannot
-take Mirroring with it silently. `TOUCH_MOUSE` is unchanged at `"0"`, and the
-two now carry separate comments saying which direction each one is and what
-breaks if it moves. Safe on X3 for the reason above: the synthesized event
-reaches `HalGPIO` as a FINGER, and its mouse branch is guarded by `hasTouch()`.
-
-**What closing it requires** — the owner clicking a pad button through iPhone
-Mirroring on a build carrying this. Nothing observable on this Mac proves it:
-the iOS Simulator delivers a click as `UITouchTypeDirect`, so it takes the
-finger path that was never broken, and a finger on the phone does the same.
-Status is SHIPPED — UNCONFIRMED until then.
-
-**Checked and found clean** in the same pass, so the next one does not re-read
-them: the UIKit recognizers are installed with `cancelsTouchesInView = NO` and
-`delaysTouchesBegan/Ended = NO` (`CrossPointZenRecognizers.mm`), so no
-recognizer is stealing touches from SDL; every overlay view added over the SDL
-view sets `userInteractionEnabled = NO` (the a11y overlay, the WWDC26-219 page
-view, the volume view, the shake responder, the appearance probe), so none of
-them is eating a touch; `padWatch`'s early `break`s are all conditional on
-state the owner can see (asleep-in-zen, a presented sheet, a second concurrent
-finger) and none of them latches.
 
 ### [S-040] The desktop killed any download that took over a minute, however healthy: `--max-time` is a cap on the whole transfer, not an idle timeout — FIXED 2026-09-06
 **severity: medium (every Update Library book, font and OTA image over ~60 s on the link failed on the desktop, and the failure read as the network) · scope: `src/SimHttpFetch.h`, comment in `ios/CrossPointHttp.mm` · found 2026-09-06 while auditing the transfer paths for the owner's "downloads and uploads fail with partial data transfers"; the same audit produced S-038**
