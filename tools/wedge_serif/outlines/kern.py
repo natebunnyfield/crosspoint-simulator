@@ -598,10 +598,15 @@ def _apply_bench():
 # letter's bearing; the italic's G Q R V are singles too, and its T's two pairs
 # disagree by 25 units (Th -9, To +16), which is what a kern table is for.
 # Values are his, ADDED to what the pair already carried.
-_BENCH_PAIRS_ROM = ((('A','v'), 12), (('Q','u'), 37), (('T','o'), 24), (('V','i'), 13), (('W','a'), 26), (('Y','e'), 4))
+_BENCH_PAIRS_ROM = ((('A','v'), 12), (('Q','u'), 29), (('T','o'), 17), (('V','i'), 13), (('W','a'), 23), (('Y','e'), 5))
 # ROUND 304: raw again -- round 303's minus-4 was compensation for the italic
 # lowercase tracking, which the fuller data withdrew.
-_BENCH_PAIRS_ITA = ((('G','r'), -3), (('Q','u'), 11), (('R','e'), 8), (('V','i'), -4), (('T','h'), -15), (('T','o'), 8))
+_BENCH_PAIRS_ITA = ((('A','n'), 2), (('A','v'), 16), (('C','a'), -1), (('C','h'), 2), (('C','o'), 3),
+                    (('F','i'), -36), (('F','o'), -47), (('G','r'), -2), (('P','a'), -27), (('P','o'), -32),
+                    (('P','r'), -19), (('Q','u'), 16), (('R','e'), 8), (('S','a'), -9), (('S','e'), -7),
+                    (('S','h'), 7), (('S','o'), -8), (('S','p'), 10), (('S','t'), 4), (('T','h'), -13),
+                    (('T','o'), 9), (('V','i'), -4), (('W','a'), 12), (('W','h'), 7), (('W','i'), 20),
+                    (('Y','e'), 42), (('Y','o'), 50))
 for _p, _d in (_BENCH_PAIRS_ITA if (_ALD is not None and _ALD.ON) else _BENCH_PAIRS_ROM):
     PAIRS[_p] = _shipped(*_p) + _d
 

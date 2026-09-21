@@ -250,8 +250,17 @@ ROM_PUNCT_ADJ = {}
 # (round 303's italic stop constants removed with the roman's, same reason)
 
 # ROUND 308 -- BOTH SIDES OF EVERY GLYPH, FITTED TOGETHER.
+# ROUND 344 -- REFITTED on 384 judgments, and the fit is now a SCRIPT:
+#   `bench_fit.py` (its docstring is the method; `--check` gates this file
+#   against the bench). Round 308 committed only these numbers, and its input
+#   was never written back -- bench_values.json stayed at round 302's 189
+#   judgments while the tables were fitted from 330, so nothing here could be
+#   re-derived. Do not hand-edit the four tables below; re-run the script.
+#   THE g IS EXCLUDED from the fit, all 14 of its rows: owner 2026-09-21,
+#   "ignore new 'g' values because it was with old g".
 #
-# 329 bench judgments (156 roman, 173 italic). Each says "the white in THIS
+# 384 bench judgments (190 roman, 194 italic); 370 after the g is dropped.
+# Each says "the white in THIS
 # pair should change by d", and a pair's white is the LEFT glyph's right
 # bearing plus the RIGHT glyph's left bearing -- so the bench is ONE linear
 # system in those two unknowns per glyph, and it is solved as one.
@@ -264,9 +273,20 @@ ROM_PUNCT_ADJ = {}
 #     separate fits     roman 10.7 (letters) / 10.4 (marks)
 #     ONE JOINT FIT     roman  9.55   italic  9.03
 #
+# Round 344, on the 370 non-g judgments (a different, larger set, so these are
+# not comparable with the three lines above -- only with each other):
+#
+#     do nothing        roman 14.82   italic 12.53
+#     round 308's tables roman 9.51   italic  9.88
+#     REFITTED          roman  9.00   italic  7.66
+#
 # Ridge-regularised at lambda 1 -- a letter judged twice must not be trusted
 # like one judged eleven times -- and a glyph SIDE ships only when he judged it
-# at least 4 times and the fit asks for at least 4 units. That filter costs
+# at least 4 times and the fit asks for at least 4 units. A MARK's floor is
+# different and was never written down: 3 readings and NO magnitude floor,
+# which is why the roman's `;` ships at -3 on three readings and the italic's
+# `;` does not ship at -20 on two. (Recovered in round 344 by reproducing
+# these tables; a floor that lives only in a session is not a rule.) That filter costs
 # about a unit against the unfiltered fit (roman 8.50 -> 9.55) and is worth it.
 #
 # NOT SHIPPED for that reason: the apostrophe's RIGHT side, which his two `'s`
@@ -281,7 +301,7 @@ ROM_PUNCT_ADJ = {}
 # the joint fit. Measured, that is the better of the two on the marks.
 #
 # (lsb, rsb) deltas in design units. Re-fit from the bench, never hand-tuned.
-ROM_LC_ADJ = {'a': (+15, -5), 'c': (+0, +7), 'e': (+8, +7), 'i': (+0, +9), 'l': (+12, +0), 'm': (+0, -6), 'n': (+5, -10), 'o': (+0, +7), 'r': (-7, +0), 's': (-6, +0), 't': (+10, -13), 'y': (+0, -8),
+ROM_LC_ADJ = {'a': (+18, -7), 'd': (+8, -6), 'e': (+7, +0), 'i': (+0, +7), 'l': (+9, +0), 'm': (-5, -5), 'n': (+7, -13), 'o': (+7, +5), 'p': (-8, +14), 's': (-5, +0), 't': (+11, -15), 'u': (+8, +0), 'y': (+0, -8),
                # THE LIGATURES TRACK THE LETTER THEY END IN, which is the trap
                # `BEARING_ADJ['ff']` was given for: cmp_touch reads a pair's
                # white as getlength(ab) - getlength(b), so when the `i` gained
@@ -290,8 +310,8 @@ ROM_LC_ADJ = {'a': (+15, -5), 'c': (+0, +7), 'e': (+8, +7), 'i': (+0, +9), 'l': 
                # its drawing had changed. uniFB01 and uniFB03 end in an i,
                # uniFB02 and uniFB04 in an l (which moves 0 here), uniFB00 in
                # an f (unchanged).
-               '\ufb01': (0, +9), '\ufb03': (0, +9)}
-ROM_PUNCT_FIT = {"'": (-40, +0), ',': (-12, +0), '.': (-10, +0), ':': (-3, +0), ';': (-4, +0)}
+               '\ufb01': (0, +7), '\ufb03': (0, +7)}
+ROM_PUNCT_FIT = {"'": (-38, +0), ',': (-11, +0), '.': (-8, +0), ':': (-2, +0), ';': (-3, +0)}
 # ROUND 340 -- the g's own fitting, after this session redrew both letters.
 # MEASURED WITH THE 2D CLOSEST APPROACH, not the bbox gap. The bbox measure
 # (rsb + kern + lsb) said this letter was 73 units TIGHT on its left; the
@@ -300,8 +320,11 @@ ROM_PUNCT_FIT = {"'": (-40, +0), ',': (-12, +0), '.': (-10, +0), ':': (-3, +0), 
 # which overhangs at DESCENDER level where no neighbour has ink, so the white
 # it counts is not white a reader sees. That is the trap
 # docs/albo-spacing-method.md exists to name, and I walked into it.
-ALD_LC_ADJ = {'g': (-15, -15), 'e': (+0, -14), 'h': (+6, +0), 'i': (-5, +7), 'm': (+0, +6), 'n': (+5, -5), 'o': (+8, -5), 'p': (+0, +7), 'r': (+11, +0), 't': (+0, -8), 'u': (+0, +10), 'w': (+0, +10), 'y': (+11, +12)}
-ALD_PUNCT_FIT = {"'": (-4, +0), ',': (+3, +0), '.': (-5, +0), ':': (-1, +0)}
+ALD_LC_ADJ = {'g': (-15, -15),   # NOT from the bench: every g row was judged against the
+              #                 superseded letter, so round 344 drops them all (owner
+              #                 2026-09-21). This pair is round 340's 2-D fit, kept.
+              'e': (+0, -14), 'h': (+4, +0), 'i': (-5, +8), 'l': (+0, +5), 'm': (+6, +7), 'o': (+7, +0), 'p': (+0, +9), 'r': (+10, +0), 't': (+0, -10), 'u': (-5, +10), 'w': (+0, +14), 'y': (+10, +16)}
+ALD_PUNCT_FIT = {"'": (-6, +0), ',': (+2, +0), '.': (-5, +0), ':': (-1, +0)}
 
 for _c, _lr in ALD_PUNCT_FIT.items():             # round 308's joint fit
     _b = ALD_PUNCT_ADJ.get(_c, (0, 0))

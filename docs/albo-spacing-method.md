@@ -843,3 +843,101 @@ A frequency count says which pairs are worth DRAWING, never whether a drawing
 is good. `Th` is the second commonest sequence in his books, shipped on that
 count, and was withdrawn the same day on his eye. **Measure to choose what to
 attempt; render to decide what ships.**
+
+---
+
+## Round 344 — the bench grew to 384 judgments, and the fit became a script
+
+Owner, 2026-09-21: *"spacing bench had an update, ignore new 'g' values because
+it was with old g."*
+
+### What arrived
+
+| | round 302 (the committed file) | round 308 (what was fitted) | now |
+|---|---|---|---|
+| roman | 111 | 157 | **190** |
+| italic | 78 | 173 | **194** |
+| total | 189 | 330 | **384 of 396 rows** |
+
+Every one of the 195 new rows is a pair he had not judged before; **no earlier
+judgment changed**, which is worth stating because it means this is new
+evidence rather than a revision.
+
+### The g is out — all 14 of its rows, not only the new ones
+
+Both g's were redrawn between rounds 331 and 342 and refitted in round 340
+against the current drawing with the 2-D closest approach. Every g row in the
+bench — `ag ga ge gh ig ng g, g.` in the roman, `ag ge ig ng g, g.` in the
+italic — was judged against the letter that replaced. His instruction names the
+new ones; the old ones are excluded for the same reason, and that is a change
+in its own right: rounds 303–308 folded `ng`, `g,` and `g.` into the roman's
+`n` and its marks, so withdrawing them moves letters that are not the g.
+
+The g's own bearings are **held at round 340's numbers** —
+`ALD_LC_ADJ['g'] = (-15, -15)` and `BEARING_ADJ['g'] = (0, -3)` — and the
+fitter never produces a `g` row to overwrite them.
+
+### The fit is now `tools/wedge_serif/bench_fit.py`
+
+This is the part that had quietly gone wrong. Round 308 solved the system in a
+session and committed only the ANSWER; `bench_values.json` stayed at round
+302's 189 judgments while the shipped tables were fitted from 330, so **no
+number in `build.py` could be re-derived from anything in the repo**. The
+script reconstructs the method from the prose in `build.py` and was checked
+against round 308's shipped tables before it was trusted: fitted on the rows
+that existed at that commit it reproduces every letter, every sign and every
+zero side, within one unit per number (the residual is one row — 157 against
+the 156 the comment claims).
+
+Two floors were recovered by that check rather than read from the prose, and
+neither is stated in `build.py`:
+
+- a LETTER side ships on **4+ readings and 4+ units**;
+- a MARK ships on **3+ readings and no magnitude floor** — which is why the
+  roman's `;` at −3 (three readings) shipped and the italic's `;` at −20 (two)
+  did not.
+
+`bench_values.json` is now a checkout of the bench's own database, refreshed
+before fitting. `bench_fit.py --check` compares the live tables with the bench
+and is the gate against this drifting again.
+
+### What it bought
+
+Mean |error| against his own numbers, on the 370 non-g judgments:
+
+| | do nothing | the tables that shipped yesterday | refitted |
+|---|---|---|---|
+| roman (182) | 14.82 | 9.51 | **9.00** |
+| italic (188) | 12.53 | 9.88 | **7.66** |
+
+The roman's half-unit is small and is reported as small. The italic's 2.2 units
+is real, and most of it is not the lowercase: his new capital judgments took
+the italic's capital kern table from **6 pairs to 27**, including `Fo` −47,
+`Po` −32 and `Pa` −27 against `Yo` +50 and `Ye` +42. In words, `Foot` closes by
+41 units and `Young` opens by 49.
+
+### One finding NOT acted on
+
+Italic `S` now has **seven** readings (`Sa Se Sh So Sp St Su`), which is past
+the 4-reading floor — it could be a bearing rather than seven kerns. It is left
+as kerns because round 308 ruled the italic's capitals not generalisable, and
+because `aldine.py` carries its own `CAP_BEARING_ADJ`; shipping a capital
+through `ALD_LC_ADJ` would add a second table for the same glyph and
+double-count. Recorded here so it is not rediscovered as new.
+
+### The instrument bug this round paid for
+
+The first before/after render of this change measured the italic's `Foot` at
+**+9 units where the real number is −41**, and every figure would have been
+wrong in the same direction. Cause: both arms were built with
+`python3 -m outlines.build DIR --style Italic` and no environment. That builds
+a font — cleanly, and it looks like Albo — but it is not the aldine italic at
+the shipping contrast, width and slant, so `_ALD.ON` is false, and the whole
+`_BENCH_PAIRS_ITA` table (the capital kerns, i.e. the change under test) is
+never selected. `tools/wedge_serif/build_env.sh` now holds the two environments
+and `albo_build OUTDIR` builds both styles from them, so the dials are not
+hand-typed into a proof again. `gates.sh` keeps its own copy on purpose: a gate
+that sources a file the change under test may edit is not a gate.
+
+This is the same signature the retrospective named — **a number that barely
+moves is a dial that never arrived** — in its fourth appearance in two days.

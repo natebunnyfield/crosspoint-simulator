@@ -53,6 +53,14 @@ APPROVED_OUT="$(PYTHON_GIL=0 python3 approved.py --check \
 APPROVED_RC=$?
 echo "$APPROVED_OUT"
 
+# The bench ledger: do build.py's four bearing tables still equal what the
+# owner's spacing bench asks for? Round 308 shipped tables whose input was
+# never committed, so they could not be re-derived at all; this makes a
+# hand-edit to those tables, or a stale bench_values.json, a failing run.
+BENCH_OUT="$(PYTHON_GIL=0 python3 bench_fit.py --check 2>&1 | grep -E '^(DIFFERS|build\.py)')"
+BENCH_RC=0; echo "$BENCH_OUT" | grep -q 'does NOT match' && BENCH_RC=1
+echo "$BENCH_OUT"
+
 if [ "$ACCEPT" = "1" ]; then
   cp "$REP" "$BASE"; echo "baseline written to $BASE:"; cat "$BASE"; exit 0
 fi
@@ -62,6 +70,10 @@ fi
 if diff -u "$BASE" "$REP" >"$OUT/diff"; then
   if [ "$APPROVED_RC" != "0" ]; then
     echo "GATES unchanged, but an APPROVED GLYPH moved (above)."; exit 1
+  fi
+  if [ "$BENCH_RC" != "0" ]; then
+    echo "GATES unchanged, but build.py no longer matches the BENCH (above)."
+    echo "Run ./bench_fit.py and paste its tables, or refresh bench_values.json."; exit 1
   fi
   echo "GATES UNCHANGED against $BASE"; exit 0
 fi
