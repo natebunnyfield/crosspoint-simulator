@@ -1051,4 +1051,78 @@ def et_e(c):
 
 # ALBO_IT_AMP picks one; 'a' is what the italic has always drawn (the sheared
 # roman, `marks.g_ampersand`'s own path), so an unset build is byte-identical.
-ET_OPTIONS = {'b': et_b, 'c': et_c, 'd': et_d, 'e': et_e}
+ET_OPTIONS = {'b': et_b, 'c': et_c, 'd': et_d, 'e': et_e,
+              'f': lambda c: alt051_traced(c)}   # round 312: alt051, traced
+
+
+
+# ===================== ROUND 312 -- alt051 TRACED ==========================
+# Owner 2026-09-21: *"trace alt051 in the albo style"*.
+#
+# WHAT THIS IS, said plainly: the reference's own CONTOUR, brought into Albo's
+# metrics -- scaled to this build's x-height, counter-sheared so `build.draw`'s
+# 13-degree slant lands it at the reference's own slope rather than adding to
+# it, and finished through `geom.ink` so it takes the face's ink spread and
+# hand cut like every other glyph.
+#
+# WHAT IT IS NOT: re-drawn on Albo's nib. The honest method for that is the
+# round-182 one -- take the reference's SKELETON and run the face's pen along
+# it -- and it was attempted first: the glyph rasters and thins cleanly (1,861
+# skeleton pixels off 66,848 of ink), but the skeleton breaks at every junction
+# and five passes at chaining the fragments by direction would not reassemble
+# them into the two or three strokes a hand actually made. That is recorded in
+# `docs/albo-family-2026-09-19.md` as a negative result with the numbers, so
+# the next attempt starts from hand-placed control points rather than repeating
+# the automation.
+#
+# So this arm is a TRACE and reads as one: the reference's contrast, which is
+# steeper than Albo's, and its terminals, which are Poetica's. Judge it as the
+# shape, not as the finish.
+ALT051_NAME = "ampersand.alt051"
+ALT051_REF = os.path.join(os.path.dirname(__file__), "..", "..", "refs",
+                           "poetica-std-regular.otf")
+
+def alt051_traced(c, counter_shear=True):
+    from fontTools.ttLib import TTFont
+    from fontTools.pens.recordingPen import DecomposingRecordingPen
+    import shapely.geometry as _sg, shapely.ops as _ops, math as _m
+    f = TTFont(ALT051_REF); gs = f.getGlyphSet()
+    pen = DecomposingRecordingPen(gs); gs[ALT051_NAME].draw(pen)
+    rings = []; cur = []
+    def flush():
+        if len(cur) > 2: rings.append(list(cur))
+    for op, args in pen.value:
+        if op == 'moveTo': flush(); cur.clear(); cur.append(args[0])
+        elif op == 'lineTo': cur.append(args[0])
+        elif op == 'curveTo':
+            p0 = cur[-1]; c1, c2, p3 = args
+            for i in range(1, 25):
+                t = i / 24; m = 1 - t
+                cur.append((m**3*p0[0] + 3*m*m*t*c1[0] + 3*m*t*t*c2[0] + t**3*p3[0],
+                            m**3*p0[1] + 3*m*m*t*c1[1] + 3*m*t*t*c2[1] + t**3*p3[1]))
+        elif op == 'qCurveTo':
+            pts = list(args); p0 = cur[-1]
+            for i in range(len(pts)-1):
+                cq = pts[i]
+                e = pts[i+1] if i == len(pts)-2 else ((pts[i][0]+pts[i+1][0])/2, (pts[i][1]+pts[i+1][1])/2)
+                for k in range(1, 17):
+                    t = k/16; m = 1-t
+                    cur.append((m*m*p0[0] + 2*m*t*cq[0] + t*t*e[0],
+                                m*m*p0[1] + 2*m*t*cq[1] + t*t*e[1]))
+                p0 = e
+        elif op == 'closePath': flush(); cur.clear()
+    flush()
+    polys = [_sg.Polygon(r).buffer(0) for r in rings if len(r) > 2]
+    g = polys[0]
+    for q in polys[1:]:                      # even-odd: a ring inside another is a counter
+        g = g.symmetric_difference(q)
+    # the reference is drawn on a 1000 upm with its x-height at 429 of ours
+    x0, y0, x1, y1 = g.bounds
+    k = (c["xh"] * ALT051_H) / (y1 - y0)
+    g = aff.scale(g, k, k, origin=(x0, y0))
+    if counter_shear:                        # build.draw will shear by pen.SLANT
+        g = aff.skew(g, xs=-_m.degrees(_m.atan(getattr(pen, 'SLANT', 0.0) or 0.0)),
+                     ys=0.0, origin=(0, 0), use_radians=False)
+    return geom.ink([aff.translate(g, -geom.bbox(g)[0], -geom.bbox(g)[1])])
+
+ALT051_H = float(os.environ.get("ALBO_ALT051_H", 1.62))   # its ink height, x the x-height

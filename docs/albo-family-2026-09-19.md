@@ -3193,3 +3193,49 @@ differs is not a clean A/B of the rest of the font**, and a diff that shows
 hundreds of glyphs moving after a one-letter change is this, not a bug.
 
 Page: `claude.ai/artifact/3SYRyoxtR1NLuaVyTTNZKT`. Not ruled.
+
+
+## 50. Round 312 — alt051 traced, and the skeleton route that did not work
+
+Owner 2026-09-21: *"trace alt051 in the albo style"*. `ampersand.alt051` is
+Poetica's swash chancery ampersand — a curved E with a deep lower bowl and a
+long arm sweeping right and curling up. `ALBO_IT_AMP=f`; `a` still ships and an
+unset build is **0 of 493 glyphs different**, verified against the round-311
+control.
+
+**What arm f is.** The reference's own CONTOUR brought into Albo's metrics:
+scaled to the build's x-height, counter-sheared so `build.draw`'s 13-degree
+slant lands it at the reference's own slope rather than adding to it, and
+finished through `geom.ink` so it takes the face's ink spread and hand cut.
+
+**What it is not, and it shows:** re-drawn on Albo's nib. The contrast is
+Poetica's, which is steeper than this face's, and so are the terminals.
+
+### THE NEGATIVE RESULT, with its numbers
+
+The honest way to put it on the nib is round 182's — take the reference's
+SKELETON and run the face's pen along it — and that was attempted FIRST:
+
+- The glyph rasters and thins cleanly: **66,848 ink pixels → 1,861 skeleton
+  pixels** (Zhang-Suen, pure numpy, in `alt051.py` in the session scratch).
+- A skeleton breaks at every junction, and **five passes at chaining the
+  fragments by direction would not reassemble them** into the two or three
+  strokes a hand made. What each pass cost and found:
+  1. RDP at eps 6.0 collapsed every curve to 2-3 points — the simplifier, not
+     the walk.
+  2. Direction-stitching at eps 1.6: still 10 fragments.
+  3. The tip bookkeeping was wrong at the HEAD of a path (it compared the wrong
+     pair of points); fixed, still 10.
+  4. Measured the junction gaps to check the tolerance was not the cause:
+     1.4-2.2 px, so it never was.
+  5. **Found the real cause of one failure** — short bridge fragments were
+     filtered out (`len(p) > 6`) BEFORE stitching, so the long pieces had
+     nothing to join through. Including them gave 1,005 fragments and still did
+     not converge.
+
+So the next attempt starts from **hand-placed control points read off the
+skeleton**, which is how arms b-e were made and how the g went onto the pen in
+round 182 — not from more automation. The skeleton itself is worth keeping: it
+is correct, and it is what those control points should be read from.
+
+Page: `claude.ai/artifact/7vmmknqZTfRgD9BqjB4d8W`. Not ruled.
