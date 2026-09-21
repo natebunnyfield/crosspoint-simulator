@@ -113,8 +113,9 @@ an unmeasured premise, which is what produced this entry.
 **What ships instead: `traceInput` in `padWatch`.** The first 24 finger and
 pointer-button events, each with the state that decides its fate — direct touch
 versus one synthesized from a pointer, the finger id, the normalized position,
-and `zen` / `asleep` / `sheet` / concurrent-finger count. One Mirroring session
-with the Diagnostics Log switch on separates every live candidate:
+the window id and whether the geometry gate resolves it, and `zen` / `asleep` /
+`sheet` / concurrent-finger count. One Mirroring session with the Diagnostics
+Log switch on separates every live candidate:
 
 | What `diagnostics/firmware.log` shows | What it means |
 |---|---|
@@ -123,7 +124,8 @@ with the Diagnostics Log switch on separates every live candidate:
 | `finger down ... asleep=1` | the firmware slept; only POWER (or, in zen, any finger) wakes it — S-037/S-039 territory |
 | `finger down ... zen=1` | there is no pad to hit; taps are gestures, buttons do not exist |
 | `finger down ... sheet=1` | a colour drawer owns the touch gate |
-| `finger down ... zen=0 asleep=0 sheet=0` and still nothing happens | the hit test or `PadCore`, and the position on the line says which |
+| `finger down ... geo=0` | the geometry gate rejected it — `padWatch` `break`s there with no other effect, so this is otherwise indistinguishable from no input at all |
+| `finger down ... zen=0 asleep=0 sheet=0 geo=1` and still nothing happens | the hit test or `PadCore`, and `norm=` on the line says which |
 
 The budget is spent only on a line the sink actually writes, because
 `firmwarelog::hostLine` drops text with no buffering while the switch is off —
