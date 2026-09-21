@@ -2991,3 +2991,67 @@ session scratch): shipped **1.48**, con 2.1 + oval **1.44**, 8-alone nib 0.55
 Every arm is opt-in; unset, the build is byte-identical to build 205.
 
 Page: `claude.ai/artifact/UQWkoSJfTSd56ked3KkxgT`.
+
+
+## 46. Round 308 — both sides of every glyph, fitted as ONE system
+
+Owner 2026-09-21: *"updated bench"*, at **329 judgments** (156 roman, 173
+italic), up from 232. The new rows did not just refine the numbers; they showed
+the METHOD was wrong.
+
+**A pair's white is the left glyph's RIGHT bearing plus the right glyph's LEFT
+bearing.** So the bench is one linear system in those two unknowns per glyph.
+Rounds 303-307 fitted the letters and the marks SEPARATELY, and each half was
+absorbing the other's error — which is why round 307's richer letter table made
+the marks WORSE (roman marks 7.8 → 10.4 mean |error| while the lowercase
+improved). Solved as one system, both improve.
+
+| group | n | build 205 | round 304 | round 308 |
+|---|---|---|---|---|
+| roman lowercase | 111 | 14.3 | 12.4 | **9.7** |
+| roman marks | 39 | 17.9 | 7.8 | 8.9 |
+| roman capitals | 6 | 23.2 | 0.0 | **0.0** |
+| italic lowercase | 112 | 11.5 | 11.5 | **9.0** |
+| italic marks | 32 | 12.9 | 11.8 | **9.1** |
+| italic capitals | 29 | 14.8 | 4.1 | **4.1** |
+| **everything** | **329** | **13.83** | **10.54** | **8.61** |
+
+Mean |error| in design units. One phone pixel is 18.5, so the residual is about
+half a pixel and most of it is his own spread between pairs sharing a letter.
+
+**Ridge-regularised at lambda 1**, swept (0.5 → 16) and chosen on measured
+error: a letter judged twice must not be trusted like one judged eleven times.
+A glyph SIDE ships only when he judged it ≥4 times and the fit asks for ≥4
+units; that filter costs about a unit against the unfiltered fit (roman 8.50 →
+9.55 on its own groups) and is worth it.
+
+### Three things are deliberately NOT from the joint fit
+
+- **The marks**, solved directly from his own per-mark readings minus what the
+  letters now contribute on the left. The ridge pulled the apostrophe to −33
+  where his five readings say −44, and a mark's own readings are the strongest
+  evidence in the bench.
+- **The capitals**, corrected pair by pair for the following letter's new left
+  bearing. Without it they drifted the moment the letters moved (roman capitals
+  0.0 → 3.8); with it they are exact again.
+- **The apostrophe's RIGHT side** (two `'s` readings near −33): under the
+  evidence floor, so it does not ship.
+
+### And the ligature trap, caught by the gate
+
+When the roman `i` gained 9 units on its right, **`fi` read newly tight at
+0.0093 em with nothing in its drawing moved**: `cmp_touch` reads a pair's white
+as `length(ab) − length(b)`, and the ligature's own advance had not tracked the
+letter it ends in. Exactly what `BEARING_ADJ['ﬀ']` was given for. `uniFB01` and
+`uniFB03` now track the i; the gate is back to baseline (roman 1 touching, 3
+under the floor; italic 0 and 0), and no glyph's shape moved in either style.
+
+### A process note worth keeping
+
+This round's edits went wrong twice inside `build.py` before they went right:
+a replacement span swallowed `BEARING_ADJ`'s definition, and the joint fit was
+first ADDED to round 303's hand-solved mark constants instead of replacing them
+(the apostrophe reached −80 and the roman marks measured worse than doing
+nothing). Both were caught by measuring the built font against his 329
+judgments rather than by reading the diff. **Reset to the last commit and
+re-apply cleanly** is cheaper than untangling in place.

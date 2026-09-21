@@ -328,6 +328,20 @@ of 0.275. It was the heaviest letter in the italic lowercase. The stroke
 median would have been 0.90; the color median is the rung he picked, and the
 two differ because the g packs two bowls and a neck into one x-height.
 
+**Ruling 2026-09-20 (owner): THE ROMAN 8 IS LEFT AS IS.** Rounds 305 and 306
+built the levers it would need -- `ring(nib=...)` for a true nib,
+`ALBO_8_OVAL` / `ALBO_8_STRESS` reaching the roman at last, `ALBO_FIG_NIB` for
+the whole figure family -- measured why `con` alone could never work (the hair
+floor clamps every thin below 0.65 S; con 2.1 moved the contrast 1.48 -> 1.44),
+and found that an 8 on a nib stops matching its own 6 and 0 unless the family
+moves with it. He saw the flipped-axis page and ruled: *"leave 8 as is"*.
+
+So the letter does not change. The levers STAY -- every one is opt-in, unset by
+default, and a build with none of them is byte-identical to build 205 -- and
+the findings stay in `docs/albo-family-2026-09-19.md` sections 45-46 so the
+next pass does not re-derive them. **The 8 is closed, not open.** Do not
+re-propose contrast for it.
+
 **Ruling 2026-09-20 (owner), RESTATED FOR THE BENCH: no refresh until the
 spacing bench is finished.** Asked directly whether to ship now or wait, with
 232 of the 396 bench rows judged, he chose wait -- and the reason is in the

@@ -10883,5 +10883,5 @@ CAP_BEARING_ADJ = {
 # also gave every italic lowercase letter +4 on its left side; that tracking
 # was withdrawn when 37 more judgments took the italic lowercase from +8.3
 # (n17) to +1.4 (n54), so the compensation goes with it.
-for _c, _d in (('A', 8), ('C', 5), ('F', -40), ('P', -20), ('W', 13), ('Y', 50)):
+for _c, _d in (('A', 6), ('C', 0), ('F', -42), ('P', -27), ('W', 12), ('Y', 46)):   # round 308: re-averaged after the letter table moved these pairs
     _b = CAP_BEARING_ADJ[_c]; CAP_BEARING_ADJ[_c] = (_b[0], _b[1] + _d)

@@ -241,9 +241,66 @@ ALD_PUNCT_ADJ = {',': (-37, 43), '!': (0, -39), '?': (0, -48)}
 # lowercase letter gains +4 per side, which reaches a mark pair whatever the
 # letter. Both are subtracted here, and `cmp_bench_gaps.py` re-checks the
 # built font against his targets rather than against these constants.
-ROM_PUNCT_ADJ = {"'": (-47, -33), ',': (-19, 0), '.': (-17, 0), ':': (-11, 0), ';': (-13, 0)}
+# ROUND 308 replaces round 303's hand-solved constants here: the joint fit
+# below is a COMPLETE model of his mark judgments, not a delta on them, and
+# adding it to those constants double-counted every mark (the apostrophe
+# reached -80 and the roman's marks measured worse than doing nothing).
+ROM_PUNCT_ADJ = {}
 # ROUND 304: his raw numbers, now that the italic lowercase tracking is gone.
-ALD_PUNCT_ADJ.update({'.': (-6, 0), ':': (-6, 0)})
+# (round 303's italic stop constants removed with the roman's, same reason)
+
+# ROUND 308 -- BOTH SIDES OF EVERY GLYPH, FITTED TOGETHER.
+#
+# 329 bench judgments (156 roman, 173 italic). Each says "the white in THIS
+# pair should change by d", and a pair's white is the LEFT glyph's right
+# bearing plus the RIGHT glyph's left bearing -- so the bench is ONE linear
+# system in those two unknowns per glyph, and it is solved as one.
+#
+# Rounds 303-307 fitted the letters and the marks separately, which is what
+# made the marks WORSE as the letter table got richer: each half was absorbing
+# the other's error. Mean |error| against his own numbers:
+#
+#     do nothing        roman 15.20   italic 11.82
+#     separate fits     roman 10.7 (letters) / 10.4 (marks)
+#     ONE JOINT FIT     roman  9.55   italic  9.03
+#
+# Ridge-regularised at lambda 1 -- a letter judged twice must not be trusted
+# like one judged eleven times -- and a glyph SIDE ships only when he judged it
+# at least 4 times and the fit asks for at least 4 units. That filter costs
+# about a unit against the unfiltered fit (roman 8.50 -> 9.55) and is worth it.
+#
+# NOT SHIPPED for that reason: the apostrophe's RIGHT side, which his two `'s`
+# readings put near -33. Two is under the floor. His five letter+apostrophe
+# readings are far stronger and do ship, as that mark's LEFT side.
+#
+# THE MARKS ARE NOT TAKEN FROM THE JOINT FIT. The ridge shrinks a mark that he
+# judged five times toward zero (the apostrophe came back -33 where his five
+# readings say -44), and a mark's own readings are the strongest evidence in
+# the bench. So each mark is solved DIRECTLY -- his mean for that mark, minus
+# what the letters now contribute on its left -- and only the letters come from
+# the joint fit. Measured, that is the better of the two on the marks.
+#
+# (lsb, rsb) deltas in design units. Re-fit from the bench, never hand-tuned.
+ROM_LC_ADJ = {'a': (+15, -5), 'c': (+0, +7), 'e': (+8, +7), 'i': (+0, +9), 'l': (+12, +0), 'm': (+0, -6), 'n': (+5, -10), 'o': (+0, +7), 'r': (-7, +0), 's': (-6, +0), 't': (+10, -13), 'y': (+0, -8),
+               # THE LIGATURES TRACK THE LETTER THEY END IN, which is the trap
+               # `BEARING_ADJ['ff']` was given for: cmp_touch reads a pair's
+               # white as getlength(ab) - getlength(b), so when the `i` gained
+               # 9 units on its right the fi LIGATURE -- whose own advance had
+               # not moved -- read newly tight at 0.0093 em while nothing in
+               # its drawing had changed. uniFB01 and uniFB03 end in an i,
+               # uniFB02 and uniFB04 in an l (which moves 0 here), uniFB00 in
+               # an f (unchanged).
+               '\ufb01': (0, +9), '\ufb03': (0, +9)}
+ROM_PUNCT_FIT = {"'": (-40, +0), ',': (-12, +0), '.': (-10, +0), ':': (-3, +0), ';': (-4, +0)}
+ALD_LC_ADJ = {'e': (+0, -14), 'h': (+6, +0), 'i': (-5, +7), 'm': (+0, +6), 'n': (+5, -5), 'o': (+8, -5), 'p': (+0, +7), 'r': (+11, +0), 't': (+0, -8), 'u': (+0, +10), 'w': (+0, +10), 'y': (+11, +12)}
+ALD_PUNCT_FIT = {"'": (-4, +0), ',': (+3, +0), '.': (-5, +0), ':': (-1, +0)}
+
+for _c, _lr in ALD_PUNCT_FIT.items():             # round 308's joint fit
+    _b = ALD_PUNCT_ADJ.get(_c, (0, 0))
+    ALD_PUNCT_ADJ[_c] = (_b[0] + _lr[0], _b[1] + _lr[1])
+for _c, _lr in ROM_PUNCT_FIT.items():
+    _b = ROM_PUNCT_ADJ.get(_c, (0, 0))
+    ROM_PUNCT_ADJ[_c] = (_b[0] + _lr[0], _b[1] + _lr[1])
 # ...and the italic COMMA reads +1.0 on eleven pairs, which is "leave it where
 # it is" -- and with the tracking withdrawn that is literally nothing to do.
 # ROUND 221 -- THE QUOTES' RIGHT SIDE. Owner 2026-09-18: *"take a pass at all
@@ -345,6 +402,9 @@ except ImportError:                      # the module is optional, exactly as in
 # It belongs in ALD.BEARINGS['o'] -- (-18, 58) -> (-18, 86) -- and is held here
 # only because glyphs/aldine.py was being edited by another hand on the day.
 ALD_BEARING_ADJ = {'o': (0, 28)}
+for _c, _lr in ALD_LC_ADJ.items():                # round 308's joint fit
+    _b = ALD_BEARING_ADJ.get(_c, (0, 0))
+    ALD_BEARING_ADJ[_c] = (_b[0] + _lr[0], _b[1] + _lr[1])
 # ROUND 304 -- AND THE ITALIC LOWERCASE WANTS NOTHING. WITHDRAWN.
 #
 # Round 303 gave every italic lowercase letter +4 per side, a uniform +8 per
@@ -551,8 +611,8 @@ def fit(ch, conts, c):
     if ALD is not None and ALD.ON and ch in PUNCT_QUOTES:
         rsb += ALD_QUOTE_RSB; lsb += ALD_QUOTE_LSB
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
-    if not (ALD is not None and ALD.ON) and ch in 'bcdegopqs':
-        rsb += ROUND_LC_RSB                      # round 303, above
+    if not (ALD is not None and ALD.ON) and ch in ROM_LC_ADJ:
+        lsb += ROM_LC_ADJ[ch][0]; rsb += ROM_LC_ADJ[ch][1]      # round 308
     # ROUND 137: the owner's own capital spacing, set live on the bench and
     # applied as a delta on the rule above -- aldine italic only.
     if ALD is not None and ALD.ON and ch in getattr(ALD, 'CAP_BEARING_ADJ', {}):

@@ -567,18 +567,20 @@ def _apply_bench():
         step = int(round(mean / STEP)) * STEP          # cells must be multiples of STEP
         if step: CLASS_PAIRS[cell] = CLASS_PAIRS.get(cell, 0) + step
 
+# ROUND 308: each value is his judgment MINUS what the following letter's new
+# left bearing now contributes, for the same reason the marks are re-solved --
+# the letter table moves these pairs too, and a capital corrected against the
+# old letters lands wrong once the letters move.
 # ROUND 303 -- THE PAIRS HIS BENCH LEAVES BEHIND, once the bearings have taken
 # what they can (build.py's marks and round lowercase, aldine's capitals). The
 # roman's six capital judgments are one reading each, so none of them can be a
 # letter's bearing; the italic's G Q R V are singles too, and its T's two pairs
 # disagree by 25 units (Th -9, To +16), which is what a kern table is for.
 # Values are his, ADDED to what the pair already carried.
-_BENCH_PAIRS_ROM = ((('Y','e'), 12), (('T','o'), 24), (('A','v'), 12),
-                    (('W','a'), 41), (('V','i'), 13), (('Q','u'), 37))
+_BENCH_PAIRS_ROM = ((('A','v'), 12), (('Q','u'), 37), (('T','o'), 24), (('V','i'), 13), (('W','a'), 26), (('Y','e'), 4))
 # ROUND 304: raw again -- round 303's minus-4 was compensation for the italic
 # lowercase tracking, which the fuller data withdrew.
-_BENCH_PAIRS_ITA = ((('G','r'), 8), (('Q','u'), 11), (('R','e'), 8),
-                    (('V','i'), -9), (('T','h'), -9), (('T','o'), 16))
+_BENCH_PAIRS_ITA = ((('G','r'), -3), (('Q','u'), 11), (('R','e'), 8), (('V','i'), -4), (('T','h'), -15), (('T','o'), 8))
 for _p, _d in (_BENCH_PAIRS_ITA if (_ALD is not None and _ALD.ON) else _BENCH_PAIRS_ROM):
     PAIRS[_p] = _shipped(*_p) + _d
 
