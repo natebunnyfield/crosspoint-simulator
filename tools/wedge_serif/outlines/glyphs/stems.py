@@ -1225,6 +1225,9 @@ def _open_bowl(cx, cy, rx, ry, w_scale, floor):
 #     all (the open-g work recorded that as a negative result; it was a symptom
 #     of building the letter out of the wrong part).
 G_OPEN_BUILD = os.environ.get("ALBO_G_OPEN_BUILD", "qstem")   # qstem (round 331) | ring (rounds 326-330)
+G_QS_CTR_TOP = _gof('qs_ctr_top', 2.0)   # units the counter's TOP rises, by thinning the wall there
+G_QS_CTR_BOT = _gof('qs_ctr_bot', 0.0)   # and its bottom
+G_QS_CTR_ARC = _gof('qs_ctr_arc', 70.0)  # how far round the thinning reaches, degrees
 G_QS_STEM_Y = _gof('qs_stem_y', 0.0)     # where the stem stops and the hook starts, x the descender
 G_QS_TOP    = os.environ.get("ALBO_G_QS_TOP", "left")   # the serif: bowl_stem's own 'left'
 
@@ -1237,7 +1240,35 @@ def _g_qstem(c):
     rx_c = 214 * wf * (pen.IT_OVAL if pen.ITALIC else 1.0)
     rx = rx_c + TH_V / 2; ry = xh / 2 + OVER
     cx = rx; xs = cx + rx_c - S * 0.5; edge = xs - TH_V / 2
-    solid, outer, inner = ring(cx, xh / 2, rx, ry)
+    # ROUND 332 -- THE COUNTER, TO THE OWNER'S OWN NUMBERS. He dialled it on
+    # the bench (`scratchpad/albo/counter.html`): *"counter size 100.5%, below
+    # x-height 17"*, with the baseline gap left at 19. As built the counter was
+    # 391 tall, 19 above the baseline and 19 below the x-height; his figures are
+    # 393 / 19 / 17, and 19 + 393 + 17 is the x-height exactly.
+    #
+    # The bench holds the OUTER still and moves only the counter, so that is
+    # what happens here: the ring's wall is thinned at the TOP by the 2 units
+    # the counter grows, on a raised cosine so there is no step, and the bottom
+    # is untouched. The alternative -- a taller ring -- would raise the outer
+    # too and change the overshoot, which is not what he was looking at.
+    if G_QS_CTR_TOP or G_QS_CTR_BOT:
+        outer0 = superellipse(cx, xh / 2, rx, ry, 0, 2 * math.pi, BOWL_K)[:-1]
+        outer0 = geom.resample(outer0 + [outer0[0]])[:-1]
+        tans0 = geom.tangents(outer0, closed=True)
+        ws = []
+        for pt, tn in zip(outer0, tans0):
+            w = PR.bowl_th(tn)
+            ang = math.degrees(math.atan2(pt[1] - xh / 2, pt[0] - cx)) % 360.0
+            for centre, cut in ((90.0, G_QS_CTR_TOP), (270.0, G_QS_CTR_BOT)):
+                d = abs((ang - centre + 180.0) % 360.0 - 180.0)
+                if cut and d < G_QS_CTR_ARC:
+                    w -= cut * 0.5 * (1.0 + math.cos(math.pi * d / G_QS_CTR_ARC))
+            ws.append(max(w, S * 0.30))
+        n_ = len(ws)
+        solid, outer, inner = ring_from(outer0,
+            widths_fn=lambda t: ws[min(n_ - 1, max(0, int(round(t * n_))))])
+    else:
+        solid, outer, inner = ring(cx, xh / 2, rx, ry)
     solid = solid.intersection(_box(-2000, -1000, edge + 5, 2000))
     y_bot = -desc * G_QS_STEM_Y
     st = stem(xs, y_bot, xh, top=(None if G_QS_TOP == 'none' else G_QS_TOP),

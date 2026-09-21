@@ -241,3 +241,35 @@ is nothing to correct for.
 `ALBO_G_OPEN_BUILD=qstem` is the default; `ring` keeps rounds 326–330 for the
 record. Clean on `cmp_contour_hairs.py`. Nothing ships — `ALBO_G_STYLE` is
 still `bent`.
+
+## Round 332 — the counter, to the owner's own numbers
+
+He dialled it on the bench (`scratchpad/albo/counter.html`, published as an
+Artifact): **counter size 100.5%, below x-height 17**, with the baseline gap
+left at 19.
+
+As built the counter was 391 tall, 19 above the baseline and 19 below the
+x-height. His figures are 393 / 19 / 17 — and **19 + 393 + 17 is the x-height
+exactly**, so they are self-consistent.
+
+The bench holds the OUTER still and moves only the counter, so that is what the
+letter does: the ring's wall is thinned at the **top** by the 2 units the
+counter grows, on a raised cosine so there is no step, and the bottom is
+untouched. A taller ring would have raised the outer too and changed the
+overshoot, which is not what he was looking at.
+
+| | counter h | w | above baseline | below x-height | top wall |
+|---|---|---|---|---|---|
+| round 331 | 391 | 299 | 19 | 19 | 34 |
+| **now** | **393** | 299 | **19** | **17** | **32** |
+| he asked for | 393 | 300 | 19 | 17 | — |
+
+**One unit off, and it is worth naming.** His 100.5% was a UNIFORM scale on the
+bench, which widens the counter to 300 as well as heightening it. Holding the
+bottom at 19 and the top at 17 fixes the HEIGHT; the width then depends on how
+that height is reached, and growing the top alone leaves it at 299. A genuinely
+uniform 100.5% would have to thin the left and right walls too, which the two
+gap figures do not ask for.
+
+The top wall goes 34 → 32, still above the family's own bowl hairline of 28.
+`ALBO_G_QS_CTR_TOP` (2.0), `_CTR_BOT` and `_CTR_ARC`. Clean on the gate.
