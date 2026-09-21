@@ -350,3 +350,40 @@ default for `ALBO_G_OPEN_TRACE_X`; 1.0 rebuilds the traced models untouched.
 The shipped roman is unaffected and was checked rather than assumed: a default
 build differs from the previous commit's in **0 of 493 glyph outlines**. The
 open g is still reached only by `ALBO_G_STYLE=open`.
+
+## Round 335 — the roman ships open, the italic stays closed
+
+Owner: *"ship open as default for roman, and closed for italic. but we need to
+reduce the connector and bottom loop width to something manageable"*.
+
+**`ALBO_G_STYLE` now defaults to `open`.** The roman's g is the single-storey
+letter built as the q with a hooked foot (round 331), on the traced Futura tail
+(round 328) at `TRACE_X` 1.14 (round 334). `bent` is the two-storey roman of
+rounds 324–332 and `plain` the one before it. The g's advance goes **512 → 489**
+against the o's 545, so the letter is narrower than the one it replaces.
+
+The ITALIC is a separate construction in `aldine` and already ships the closed
+binocular g (`ALBO_ALD_G_STYLE=cursive`, round 323). Nothing was needed there.
+
+### What "manageable" is, measured
+
+The connector's THICKNESS is not the problem: it measures **23** units, against
+Flanker's 24 and Pagella's 22. It is the horizontal extents.
+
+* the italic g's **ink is 483 units wide against a 444 advance** — it overhangs
+  its neighbours by nearly 40 units;
+* the lower loop's ink spans **357** where the upper bowl's counter is 145;
+* `g ÷ o` is **1.12**, against the roman's new 0.90.
+
+Three arms, on `ALBO_ALD_G_LRX` (the loop's radius, 194) and
+`ALBO_ALD_G_NECK_L` (how far left the neck dives, 78):
+
+| arm | LRX / NECK_L | advance | g ÷ o | ink width | loop width | connector |
+|---|---|---|---|---|---|---|
+| as built | 194 / 78 | 444 | 1.12 | 483 | 357 | 23 |
+| a | 176 / 66 | 431 | 1.08 | 466 | 333 | 23 |
+| b | 160 / 56 | 428 | 1.08 | 453 | 319 | 21 |
+| **c** | 146 / 46 | 426 | **1.07** | **440** | **307** | 23 |
+
+All four gate-clean. **c** brings the ink to within 14 units of the advance
+where it started 39 over. Not ruled.

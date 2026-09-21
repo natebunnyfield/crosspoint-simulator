@@ -719,7 +719,13 @@ def g_q(c): return bowl_stem(c, 'right', c["xh"], -c["desc"])
 # SHIPS. Owner 2026-09-21: *"need a roman bent g. please do what I keep
 # asking."* Round 324 built this and left it behind the flag; that was the
 # mistake. `plain` is the letter that shipped up to round 324.
-G_STYLE = os.environ.get("ALBO_G_STYLE", "bent").lower()       # 'plain' = up to round 324
+# SHIPS OPEN. Owner 2026-09-21: *"ship open as default for roman, and closed
+# for italic"*. The roman's g is the single-storey letter built as the q with
+# a hooked foot (round 331), on the traced Futura tail (round 328) at
+# TRACE_X 1.14; the ITALIC keeps the closed binocular one, which is a separate
+# construction in `aldine` and is not touched by this. 'bent' is the
+# two-storey roman of rounds 324-332, 'plain' the one before it.
+G_STYLE = os.environ.get("ALBO_G_STYLE", "open").lower()       # 'bent' | 'plain'
 G_BENT_LOOP_RX = float(os.environ.get("ALBO_G_BENT_LOOP_RX", 205.0))  # wf units, against the plain g's 190
 G_BENT_LOOP_H = float(os.environ.get("ALBO_G_BENT_LOOP_H", 0.40))     # x the descender, against 0.50
 G_BENT_LOOP_DX = float(os.environ.get("ALBO_G_BENT_LOOP_DX", -4.0))
