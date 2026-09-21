@@ -1272,6 +1272,26 @@ ALT051_HOLD = float(os.environ.get("ALBO_ALT051_HOLD", 0.46))     # the fraction
 # fraction of the tail's length so the hook ends earlier.
 ALT051_CURL = float(os.environ.get("ALBO_ALT051_CURL", 1.0))
 ALT051_CURL_CUT = float(os.environ.get("ALBO_ALT051_CURL_CUT", 0.0))
+# ROUND 319 -- THE LEAN AND THE FINIALS. Owner 2026-09-21, ruling arm e in and
+# naming what is still wrong: *"it needs to have the italic lean and finials
+# need to match albo (never round)"*.
+#
+# THE LEAN. Every arm so far counter-sheared by pen.SLANT so that build.draw's
+# 13 degrees landed the letter at the REFERENCE's own slope -- which is what a
+# faithful trace wants and the opposite of what a member of this italic wants.
+# ALT051_LEAN is the fraction of the face's shear the letter keeps: 0 is the
+# old behaviour (upright, the reference's slope) and 1.0 is the face's full
+# 13 degrees, which is the ruling.
+#
+# THE FINIALS. Round 314 ended the two terminals in DISCS, and this face does
+# not do round ends: round 276 took the balls and drops off the c, the s, the
+# r, the v w y and the f j k x and replaced every one with the c's own top --
+# the stroke swells to 1.10 of its width over its last 13% and ends on a face
+# sheared 28 degrees toward the vertical, no lip (`PR.finial_widths` /
+# `PR.finial_cut`). The ampersand takes the same two calls, so its ends are
+# the family's and not a shape of their own.
+ALT051_LEAN = float(os.environ.get("ALBO_ALT051_LEAN", 1.0))
+ALT051_FIN = os.environ.get("ALBO_ALT051_FIN", "albo")   # albo | ball | flat
 ALT051_BALL = float(os.environ.get("ALBO_ALT051_BALL", 0.62))     # round 314: the terminal discs, x the stroke's width there
 
 def _damp_curl(pts):
@@ -1369,7 +1389,17 @@ def alt051_nib(c):
         for q0, q1 in zip(p, p[1:]):
             sacc.append(sacc[-1] + ((q1[0]-q0[0])**2 + (q1[1]-q0[1])**2) ** 0.5)
         stot = sacc[-1] or 1.0
-        parts = [_stroke(p, widths(list(zip([a / stot for a in sacc], w))))]
+        wf = widths(list(zip([a / stot for a in sacc], w)))
+        cut0 = cut1 = None
+        if ALT051_FIN == "albo" and ball_ends:
+            # the family's finial on the ends that used to carry a disc
+            from ..primitives import finial_widths as _fw, finial_cut as _fc
+            floor = th * ALT051_THIN * 1.6
+            if 0 in ball_ends or -len(p) in ball_ends:
+                wf = _fw(wf, True, floor=floor); cut0 = _fc(p, True)
+            if -1 in ball_ends or (len(p) - 1) in ball_ends:
+                wf = _fw(wf, False, floor=floor); cut1 = _fc(p, False)
+        parts = [_stroke(p, wf, cut0=cut0, cut1=cut1)]
         # ROUND 314 -- THE TERMINALS SWELL, they do not run out. The coverage
         # map against the source (59.1% covered, 1.7% extra -- the drawing was
         # thin, not wrong) shows the two misses that are FEATURES rather than
@@ -1377,8 +1407,9 @@ def alt051_nib(c):
         # reference's stroke thickens into a ball and `taper=True` ran mine to
         # nothing. Each is a disc at the stroke's own end, sized on the width
         # there, which is what a broad nib leaves when it stops without lifting.
-        for idx in ball_ends:
-            parts.append(dot(p[idx][0], p[idx][1], w[idx] * ALT051_BALL))
+        if ALT051_FIN == "ball":
+            for idx in ball_ends:
+                parts.append(dot(p[idx][0], p[idx][1], w[idx] * ALT051_BALL))
         return geom.ink(parts)
     # ROUND 315 -- THE WAIST IS ITS OWN STROKE, because it is a DEAD END.
     # Owner: *"trace more of the line to get the red covered"*. Measured on the
@@ -1389,7 +1420,9 @@ def alt051_nib(c):
     g = geom.ink([draw(ALT051_SPINE, True, ball_ends=(0, -1), key="main"),
                   draw(ALT051_WAIST, True, key="waist"),
                   draw(ALT051_SPUR, True, key="spur")])
-    if pen.SLANT:                      # build.draw will shear; hold the reference's own slope
-        g = aff.skew(g, xs=-float(getattr(pen, 'SLANT', 0.0) or 0.0), ys=0.0,
-                     origin=(0, 0), use_radians=False)   # SLANT IS DEGREES ALREADY
+    if pen.SLANT and ALT051_LEAN < 1.0:
+        # round 319: keep only (1 - LEAN) of the counter-shear, so at LEAN 1.0
+        # the letter takes the face's full italic slope. SLANT is DEGREES.
+        g = aff.skew(g, xs=-float(pen.SLANT) * (1.0 - ALT051_LEAN), ys=0.0,
+                     origin=(0, 0), use_radians=False)
     return geom.ink([aff.translate(g, -geom.bbox(g)[0], -geom.bbox(g)[1])])

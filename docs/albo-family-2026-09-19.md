@@ -3549,3 +3549,61 @@ right third alone shows what is moving. *A whole-glyph measure cannot see a
 feature that is no longer the extreme.*
 
 Page: `claude.ai/artifact/4mi8L8EfRAxsPc2FVqDkJy`.
+
+
+## 57. Round 319 — arm e given the italic lean and the face's own finials
+
+Owner 2026-09-21: *"e wins, but it needs to have the italic lean and finials
+need to match albo (never round). take five passes at this."*
+
+**Pass 1, the lean.** Every arm since round 312 counter-sheared by `pen.SLANT`
+so that `build.draw`'s 13 degrees landed the letter at the REFERENCE's slope —
+right for a faithful trace, wrong for a member of this italic.
+`ALBO_ALT051_LEAN` is the fraction of the face's shear kept; 1.0 leans with
+everything around it.
+
+**Pass 2, the finials — and the face had already ruled this.** Round 276 took
+the balls and drops off the c, s, r, v w y and f j k x and replaced every one
+with the c's own top: the stroke swells to 1.10 of its width over its last 13%
+and ends on a face sheared 28 degrees toward the vertical, no lip
+(`PR.finial_widths` / `PR.finial_cut`). Round 314's disc terminals were the one
+shape this face has decided against. The ampersand now calls the same two
+functions every other letter does. `ALBO_ALT051_FIN` = `albo` | `ball` | `flat`.
+
+**Pass 3** put its terminals beside the c's top and the y's tail — the two
+places the finial is most visible — and **pass 4** cropped both arms' tips at
+×3 against the c.
+
+### Pass 4's real content: THREE instruments that failed
+
+I tried to MEASURE the cut-face angle instead of looking at it:
+
+1. Longest straight run among the points nearest the tip — found a long flank
+   edge and reported **90 degrees for both arms, including the disc-ended one,
+   which has no face at all**.
+2. The same idea in contour order — returned **identical numbers for both
+   arms**, so it was not finding the feature either.
+3. A third variant of the same, no better.
+
+Then the crop, which answered it in one look. **This face's own doctrine: a
+gate measures the absence of a fault, never the presence of a letter**
+(round 196 learned it on the g's joint, where a filled blot scored CLEAN).
+Recorded so the next person does not spend the same three attempts.
+
+### Pass 5: the lean changed the width, so the balance was redone
+
+Shearing a tall glyph extends it sideways. **The squeeze ruled at 0.38 now
+measures 2.32 o's wide where it measured 2.09 without the lean** — so the
+ruling was kept and the re-balance offered beside it rather than applied over
+it.
+
+| arm | weight | contrast | advance |
+|---|---|---|---|
+| the shipped & (target) | 1.09 | 1.54 | 1.87 |
+| e as ruled (no lean, discs) | 1.08 | 1.50 | 2.09 |
+| 1 — e + lean + finials, squeeze 0.38 as ruled | 1.10 | 1.63 | 2.32 |
+| 2 — re-balanced, squeeze 0.28 | 1.05 | 1.59 | 2.18 |
+| 3 — re-balanced, squeeze 0.22 | 1.01 | 1.57 | 2.10 |
+
+Page: `claude.ai/artifact/DHtQvnhr5QiSqrTGm1Zp8v`. Which of the three is not
+ruled.
