@@ -340,6 +340,19 @@ only the swash: *"squeeze 0.38 wins"*. With `ALBO_ALT051_WEIGHT=1.36` and
 large top right extended stroke"*, is round 318's `ALBO_ALT051_CURL` /
 `ALBO_ALT051_CURL_CUT` and is NOT yet ruled.
 
+`ALBO_ALT051_PATH` (`off|a|b|c`, **default `c`** -- owner 2026-09-21, *"c
+wins"*) is round 321 and is about the RIGHT SIDE's ROUTE rather than its
+weight: **a** removes the one curvature reversal at the join by isotonic
+regression on the direction, **b** resamples the arm to uniform arc length
+(13-52 unit segments were feeding wobble into `geom.catmull`), **c** adds the
+corner where the arm leaves the bowl -- 59.6 degrees on an 11-unit segment,
+5.43 deg/unit against 0.14 just past it -- redistributed to 2.26 across
+`ALT051_JOIN` with a taper that reaches zero at both ends, so the seams keep
+their tangents. A hard-edged window instead moves the kink to its own border
+(5.43 -> 6.51). Pass a alone clears `cmp_contour_hairs.py`'s REVERSAL at
+(639, 411). `ALBO_ALT051_BALANCE` (round 320, default 0) is drawn but NOT
+ruled.
+
 **Ruling 2026-09-21 (owner): THE ITALIC HAS NO LIGATURES, AND THE ROMAN KEEPS
 ITS FIVE.** *"remove italic ligatures"* — done, the italic's `liga` feature is
 empty and its FB00–FB04 glyphs stay drawn and encoded so a text literally

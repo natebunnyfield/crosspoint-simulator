@@ -1185,6 +1185,180 @@ ALT051_SPINE = [
     (808.1,466.8), (802.6,491.3), (790.3,512.4), (777,525.7),
     (765.9,532.4), (734.8,533.5), (712.6,528),
 ]
+# ROUND 321 -- THE ARM'S PATH, NOT ITS WIDTH.
+#
+# Owner: *"take three passes at improving the path of ampersand's right side"*.
+# Measured on the frozen spine's last 19 points (the sweep out of the bowl and
+# the curl), three faults, each its own pass:
+#
+#   a  ONE CURVATURE REVERSAL, at the join. The turns run -7.5, +4.9, +6.8 --
+#      the arm dips before it sweeps, over 50-unit segments, so it is a kink
+#      and not sampling noise. A single sweep's direction must be MONOTONE, so
+#      the fix is isotonic regression on the direction (PAVA), weighted by
+#      segment length. It is the only sign flip in 18 segments.
+#   b  SEGMENT LENGTHS 13 TO 52. geom.catmull interpolates this polyline, and
+#      Catmull-Rom over unevenly spaced points overshoots unevenly -- the
+#      wobble is put in by the spacing, not by the points. Resampled to
+#      uniform arc length along the curve the drawing itself builds.
+#   c  TURN RATE 0.12 TO 1.07 DEGREES PER UNIT. Segment 12 runs 51.7 units and
+#      turns 6.2 degrees; segment 16 runs 13.0 and turns 13.9. A pen does not
+#      change its rate of turn ninefold mid-stroke. theta(s) is smoothed with a
+#      Gaussian in ARC LENGTH, which is the only parameter that means anything
+#      here (smoothing in index would weight a 13-unit segment like a 52).
+#
+# Every pass preserves the JOIN exactly (the arm's first point is never moved)
+# and lands the tip back on its original position by a similarity about that
+# join, so the letter's envelope, advance and squeeze span do not move. What
+# changes is the route between them.
+# Owner 2026-09-21, round 321: *"c wins"*. All three passes ship; `off` is
+# kept as the arm that reproduces the pre-321 route exactly.
+ALT051_PATH = os.environ.get("ALBO_ALT051_PATH", "c")     # off | a | b | c
+ALT051_ARM0 = 47                                          # the sweep's first point
+# NEGATIVE RESULT, kept so it is not re-attempted. Pass c was first a Gaussian
+# smoothing of theta(s) over the whole arm, to even a turn rate that runs 0.12
+# to 1.07 deg/unit. It does not work: the trade is about one unit of route
+# drift per 0.014 of peak rate (sigma 0.02 -> 3.5 units and 1.219; 0.045 -> 14.6
+# and 0.880; 0.11 -> 58.8 and 0.523), and at the useful end the letter is simply
+# a different one. The spread is the CURL doing its job, not a defect.
+ALT051_JOIN = (43, 50)      # the window pass c re-cuts, inclusive
+ALT051_JOIN_SIGMA = float(os.environ.get("ALBO_ALT051_JOIN_SIGMA", 0.30))
+
+
+def _pava(vals, wts):
+    """Isotonic regression, weighted -- the pool-adjacent-violators algorithm."""
+    blocks = [[v, w] for v, w in zip(vals, wts)]
+    out = []
+    for b in blocks:
+        out.append(b)
+        while len(out) > 1 and out[-2][0] > out[-1][0]:
+            v2, w2 = out.pop(); v1, w1 = out.pop()
+            out.append([(v1 * w1 + v2 * w2) / (w1 + w2), w1 + w2])
+    res = []
+    for v, w in out:
+        res.append((v, w))
+    # re-expand to one value per input, in order
+    flat, i = [], 0
+    for v, w in res:
+        n = 0; acc = 0.0
+        while i < len(wts) and acc < w - 1e-9:
+            acc += wts[i]; n += 1; i += 1
+        flat.extend([v] * n)
+    return flat[:len(vals)]
+
+
+def _seg_dirs(pts):
+    import math as _m
+    L, d = [], []
+    for a, b in zip(pts, pts[1:]):
+        L.append(_m.hypot(b[0] - a[0], b[1] - a[1]))
+        d.append(_m.degrees(_m.atan2(b[1] - a[1], b[0] - a[0])))
+    for i in range(1, len(d)):                     # unwrap
+        while d[i] - d[i - 1] > 180: d[i] -= 360
+        while d[i] - d[i - 1] < -180: d[i] += 360
+    return L, d
+
+
+def _rebuild(p0, L, d, tip):
+    """Integrate lengths and directions from p0, then a similarity about p0 so
+    the last point lands on `tip` -- the envelope is not ours to move."""
+    import math as _m
+    out = [p0]
+    for Li, di in zip(L, d):
+        r = _m.radians(di)
+        out.append((out[-1][0] + Li * _m.cos(r), out[-1][1] + Li * _m.sin(r)))
+    ax, ay = out[-1][0] - p0[0], out[-1][1] - p0[1]
+    bx, by = tip[0] - p0[0], tip[1] - p0[1]
+    den = ax * ax + ay * ay
+    if den < 1e-9:
+        return out
+    cs = (ax * bx + ay * by) / den                 # complex division: b / a
+    sn = (ax * by - ay * bx) / den
+    return [(p0[0] + (q[0] - p0[0]) * cs - (q[1] - p0[1]) * sn,
+             p0[1] + (q[0] - p0[0]) * sn + (q[1] - p0[1]) * cs) for q in out]
+
+
+def _resample_uniform(pts, n):
+    """n points evenly spaced in arc length along the Catmull-Rom the drawing
+    builds -- so the resampling sees the same curve the outline will."""
+    import math as _m
+    dense = geom.catmull(list(pts), tension=0.5)
+    acc = [0.0]
+    for a, b in zip(dense, dense[1:]):
+        acc.append(acc[-1] + _m.hypot(b[0] - a[0], b[1] - a[1]))
+    tot = acc[-1] or 1.0
+    out, j = [], 0
+    for i in range(n):
+        t = tot * i / (n - 1)
+        while j < len(acc) - 2 and acc[j + 1] < t:
+            j += 1
+        span = acc[j + 1] - acc[j]
+        u = 0.0 if span < 1e-9 else (t - acc[j]) / span
+        out.append((dense[j][0] + (dense[j + 1][0] - dense[j][0]) * u,
+                    dense[j][1] + (dense[j + 1][1] - dense[j][1]) * u))
+    return out
+
+
+def _smooth_theta(L, d, sigma):
+    """Gaussian smoothing of direction against ARC LENGTH, mean preserved."""
+    import math as _m
+    s, a = [], 0.0
+    for Li in L:
+        s.append(a + Li / 2.0); a += Li
+    out = []
+    for i in range(len(d)):
+        num = den = 0.0
+        for j in range(len(d)):
+            w = L[j] * _m.exp(-0.5 * ((s[i] - s[j]) / sigma) ** 2)
+            num += w * d[j]; den += w
+        out.append(num / den)
+    return out
+
+
+def _round_join(pts):
+    """Pass c -- spread the corner where the arm leaves the bowl.
+
+    Segment 46 carries 59.6 degrees over 11.0 units, 5.43 deg/unit against 0.14
+    in the sweep just past it: RDP left one short segment holding the whole
+    corner, and a chancery arm leaves its bowl as ONE stroke. The turn is
+    redistributed over the window by smoothing the direction, with a taper that
+    reaches zero at both ends so the seams keep their original tangents -- a
+    hard-edged window just moves the kink to its own border, which is what a
+    first attempt here did (join rate 5.43 -> 6.51 and a reversal put back).
+    """
+    import math as _m
+    i, j = ALT051_JOIN
+    win = list(pts[i:j + 1])
+    L, d = _seg_dirs(win)
+    n = len(d)
+    if n < 3:
+        return pts
+    sm = _smooth_theta(L, d, sigma=sum(L) * ALT051_JOIN_SIGMA)
+    for k in range(n):                       # taper: 0 at both ends, 1 mid
+        t = k / (n - 1)
+        w = _m.sin(_m.pi * t) ** 2
+        sm[k] = d[k] + (sm[k] - d[k]) * w
+    win = _rebuild(win[0], L, sm, win[-1])
+    return list(pts[:i]) + [tuple(q) for q in win] + list(pts[j + 1:])
+
+
+def _improve_arm(pts, mode):
+    if mode == "off" or mode not in ("a", "b", "c"):
+        return pts
+    if mode == "c":
+        pts = _round_join(pts)
+    head, arm = pts[:ALT051_ARM0], list(pts[ALT051_ARM0:])
+    p0, tip = arm[0], arm[-1]
+    L, d = _seg_dirs(arm)
+    d = _pava(d, L)                                     # pass a
+    arm = _rebuild(p0, L, d, tip)
+    if mode in ("b", "c"):                              # pass b
+        arm = _resample_uniform(arm, len(arm))
+        arm[0], arm[-1] = p0, tip
+    return head + [tuple(q) for q in arm]
+
+
+ALT051_SPINE = _improve_arm(ALT051_SPINE, ALT051_PATH)
+
 ALT051_SPUR = [
     (291.4,225.7), (305.9,254.6), (320.3,274.6), (341.4,294.6),
     (361.4,306.8), (382.6,312.4), (413.7,316.8), (432.6,314.6),
@@ -1292,6 +1466,24 @@ ALT051_CURL_CUT = float(os.environ.get("ALBO_ALT051_CURL_CUT", 0.0))
 # the family's and not a shape of their own.
 ALT051_LEAN = float(os.environ.get("ALBO_ALT051_LEAN", 1.0))
 ALT051_FIN = os.environ.get("ALBO_ALT051_FIN", "albo")   # albo | ball | flat
+# ROUND 320 -- IMBALANCE, AND LINE CONTRAST. Owner 2026-09-21, ruling arm 3 in:
+# *"take passes at reduce imbalance and put in line contrast"*.
+#
+# THE IMBALANCE, measured rather than judged. Ink by thirds, left to right:
+# this letter runs 40% / 31% / 29% where the face's own ampersand runs
+# 30% / 58% / 13% and the o (symmetric by construction) runs 42% / 15% / 42%.
+# So the bowl carries the letter and the arm is starved -- and vertically it
+# sits 49% above the middle where the shipped ampersand sits 41%, which is the
+# bottom-heaviness that makes a letter look planted.
+#
+# BALANCE is a ramp along the main stroke: the width is scaled from (1 - B) at
+# the start, which is the E and the bowl, to (1 + B) at the end, which is the
+# arm and its curl. It moves mass rightward without moving a single point.
+#
+# LINE CONTRAST is the nib's share. ALT051_NIB_MIX already blends the source's
+# own width with the nib's |sin(direction - phi)|; raising it puts the PEN's
+# variation back into a stroke whose weight otherwise comes from the reference.
+ALT051_BALANCE = float(os.environ.get("ALBO_ALT051_BALANCE", 0.0))
 ALT051_BALL = float(os.environ.get("ALBO_ALT051_BALL", 0.62))     # round 314: the terminal discs, x the stroke's width there
 
 def _damp_curl(pts):
@@ -1379,6 +1571,22 @@ def alt051_nib(c):
                 w = [gm * (x / gm) ** ALT051_CON for x in w]
             if ALT051_WEIGHT != 1.0:
                 w = [x * ALT051_WEIGHT for x in w]
+            if ALT051_BALANCE and key == "main":
+                # round 320, second cut. A LINEAR ramp across the whole stroke
+                # moved the thirds by two points and no more: the arm is thin
+                # and long, so width buys little ink there while the ramp also
+                # thins the bowl's own start. This lightens the BOWL's span and
+                # feeds the ARM's, each over its own stretch, so the same dial
+                # moves several times the mass.
+                # Not a step: two hard edges (0.70 -> 1.00 -> 1.44 at b = 0.30)
+                # left a visible notch at the bowl's foot, which is where the
+                # boundary happened to fall. A smoothstep between 0.30 and 0.70
+                # keeps both end weights and has no corner anywhere.
+                n2 = len(w); b = ALT051_BALANCE
+                lo, hi = 1.0 - b, 1.0 + b * 1.45
+                for i in range(n2):
+                    u = min(1.0, max(0.0, (i / (n2 - 1) - 0.30) / 0.40))
+                    w[i] *= lo + (u * u * (3.0 - 2.0 * u)) * (hi - lo)
         # ...and the width list is handed to `stroke` on the SQUEEZED path's own
         # arc length, not on a uniform index. `stroke` maps a width table across
         # its own parameterisation, so a uniform t paired with points that are

@@ -14,6 +14,32 @@
   about half a phone pixel. Method, and the four instrument bugs it cost:
   `docs/albo-spacing-method.md`, final section. **The kern quantum stated
   elsewhere in this file was wrong by 16x and is corrected below.**
+- **THE alt051 AMPERSAND'S PATH IS RULED, 2026-09-21 (round 321): owner "c
+  wins".** `ALBO_ALT051_PATH` (`off|a|b|c`, **default c**) fixes three faults in
+  the RIGHT SIDE's route, not its weight: a curvature reversal at the join
+  (isotonic regression on the direction), segment lengths of 13 to 52 that were
+  putting wobble into `geom.catmull` (uniform arc-length resample), and a
+  **59.6-degree corner carried on an 11-unit segment** where the arm leaves the
+  bowl -- 5.43 deg/unit against 0.14 just past it, an RDP artifact rather than a
+  feature, redistributed to 2.26 through a tapered window. Pass a alone clears
+  the REVERSAL `cmp_contour_hairs.py` was already reporting at (639, 411): the
+  spine's fault and the contour's were the same one. **Inert for an unset build
+  -- 0 of 493 glyphs differ**, and note a TTF's md5 does NOT prove that
+  (fontTools stamps `head.modified`; compare outlines). The negative result,
+  recorded so it is not retried: smoothing theta(s) to even the arm's turn rate
+  costs about one unit of route drift per 0.014 of peak rate and at the useful
+  end is a different letter -- that spread is the curl, not a defect.
+  `docs/albo-family-2026-09-19.md` §59.
+- **ROUND 320 IS OPEN, 2026-09-21.** *"reduce imbalance and put in line
+  contrast"* was answered with three measured arms (A as ruled 40/32/28 of the
+  ink by thirds; B balanced -0.7 gap at contrast 1.59; D balanced at 1.66, the
+  face's ceiling) and **he moved on to the path without ruling it**. Do not
+  re-ladder; the arms and their dials are in §58. `ALT051_BALANCE` defaults to
+  0, so nothing from that round is in the drawing.
+- **THE CONTOUR GATE'S `--letters` ARM IS RED, 2026-09-21, and this file and
+  `CLAUDE.md` both say it is green.** FAIL on BOTH styles, on `b`, `p` and `y`,
+  and it fails identically on builds predating round 320, so it is pre-existing
+  and not from the ampersand work. Nobody has triaged it.
 - **THE ITALIC AMPERSAND, 2026-09-21 (round 311): four chancery arms drawn,
   none ruled.** The queued request below (*"a flowing and adorned curved E
   ampersand for italics"*) is answered with `ALBO_IT_AMP` b/c/d/e; **a** ships

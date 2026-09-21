@@ -3607,3 +3607,114 @@ it.
 
 Page: `claude.ai/artifact/DHtQvnhr5QiSqrTGm1Zp8v`. Which of the three is not
 ruled.
+
+## 58. Round 320 — the mass moved right, the line given more to do (OPEN)
+
+Owner, after ruling round 319's arm 3: *"last one wins, but take passes at
+reduce imbalance and put in line contrast"*. **Not ruled — three arms were
+presented and he moved on to the path instead.** Recorded here so the next
+session does not re-ladder it.
+
+Measured by thirds of the letter's ink: the ruled arm carries **40% left, 28%
+right**. The face's own ampersand is 30/58/13 — not balanced either, but heavy
+in the MIDDLE, which reads as a knot rather than a lean. The o is 42/15/42.
+
+**The first lever did nothing, and that is the finding.** A linear ramp across
+the whole stroke, `1−B` at its start to `1+B` at its end: at B = 0.14 the
+thirds read 39/30/31, and at B = 0.24 they read **39/30/31 again** — double the
+dial, no measurable change. The arm is thin and long, so scaling its width buys
+little ink while the same ramp thins the bowl's opening and gives most of it
+back. `ALT051_BALANCE` lightens the bowl's stretch and feeds the arm's, each
+over its own span.
+
+Written as a step it jumped 0.70 → 1.00 → 1.44 and one edge landed at the
+bowl's foot — a visible corner. It is a **smoothstep** between 30% and 70% of
+the stroke: same end weights, no corner.
+
+Every arm's weight dial was re-solved against the face, or the comparison is
+just "D is darker".
+
+| arm | thirds L/M/R | L−R gap | contrast | weight × face |
+|---|---|---|---|---|
+| the face's body letters | — | — | 1.40–1.66 | 1.00 |
+| the shipped & | 30/58/13 | 17.3 | 1.54 | 1.09 |
+| A — as ruled | 40/32/28 | 11.6 | 1.54 | 1.08 |
+| B — balanced | 34/31/35 | −0.7 | 1.59 | 1.07 |
+| D — balanced, more line contrast | 36/29/35 | 0.7 | 1.66 | 1.06 |
+
+A fourth arm at nib 0.90 / con 0.46 measured **1.69**, past every letter in the
+face, and its weight would not settle inside the band; not shown.
+
+Page: `claude.ai/artifact/PSNako3wL5NDbjj9mnUUPr`.
+
+**Also found, and still open, unrelated to this round:** `cmp_contour_hairs.py
+--letters` — the arm the docs call green — is **FAIL on both styles**, on `b`,
+`p` and `y`, and fails identically on a build made before any of round 320. It
+is pre-existing, but the claim in `CLAUDE.md` and in this repo's doc table is
+currently false.
+
+## 59. Round 321 — the right side's PATH, and a corner that was an artifact
+
+Owner: *"take three passes at improving the path of ampersand's right side"*,
+then *"c wins"*. Three cumulative passes, `ALBO_ALT051_PATH` = `off|a|b|c`,
+**default `c` since this round**. Not weight — the route.
+
+**a — one curvature reversal, at the join.** The turns run −7.5°, +4.9°, +6.8°:
+the arm dips before it sweeps, across 50-unit segments, so it is a kink and not
+sampling noise, and it is the only sign flip in 18 segments. A single sweep's
+direction must be monotone, so the fix is **isotonic regression (PAVA) on the
+direction, weighted by segment length** — the minimal change that removes it.
+
+That reversal is **the same fault `cmp_contour_hairs.py` was already reporting**
+as a REVERSAL at 172.7° at (639, 411). Pass a alone clears it. The spine's
+reversal and the contour's were one fault seen at two layers, and the owner
+pointed at it before either instrument connected them.
+
+**b — segment lengths 13 to 52.** `geom.catmull` interpolates this polyline and
+Catmull-Rom over unevenly spaced points overshoots unevenly, so some of the
+wobble is put in by the SPACING rather than by the points. Resampled to uniform
+arc length along the same curve the outline is built from: 30.4–30.9.
+
+**c — the corner where the arm leaves the bowl, which is the biggest fault by
+four times.** One **11.0-unit segment carries 59.6°** — 5.43°/unit against 0.14
+in the sweep immediately past it, a **38× jump** — because RDP left a single
+short segment holding the whole corner, and a chancery arm leaves its bowl as
+one stroke. Redistributed across the window with a taper that reaches zero at
+both ends so the seams keep their original tangents: **5.43 → 2.26 °/unit**.
+
+| arm | reversals | join rate | seg spread | route moved | gate |
+|---|---|---|---|---|---|
+| off — as ruled | 1 | 5.43 | 13–52 | — | REVERSAL |
+| a | 0 | 5.43 | 13–52 | 3.4 | clean |
+| b | 0 | 5.43 | 30.4–30.9 | 3.4 | clean |
+| **c — ships** | 0 | **2.26** | 29.5–29.8 | 16.7 | clean |
+
+"Route moved" is the furthest the path travels from the original in the scan's
+units. a and b are refinements at 3.4; c is 16.7 because rounding a corner has
+to move the corner. Weight, contrast and advance are unchanged (1.08 / 1.54 /
+2.10; c reads 1.04 because the corner holds slightly less ink).
+
+### The negative result, kept so it is not re-attempted
+
+The turn rate over the arm runs 0.12 to 1.07 °/unit, and pass c was FIRST a
+Gaussian smoothing of θ(s) to even it. **It cannot be done.** The trade is about
+one unit of route drift per 0.014 of peak rate — σ 0.02 → 3.5 units and 1.219,
+σ 0.045 → 14.6 and 0.880, σ 0.11 → 58.8 and 0.523 — and at the useful end the
+letter is bodily swung outward and is simply a different one. **The spread is
+the curl doing its job, not a defect.**
+
+Two more that were fixed rather than shipped. A plain Gaussian pulls the end
+tangents toward the mean and cost **34° of net turn** — the tail quietly
+uncurled — so both ends are pinned. And the corner fix with a HARD-EDGED window
+moved the kink to its own border instead of removing it (join rate 5.43 →
+**6.51**, and the reversal came back), which is why the taper exists.
+
+### An instrument note: a TTF's md5 never compares across builds
+
+Proving the new default inert, two builds with `ALBO_IT_AMP` unset came back
+with different md5s. Nothing had moved: fontTools stamps `head.modified` with
+the build time. The honest check is per-glyph — **0 of 493 shared glyphs
+differ**, and no glyph is added or removed. Do not gate a font on its file
+hash; gate it on its outlines, or on a render.
+
+Page: `claude.ai/artifact/5DW5pKFkR4qfFZJiBH7HFR`.
