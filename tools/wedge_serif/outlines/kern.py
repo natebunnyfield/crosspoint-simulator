@@ -598,7 +598,38 @@ def feature_text():
         lines.append(f'    pos @L_{l} @R_{r} {v};')
     lines.append('} kern;')
     # round 96: the five standard ligatures; feaLib orders the longer sequences first
-    lines.append('feature liga {\n    sub f f i by uniFB03;\n    sub f f l by uniFB04;\n    sub f f by uniFB00;\n    sub f i by uniFB01;\n    sub f l by uniFB02;\n} liga;')
+    # ROUND 309 -- THE ITALIC HAS NO LIGATURES, and the roman has five more.
+    # Owner 2026-09-21: *"remove italic ligatures. take pass at adding other
+    # ligatures to roman"*. The italic's FB00-FB04 GLYPHS stay drawn and
+    # encoded -- a text that literally contains U+FB01 still sets in Albo
+    # rather than falling back to Noto mid-word -- but nothing SUBSTITUTES
+    # into them any more, so `fi` in an italic word is an f and an i.
+    if _ALD is not None and _ALD.ON:
+        lines.append('feature liga {\n    sub f i by uniFB01;\n} liga;'.replace(
+            '    sub f i by uniFB01;\n', ''))          # an empty feature: no rule at all
+    else:
+        lines.append('feature liga {\n'
+                     '    sub f f i by uniFB03;\n'
+                     '    sub f f l by uniFB04;\n'
+                     '    sub f f by uniFB00;\n'
+                     '    sub f i by uniFB01;\n'
+                     '    sub f l by uniFB02;\n'
+                     # ROUND 309b -- fb fh fj fk are DRAWN and NOT substituted:
+                     # counted over his own books they appear 13 times in two
+                     # million pairs (six of them in `Kafka`), where `st` alone
+                     # appears 23,470 times. The glyphs stay at E000-E003 so
+                     # the work is not lost; the feature carries what the
+                     # corpus justifies.
+                     # ...and st/ct are DRAWN but not substituted either, for
+                     # the opposite reason to the f-family: the corpus wants
+                     # them badly (st is the commonest pair in his books) and
+                     # the DRAWING is not right yet. Their arc reads as a spur
+                     # off the s rather than a span to the t at every height
+                     # and weight tried in round 309. Reaching them is
+                     # U+FB06 / U+E004; switching them on is one line here,
+                     # once the join is drawn properly.
+                     '    sub T h by uniE005;\n'
+                     '} liga;')
     return '\n'.join(lines) + '\n'
 
 def apply(path, out=None):

@@ -3055,3 +3055,59 @@ first ADDED to round 303's hand-solved mark constants instead of replacing them
 nothing). Both were caught by measuring the built font against his 329
 judgments rather than by reading the diff. **Reset to the last commit and
 re-apply cleanly** is cheaper than untangling in place.
+
+
+## 47. Round 309 — the italic loses its ligatures, and the roman's set is chosen on the corpus
+
+Owner 2026-09-21: *"remove italic ligatures. take pass at adding other
+ligatures to roman"*.
+
+**The italic's `liga` feature is gone.** Its FB00-FB04 glyphs stay drawn and
+encoded on purpose — a text that literally contains U+FB01 still sets in Albo
+rather than dropping into Noto mid-word — but nothing substitutes into them, so
+`fi` in an italic word is an f and an i.
+
+### The pass, and what decided it
+
+The obvious siblings of fi and fl are the rest of the f-family, and they were
+drawn first: **fb fh fj fk**, the f's hook re-aimed into the next letter's
+top-left wedge exactly as it is for the l. Then they were counted against the
+owner's own 36 epubs (`tools/wedge_serif/pair_census.py`):
+
+| sequence | occurrences | verdict |
+|---|---|---|
+| st | 23,470 | drawn, NOT shipped — the join is not right |
+| Th | 8,589 | **ships** |
+| ct | 8,305 | drawn, NOT shipped — same join |
+| sp | 3,229 | not drawn |
+| ffi | 312 | ships since round 96 |
+| ffl | 17 | ships since round 96 |
+| fk · fb · fh · fj | 6 · 3 · 3 · 1 | drawn, REJECTED |
+
+**`st` alone is seventy-five times commoner than `ffi`**, which this face has
+carried since round 96, and the four f-ligatures appear **thirteen times in two
+million pairs, six of them inside the name Kafka**. They are drawn, they are
+behind U+E000-E003, and they are not in the feature. A ligature nobody's books
+contain is a glyph to maintain forever for nothing — and that is a measurement,
+not a taste.
+
+### Th ships, and it is not a new stroke
+
+`T h` sets the h UNDER the T's right arm (`TH_TUCK`, 0.34 stems). Nothing is
+drawn that was not there; the ligature simply spends the overhang, which is
+what a kern cannot do — a kern moves the whole letter, this moves only the
+pair. Every sentence in a book begins with one.
+
+### st and ct are WANTED and NOT DRAWN WELL ENOUGH
+
+Three heights and weights of the joining arc were built and rendered
+(`ALBO_ST_ARC_TOP`, `ALBO_ST_ARC_W`), and at every one it reads as a **spur off
+the s** rather than a span reaching the t. The construction is wrong, not the
+number: the arc springs from the s's terminal and dies before the t's stem,
+where a real st is one stroke THROUGH both letters, the t's bar carried
+leftward. Recorded rather than shipped, and the next attempt is a different
+construction, not another height.
+
+Roman feature now: **ff · fi · fl · ffi · ffl · Th**. Italic: none.
+
+Page: `claude.ai/artifact/4PKvHFH6gyQ6xT34XuQVHb`.
