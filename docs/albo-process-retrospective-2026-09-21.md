@@ -107,6 +107,17 @@ before you dial — found what no ladder would have. The subagent guard worked:
 `782b0e5` verified the open-g agent's ten arms rather than trusting them, and
 caught one column that does not reproduce.
 
-Build order by time saved: **(1)** ladder liveness, **(2)** `gates.sh` +
-baseline, **(3)** generated STATE, **(4)** `cmp_outlines.py` + `approved.json`,
-**(5)** move the scratchpad instruments in. One to four are about 250 lines.
+## All five are built (same day)
+
+Owner ruled "all five". Each was validated against a failure it was written for:
+
+| | validated by |
+|---|---|
+| `ladder.py` | LIVE on `ALBO_ALD_G_LOOP_PHI`; **FLAT on `G_LRING`** (dead code) and **FLAT on `ALBO_G_QS_STEM_W`** (today's wrong-prefix bug) |
+| `gates.sh` + `gates-baseline.txt` | passes against HEAD; edit the baseline's italic row to round 296's `b p` and it prints exactly the `+b p y` diff that would have stopped build 205 |
+| `gen_state.py` → `docs/albo-STATE.md` | reads `ALBO_G_STYLE = open`, `ALBO_G_OPEN = futura`, `ALBO_ALD_G_STYLE = cursive` — the three the prose docs had wrong |
+| `approved.py` + `approved.json` | the roman and italic g are recorded with the owner's own words; pointed at round 335's build it reports **`Regular:g CHANGED`**, which is round 336 caught retroactively |
+| `instruments/` | `tailtrace.py`, `sansg.py`, `loopwall.py`, `gtrace.py`, `contrast.py`, `counter-bench.html` moved in with a README saying why |
+
+`gates.sh` runs the approved-glyph check too, so a build that is gate-identical
+but draws a letter nobody ruled on still fails.

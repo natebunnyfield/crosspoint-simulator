@@ -1,0 +1,6 @@
+hairs.letters.Regular  h
+hairs.all.Regular      alpha arrowdblboth arrowdblleft cedilla club greaterequal h lessequal oe second uni2655 uni2667 uniFB04
+touch.Regular          1 pair(s) TOUCHING, 3 below
+hairs.letters.Italic  b p y
+hairs.all.Italic      AE b cedilla cent club eng hbar nine p second sigma thorn trademark uni2667 uniE001 uniFB02 uniFB04 y
+touch.Italic          0 pair(s) TOUCHING, 0 below
