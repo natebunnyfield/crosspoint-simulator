@@ -273,3 +273,70 @@ gap figures do not ask for.
 
 The top wall goes 34 → 32, still above the family's own bowl hairline of 28.
 `ALBO_G_QS_CTR_TOP` (2.0), `_CTR_BOT` and `_CTR_ARC`. Clean on the gate.
+
+## Round 333 — the right stroke, and a claim of mine that did not survive
+
+Owner: *"thin out right stoke to optically match the rest of the word image.
+might just be 98% reduction but justify it"*. The justification did not come
+out where I expected, twice.
+
+**It is not physically wider.** At half the x-height the g's right stroke
+measures **63.7** units; the u, d and n measure 63.7–64.4. Width up the
+x-height, Albo units:
+
+| at | 0.30 | 0.50 | 0.70 | 0.90 |
+|---|---|---|---|---|
+| g | 63.7 | 63.7 | 70.7 | **88.2** |
+| d | 65.1 | 64.4 | 66.5 | 64.4 |
+| n | 63.7 | 63.7 | 76.3 | 67.2 |
+
+**And the 0.90 figure is not the serif, which is what I first told him.**
+Removing the top serif entirely still reads **87.5** there; at 70% and 45% of
+its size, 86.8. The rightmost run at 0.90 is the bowl's upper wall MERGED into
+the stem — a join, not a stroke — so no stem or serif lever moves it.
+
+Two other levers, both measured and both inert on this:
+
+* `G_QS_STEM_W`: 1.00 / 0.98 / 0.96 / 0.94 give a right-band ink of 61.0 /
+  60.7 / 59.8 / 58.7 (the d reads 58.2), so 0.94 matches the d overall — but it
+  thins the 0.30–0.50 span that already matched everyone exactly.
+* `G_OPEN_W0` (the tail's root): 0.92 and 0.84 change the band's foot third by
+  **0.0 and +0.2** — nothing.
+
+**So the cause of what he is seeing is not isolated**, and a 98% uniform
+reduction moves the band by 0.3 points. Recorded as an open question rather
+than fitted to a number. `ALBO_G_OPEN_QS_STEM_W` and `_QS_TOP_SCALE` exist and
+are inert at 1.0.
+
+### An instrument note
+
+`_gof` prefixes `ALBO_G_OPEN_`, so these dials are `ALBO_G_OPEN_QS_STEM_W`, not
+`ALBO_G_QS_STEM_W`. A whole ladder came back identical before that was spotted —
+five builds reading exactly the same number is the signature of an env var that
+never arrived, not of a dead dial.
+
+## Round 334 — the hook extended left
+
+Owner: *"extend hook on horizontal axis to the left to increase space inside
+hook and match the visual top loop"*. `ALBO_G_OPEN_TRACE_X` scales the traced
+model's x.
+
+**There is no enclosed area to measure here.** The hook is open, so a flood of
+the white inside it escapes around the outside (613 units wide at every
+setting) and the largest inscribed circle escapes downward (1.5× the counter's
+at every setting). Both were tried; neither means anything. The one figure that
+does is how far left the hook reaches from the counter's centre, against how
+far the counter itself reaches:
+
+| `TRACE_X` | hook reaches left | the counter reaches |
+|---|---|---|
+| 1.00 (built) | **152** | 149 |
+| 1.15 | 198 | 148 |
+| 1.30 | 244 | 149 |
+| 1.45 | 290 | 149 |
+
+**As built the two already match** — 152 against 149. So the hook's space does
+not read smaller because it reaches less far; it reads smaller because it is
+bounded by an open curve rather than a closed ring. Extending it pushes the
+hook past the bowl's own reach, which is a design choice and his eye to make.
+All four are gate-clean.

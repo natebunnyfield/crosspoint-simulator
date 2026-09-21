@@ -1225,6 +1225,14 @@ def _open_bowl(cx, cy, rx, ry, w_scale, floor):
 #     all (the open-g work recorded that as a negative result; it was a symptom
 #     of building the letter out of the wrong part).
 G_OPEN_BUILD = os.environ.get("ALBO_G_OPEN_BUILD", "qstem")   # qstem (round 331) | ring (rounds 326-330)
+# ROUND 333 -- THE RIGHT STROKE'S WIDTH. Owner: *"thin out right stoke to
+# optically match the rest of the word image. might just be 98% reduction but
+# justify it."* It is NOT physically wider than the rest: at half the
+# x-height the g's stem measures 64 units, and so do the u's, the d's and the
+# n's. What is heavier is the ink AROUND it -- see the ladder in
+# docs/albo-sans-g-research-2026-09-21.md round 333.
+G_QS_STEM_W = _gof('qs_stem_w', 1.0)     # the right stroke, x the family's vertical
+G_QS_TOP_SCALE = _gof('qs_top_scale', 1.0)  # the top serif's size, x the family's     # the right stroke, x the family's vertical
 G_QS_CTR_TOP = _gof('qs_ctr_top', 2.0)   # units the counter's TOP rises, by thinning the wall there
 G_QS_CTR_BOT = _gof('qs_ctr_bot', 0.0)   # and its bottom
 G_QS_CTR_ARC = _gof('qs_ctr_arc', 70.0)  # how far round the thinning reaches, degrees
@@ -1271,8 +1279,9 @@ def _g_qstem(c):
         solid, outer, inner = ring(cx, xh / 2, rx, ry)
     solid = solid.intersection(_box(-2000, -1000, edge + 5, 2000))
     y_bot = -desc * G_QS_STEM_Y
-    st = stem(xs, y_bot, xh, top=(None if G_QS_TOP == 'none' else G_QS_TOP),
-              foot=None, ent_span=(y_bot, xh))
+    st = stem(xs, y_bot, xh, w=TH_V * G_QS_STEM_W,
+              top=(None if G_QS_TOP == 'none' else G_QS_TOP),
+              foot=None, ent_span=(y_bot, xh), top_scale=G_QS_TOP_SCALE)
     # --- the hook IS the foot: the traced model hung off the stem's bottom
     root = (xs, y_bot)
     path = _traced_tail(root, desc * G_OPEN_TRACE_DEP, wf, cx)
