@@ -474,11 +474,25 @@ def OPT(d):
 #             target the face already declares for them.
 # ========================================================================
 
+# ROUND 305 -- THE FIGURES' NIB, family-wide. `ALBO_FIG_NIB` = "thin,phi" or
+# "thick,thin,phi" (x the stem) puts EVERY figure ring on a true nib instead of
+# the family's bowl profile, whose 0.70 hair caps a ring near 1.4:1 however it
+# is cut. It exists because the 8 alone on a nib stops matching its own 6 and
+# 0: the nib's thick sits on a diagonal axis and the bowl profile's sits on the
+# vertical, so one figure moves and the rest do not. Unset, nothing changes.
+def _fig_nib():
+    v = os.environ.get('ALBO_FIG_NIB')
+    if not v: return None
+    n = [float(x) for x in v.split(',')]
+    return (1.0, n[0], n[1]) if len(n) == 2 else tuple(n)
+
 def fig_ring(cx, cy, rx_c, ry_c, con=None, oval=None, stress=None, k=None):
     """The figures' ring. `con` / `oval` / `stress` / `k` are the OPTION
     levers; with none of them the roman gets the plain ring it always had and
     the italic round 211's cut and axis, byte for byte."""
     kw = {} if k is None else {'k': k}
+    _n = _fig_nib()
+    if _n is not None: kw['nib'] = _n
     if pen.ITALIC and (FIG_CON != 1.0 or FIG_STRESS or FIG_OVAL):
         return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2,
                     con=FIG_CON if con is None else con,
@@ -486,6 +500,8 @@ def fig_ring(cx, cy, rx_c, ry_c, con=None, oval=None, stress=None, k=None):
                     oval=FIG_OVAL if oval is None else oval, **kw)
     if con is None and stress is None and oval is None and not kw:
         return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2)
+    if _n is not None and oval is None:
+        oval = float(os.environ.get('ALBO_FIG_NIB_OVAL', 1.0))
     return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2,
                 con=1.0 if con is None else con,
                 stress=math.radians(stress or 0.0),
@@ -1770,7 +1786,18 @@ def g_eight(c):
     # on in the same breath, or the counter necks into a kidney -- which this
     # file's own EIGHT_CON note records, measured, at counter_smooth 2, 7 and
     # 14 alike.
-    _ov = FIG_OVAL if pen.ITALIC else _o8.get('oval', 0.0)
+    _ov = E('ALBO_8_OVAL', FIG_OVAL if pen.ITALIC else _o8.get('oval', 0.0))
+    # ROUND 305 -- the roman 8's contrast levers, which were italic-gated with
+    # no way in. `ALBO_8_OVAL` and `ALBO_8_STRESS` now reach both styles (they
+    # default to exactly what each style had), and `ALBO_8_NIB` puts the two
+    # rings on a true nib: "thin,phi" or "thick,thin,phi", x the stem.
+    _st = math.radians(E('ALBO_8_STRESS', math.degrees(_st)))
+    _nib = os.environ.get('ALBO_8_NIB')
+    if _nib:
+        _v = [float(x) for x in _nib.split(',')]
+        _nib = (1.0, _v[0], _v[1]) if len(_v) == 2 else tuple(_v)
+    else:
+        _nib = None
     if _o8.get('written'):
         # ROUND 233 option f -- THE WRITTEN 8. One pen stroke: the upper loop
         # from its lower-right round over the top to its lower-left, a straight
@@ -1812,8 +1839,8 @@ def g_eight(c):
             rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
             rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, k=kk, floor=floor_, rot=rot_up)
             cx = rx2; y2 = -OVER + ry2; y1 = -OVER + 2 * ry2 - bowl_hair() * waist + ry1
-    lo, *_ = ring(cx, y2, rx2, ry2, w_scale=w_lo, k=kk or pen.BOWL_K, floor=floor_, con=con8, counter_smooth=csm, stress=_st, oval=_ov)
-    up, *_ = ring(cx + lean, y1, rx1, ry1, w_scale=w_up, k=kk or pen.BOWL_K, floor=floor_, rot=rot_up, con=con8, counter_smooth=csm, stress=_st, oval=_ov)
+    lo, *_ = ring(cx, y2, rx2, ry2, w_scale=w_lo, k=kk or pen.BOWL_K, floor=floor_, con=con8, counter_smooth=csm, stress=_st, oval=_ov, nib=_nib)
+    up, *_ = ring(cx + lean, y1, rx1, ry1, w_scale=w_up, k=kk or pen.BOWL_K, floor=floor_, rot=rot_up, con=con8, counter_smooth=csm, stress=_st, oval=_ov, nib=_nib)
     return geom.ink([up, lo])
 
 def _fig8_path(cx, yX, a1, b1, a2, b2, psi=None):

@@ -411,7 +411,7 @@ def convex_holes(g):
         out.append(geom.poly(list(poly.exterior.coords), holes))
     return geom.union(out)
 
-def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_smooth=2, a0=0.0, a1=2 * math.pi, con=1.0, stress=0.0, oval=0.0):
+def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_smooth=2, a0=0.0, a1=2 * math.pi, con=1.0, stress=0.0, oval=0.0, nib=None):
     """A full bowl: the OUTER is the designed superellipse (k = squareness);
     the COUNTER is its inward offset by the pen's width at each tangent
     (x w_scale, never under `floor`), smoothed so it reads as a drawn
@@ -439,7 +439,27 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
         _t = [(t[0] * _c - t[1] * _s, t[0] * _s + t[1] * _c) for t in tans]
     else:
         _t = tans
-    ws = [bowl_th(tn) * w_scale for tn in _t]
+    if nib is None:
+        ws = [bowl_th(tn) * w_scale for tn in _t]
+    else:
+        # ROUND 305 -- THE RING ON A TRUE NIB. `bowl_th` is already a function
+        # of the tangent, so the family's bowl IS a pen -- but one whose hair
+        # is 0.70 of its max (profile B, the owner's round-58 ruling), which
+        # caps a ring at about 1.4:1 however it is cut. A nib states its own
+        # thin and its own ANGLE: width = thin + (thick - thin) * |sin(dir -
+        # phi)|, the same law `glyphs/aldine.nib` uses, which is what round 182
+        # put the g's rings on and what round 195 said the 8's rings want.
+        #
+        # It is NOT `con`: con re-spreads the widths a profile already produced,
+        # about their geometric mean, so the thin stays where the profile put it
+        # and only gets thinner -- which is why it dents a counter. A nib moves
+        # WHERE the thin falls, with the stroke's direction.
+        _thick, _thin, _phi = nib
+        ws = []
+        for tn in _t:
+            _d = math.degrees(math.atan2(tn[1], tn[0]))
+            ws.append(S * w_scale * (_thin + (_thick - _thin)
+                                     * abs(math.sin(math.radians(_d - _phi)))))
     if con != 1.0 and ws:
         import math as _m
         gm = _m.exp(sum(_m.log(max(w, 1e-6)) for w in ws) / len(ws))

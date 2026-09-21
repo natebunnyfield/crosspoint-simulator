@@ -2938,3 +2938,56 @@ one constant offset). Collisions unchanged: roman 1 touching (`VI`,
 pre-existing) and 3 under the floor, italic 0 and 0.
 
 Page: `claude.ai/artifact/6bveomeUiBiey7qsxD37i5`.
+
+
+## 45. Round 305 — the roman 8's contrast, and why it cannot have one alone
+
+Owner 2026-09-20: *"improve '8' roman"*. Round 195 named the method and
+declined to do it: put the 8's rings on the pen, as round 182 did the g's.
+Doing it turns up two things the record did not have.
+
+**The family's bowl profile IS already a pen.** `primitives.bowl_th` reads the
+tangent — width = S × (hair + (max − hair) × |sin φ|^pow) — so the 8 is not
+monolinear for want of direction-dependence. It is monolinear because the
+profile's **hair is 0.70 of its max** (profile B, the owner's round-58 ruling),
+which caps any ring near **1.4:1** however it is cut. That is a ruling on the
+whole face, not a fault in the figure.
+
+**And the 8's own hair FLOOR clamps every thin below 0.65 S**, which is why
+round 195's `con` arm measured nothing: `con` 2.1 with an oval counter moved
+the contrast **1.48 → 1.44**. Round 195 tested the floor alone and the profile
+alone; the binding pair is floor AND contrast together, and neither of its two
+arms held both.
+
+### What was built
+
+- `primitives.ring(nib=(thick, thin, phi))` — widths from a TRUE nib, the law
+  `glyphs/aldine.nib` uses, instead of the bowl profile. It is not `con`: con
+  re-spreads the widths a profile already produced, about their geometric mean,
+  so the thin stays where the profile put it (and the counter dents); a nib
+  moves WHERE the thin falls, with the stroke's direction.
+- `ALBO_8_OVAL` and `ALBO_8_STRESS` now reach the ROMAN. Both were italic-gated
+  with no way in, which is why the roman 8 had never been tried with the
+  round-211 recipe that cured the italic's counter.
+- `ALBO_FIG_NIB` puts every figure ring on one nib, family-wide.
+
+### THE FINDING: an 8 on a nib stops matching its own 6 and 0
+
+The nib's thick sits on a **diagonal** axis and the bowl profile's sits on the
+**vertical**. Give the 8 a nib and nothing else, and it gains a real thin and
+an axis no other figure in the row has — visible at 150 px in the arm sheet.
+So the choice is not "how much contrast for the 8" but **whether the figures
+move together**, which is an owner decision and is on the page rather than
+guessed.
+
+Recommended and NOT ruled: the family arm at thin **0.55, φ 50**, floor 0.40.
+It answers the 8 by making the 8 belong. The deeper 0.40 arm reads well at
+150 px and starts to thin past what 13 px holds. The cost is stated: he asked
+about one figure and the recommendation moves ten.
+
+Measured across the ladder (chamfer ridge on the raster, `contrast.py` in the
+session scratch): shipped **1.48**, con 2.1 + oval **1.44**, 8-alone nib 0.55
+**1.67**, family nib 0.55 the same on the 8 with the 0/6/9 moving with it.
+Every arm is opt-in; unset, the build is byte-identical to build 205.
+
+Page: `claude.ai/artifact/UQWkoSJfTSd56ked3KkxgT`.
