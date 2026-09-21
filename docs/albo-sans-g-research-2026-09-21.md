@@ -340,3 +340,13 @@ not read smaller because it reaches less far; it reads smaller because it is
 bounded by an open curve rather than a closed ring. Extending it pushes the
 hook past the bowl's own reach, which is a design choice and his eye to make.
 All four are gate-clean.
+
+**Ruled: 1.14** (owner, *"ship 1.14"*). Built, the hook reaches **195** units
+left of the counter's centre against the counter's 148 — so it carries about a
+third past the bowl's own reach, which is the point: he is matching what the
+open curve and the closed ring LOOK like, not what they measure. It is the
+default for `ALBO_G_OPEN_TRACE_X`; 1.0 rebuilds the traced models untouched.
+
+The shipped roman is unaffected and was checked rather than assumed: a default
+build differs from the previous commit's in **0 of 493 glyph outlines**. The
+open g is still reached only by `ALBO_G_STYLE=open`.

@@ -1057,7 +1057,13 @@ G_OPEN_TAILS = {
 
 G_OPEN_TRACE     = os.environ.get("ALBO_G_OPEN_TRACE", _GO.get('trace', "futura"))
 G_OPEN_TRACE_DEP = float(os.environ.get("ALBO_G_OPEN_TRACE_DEP", 1.0))  # x the face's own descender
-G_OPEN_TRACE_X   = float(os.environ.get("ALBO_G_OPEN_TRACE_X", 1.0))    # widen or narrow the tail's sweep
+# SHIPS AT 1.14. Owner 2026-09-21, after the round-334 ladder: *"ship 1.14"*.
+# The hook reaches 191 units left of the counter's centre where the counter
+# itself reaches 149, so the hook now carries past the bowl's own reach --
+# which is the point: an OPEN curve reads smaller than a closed ring at the
+# same span, and he is matching what the two look like rather than what they
+# measure. 1.0 rebuilds the traced models untouched.
+G_OPEN_TRACE_X   = float(os.environ.get("ALBO_G_OPEN_TRACE_X", 1.14))   # widen or narrow the tail's sweep
 
 
 def _traced_tail(root, dep, wf, cx):
