@@ -32,6 +32,8 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | Which CRT effect covers the PANEL and which covers the whole SCREEN | [docs/whole-glass-crt.md](docs/whole-glass-crt.md) — the enumeration, and why persistence and the beam moved out past the page's edge |
 | What a phosphor trail costs, and what it was spending it on | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) |
 | **HOW to take the scans and the reference fonts and actually draw this face** — the method, and the failure modes that waste days | [docs/albo-method.md](docs/albo-method.md) — the chain (handwriting → metal → Albo) and what each link can and cannot tell you; THE ONE RULE (direction before width — a pen model's width IS a function of where the stroke goes, and `cmp_g_strokes.py` tests it in one command); the five instrument bugs of 2026-09-17, every one of which produced a believable number; why declared TABLES go stale silently; measuring the reader from his own corpus; and an honest account of which rounds were worthless and why. **Read this before drawing anything** |
+| **How the letters are SPACED from the owner's own judgments** — the 396-row bench, the fit, and the six mistakes it cost | [docs/albo-spacing-method.md](docs/albo-spacing-method.md), final section — the bench is built from `tools/wedge_serif/pair_census.py` (every letter pair in his own 36 epubs, 2,007,794 of them), his answers are fitted as ONE ridge-regularised system in each glyph's two bearings, and mean error against his numbers went 13.83 → 8.61 units. **The kern quantum is 1.16 design units on the phone and 2.31 on the X3** — `kern.py` and this repo's docs said 18.5 / 37 until 2026-09-20, which is one whole pixel, and that error was the stated reason the lowercase was never kerned. The white between two glyphs is `rsb + kern + lsb` (`tools/wedge_serif/gap_measure.py`), never the sum of the advances |
+| Which LIGATURES ship, and the ones drawn and refused | [docs/albo-family-2026-09-19.md](docs/albo-family-2026-09-19.md) §47-48 — the roman carries **ff fi fl ffi ffl**, the italic **none** (owner 2026-09-21). `fb fh fj fk` were drawn and rejected on his own corpus (13 occurrences in two million pairs, six inside `Kafka`); `st` and `ct` are drawn, wanted, and not shipped because the join reads as a spur; `Th` shipped for one round and was withdrawn on his eye. **A frequency count says which pairs are worth drawing, never whether a drawing is good** |
 | How SPACING works, and the three measures that got it wrong | [docs/albo-spacing-method.md](docs/albo-spacing-method.md) — the space between letters is judged against the space INSIDE them, and **a letter's own open white belongs to the letter, not to the gap**: the V owns 0.236 em on its right where the o owns 0.019. Minimum white cannot see an open shape; mean gap counts the splay as spacing and drives open pairs shut. Read it before fitting anything, and treat a rule that wants to move 1,317 pairs as a broken rule rather than a finding. **Measure 4 (round 221) is `tools/wedge_serif/cmp_space_2d.py`**: the closest approach in TWO dimensions, by class and side, against seven references — the only one of the four that can see a high mark against a low letter (`'s` returned n/a from every row-wise measure, and round 220 shipped on `s'` instead) |
 | The Albo wedge-serif type exploration (Fjord until 2026-09-13): what the design is, what was ruled, where the font files are, what is next | [docs/wedge-serif-exploration.md](docs/wedge-serif-exploration.md) — STATE section first; the dated log after it. Code map, build steps, limits: [tools/wedge_serif/README.md](tools/wedge_serif/README.md). **How to draw a glyph that belongs** (the pen, the serif family, the proportions and rulings, the judging loop): [docs/fjord-glyph-guide.md](docs/fjord-glyph-guide.md) |
 | How a LOCAL model (LM Studio, Gemma 4) picks up the Albo rounds offline | [docs/albo-local-model-handoff.md](docs/albo-local-model-handoff.md) — the prompt, the reading order, the round loop, the state at round 81 |
@@ -510,6 +512,23 @@ front-cluster arrows. When a layout ask says "move the buttons", confirm which
 cluster and which board profile before touching geometry.
 
 **`SDL_PushEvent` cannot drive `SDL_GetKeyboardState`** — measured, not assumed. A pushed key event reaches the queue, so edge reads (`wasPressed`/`wasReleased`, which `update()` sets straight from the event) work; but SDL's internal keyboard state array is only written on the real-input path, so level reads (`isPressed`, `anyButtonHeld`, `powerHoldDuration`) stay false for injected keys. `powerHoldDuration()` returns 0 at its early exit, so long-press power-off never fires. Anything driving the simulator synthetically must either use the `CROSSPOINT_SIM_INPUT_SCRIPT` path (which writes `syntheticButtonDown[]` directly) or extend `HalGPIO` with a live injection API. See [ios/README.md](ios/README.md).
+
+**iPHONE MIRRORING CLICKS ARE NOT FINGERS, and the bridge is one hint.**
+Mirroring delivers a click to the phone as `UITouchTypeIndirectPointer` — the
+touch type an iPad reports for a trackpad — and SDL3's UIKit backend treats that
+type as a MOUSE: `touchesBegan:`/`touchesEnded:`/`touchesMoved:` divert it to
+`indirectPointerPressed:`/`Released:`/`Moving:`, which send
+`SDL_SendMouseButton`/`SDL_SendMouseMotion`, and then `continue` — so **no
+`SDL_EVENT_FINGER_*` is emitted for it at all**. `padWatch` handles only finger
+events, so what makes the pad work under Mirroring is SDL's own mouse→touch
+synthesis (`SDL_HINT_MOUSE_TOUCH_EVENTS`, whose SDL default on iOS is already
+true), which the harness had set to `"0"` from its first day — S-041, the
+neighbouring touch→mouse comment applied to the opposite direction. The two
+hints must stay opposite: mouse→touch ON (Mirroring), touch→mouse OFF (or a real
+finger is also delivered to `HalGPIO`'s mouse branch, the X4 Pro digitizer).
+`tests/pointer_touch_hints_test.py` is the gate. The failure is easy to
+misread, because the UIKit recognizers take indirect pointer natively: gestures
+keep working while every button dies, which looks like a hit-test bug.
 
 **Host keyboards reach the firmware's text fields.** The X3 has no keyboard, so
 firmware text entry pecks characters out of an on-screen grid; `HalGPIO` also

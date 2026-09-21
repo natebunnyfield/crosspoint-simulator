@@ -1,6 +1,34 @@
 # Wedge-serif exploration ("Albo", named round 58; "fjord" until then)
 
-## STATE (read this first; each bullet is dated, the newest 2026-09-17; the log below is history)
+## STATE (read this first; each bullet is dated, the newest 2026-09-21; the log below is history)
+
+- **SPACING IS FITTED FROM HIS OWN BENCH, 2026-09-21 (rounds 299-310).** A
+  396-row interactive bench (`claude.ai/artifact/VCbkYNuYmZgV2m5Udd6ruy`) built
+  from a census of his own 36 epubs -- `tools/wedge_serif/pair_census.py`,
+  94.7% of every letter pair in them -- carries one real English word per pair
+  with a slider whose zero is what ships. He has judged **329 of 396**. The
+  answers are fitted as ONE ridge-regularised linear system in each glyph's two
+  bearings (`bench_values.json`, the tables in `outlines/build.py`), with the
+  marks solved from their own readings and the capitals corrected for the
+  following letter. Mean |error| against his numbers: **13.83 -> 8.61 units**,
+  about half a phone pixel. Method, and the four instrument bugs it cost:
+  `docs/albo-spacing-method.md`, final section. **The kern quantum stated
+  elsewhere in this file was wrong by 16x and is corrected below.**
+- **THE ROMAN 8 IS CLOSED, 2026-09-20 (owner: "leave 8 as is").** Rounds 305-306
+  built what it would need -- `ring(nib=...)` for a true nib, `ALBO_8_OVAL` /
+  `ALBO_8_STRESS` reaching the roman, `ALBO_FIG_NIB` for the whole figure
+  family -- and measured why `con` alone cannot work (the hair floor clamps
+  every thin below 0.65 S). An 8 on a nib stops matching its own 6 and 0 unless
+  the family moves with it. All levers are opt-in and inert; the letter is
+  unchanged. Do not re-propose contrast for it.
+- **LIGATURES, 2026-09-21 (rounds 309-310).** The ITALIC has none -- its
+  `liga` feature is empty, its FB00-FB04 glyphs still drawn and encoded. The
+  ROMAN carries **ff fi fl ffi ffl** and nothing else: `fb fh fj fk` were drawn
+  and rejected on the corpus (13 occurrences in two million pairs, six inside
+  `Kafka`), `st` and `ct` are drawn and NOT shipped because the joining arc
+  reads as a spur rather than a span, and `Th` shipped for one round and was
+  withdrawn on his eye. Every rejected glyph stays behind its codepoint
+  (U+E000-E005, U+FB06).
 
 - **STATIC REGULAR 400, 2026-09-14 (round 95, owner):** "switch to making a
   non-variable 400 regular weight font with improved kerning and ligatures."

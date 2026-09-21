@@ -763,3 +763,83 @@ as "capita ls", *the* as "t he" and *between* as "bet ween".
 The face's rhythm is CONSISTENT even where it is loose, and consistency is
 worth something. This is a ruling, not a deferral: the tracking stops
 appearing in triage, and the four words stay as they are.
+
+
+## The bench, 2026-09-20/21 (rounds 299-310): fitting from the owner's own eye
+
+Everything above is about measuring space. This section is about the other
+half — **asking him**, at scale, and turning the answers into bearings without
+the three mistakes that took the first six attempts.
+
+### The instrument
+
+`claude.ai/artifact/VCbkYNuYmZgV2m5Udd6ruy` — 396 rows, each a real English
+word opened at ONE pair, with a slider in thousandths of an em whose **zero is
+what ships**. The rows are not chosen by taste: `tools/wedge_serif/pair_census.py`
+counts every letter pair across his own 36 epubs (2,007,794 pairs) and the
+bench carries the ones that matter — lowercase at 1,200+ occurrences,
+capital+lowercase where the capital's shape changes the meeting, marks at 400+.
+94.7% of every letter meeting in his books. Roman and italic are judged
+separately and stored separately.
+
+### The four instrument bugs, each of which produced a believable number
+
+1. **A mislabelled row.** `away` was opened at the wrong index: the row said
+   `w a` and rendered `a y`. Found by rebuilding every row's label from its own
+   index and comparing — one of eighteen. A bench that renders a pair is not
+   the same thing as a table that names one.
+2. **The apostrophe pair missed its own glyph.** The bench renders U+0027 and
+   the table keyed U+2019, so the largest correction in the whole bench landed
+   on a glyph the page never drew — and it was invisible in the class arm,
+   whose `quote` class holds both.
+3. **The verification summed ADVANCES.** The white between two glyphs is
+   `rsb(a) + kern + lsb(b)`; summing the two advances counts the right glyph's
+   far side, read the apostrophe's two bearings as one (−77 for a −44 change)
+   and made every correct italic pair look 8 units wrong.
+   `tools/wedge_serif/gap_measure.py` is the honest measure.
+4. **The device quantum was wrong by 16x** in `kern.py` and in this repo's own
+   docs — 18.5 units is ONE PIXEL, and `fontconvert_sdcard.py` stores kerns in
+   4.4 fixed point, so the quantum is **1.16 design units on the phone** and
+   2.31 on the X3. It was the stated reason the lowercase was never kerned.
+
+### The three modelling mistakes, in the order they were made
+
+- **Fitting the letters and the marks separately.** Each half absorbed the
+  other's error, so a richer letter table made the marks WORSE (roman marks
+  7.8 -> 10.4 mean |error| while the lowercase improved).
+- **Treating a class mean as a finding.** The italic lowercase read +8.3 on 17
+  judgments with sd 7.9 — the most solid-looking number in the decomposition —
+  and +1.4 on 54. It was withdrawn, not retuned.
+- **Adding a complete model to the constants it replaced.** The joint fit was
+  first added on top of the hand-solved marks and double-counted every one of
+  them (the apostrophe reached −80).
+
+### What it settled on
+
+**One linear system.** Each judgment says "the white in this pair should change
+by d", and a pair's white is the left glyph's right bearing plus the right
+glyph's left bearing, so 329 judgments are one ridge-regularised least-squares
+problem in those two unknowns per glyph. A glyph side ships only on 4+ readings
+and 4+ units. The marks are solved directly from their own readings (the ridge
+shrinks a five-reading mark toward zero and a mark's own readings are the
+strongest evidence in the bench), and the capitals are corrected pair by pair
+for the following letter's new left bearing.
+
+Mean |error| against his own numbers, over all 329: **13.83 (build 205) ->
+10.54 (separate fits) -> 8.61 (joint)**, about half a phone pixel.
+
+### How this stands beside the round-258 ruling
+
+Round 258 measured a whole-lowercase TRACKING move and he ruled *"Leave the
+tracking alone"*. That ruling stands and is not touched here: nothing above is
+a uniform move. What the bench produced is a **per-letter table from his own
+judgments** — the roman's rounds open and its `t` closes, the italic's `e`
+closes and its diagonals open — which is a different proposition from adding
+white to every pair in the face. Do not cite this section to re-open tracking.
+
+### And the rule the ligature round added
+
+A frequency count says which pairs are worth DRAWING, never whether a drawing
+is good. `Th` is the second commonest sequence in his books, shipped on that
+count, and was withdrawn the same day on his eye. **Measure to choose what to
+attempt; render to decide what ships.**
