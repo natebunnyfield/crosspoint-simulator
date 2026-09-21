@@ -599,3 +599,49 @@ at 180). `plain` still builds the letter that shipped up to round 324.
 Verified on the default build: the `g` raises no `cmp_contour_hairs.py`
 finding, and the whole-face `--letters` sweep returns the same rows it did
 before the change — no new fault anywhere else in the roman.
+
+## Round 326 — the reverse bend, traced and then recreated
+
+2026-09-21. Owner: *"trace the italic g and circle the reverse bend halfway
+between loops. then recreate that in the roman g"*.
+
+### The trace
+
+By CONNECTIVITY, not by skeleton: start at the row under the bowl counter's
+floor, take the ink run beneath that counter's centre, then step down taking
+the run that OVERLAPS the previous one (`scratchpad/gtrace.py::neck_connect`).
+A skeleton of the band between the counters picks up the bowl's floor and the
+loop's roof as well and reads six curvature sign flips, none of them the
+feature.
+
+Centre x against depth, in design units, from the connector's first row:
+
+| | leftmost | at t | end |
+|---|---|---|---|
+| the italic | −97 | **0.49** | −22 |
+| Flanker | −117 | **0.46** | −35 |
+| the roman, round 325 | −161 | **0.94** | −26 |
+| **the roman now** | **−84** | **0.55** | −5 |
+
+**The roman had no reverse bend at all.** Its leftmost point was at 94% of the
+way down — it dived left and kept going, a one-way diagonal. The two reference
+letters reach their leftmost near HALFWAY and sweep back.
+
+### The cause was the entry angle, not the dive
+
+`G_BENT_TO` was 163 degrees, which IS the loop's far left: a path ending there
+can only keep going left, and there is nothing to reverse. The reference
+letters enter near the loop's TOP. At **105 degrees with the dive at 0.60** the
+roman reads −84 at t 0.55. Deeper dives do not help — at 0.72 the cubic folds
+and the leftmost jumps back to t 0.92.
+
+The shoulder cut follows the entry: with the connector landing at 105 the loop's
+mass sits at **120 degrees**, not the 150 it sat at when the neck came down the
+loop's left side, so `G_BENT_TOP_AT` moves with it. The mass is lighter for
+free — 49 units at 120 against 63 at 150 before.
+
+Verified on the default build: the `g` raises no `cmp_contour_hairs.py`
+finding and the whole-face `--letters` sweep returns the same rows as before.
+
+Page: `claude.ai/artifact/` — round 326 figure, the trace drawn on each letter
+with the reversal circled.

@@ -737,17 +737,29 @@ G_BENT_PHI = float(os.environ.get("ALBO_G_BENT_PHI", 0.0))
 # top, this one dives left and enters at G_BENT_TO. The mass is where the
 # connector lands, so that is where the cut goes.
 G_BENT_TOP_W = float(os.environ.get("ALBO_G_BENT_TOP_W", 0.65))   # x the ring's own width, at the shoulder; 79 -> 63 units at 150 deg
-G_BENT_TOP_AT = float(os.environ.get("ALBO_G_BENT_TOP_AT", 150.0))  # where that cut is centred, degrees
+# Follows the entry: with the connector landing at 105 the mass sits at 120,
+# not the 150 it sat at when the neck came in down the loop's left side.
+G_BENT_TOP_AT = float(os.environ.get("ALBO_G_BENT_TOP_AT", 120.0))  # where that cut is centred, degrees
 G_BENT_TOP_ARC = float(os.environ.get("ALBO_G_BENT_TOP_ARC", 85.0))  # and how far it reaches
 G_BENT_FROM = float(os.environ.get("ALBO_G_BENT_FROM", 256.0))  # the neck leaves the bowl here
-G_BENT_TO = float(os.environ.get("ALBO_G_BENT_TO", 163.0))      # and enters the loop here
+# ROUND 326 -- THE ENTRY ANGLE IS WHAT MAKES THE REVERSE BEND, and 163 could
+# not. Traced by connectivity (the row under the bowl counter, then the
+# overlapping run down), the connector's centre x against depth reads:
+#   italic   leftmost -97 at t 0.49, back to -22   <- an S
+#   Flanker  leftmost -117 at t 0.45, back to -35  <- an S
+#   roman    leftmost -161 at t 0.94               <- a one-way diagonal
+# Entering at 163 degrees IS the loop's far left, so the path can only keep
+# going left and there is nothing to reverse. The reference letters enter near
+# the loop's TOP, dive left halfway down and sweep back. At 105 with the dive
+# at 0.60 the roman reads leftmost -84 at t 0.52.
+G_BENT_TO = float(os.environ.get("ALBO_G_BENT_TO", 105.0))      # and enters the loop here
 # 0.42 was the first value and it FAILS the contour gate: the diving neck
 # grazes the loop's outer left edge and leaves a HAIR at (107, 9) -- a
 # reversal past 150 degrees with a sub-8-unit arm, which the plain g does not
 # have. 0.36 clears it, and so does entering the loop at 172 instead of 163;
 # the dive is the cheaper of the two because the entry angle is what gives
 # the elbow its shape.
-G_BENT_DIVE = float(os.environ.get("ALBO_G_BENT_DIVE", 0.36))   # how far LEFT it dives, x the gap
+G_BENT_DIVE = float(os.environ.get("ALBO_G_BENT_DIVE", 0.60))   # how far LEFT it dives, x the gap
 G_BENT_DROP = float(os.environ.get("ALBO_G_BENT_DROP", 0.52))   # and how far down before it turns
 
 
