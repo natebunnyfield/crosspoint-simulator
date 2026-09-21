@@ -513,22 +513,33 @@ cluster and which board profile before touching geometry.
 
 **`SDL_PushEvent` cannot drive `SDL_GetKeyboardState`** — measured, not assumed. A pushed key event reaches the queue, so edge reads (`wasPressed`/`wasReleased`, which `update()` sets straight from the event) work; but SDL's internal keyboard state array is only written on the real-input path, so level reads (`isPressed`, `anyButtonHeld`, `powerHoldDuration`) stay false for injected keys. `powerHoldDuration()` returns 0 at its early exit, so long-press power-off never fires. Anything driving the simulator synthetically must either use the `CROSSPOINT_SIM_INPUT_SCRIPT` path (which writes `syntheticButtonDown[]` directly) or extend `HalGPIO` with a live injection API. See [ios/README.md](ios/README.md).
 
-**iPHONE MIRRORING CLICKS ARE NOT FINGERS, and the bridge is one hint.**
-Mirroring delivers a click to the phone as `UITouchTypeIndirectPointer` — the
-touch type an iPad reports for a trackpad — and SDL3's UIKit backend treats that
-type as a MOUSE: `touchesBegan:`/`touchesEnded:`/`touchesMoved:` divert it to
-`indirectPointerPressed:`/`Released:`/`Moving:`, which send
-`SDL_SendMouseButton`/`SDL_SendMouseMotion`, and then `continue` — so **no
-`SDL_EVENT_FINGER_*` is emitted for it at all**. `padWatch` handles only finger
-events, so what makes the pad work under Mirroring is SDL's own mouse→touch
-synthesis (`SDL_HINT_MOUSE_TOUCH_EVENTS`, whose SDL default on iOS is already
-true), which the harness had set to `"0"` from its first day — S-041, the
-neighbouring touch→mouse comment applied to the opposite direction. The two
-hints must stay opposite: mouse→touch ON (Mirroring), touch→mouse OFF (or a real
-finger is also delivered to `HalGPIO`'s mouse branch, the X4 Pro digitizer).
-`tests/pointer_touch_hints_test.py` is the gate. The failure is easy to
-misread, because the UIKit recognizers take indirect pointer natively: gestures
-keep working while every button dies, which looks like a hit-test bug.
+**iPHONE MIRRORING DOES NOT RECEIVE CLICKS, AND THE CAUSE IS NOT KNOWN — S-041,
+open.** Read the entry before touching input, because the obvious diagnosis is
+wrong and it is convincing. It goes: Mirroring delivers a click as
+`UITouchTypeIndirectPointer`; SDL3's UIKit backend diverts that touch type to
+`SDL_SendMouseButton` and `continue`s without emitting any `SDL_EVENT_FINGER_*`;
+`padWatch` handles only finger events; so the fix is SDL's mouse→touch bridge.
+All four statements are true against the sources and the chain still never runs,
+because **UIKit only reports that touch type to an app declaring
+`UIApplicationSupportsIndirectInputEvents`, and this bundle does not declare
+it** — without the key UIKit's compatibility mode hands pointer input over as
+ordinary DIRECT touches. SDL says so in `SDL_InitGCMouse`
+(`src/video/uikit/SDL_uikitevents.m`). Do not add that key to make the theory
+true: it also connects GCMouse, which silences
+`indirectPointerPressed:`/`Released:` at their `if (!SDL_HasMouse())` guards and
+moves clicks onto a background dispatch queue, i.e. `padHitTest` → `PadCore` →
+`injectButtonDown` off the main thread.
+
+What exists instead is `traceInput` at the top of `padWatch`: the first 24
+finger and pointer-button events with the state that decides each one's fate
+(direct vs synthesized-from-pointer, finger id, position, `zen` / `asleep` /
+`sheet` / concurrent fingers), written to `diagnostics/firmware.log`. Its budget
+is spent only on a line the sink actually writes, because `firmwarelog::hostLine`
+drops text with no buffering while the Diagnostics Log switch is off. The two
+touch/mouse hints must stay opposite — mouse→touch ON (SDL's iOS default; inert
+today, needed the day that key is added), touch→mouse OFF (or a real finger is
+also delivered to `HalGPIO`'s mouse branch, the X4 Pro digitizer) — and
+`tests/pointer_touch_hints_test.py` is the gate.
 
 **Host keyboards reach the firmware's text fields.** The X3 has no keyboard, so
 firmware text entry pecks characters out of an on-screen grid; `HalGPIO` also

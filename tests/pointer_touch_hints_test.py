@@ -1,26 +1,32 @@
 #!/usr/bin/env python3
-"""The two touch/mouse hints, and why one of them carries iPhone Mirroring.
+"""The two touch/mouse hints point opposite ways, and one of them is a trap.
 
-iPhone Mirroring delivers a click to the phone as UITouchTypeIndirectPointer.
-SDL3's UIKit backend intercepts that touch type in touchesBegan/Ended
-(SDL_uikitview.m), hands it to indirectPointerPressed/Released -- which emits
-SDL_SendMouseButton -- and `continue`s, so NO SDL_EVENT_FINGER_DOWN is ever
-emitted for it. ios/CrossPointIOSShim.cpp's padWatch handles only
-SDL_EVENT_FINGER_*, so the pad, the tap candidate, the zen verb classifier,
-the keyboard chip and the read-aloud tap all go dead under Mirroring unless
-SDL's own mouse->touch synthesis is left on. The UIKit gesture recognizers
-take indirect pointer natively, so the failure looks like an app that answers
-gestures and ignores every button -- not like an app with dead input.
+TOUCH -> MOUSE must stay OFF: with it on, SDL synthesizes a mouse event from
+every real finger, and HalGPIO consumes mouse events (its
+SDL_EVENT_MOUSE_BUTTON_DOWN branch feeds beginTouch, the X4 Pro digitizer).
 
-The harness shipped SDL_HINT_MOUSE_TOUCH_EVENTS = "0" from its first day,
-disabling exactly that bridge. It was the neighbouring TOUCH_MOUSE comment
-applied to the opposite direction.
+MOUSE -> TOUCH must stay ON. It is SDL's own iOS default, and it is the only
+way an INDIRECT POINTER can ever reach padWatch, which handles no mouse event:
+SDL_uikitview.m diverts a UITouchTypeIndirectPointer touch to
+indirectPointerPressed -> SDL_SendMouseButton and `continue`s, emitting no
+SDL_EVENT_FINGER_* for it, and SDL_mouse.c's mouse->touch synthesis is what
+turns it back into one.
+
+It is INERT on this bundle today and the test is kept anyway. UIKit only
+reports that touch type to an app declaring
+UIApplicationSupportsIndirectInputEvents, which ios/Info.plist.in does not;
+without it, pointer input arrives as ordinary direct touches and there is no
+mouse event to convert (SDL says so itself in SDL_InitGCMouse). So this pins
+correctness for the day that key is added -- and, more immediately, it pins the
+"0" that sat in MOUSE_TOUCH from the harness's first day out of the tree. That
+"0" was the TOUCH_MOUSE comment beside it applied to the opposite direction,
+and it is exactly the confusion this test exists to catch: the two hint names
+differ by one word, both values compile, both link, and both look identical on
+glass to a finger. See BUGS.md S-041, which is OPEN -- the Mirroring report
+that produced this file is NOT explained by it.
 
 Source-level, like chip_tint_source_test.py and tap_dispatch_source_test.py:
-the real check needs a Mac, an iPhone and Mirroring, and the failure mode is
-silent -- both values compile, both link, and both look identical on glass to
-a finger. The directions are also one character apart in the hint name, which
-is how they were confused once already.
+the real check needs a Mac, an iPhone and Mirroring.
 """
 
 import pathlib

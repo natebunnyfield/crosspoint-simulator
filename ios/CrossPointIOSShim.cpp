@@ -147,6 +147,7 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
 #include "PadPalette.h"
 #include "PanelPalette.h"
 #include "SimHostScreen.h"
+#include "FirmwareLogFile.h"
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorOverlay.h"
 
@@ -3069,50 +3070,76 @@ void zenPreWarmLayout() {
     layoutPad(static_cast<int>(outW), static_cast<int>(outH));
 }
 
-// WHICH INPUT PATH IS LIVE, said once per launch, in the log the owner can
-// actually reach (diagnostics/firmware.log, armed by the Settings.app
-// Diagnostics Log switch). It exists because S-041 took a session to find and
-// the whole question is one bit: did a pointer click arrive, and did it become
-// a finger?
+// THE INPUT TRACE: the first few events padWatch is handed, with the state
+// that decides what happens to each one. It exists because the iPhone
+// MIRRORING report (S-041) cost a session to a wrong premise, and every
+// candidate cause for it -- a pointer that never becomes a finger, a firmware
+// that is already asleep, a zen page with no pad, a sheet holding the touch
+// gate -- is invisible from the outside and indistinguishable from the others.
+// One session of clicking answers all of them at once.
 //
-//   mouse seen + finger(synthesized)  -> iPhone Mirroring or a trackpad,
-//                                        working through SDL's mouse->touch
-//                                        bridge
-//   mouse seen, NO finger line        -> the bridge is off again (S-041); the
-//                                        pad is dead and gestures still work
-//   finger(direct) only               -> an ordinary finger on the glass
-//   neither                           -> nothing is reaching SDL at all, and
-//                                        the fault is above this file
+// Read it like this. NO LINE AT ALL for a click means nothing reached SDL, and
+// the fault is above this file. A "POINTER button" line with no "finger" line
+// means the click arrived as an indirect pointer and SDL's mouse->touch bridge
+// is off. A "finger down" line means input is fine and the state on the same
+// line says who ate it -- `asleep=1` (only POWER wakes it, or in zen any
+// finger), `zen=1` (there is no pad to hit), `sheet=1` (a colour drawer owns
+// every touch).
 //
-// Once per PROCESS, not per launch of the sleep loop: the iOS reboot longjmps
-// back through here with statics intact, and a line per wake would bury the
-// one that matters. Purely observational -- no mouse event is acted on here,
-// because SDL has already synthesized the finger that is.
-void notePointerPath(const SDL_Event *e) {
-  static bool loggedFinger = false;
-  static bool loggedMouse = false;
-  if (!loggedFinger && e->type == SDL_EVENT_FINGER_DOWN) {
-    loggedFinger = true;
+// Two details that are not decoration. The budget is spent ONLY on a line the
+// sink actually writes, because `firmwarelog::hostLine` DROPS text with no
+// buffering while the Diagnostics Log switch is off -- a one-shot that fired
+// into a closed sink would be spent before the owner ever armed it, and its
+// absence would then read as "no input", which is exactly the wrong answer. And
+// the budget is not reset across the iOS longjmp reboot (it is deliberately not
+// in src/SimulatorRebootResets.h): a wake is not a new question, and re-arming
+// per wake would bury the first session's answer.
+void traceInput(const SDL_Event *e) {
+  static int budget = 24;
+  if (budget <= 0) return;
+
+  const char *what = nullptr;
+  bool finger = false;
+  switch (e->type) {
+    case SDL_EVENT_FINGER_DOWN:     what = "finger down";     finger = true; break;
+    case SDL_EVENT_FINGER_UP:       what = "finger up";       finger = true; break;
+    case SDL_EVENT_FINGER_CANCELED: what = "finger CANCELED"; finger = true; break;
+    case SDL_EVENT_MOUSE_BUTTON_DOWN: what = "POINTER button down"; break;
+    case SDL_EVENT_MOUSE_BUTTON_UP:   what = "POINTER button up";   break;
+    default: return;  // motion is too chatty to be worth a line
+  }
+
+  // Spend nothing while the sink is closed; see above.
+  if (!firmwarelog::armed()) return;
+  --budget;
+
+  const int sheet = (CrossPointMixer_isPresented() ||
+                     CrossPointInkPicker_isPresented()) ? 1 : 0;
+  const int asleep = SimulatorOverlay::firmwareAsleep() ? 1 : 0;
+  if (finger) {
+    // touchID distinguishes a real finger from one SDL synthesized out of a
+    // pointer; SDL_MOUSE_TOUCHID is the virtual device the mouse->touch bridge
+    // reports on.
     const bool synth = e->tfinger.touchID == SDL_MOUSE_TOUCHID;
-    SDL_Log("[input] first finger: touchID %llu -- %s",
-            static_cast<unsigned long long>(e->tfinger.touchID),
-            synth ? "SYNTHESIZED FROM A POINTER (iPhone Mirroring or a "
-                    "trackpad); the mouse->touch bridge is live"
-                  : "a direct touch on the glass");
-  } else if (!loggedMouse && (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-                              e->type == SDL_EVENT_MOUSE_BUTTON_UP)) {
-    loggedMouse = true;
-    SDL_Log("[input] first pointer button: this session is being driven by an "
-            "indirect pointer. A '[input] first finger' line must follow it, "
-            "or SDL_HINT_MOUSE_TOUCH_EVENTS is off and the pad is dead "
-            "(S-041).");
+    SDL_Log("[input] %s  %s  id=%lld  norm=%.3f,%.3f  zen=%d asleep=%d "
+            "sheet=%d fingers=%d",
+            what, synth ? "SYNTHESIZED-FROM-POINTER" : "direct-touch",
+            static_cast<long long>(e->tfinger.fingerID), e->tfinger.x,
+            e->tfinger.y, g_zen ? 1 : 0, asleep, sheet,
+            g_zenVerbs.activeFingers());
+  } else {
+    SDL_Log("[input] %s  button=%d at %.1f,%.1f  zen=%d asleep=%d sheet=%d "
+            "-- a finger line must accompany this one, or SDL's mouse->touch "
+            "bridge is off and padWatch sees nothing",
+            what, static_cast<int>(e->button.button), e->button.x, e->button.y,
+            g_zen ? 1 : 0, asleep, sheet);
   }
 }
 
 bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
   float outW = 0, outH = 0;
 
-  notePointerPath(e);
+  traceInput(e);
 
   switch (e->type) {
     case SDL_EVENT_FINGER_DOWN: {
@@ -3655,27 +3682,34 @@ void CrossPointHarness_begin() {
   // feeds beginTouch, the X4 Pro digitizer).
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
 
-  // MOUSE -> TOUCH stays ON, and the direction is the whole point: this is the
-  // one that carries iPhone MIRRORING. Mirroring delivers a click as
-  // UITouchTypeIndirectPointer, and SDL_uikitview.m's touchesBegan/Ended
-  // intercept that type, hand it to indirectPointerPressed/Released -- which
-  // sends SDL_SendMouseButton -- and `continue`, so NO SDL_EVENT_FINGER_DOWN
-  // is ever emitted. padWatch below handles only SDL_EVENT_FINGER_*, so with
-  // this synthesis off the pad, the tap candidate, the zen verb classifier,
-  // the keyboard chip and the read-aloud tap are all dead under Mirroring
-  // while the UIKit recognizers (which take indirect pointer natively) go on
-  // working -- an app that answers gestures and ignores every button.
+  // MOUSE -> TOUCH is ON, which is SDL's own iOS default (SDL_mouse.c,
+  // SDL_MouseTouchEventsChanged). It is stated rather than left implicit
+  // because a "0" sat here from the harness's first day -- the comment above
+  // applied to the opposite direction -- and a "0" here would throw away every
+  // finger SDL synthesises from a pointer, which is the only way an indirect
+  // pointer can ever reach padWatch (padWatch handles no mouse event).
   //
-  // SDL's own default on iOS is already true (SDL_mouse.c
-  // SDL_MouseTouchEventsChanged), so this line only re-states it; it is
-  // explicit because a "0" sat here, disabling it, from the harness's first
-  // day. That "0" was the TOUCH_MOUSE comment above applied to the wrong
-  // hint: it defends against nothing, because with touch->mouse off there are
-  // no synthetic mouse events to loop back, and before Mirroring there were no
-  // real ones on a phone either.
+  // BE HONEST ABOUT WHAT THIS DOES TODAY: on this bundle it is INERT, and the
+  // reason is one missing Info.plist key. SDL's indirect-pointer path
+  // (SDL_uikitview.m touchesBegan -> indirectPointerPressed -> SDL_SendMouseButton)
+  // only ever runs when UIKit reports touch.type == UITouchTypeIndirectPointer,
+  // and UIKit only reports that for an app declaring
+  // UIApplicationSupportsIndirectInputEvents. ios/Info.plist.in does NOT
+  // declare it, so UIKit runs its compatibility mode and hands pointer input
+  // over as ORDINARY DIRECT TOUCHES -- SDL emits no mouse event at all, and
+  // there is nothing for this hint to convert. SDL says so itself, in
+  // SDL_InitGCMouse: "iOS will not send the new pointer touch events if you
+  // don't have this key."
   //
-  // Safe on X3: the synthesised finger reaches HalGPIO as a finger, and its
-  // mouse branch is guarded by BoardConfig::hasTouch(), which is false here.
+  // So this line is correctness kept for the day the key is added, not a fix
+  // for the Mirroring report. DO NOT add that key to make this line matter
+  // without measuring first: declaring it also connects GCMouse, which makes
+  // SDL_HasMouse() true, which makes indirectPointerPressed/Released no-ops at
+  // their own `if (!SDL_HasMouse())` guards -- clicks would then arrive from
+  // OnGCMouseButtonChanged on a BACKGROUND dispatch queue, and padHitTest ->
+  // PadCore -> injectButtonDown would be running off the main thread. What the
+  // input actually does under Mirroring is a question for traceInput above,
+  // not for another plausible patch. S-041.
   SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
 
 

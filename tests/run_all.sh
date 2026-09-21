@@ -180,16 +180,17 @@ run sleep_touch \
 run_direct tap_dispatch_source \
   python3 tests/tap_dispatch_source_test.py
 
-# iPHONE MIRRORING. A click arrives on the phone as UITouchTypeIndirectPointer,
-# which SDL's UIKit backend turns into a MOUSE button and never into a finger
-# (SDL_uikitview.m touchesBegan -> indirectPointerPressed -> continue). padWatch
-# handles only SDL_EVENT_FINGER_*, so the bridge that makes Mirroring work at
-# all is SDL's mouse->touch synthesis -- which the harness disabled, with "0",
-# from its first day. Its neighbour TOUCH_MOUSE must stay "0" for the opposite
-# reason: HalGPIO consumes mouse events, so a real finger delivered both ways
-# reaches the X4 Pro digitizer as well as the pad. Two hints, one character
-# apart, pointing opposite ways; both values compile and both look right to a
-# finger on glass, so the drift is invisible without this.
+# THE TWO TOUCH/MOUSE HINTS, which point opposite ways and are one word apart.
+# TOUCH_MOUSE must stay "0" or a real finger is delivered twice -- once to
+# padWatch, once to HalGPIO's mouse branch (the X4 Pro digitizer). MOUSE_TOUCH
+# must stay "1", SDL's own iOS default: padWatch handles no mouse event, so
+# SDL's mouse->touch synthesis is the only way an indirect pointer could ever
+# reach it. A "0" sat in MOUSE_TOUCH from the harness's first day -- the
+# TOUCH_MOUSE comment beside it applied to the opposite direction. It is inert
+# on this bundle (no UIApplicationSupportsIndirectInputEvents, so UIKit never
+# reports that touch type), which is precisely why nothing else would catch it:
+# both values compile, both link, and both look identical to a finger on glass.
+# BUGS.md S-041 is OPEN; this test does not close it.
 run_direct pointer_touch_hints \
   python3 tests/pointer_touch_hints_test.py
 
