@@ -14,6 +14,18 @@
   about half a phone pixel. Method, and the four instrument bugs it cost:
   `docs/albo-spacing-method.md`, final section. **The kern quantum stated
   elsewhere in this file was wrong by 16x and is corrected below.**
+- **A BENT ROMAN g EXISTS AND IS NOT SHIPPED, 2026-09-21 (round 324).** Owner:
+  *"make a roman version of this, but reduce the lower loop top heaviness"*.
+  `ALBO_G_STYLE=bent` in `stems.py` (default `plain`, unchanged): the italic's
+  wide shallow loop and diving bent connector rebuilt on the ROMAN's pen,
+  loop/bowl 1.34 w and 0.79 h against Flanker's 1.53/0.79. `ALBO_G_BENT_TOP_W`
+  cuts the loop's shoulder where the connector lands -- **150 degrees, not the
+  55 the reference italics would suggest**, because their neck enters the loop's
+  top and this one enters its upper left. Two negative results in
+  `docs/albo-g-anatomy.md` round 324: `ALBO_G_BENT_PHI` CANNOT rotate the ring's
+  stress (the family's bowl profile keys off how vertical the tangent is, not a
+  nib angle) and is left at 0; and a dive of 0.42 fails the contour gate with a
+  HAIR at (107, 9) that the plain g does not have, so the default is 0.36.
 - **THE ITALIC g IS THE BENT ONE AGAIN, 2026-09-21 (round 323).** Owner: *"there
   was a recent earlier version of italic g with a bend, find and use that"*.
   `ALBO_ALD_G_STYLE` defaults to `cursive` (rounds 197-225, byte for byte);

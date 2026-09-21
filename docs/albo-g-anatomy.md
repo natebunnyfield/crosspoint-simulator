@@ -518,3 +518,72 @@ loop means adding them first.
 through the loop; they are faults, not alternatives.
 
 Page: `claude.ai/artifact/X33i91w3AfcZoJXh9pa486`.
+
+## Round 324 — the bent g built in the roman, and its shoulder cut back
+
+2026-09-21. Owner: *"make a roman version of this, but reduce the lower loop
+top heaviness"*. `ALBO_G_STYLE=bent` in `outlines/glyphs/stems.py`; `plain` is
+the shipping letter and remains the default. Nothing is ported from `aldine` —
+the construction is rebuilt on the roman's own pen and proportions.
+
+### What was actually copied
+
+Two properties, both measured off the italic rather than described: the loop is
+**wide and shallow**, and the connector **dives left out of the bowl and bends**
+into it instead of running down the letter's left wall.
+
+| | loop/bowl w | loop/bowl h | width |
+|---|---|---|---|
+| roman today | 1.14 | 1.01 | 425 |
+| **roman bent** | **1.34** | **0.79** | 461 |
+| the italic bent g | 1.55 | 0.88 | 374 |
+| Flanker | 1.53 | 0.79 | 408 |
+| the scan | 1.79 | 0.80 | 390 |
+
+The height ratio lands on Flanker and the scan exactly. The width ratio stops
+at 1.34: reaching 1.53 widens a letter already at 461 units. A deliberate stop.
+
+### THE HEAVINESS IS AT 150 DEGREES, NOT 55
+
+The first cut was aimed at the upper RIGHT because that is where both reference
+italics carry their mass — **which was reading their geometry onto a different
+letter**. Their connector comes down the middle into the loop's top; this one
+dives left and enters at the upper left, so the mass is where it lands. Wall
+thickness ray-cast from the loop counter's centroid, 0 = east, 90 = top:
+
+| | 0 | 30 | 60 | 90 | 120 | 150 | 180 | 210 |
+|---|---|---|---|---|---|---|---|---|
+| roman today | 69 | 54 | 37 | 33 | 38 | 53 | 68 | 54 |
+| the italic bent g | 68 | 89 | 88 | 69 | 26 | 30 | 69 | 85 |
+| Flanker | 48 | 69 | 71 | 82 | 27 | 48 | 35 | 61 |
+
+`G_BENT_TOP_W` cuts the ring's own width on a raised cosine centred at
+`G_BENT_TOP_AT` (150) over `G_BENT_TOP_ARC`, so the rest of the ring is
+untouched. Measured at 150 degrees: **1.00 → 79, 0.80 → 69, 0.65 → 63,
+0.50 → 57**.
+
+### Two negative results
+
+**`ALBO_G_BENT_PHI` cannot rotate the loop's stress and is left at 0.** At phi
+0, 14 and −14 the wall reads 67/50/37/33, 66/44/36/36 and 65/58/44/36 at
+0/30/60/90 — the thick stays due east and west. The family's bowl profile is a
+function of how vertical the tangent is (round 58's switch), not of a nib
+angle, so rotating the tangent handed to `bowl_th` changes the width but not
+where the width falls. The dial is kept, documented, so this is not re-derived.
+
+**The first dive failed the contour gate.** At `G_BENT_DIVE` 0.42 the neck
+grazes the loop's outer left edge and leaves a **HAIR at (107, 9)** — a
+reversal past 150° with a sub-8-unit arm. The plain roman g is CLEAN, so it was
+introduced here. 0.36 clears it and is the default; entering the loop at 172°
+instead of 163° also clears it, and the dive is the cheaper of the two because
+the entry angle is what gives the elbow its shape.
+
+### Also worth knowing
+
+`ring_from(outer, widths_fn=...)` is how a ring gets per-angle widths: the
+outer is pre-resampled here with `geom.resample` so the index the function is
+handed maps back to a known point, which is the same trick the ampersand's ear
+uses. `ring()` itself has no per-angle lever.
+
+Nothing ships: `ALBO_G_STYLE` defaults to `plain`.
+Page: `claude.ai/artifact/XmB9amhkmvtQBV8LAucPeW`.

@@ -688,6 +688,122 @@ def g_p(c): return bowl_stem(c, 'left', c["xh"], -c["desc"])
 @glyph('q')
 def g_q(c): return bowl_stem(c, 'right', c["xh"], -c["desc"])
 
+# ===================== ROUND 324 -- THE BENT ROMAN g =======================
+# Owner 2026-09-21: *"make a roman version of this, but reduce the lower loop
+# top heaviness"*, `this` being the italic's cursive g restored in round 323.
+#
+# WHAT MAKES THAT LETTER what it is, measured rather than described. Its loop
+# is WIDE AND SHALLOW where the roman's is a near-circle under a near-circle
+# (loop/bowl counter 1.55 wide and 0.88 tall against the roman's 1.17/1.06),
+# and its connector DIVES left out of the bowl and bends into the loop rather
+# than running down the letter's left wall. Both are rebuilt here on the
+# roman's own pen and proportions; nothing is ported from `aldine`.
+#
+# THE LOOP'S STRESS IS THE THIRD DIFFERENCE and it is the one the owner is
+# pointing at. Wall thickness round the lower loop, ray-cast from its counter's
+# centroid, 0 = east and 90 = TOP, in Albo units:
+#
+#              0    30    60    90   120   150   180   210   240   270   300   330
+#   roman     69    54    37    33    38    53    68    54    38    34    39    53
+#   italic    68    89    88    69    26    30    69    85    65    40    27    32
+#   Flanker   48    69    71    82    27    48    35    61    35    24    21    27
+#   Pagella   67    80    78   103    24    39    62    60    37    27    26    34
+#
+# The roman's ring is symmetric with its thicks due EAST and WEST -- a
+# vertically stressed bowl, which is right for an o and wrong for this loop.
+# The italic and both references put the weight through the UPPER LEFT, and
+# the italic carries 89 and 88 at 30 and 60 degrees where the references carry
+# 69-71 and 78-80. That upper-right shoulder, where the connector lands, is
+# the heaviness; G_BENT_TOP_W cuts it, centred on G_BENT_TOP_AT and falling to
+# nothing over G_BENT_TOP_ARC, so the rest of the ring is untouched.
+G_STYLE = os.environ.get("ALBO_G_STYLE", "plain").lower()      # 'bent' = round 324
+G_BENT_LOOP_RX = float(os.environ.get("ALBO_G_BENT_LOOP_RX", 205.0))  # wf units, against the plain g's 190
+G_BENT_LOOP_H = float(os.environ.get("ALBO_G_BENT_LOOP_H", 0.40))     # x the descender, against 0.50
+G_BENT_LOOP_DX = float(os.environ.get("ALBO_G_BENT_LOOP_DX", -4.0))
+# MEASURED AND LEFT AT ZERO. Rotating the tangent handed to `bowl_th` does
+# NOT rotate the ring's stress: at phi 0, 14 and -14 the wall reads 67/50/37
+# /33, 66/44/36/36 and 65/58/44/36 at 0/30/60/90 -- the thick stays due east
+# and west whatever it is set to. The family's bowl profile is a function of
+# how vertical the tangent is (round 58's switch), not of a nib angle, so
+# this lever cannot do what its name suggests and the dial is kept only so
+# the next person does not re-derive that.
+G_BENT_PHI = float(os.environ.get("ALBO_G_BENT_PHI", 0.0))
+# AND THE HEAVINESS IS AT 150, NOT 55. Aiming the cut at the upper RIGHT (55)
+# was reading the reference italics' geometry onto a letter whose connector
+# lands somewhere else: their neck comes down the middle into the loop's
+# top, this one dives left and enters at G_BENT_TO. The mass is where the
+# connector lands, so that is where the cut goes.
+G_BENT_TOP_W = float(os.environ.get("ALBO_G_BENT_TOP_W", 0.70))   # x the ring's own width, at the shoulder
+G_BENT_TOP_AT = float(os.environ.get("ALBO_G_BENT_TOP_AT", 150.0))  # where that cut is centred, degrees
+G_BENT_TOP_ARC = float(os.environ.get("ALBO_G_BENT_TOP_ARC", 85.0))  # and how far it reaches
+G_BENT_FROM = float(os.environ.get("ALBO_G_BENT_FROM", 256.0))  # the neck leaves the bowl here
+G_BENT_TO = float(os.environ.get("ALBO_G_BENT_TO", 163.0))      # and enters the loop here
+# 0.42 was the first value and it FAILS the contour gate: the diving neck
+# grazes the loop's outer left edge and leaves a HAIR at (107, 9) -- a
+# reversal past 150 degrees with a sub-8-unit arm, which the plain g does not
+# have. 0.36 clears it, and so does entering the loop at 172 instead of 163;
+# the dive is the cheaper of the two because the entry angle is what gives
+# the elbow its shape.
+G_BENT_DIVE = float(os.environ.get("ALBO_G_BENT_DIVE", 0.36))   # how far LEFT it dives, x the gap
+G_BENT_DROP = float(os.environ.get("ALBO_G_BENT_DROP", 0.52))   # and how far down before it turns
+
+
+def _bent_loop(lcx, lcy, lrx, lry):
+    """The lower loop as a ring whose width is the pen's, rotated to
+    G_BENT_PHI, with the upper shoulder cut back by G_BENT_TOP_W."""
+    outer = superellipse(lcx, lcy, lrx, lry, 0.0, 2 * math.pi, BOWL_K)[:-1]
+    outer = geom.resample(outer + [outer[0]])[:-1]
+    tans = geom.tangents(outer, closed=True)
+    a = math.radians(G_BENT_PHI); ca, sa = math.cos(a), math.sin(a)
+    ws = []
+    for pt, tn in zip(outer, tans):
+        w = PR.bowl_th((tn[0] * ca - tn[1] * sa, tn[0] * sa + tn[1] * ca))
+        ang = math.degrees(math.atan2(pt[1] - lcy, pt[0] - lcx)) % 360.0
+        d = abs((ang - G_BENT_TOP_AT + 180.0) % 360.0 - 180.0)
+        if d < G_BENT_TOP_ARC:           # a raised cosine, so the cut has no edge
+            f = 0.5 * (1.0 + math.cos(math.pi * d / G_BENT_TOP_ARC))
+            w *= 1.0 - (1.0 - G_BENT_TOP_W) * f
+        ws.append(w)
+    n = len(ws)
+    return ring_from(outer, widths_fn=lambda t: ws[min(n - 1, max(0, int(round(t * n))))])
+
+
+def _g_bent(c):
+    """The roman g with the italic's bent connector and wide shallow loop.
+    The bowl and the ear are `g_g`'s, unchanged."""
+    xh = c["xh"]; wf = c["wf"]; desc = c["desc"]
+    rx = 172 * wf + TH_V / 2; ry = (xh * 0.66 + OVER * 2) / 2
+    cy = xh + OVER - ry; cx = rx + S * 0.35
+    bowl, bo, bi = ring(cx, cy, rx, ry)
+    lrx = G_BENT_LOOP_RX * wf + TH_V / 2
+    lry = desc * G_BENT_LOOP_H + TH_H / 2
+    lcx = cx + G_BENT_LOOP_DX * wf; lcy = G_LOOP_TOP - lry
+    loop, lo, li = _bent_loop(lcx, lcy, lrx, lry)
+    crx, cry = rx - TH_V / 2, ry - TH_H / 2
+    clrx, clry = lrx - TH_V / 2, lry - TH_H / 2
+    def on(cx_, cy_, rx_, ry_, deg):
+        a = math.radians(deg); return (cx_ + rx_ * math.cos(a), cy_ + ry_ * math.sin(a))
+    p0 = on(cx, cy, crx, cry, G_BENT_FROM)
+    p3 = on(lcx, lcy, clrx, clry, G_BENT_TO)
+    gap = p0[1] - p3[1]
+    # The BEND: out of the bowl, down and LEFT past the loop's own left edge,
+    # then back right into the loop. A cubic through those two controls is the
+    # elbow; catmull would round it away, and the elbow is the whole point.
+    c1 = (p0[0] - gap * G_BENT_DIVE, p0[1] - gap * G_BENT_DROP)
+    c2 = (p3[0] - gap * 0.10, p3[1] + gap * 0.30)
+    neck = cubic(p0, c1, c2, p3)
+    nk = stroke(neck, PR.bowl_widths(neck, widths([(0.0, 0.30), (0.16, 0.9),
+                                                   (0.45, G_NECK_MID),
+                                                   (0.85, 0.9 * min(1.0, G_NECK_END / 0.30)),
+                                                   (1.0, G_NECK_END)]),
+                                     floor=S * G_NECK))
+    ex, ey = on(cx, cy, crx, cry, 44); L = 96 * wf * g_ear_scale()
+    ear_c = [(ex, ey), (ex + L, ey + L * math.tan(math.radians(8)))]
+    ear = stroke(ear_c, PR.bowl_widths(ear_c, widths([(0.0, 0.4), (0.35, 1.0), (1.0, 1.05)]),
+                                       floor=S * 0.72), cut1=CUT)
+    return geom.ink([bowl, loop, nk, ear])
+
+
 @glyph('g')
 def g_g(c):
     """G3 (rulings, rounds 40/42) -- redrawn 2026-09-13 (owner: the first
@@ -700,6 +816,8 @@ def g_g(c):
     the loop at 150 deg; the ear a short heavy stroke off the shoulder at
     the bowl profile, floored at 0.72 S, rising 8 deg, ending in the pen
     cut -- the top-right serif of the round-30 ruling, with weight."""
+    if G_STYLE == 'bent':
+        return _g_bent(c)
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]
     rx = 172 * wf + TH_V / 2; ry = (xh * 0.66 + OVER * 2) / 2; cy = xh + OVER - ry; cx = rx + S * 0.35
     bowl, bo, bi = ring(cx, cy, rx, ry)
