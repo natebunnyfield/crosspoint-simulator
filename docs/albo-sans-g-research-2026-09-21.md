@@ -387,3 +387,28 @@ Three arms, on `ALBO_ALD_G_LRX` (the loop's radius, 194) and
 
 All four gate-clean. **c** brings the ink to within 14 units of the advance
 where it started 39 over. Not ruled.
+
+
+## Round 336 — the wrong open g shipped, corrected
+
+Owner, on round 335: *"that's the wrong open 'g' use the most recent approved
+one instead"*. Correct.
+
+`ALBO_G_OPEN` defaulted to **`j`** — the open-g exploration's own first row —
+and round 335 shipped the roman **without naming a row**, so it shipped `j`.
+Every ruling the owner made was dialled and measured on **`futura`**, the
+traced letter: the counter at 393 / 19 / 17 (round 332) and the hook at
+`TRACE_X` 1.14 (round 334). The two are different letters — different tail,
+different terminal — and their `g` outlines hash differently.
+
+The default row is `futura` now, and the shipped roman's `g` outline is
+**byte-identical to the approved build**.
+
+**The failure worth keeping:** a ladder's dials were all made explicit in the
+ladder commands (`ALBO_G_OPEN=futura ...`) and none of them was in the SHIP
+build, which took the table's defaults instead. A ruling made on an
+explicitly-parameterised build does not transfer to a default build unless the
+defaults are moved to match — and nothing checks that, because both builds are
+clean and both produce a plausible letter. The check that would have caught it
+is the one that did: **hash the shipped glyph against the build the owner
+actually approved.**

@@ -1023,7 +1023,13 @@ G_OPEN_OPTS = {
                   c1=0.70, c2=0.48, prof=[(0.0, 1.00), (0.40, 0.92), (1.0, 0.66)],
                   floor=0.0, end='finial', ear='none'),
 }
-G_OPEN = os.environ.get("ALBO_G_OPEN", "j").lower()
+# THE DEFAULT IS THE TRACED LETTER, not the first row of the table. `j` was
+# the open-g exploration's own default and it is NOT what any ruling was made
+# on: the counter (393 / 19 / 17, round 332) and the hook (TRACE_X 1.14,
+# round 334) were both dialled and measured on `futura`. Round 335 shipped
+# the roman without naming a row and therefore shipped `j` -- a letter with
+# a different tail and terminal from every figure the owner approved.
+G_OPEN = os.environ.get("ALBO_G_OPEN", "futura").lower()
 if G_OPEN not in G_OPEN_OPTS: G_OPEN = "j"
 _GO = dict(G_OPEN_OPTS[G_OPEN])
 # ===================== ROUND 328 -- THE TAIL IS TRACED ====================
