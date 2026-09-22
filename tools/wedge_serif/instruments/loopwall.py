@@ -53,5 +53,13 @@ def wall_by_angle(path, step=15):
             x,y=int(round(cx+dx*(r+t))), int(round(cy+dy*(r+t)))
             if not (0<=x<W and 0<=y<H) or not m[y,x]: break
             t+=0.5
-        out[deg]=t*u
+        # A RAY CAN ESCAPE, and a 0 here is not a fracture. From the loop's
+        # centroid the up-and-right angles (about 45-80 degrees on this g)
+        # pass between the bowl and the ear and leave the raster without ever
+        # meeting ink -- there is no wall in that direction to measure. It
+        # returned 0.0, which reads exactly like a broken wall and cost a
+        # false alarm on 2026-09-21. Check the COUNTER COUNT (`holes`) to tell
+        # the two apart: a real break merges the loop's counter into the
+        # background and leaves one hole, not two.
+        out[deg]=float('nan') if (t==0.0) else t*u
     return out,u

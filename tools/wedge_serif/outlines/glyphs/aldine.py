@@ -5180,6 +5180,31 @@ if ON:
     # described in round 341 and is NOT built.
     ALD_BOWL_BLEND = float(os.environ.get("ALBO_ALD_BOWL_BLEND", 3.0))  # round 343: the smallest radius that clears both findings
     G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 45.0))
+    # ROUND 345 -- THE LOCAL CUT, proposed in round 341 and ruled on 2026-09-21.
+    #
+    # The owner asked for two things 180 degrees apart: 10 o'clock (150) THIN
+    # and the bottom right (330) FULL. A nib puts its two thins exactly
+    # opposite, so no value of G_LOOP_PHI gives both -- round 341 measured the
+    # whole band and the two columns tracked each other to the unit. The tie
+    # only breaks if the loop's width stops being a pure function of the
+    # stroke's direction somewhere.
+    #
+    # So: choose an axis that makes BOTH 150 and 330 full, then cut 150 back.
+    # The cut is a raised cosine of depth `_D` over a half-width `_W` -- the
+    # same shape the bowl's and the counter's handcuts already use, and it
+    # rides `adj`, the per-section wall multiplier round 197 added for exactly
+    # this ("i need to thin out different sections of both loops"). It is
+    # BIT-EXACT INERT at depth 0, which is what ships until he rules.
+    #
+    # An explicit ALBO_ALD_G_LRING_ADJ still wins: it is the general lever and
+    # this is a named case of it.
+    G_LOOP_CUT_AT = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_AT", 150.0))
+    G_LOOP_CUT_D = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_D", 0.0))
+    G_LOOP_CUT_W = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_W", 55.0))
+    if G_LOOP_CUT_D and G_LRING_ADJ is None:
+        G_LRING_ADJ = [[G_LOOP_CUT_AT - G_LOOP_CUT_W, 1.0],
+                       [G_LOOP_CUT_AT, 1.0 - G_LOOP_CUT_D],
+                       [G_LOOP_CUT_AT + G_LOOP_CUT_W, 1.0]]
     # ROUND 204 -- AN EVEN OVAL COUNTER, AND A HAND PRESSED BACK INTO IT.
     # `PR.ovalise` fits the counter's own ellipse and pulls it on; 1.0 is the
     # ellipse, 0.0 the round-203 letter to the bit. OVAL_WALL is the guard --
