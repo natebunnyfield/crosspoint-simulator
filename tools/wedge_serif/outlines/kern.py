@@ -657,6 +657,27 @@ for _ch, _k in _Q_KERNS.items():
     if _g and not (_ALD is not None and _ALD.ON):
         PAIRS[('Q', _g)] = _k
 
+# ROUND 357 -- THE BOLD ITALIC'S `q` PAIRS, and why they are weight-gated.
+#
+# The bench's bearings are fitted on the 400 and applied at every weight, so a
+# bearing that is right there can be wrong at stem 116 where the same absolute
+# units eat a smaller gap. Found by gating the FOUR CUTS before a deploy rather
+# than the two: the BoldItalic went from 0 pairs under `cmp_touch`'s floor to
+# three -- `qg` 0.0023, `qi` 0.0101, `qu` 0.0109 em -- while the Regular
+# IMPROVED (2 touching -> 1) and the Italic stayed clean.
+#
+# Measured 2-D as well as row-wise, and the two disagree on `qi` (0.0050
+# against 0.0101), so each value is the larger of the two requirements: the
+# smallest kern at which BOTH measures clear 0.013 em.
+#
+# Gated on the weight because the 400 italic does not need them and a kern
+# applied there would loosen three pairs that currently read correctly.
+if (_ALD is not None and _ALD.ON):
+    from . import pen as _pen_q
+    if _pen_q.S > 84.0:
+        for _r, _k in (('g', 12), ('i', 12), ('u', 4)):
+            PAIRS[('q', _r)] = _shipped('q', _r) + _k
+
 _apply_bench()
 
 
