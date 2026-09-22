@@ -240,7 +240,11 @@ hardcoded paper:
 > configuration. if they are defined, they take precedence. there is no 'on the
 > paper', it's just normal configuration."*
 
-**Five groups, 28 rows, in two layers.** The rule is
+**Six groups, 38 rows, in two layers** (five and 32 until 2026-09-21, when
+the left margin added a group and six rows; the "28" this sentence carried for
+weeks was already two revisions behind — count them out of `Root.plist` with
+the `plistlib` one-liner in `CLAUDE.md` rather than trusting a number in
+prose). The rule is
 [ios/GestureBindings.h](../ios/GestureBindings.h) — pure, clock-free, free of SDL
 and UIKit types, truth-tabled in `tests/gesture_bindings_test.cpp` for the usual
 reason: every way it can be wrong is silent on a device and none of it can be
@@ -254,8 +258,9 @@ script and no `simctl` can synthesize a touch.
 | **Gestures — The Device** | base | Shake | font family step |
 | **Above the Paper** | override | Tap · Swipe Left / Right / Up · Hold | blank, except Hold |
 | **Below the Paper** | override | Tap · Swipe Left / Right / Up / Down · Hold | blank |
+| **The Left Margin** | override | Tap · Swipe Left / Right / Up / Down · Hold | blank |
 
-**One zone row is missing on purpose — 28 rows, not 29 (ruling 2026-09-02).**
+**One zone row is missing on purpose (ruling 2026-09-02).**
 There is no *Above the Paper → Swipe Down*. A swipe is zoned where UIKit
 RECOGNIZES it (`zoneOf()` in `CrossPointZenRecognizers.mm`, deliberately — a
 vertical swipe crosses zones by definition), which is ~50 pt of travel past the
@@ -271,13 +276,13 @@ symmetry, and `gestureSwipeDownAbove` is asserted absent from `Root.plist` so a
 re-add is a conscious act. A swipe down that lands in the top band simply takes
 the global binding, exactly as a swipe on the paper does.
 
-28 rows in one flat list is a scroll with no landmarks, so the global layer is
+38 rows in one flat list is a scroll with no landmarks, so the global layer is
 sub-grouped BY FINGER COUNT — the one partition a hand can feel, and the one
 that lets every row inside a group drop its "Two-Finger" prefix and read as a
 short verb. Pinch and rotation sit in Two Fingers because that is what they are.
 
 **The gesture half of `Root.plist` is GENERATED** from the header's table by
-[tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py) — 28 rows of
+[tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py) — 38 rows of
 `PSMultiValueSpecifier`, each carrying the same ten or eleven annotated action
 labels, is not a table to hand-maintain beside one that already states every
 value. Only the span between the Zen Mode switch and the Screen group is
@@ -286,12 +291,78 @@ edited without re-running it fails the suite rather than shipping a stale
 screen.
 
 ```
-action(gesture, landingY):
+action(gesture, landingX, landingY):
     if gesture is not single-finger:          return global[gesture]
-    zone = zoneFor(landingY)                  # above / below / neither
+    zone = zoneFor(landingX, landingY)        # left margin / above / below / neither
     if zone has a row and it is not blank:    return zoneBinding[zone][gesture]
     return global[gesture]
 ```
+
+## The left margin is the third zone, and it YIELDS the overlap (2026-09-21)
+
+Owner, verbatim:
+
+> *"add ios app setting entire left margin (top to bottom) as a separate zone
+> for tapping (full configuration)."*
+
+**The strip down the left of the screen, beside the page, for the whole height
+of the glass.** Six override rows — all of the single-finger gestures, which is
+what *"(full configuration)"* asks for — every one of them blank.
+
+**THE BOUNDARY IS THE PAGE'S LEFT EDGE, NOT THE PAPER'S**, and that is a
+decision rather than a near miss. On the phone the SHEET bleeds to the glass:
+the pad's field is the page's own paper tone by design (measured 215,233,211
+against 215,233,211), so the paper has no left edge there at all and a
+paper-derived boundary would read 0 — i.e. no left-margin zone on the device
+the owner reads on. What the thumb actually meets on the left is the strip of
+blank paper beside the PAGE, so that is what the zone measures:
+`SimulatorOverlay::panelLeftPx()`, the same number `g_zenPanel.x` is built
+from and the same one the pad, the zen hit test and the read-aloud highlight
+painter already anchor to. No new rect was invented, exactly as none was for
+the two horizontal boundaries. It is published as `CrossPointZen_pageLeftPx()`
+beside `CrossPointZen_cardTopPx()` and `CrossPointZen_paperBottomPx()`, and it
+is 102 device px on an iPhone Air (a 1056 px page centred on a 1260 px screen).
+Zero before the first present, and a zero means *nothing is in the left
+margin* — the same conservative direction the other two take.
+
+**IT OVERLAPS THE TWO BANDS AND IT YIELDS TO THEM** — owner 2026-09-21, shown
+both readings with what each one costs: ***"carve the corner out — Above wins
+there."*** So `gesturebind::zoneFor` asks the **y** question first, and the
+left margin is the strip **between** the bands, notched at both ends.
+
+**What that buys: nothing at the shipped defaults moves.** The top-left corner
+— roughly 34 × 68 pt — stays *Above the Paper*, where the hold ships bound to
+**Power** and is the one row that fires outside zen. Under the other reading
+that corner would have taken the blank left-margin row and inherited the global
+Hold: selecting in zen, silent out of it. The gesture would have been lost in
+the corner, and nothing else in the feature needed that.
+
+**What it costs, recorded because the argument will be made again and it is not
+a silly one.** *"Entire left margin (top to bottom)"* does describe an
+uninterrupted strip, and the stated use for a zone override is switching a
+gesture off where a thumb sets it off by accident — so a margin with two holes
+at the corners does not fully suppress. **A gesture silenced in the left margin
+still fires in its two corners**, because the corners are not the margin. That
+is the price, it is real, and it is the owner's call.
+
+`tests/gesture_bindings_test.cpp` pins all four corner answers, what the ruling
+bought (the corner still powers off out of zen) and what it cost (a tap in the
+corner takes the *Above* row), and the other implementation — ask x first, so
+the margin runs uninterrupted — fails exactly those lines. Verified by
+inverting it: both corner assertions fail, exit 1.
+
+**TWO OF THE SIX ROWS ARE MEASURED AS UNLIKELY TO FIRE ON A PHONE, and they
+ship anyway.** The 2026-09-02 ruling that dropped *Above the Paper → Swipe
+Down* applies here to the two HORIZONTAL swipes: a swipe is zoned where UIKit
+RECOGNIZES it, ~50 pt of travel past the landing point, and this strip is
+~34 pt wide on a phone. A swipe LEFT started in it runs out of screen before it
+is a swipe; a swipe RIGHT started in it is recognized on the paper and zoned
+there. The tap, the hold and the two VERTICAL swipes barely move in x and are
+judged inside the strip. They ship because on a TABLET the margin is wide
+enough for all six — the rows are not dead, they are dead on one device class —
+and because *"(full configuration)"* was the ask. **Flagged to the owner as a
+ruling to make, not decided here**; the group's own `FooterText` says which
+four hold on a phone.
 
 **THERE IS NO "ON THE PAPER."** It is not a zone with a fixed behavior, it is not
 a row, and it is not a key. A landing point between the two boundaries simply has
@@ -428,6 +499,11 @@ painter cuts the sheet at, so the boundary the finger is judged against is the
 edge the eye sees). Both are published by the layout pass in BOTH modes, which
 is what makes the question answerable on a launch where zen has never been
 entered.
+
+Since 2026-09-21 there is a third boundary, the PAGE's left edge
+(`CrossPointZen_pageLeftPx()`), and it is asked first — see "The left margin is
+the third zone" above for why the page's edge rather than the paper's, and for
+what the precedence costs the hold in the top-left corner.
 
 Before the first layout the card top reads 0, and a 0 answers "everything is on
 the paper" — the conservative direction, since a stray toggle is worse than a

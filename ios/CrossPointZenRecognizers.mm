@@ -137,6 +137,12 @@ extern "C" float CrossPointZen_cardTopPx(void);
 // is g_zenPaper's bottom (g_zenRowTopPx, the top of the old rocker row), which
 // layoutPad already publishes in BOTH modes.
 extern "C" float CrossPointZen_paperBottomPx(void);
+// ...and the PAGE's LEFT edge, the third boundary (2026-09-21, the left-margin
+// zone). Also from the layout/present pass, also in device pixels, also no new
+// rect: it is SimulatorOverlay::panelLeftPx(), which g_zenPanel.x is already
+// built from. The PAGE's rather than the paper's -- on the phone the sheet
+// bleeds to the glass and has no left edge at all; see ios/GestureBindings.h.
+extern "C" float CrossPointZen_pageLeftPx(void);
 
 namespace {
 // Tracks the flag CrossPointZenRecognizers_setEnabled was last given, so the
@@ -191,7 +197,9 @@ bool rowIsAlwaysOn(gesturebind::Gesture g) {
          gesturebind::firesOutsideZen(
              gesturebind::zoneRowFor(g, gesturebind::Zone::AbovePaper)) ||
          gesturebind::firesOutsideZen(
-             gesturebind::zoneRowFor(g, gesturebind::Zone::BelowPaper));
+             gesturebind::zoneRowFor(g, gesturebind::Zone::BelowPaper)) ||
+         gesturebind::firesOutsideZen(
+             gesturebind::zoneRowFor(g, gesturebind::Zone::LeftMargin));
 }
 
 // Which row an installed recognizer came from, or Count for an object this file
@@ -216,12 +224,23 @@ gesturebind::Gesture rowOf(UIGestureRecognizer *g) {
 // axis that matters: a horizontal swipe barely moves in y, and a VERTICAL swipe
 // is judged where UIKit recognized it, which is the honest answer to "where did
 // this gesture happen" for a gesture that crosses zones by definition.
-gesturebind::Zone zoneOf(UIGestureRecognizer *g, float *yPxOut) {
+//
+// THE X AXIS ARRIVED 2026-09-21 with the left-margin zone, and the caveat in
+// the paragraph above inverts for it: a HORIZONTAL swipe is the one that has
+// travelled in x by the time UIKit recognizes it, so a swipe right started in
+// a phone's ~34 pt margin is recognized on the paper and zoned there. That is
+// the honest answer for a gesture that crosses zones by definition -- the same
+// answer the 2026-09-02 ruling gave for a downward swipe in the top band --
+// and it is recorded beside the rows in ios/GestureBindings.h.
+gesturebind::Zone zoneOf(UIGestureRecognizer *g, float *xPxOut, float *yPxOut) {
   const CGPoint loc = [g locationInView:g.view];
   const CGFloat scale = g.view ? g.view.contentScaleFactor : 1.0;
+  const float xPx = static_cast<float>(loc.x * scale);
   const float yPx = static_cast<float>(loc.y * scale);
+  if (xPxOut) *xPxOut = xPx;
   if (yPxOut) *yPxOut = yPx;
-  return gesturebind::zoneFor(yPx, CrossPointZen_cardTopPx(),
+  return gesturebind::zoneFor(xPx, yPx, CrossPointZen_pageLeftPx(),
+                              CrossPointZen_cardTopPx(),
                               CrossPointZen_paperBottomPx());
 }
 
@@ -338,8 +357,8 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
 // explicit Nothing in a zone is an override that means "not here", not a blank.
 // This method only fetches and reports.
 - (void)oneFinger:(gesturebind::OneFinger)kind at:(UIGestureRecognizer *)g {
-  float yPx = 0.0f;
-  const gesturebind::Zone z = zoneOf(g, &yPx);
+  float xPx = 0.0f, yPx = 0.0f;
+  const gesturebind::Zone z = zoneOf(g, &xPx, &yPx);
   const gesturebind::Gesture zoneRow = gesturebind::zoneGesture(kind, z);
   const gesturebind::Gesture globalRow = gesturebind::globalGesture(kind);
   // A landing point between the boundaries has no override row at all -- the
@@ -363,10 +382,11 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
       gesturebind::resolve(zoneRow, zoneStored) != gesturebind::Action::Inherit;
   char what[160];
   SDL_snprintf(what, sizeof(what),
-               "%s %s (y=%.0f, paper %.0f..%.0f, zen %s, %s)",
-               gesturebind::oneFingerName(kind), gesturebind::zoneName(z), yPx,
-               CrossPointZen_cardTopPx(), CrossPointZen_paperBottomPx(),
-               g_zenOn ? "on" : "off",
+               "%s %s (x=%.0f y=%.0f, page left %.0f, paper %.0f..%.0f, zen "
+               "%s, %s)",
+               gesturebind::oneFingerName(kind), gesturebind::zoneName(z), xPx,
+               yPx, CrossPointZen_pageLeftPx(), CrossPointZen_cardTopPx(),
+               CrossPointZen_paperBottomPx(), g_zenOn ? "on" : "off",
                overridden ? "zone override" : "global layer");
   performGestureAction(a, what);
 }
@@ -474,8 +494,8 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
       //
       // A poisoned hold resolves to nothing without consulting the store: a
       // second finger on the glass is not a deliberate press.
-      float yPx = 0.0f;
-      const gesturebind::Zone z = zoneOf(g, &yPx);
+      float xPx = 0.0f, yPx = 0.0f;
+      const gesturebind::Zone z = zoneOf(g, &xPx, &yPx);
       const gesturebind::Gesture zoneRow =
           gesturebind::zoneGesture(gesturebind::OneFinger::Hold, z);
       const gesturebind::Gesture globalRow =
@@ -491,10 +511,11 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
               ? gesturebind::Action::Nothing
               : gesturebind::oneFingerAction(gesturebind::OneFinger::Hold, z,
                                              g_zenOn, zoneStored, globalStored);
-      SDL_Log("[zen] hold at y=%.0f px (paper %.0f..%.0f) %s, zen %s -> %s", yPx,
-              CrossPointZen_cardTopPx(), CrossPointZen_paperBottomPx(),
-              gesturebind::zoneName(z), g_zenOn ? "on" : "off",
-              gesturebind::actionName(a));
+      SDL_Log("[zen] hold at x=%.0f y=%.0f px (page left %.0f, paper "
+              "%.0f..%.0f) %s, zen %s -> %s",
+              xPx, yPx, CrossPointZen_pageLeftPx(), CrossPointZen_cardTopPx(),
+              CrossPointZen_paperBottomPx(), gesturebind::zoneName(z),
+              g_zenOn ? "on" : "off", gesturebind::actionName(a));
       // The gesture string carries the ZONE, because it is also what the
       // `[zen] toggle` line reports as the toggle's source -- and a toggle log
       // that cannot say which gesture and which zone produced it is a log that

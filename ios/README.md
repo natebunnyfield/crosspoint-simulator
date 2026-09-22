@@ -621,7 +621,7 @@ normal configuration."*
 | **Above the Paper** | Tap · Swipe Left/Right/Up · Hold | blank, except **Hold** |
 | **Below the Paper** | Tap · Swipe Left/Right/Up/Down · Hold | blank |
 
-**One zone row is missing on purpose — 28 rows, not 29 (ruling 2026-09-02).**
+**One zone row is missing on purpose (ruling 2026-09-02).**
 There is no *Above the Paper → Swipe Down*. A swipe is zoned where UIKit
 RECOGNIZES it (`zoneOf()` in `CrossPointZenRecognizers.mm`, deliberately — a
 vertical swipe crosses zones by definition), which is ~50 pt of travel past the
@@ -637,7 +637,7 @@ symmetry, and `gestureSwipeDownAbove` is asserted absent from `Root.plist` so a
 re-add is a conscious act. A swipe down that lands in the top band simply takes
 the global binding, exactly as a swipe on the paper does.
 
-28 rows in one flat list is a scroll with no landmarks, so the global layer is
+38 rows in one flat list is a scroll with no landmarks, so the global layer is
 sub-grouped BY FINGER COUNT — the one partition a hand can feel, and the one
 that lets every row inside a group drop its "Two-Finger" prefix and read as a
 short verb. Pinch sits in Two Fingers because that is what it is; the
@@ -645,19 +645,33 @@ rocker and the tilts sit in Motion because they are not touches at all.
 
 **`Root.plist`'s gesture half is GENERATED**, by
 [tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py), from the header's
-table — 28 rows × ~34 lines of `PSMultiValueSpecifier` is not a thing to
+table — 38 rows × ~34 lines of `PSMultiValueSpecifier` is not a thing to
 hand-maintain beside a table that already states every value. Only the span
 between the Zen Mode switch and the Screen group is touched. Edit the header,
 re-run the generator; `tests/run_all.sh`'s `gesture_plist` case runs it with
 `--check` so a stale projection fails the suite.
 
 ```
-action(gesture, landingY):
+action(gesture, landingX, landingY):
     if gesture is not single-finger:          return global[gesture]
-    zone = zoneFor(landingY)                  # above / below / neither
+    zone = zoneFor(landingX, landingY)        # left margin / above / below / neither
     if zone has a row and it is not blank:    return zoneBinding[zone][gesture]
     return global[gesture]
 ```
+
+**A THIRD ZONE ARRIVED 2026-09-21: THE LEFT MARGIN** (owner: *"add ios app
+setting entire left margin (top to bottom) as a separate zone for tapping (full
+configuration)"*) — the strip left of the PAGE's own edge
+(`CrossPointZen_pageLeftPx()`, i.e. `SimulatorOverlay::panelLeftPx()`; the
+PAGE's rather than the paper's, because on the phone the sheet bleeds to the
+glass and the paper has no left edge to measure). Six rows, all blank. **It
+overlaps both bands and YIELDS to them** (owner 2026-09-21, *"carve the corner
+out -- Above wins there"*), so it is the left strip BETWEEN them and nothing at
+the shipped defaults moves — the top-left corner keeps `HoldAbove` and its
+Power default. The price is that a gesture silenced in the margin still fires
+in its two corners. The plist now carries 38 gesture rows in six groups. Full account,
+including the two rows measured as unlikely to recognize inside a phone's
+~34 pt strip: [../docs/zen-mode.md](../docs/zen-mode.md).
 
 **THERE IS NO "ON THE PAPER."** A landing point between the two boundaries has no
 override row — the global binding applies, the same as everywhere else nothing
