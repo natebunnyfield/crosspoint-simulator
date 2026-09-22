@@ -610,6 +610,53 @@ _BENCH_PAIRS_ITA = ((('A','n'), 2), (('A','v'), 16), (('C','a'), -1), (('C','h')
 for _p, _d in (_BENCH_PAIRS_ITA if (_ALD is not None and _ALD.ON) else _BENCH_PAIRS_ROM):
     PAIRS[_p] = _shipped(*_p) + _d
 
+# ROUND 348 -- THE ROMAN Q'S TAIL, KERNED RATHER THAN SHORTENED.
+# Owner 2026-09-21, choosing between a shorter tail and kern pairs: *"kern
+# Q"*. So the letter is untouched and these thirteen pairs carry the white
+# instead.
+#
+# WHAT WAS ACTUALLY WRONG. The Q's ink runs to x=1312 on a 777-unit advance --
+# the tail overhangs 535 units past its own body and dips to y=-272 -- so any
+# following DESCENDER crosses it. Not a fitting error: `Quiet`, `QU` and `Qu`
+# all read correctly, because u, i, e and t have nothing below the baseline.
+# Round 225 exempted the thirteen collisions on the ground that the roman Q
+# "pairs only with capitals and u", which is true of English and was never a
+# repair.
+#
+# EACH VALUE IS MEASURED, NOT CHOSEN: the smallest kern, swept over
+# -400..+900 in steps of 20 and ordered by absolute size, at which the two
+# glyphs' INK is 0.012 em apart -- `cmp_touch.py`'s own floor, but taken as a
+# 2-D distance between rasterised outlines rather than row by row.
+#
+# THE GATE'S OWN MEASURE CANNOT SETTLE THIS, and that is worth knowing before
+# anyone re-tunes these. `cmp_touch` compares, per raster ROW, the left edge
+# of the second glyph with the right edge of the first; the Q's tail reaches
+# x=1312 on rows the following glyph also occupies, so the row-wise number
+# stays at -0.25 to -0.49 em however far the pair is kerned, short of pushing
+# it clean past the tail's end. Measured 2-D, ten of the thirteen pairs really
+# do INTERSECT at kern 0 (Q7 does not, and clears by 0.0125 em, which is why
+# it takes no kern here); Q5 and Q3 pass within 0.007 em. So the gate was
+# right that these are faults and wrong about their size, and the pairs stay
+# EXEMPT there with a corrected reason rather than being declared fixed by a
+# measure that cannot see the fix.
+#
+# THE COST IS NOT UNIFORM AND THE OWNER SHOULD SEE IT. Four are ordinary
+# kerns; the other nine buy clearance at a third to a half of an em, which is
+# a visible hole. They are shipped because every one of those nine is a
+# sequence that does not occur in English -- which is round 225's own
+# argument, now used to license the repair instead of to excuse the defect.
+# Pulling any of them back is one number here.
+_Q_KERNS = {
+    '4': -60, '9': 60, 'q': 140,          # the cheap three; Q7 needs none
+    'y': 360, '(': 440, ')': 440,         # and the expensive nine
+    'p': 460, 'g': 480, 'j': 500, 'J': 500, '5': 500, '3': 520,
+}
+for _ch, _k in _Q_KERNS.items():
+    _g = _gname(_ch) or {'4': 'four', '7': 'seven', '9': 'nine', '5': 'five',
+                         '3': 'three', '(': 'parenleft', ')': 'parenright'}.get(_ch)
+    if _g and not (_ALD is not None and _ALD.ON):
+        PAIRS[('Q', _g)] = _k
+
 _apply_bench()
 
 

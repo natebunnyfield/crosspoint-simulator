@@ -39,11 +39,27 @@ EXEMPT = {
     # lowercase, figure and fence pairs below are accepted as touching, and QJ
     # because no English word contains it. In the ITALIC these same pairs are
     # clean (its tail is the shortened one) and are not exempt there.
-    ('Q', 'J'): "round 225: the J's hook runs half an em back under the tail; QJ occurs in no English word",
-    ('Q', 'g'): "round 225: the roman Q pairs only with capitals and u, by ruling",
-    ('Q', 'j'): "round 225: as Qg", ('Q', 'p'): "round 225: as Qg", ('Q', 'q'): "round 225: as Qg", ('Q', 'y'): "round 225: as Qg",
-    ('Q', '3'): "round 225: as Qg", ('Q', '4'): "round 225: as Qg", ('Q', '5'): "round 225: as Qg", ('Q', '7'): "round 225: as Qg", ('Q', '9'): "round 225: as Qg",
-    ('Q', '('): "round 225: as Qg", ('Q', ')'): "round 225: as Qg",
+    # ROUND 348 -- KERNED, AND THIS GATE CANNOT SEE IT. Owner 2026-09-21,
+    # "kern Q". These thirteen are no longer touching: measured as a 2-D
+    # distance between rasterised outlines, every one now clears 0.012 em
+    # (Q4 0.0146, Qg 0.0195, Q3 0.0135 ...), where ten of them INTERSECTED
+    # before. The row-wise measure below cannot report that, because it
+    # compares the second glyph's left edge with the FIRST GLYPH'S RIGHTMOST
+    # INK ON THE SAME ROW, and the Q's tail reaches x=1312 on a 777-unit
+    # advance -- so the number stays at -0.25 to -0.49 em whatever the kern
+    # does, short of pushing the pair clean past the tail's end. They stay
+    # exempt for that reason and NOT round 225's: it is the instrument that
+    # cannot follow a thin stroke past a later glyph, not the drawing that is
+    # wrong. Kern values and the sweep that sized them: outlines/kern.py.
+    ('Q', 'J'): "round 348: kerned +500; this row-wise gate cannot see a thin tail",
+    ('Q', 'g'): "round 348: kerned +480; this row-wise gate cannot see a thin tail",
+    ('Q', 'j'): "round 348: kerned +500, as Qg", ('Q', 'p'): "round 348: kerned +460, as Qg",
+    ('Q', 'q'): "round 348: kerned +140, as Qg", ('Q', 'y'): "round 348: kerned +360, as Qg",
+    ('Q', '3'): "round 348: kerned +520, as Qg", ('Q', '4'): "round 348: kerned -60, as Qg",
+    ('Q', '5'): "round 348: kerned +500, as Qg",
+    ('Q', '7'): "round 348: NOT kerned -- it already clears by 0.0125 em on ink",
+    ('Q', '9'): "round 348: kerned +60, as Qg",
+    ('Q', '('): "round 348: kerned +440, as Qg", ('Q', ')'): "round 348: kerned +440, as Qg",
     ('f', 'h'): "as f+b",
     ('f', 'k'): "as f+b",
     ('f', 'l'): "as f+b",

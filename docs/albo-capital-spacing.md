@@ -133,3 +133,53 @@ rather than assumed: about a third of the thinnest hairline this face draws,
 which is where two letters stop reading as two at 13 pt. Pairs that are *meant*
 to interlock — the f's hook onto an ascender's top-left wedge — are in
 `cmp_touch.EXEMPT` with their reason.
+
+---
+
+## Round 348 — the roman Q's thirteen pairs, kerned; and the gate that could not see it
+
+Owner 2026-09-21, choosing between a shorter tail and kern pairs: *"kern Q"*.
+The letter is untouched.
+
+The Q's ink runs to **x=1312 on a 777-unit advance** — the tail overhangs 535
+units past its own body and dips to y=−272 — so any following descender crosses
+it. `Quiet`, `Qu`, `QU` and `Question` are all correct and are unchanged by
+this round, because u, i, e, t and U have nothing below the baseline.
+
+**Ten of the thirteen genuinely INTERSECTED**, measured as a 2-D distance
+between rasterised outlines. `Q7` did not and takes no kern (it clears by
+0.0125 em); `Q5` and `Q3` passed within 0.007 em. Each kern is the smallest
+value, swept −400..+900 by 20 and ordered by absolute size, that reaches
+`cmp_touch`'s own 0.012 em floor on ink:
+
+| | 4 | 7 | 9 | q | y | ( | ) | p | g | j | J | 5 | 3 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| kern | −60 | — | +60 | +140 | +360 | +440 | +440 | +460 | +480 | +500 | +500 | +500 | +520 |
+| after | .0146 | .0125 | .0125 | .0150 | .0168 | .0236 | .0237 | .0150 | .0195 | .0200 | .0135 | .0135 | .0135 |
+
+Nine of them cost a third to a half of an em, which is a visible hole. They
+ship because every one is a sequence that does not occur in English — round
+225's own argument for exempting them, used here to license the repair instead.
+
+### The instrument finding, which is the part worth keeping
+
+**`cmp_touch` cannot report this fix, and its numbers about the Q were never
+about touching.** It compares, per raster ROW, the second glyph's left edge
+with the first glyph's RIGHTMOST INK ON THAT ROW. The Q's tail reaches x=1312
+on rows the following glyph also occupies, so the row-wise number sits at
+−0.25 to −0.49 em *whatever the kern does*, short of pushing the pair clean
+past the tail's end — and it reported `Q7` at −0.4075 when that pair has never
+touched anything.
+
+Same family as the three measures `docs/albo-spacing-method.md` already
+records: a row-wise reading cannot follow a thin stroke past a later glyph, any
+more than minimum-white can see an open shape. The thirteen stay EXEMPT there
+with the reason corrected — it is the instrument that cannot follow the tail,
+not the drawing that is wrong.
+
+**And one of my own measurements was wrong first.** An ad-hoc polygon
+rasteriser written for the sweep dropped the tail entirely — a long thin closed
+contour at 0.2 px/unit renders as sub-pixel spans that PIL's `polygon` fill
+discards — so `Q7`, `Q9` and `Q4` came back clear at a 20-unit kern while the
+tail ran straight through the figure. Caught by rendering the pair and looking
+at it. Use the font's own rasteriser.
