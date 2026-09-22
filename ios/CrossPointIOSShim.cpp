@@ -278,6 +278,22 @@ inline float zenPaperBottomPx() {
   return g_zenPanel.y + g_zenPanel.h;
 }
 
+// THE PAGE'S LEFT EDGE in device px -- the boundary the LEFT MARGIN zone
+// splits on (2026-09-21), as the card top and the rocker line are the two
+// horizontal ones. It is `g_zenPanel.x`, i.e. SimulatorOverlay::panelLeftPx(),
+// recorded on every present in both modes a few hundred lines below -- no new
+// rect, and the same number the pad, the zen hit test and the read-aloud
+// painter already anchor to.
+//
+// NOT the paper's left edge: on the phone the sheet bleeds to the glass, so
+// the paper has no left edge to measure and a paper-derived boundary would be
+// 0 on the device the owner reads on. See the Zone comment in
+// ios/GestureBindings.h.
+//
+// ONE DEFINITION, TWO CALLERS, like the bottom edge: the SDL finger path in
+// this file and the UIKit recognizers through CrossPointZen_pageLeftPx().
+inline float zenPageLeftPx() { return g_zenPanel.x; }
+
 // The zen GESTURE LANGUAGE replaced the zen tap zones on 2026-08-22 (owner:
 // The classifier -- pure, host-tested -- lives in ZenVerbs.h with the full
 // succession note (zones -> hand-rolled verbs -> native recognizers for all
@@ -293,6 +309,10 @@ zenverbs::Classifier g_zenVerbs;
 // classifier's 28 px slop of each other by construction, so this is a matter of
 // stating which one is meant, not of a measurable difference.)
 float g_zenTapDownY = 0.0f;
+// ...and its X, for the LEFT MARGIN zone (2026-09-21). Same landing-point
+// rule, same reason it is kept beside the classifier rather than read back
+// from it: the classifier resets itself on the last lift.
+float g_zenTapDownX = 0.0f;
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
@@ -3190,7 +3210,10 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       g_zenVerbs.fingerDown(e->tfinger.fingerID, fx, fy, SDL_GetTicks());
       // The first finger of the gesture is the one the classifier can answer
       // Verb::Down for; a later one only ever spoils it.
-      if (firstFinger) g_zenTapDownY = fy;
+      if (firstFinger) {
+        g_zenTapDownX = fx;
+        g_zenTapDownY = fy;
+      }
       g_zenLastX = fx;
       g_zenLastY = fy;
 
@@ -3315,9 +3338,9 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // boundaries. It is called here rather than in the recognizer file
           // because this verb is SDL's, not UIKit's -- one hit test, two
           // callers.
-          const gesturebind::Zone zone =
-              gesturebind::zoneFor(g_zenTapDownY, g_cardTopPx,
-                                   zenPaperBottomPx());
+          const gesturebind::Zone zone = gesturebind::zoneFor(
+              g_zenTapDownX, g_zenTapDownY, zenPageLeftPx(), g_cardTopPx,
+              zenPaperBottomPx());
           const gesturebind::Gesture zoneRow =
               gesturebind::zoneGesture(gesturebind::OneFinger::Tap, zone);
           const gesturebind::Gesture globalRow =
@@ -3331,9 +3354,10 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           const gesturebind::Action action = gesturebind::oneFingerAction(
               gesturebind::OneFinger::Tap, zone, /*zenOn=*/true, zoneStored,
               globalStored);
-          SDL_Log("[zen] verb -> %s, tap landed %s (y=%.0f) -> %s",
+          SDL_Log("[zen] verb -> %s, tap landed %s (x=%.0f y=%.0f) -> %s",
                   zenverbs::verbName(verb), gesturebind::zoneName(zone),
-                  g_zenTapDownY, gesturebind::actionName(action));
+                  g_zenTapDownX, g_zenTapDownY,
+                  gesturebind::actionName(action));
           // ONE DISPATCHER. This branch used to carry its own smaller copy of
           // the action switch (ToggleZen, FontFamilyStep, the button
           // actions) with a comment saying an appended action would have to
@@ -3635,6 +3659,15 @@ extern "C" float CrossPointZen_cardTopPx(void) { return g_cardTopPx; }
 extern "C" float CrossPointZen_paperBottomPx(void) {
   return zenPaperBottomPx();
 }
+
+// ...and the PAGE'S LEFT EDGE, the third boundary (2026-09-21). Recorded on
+// every present from SimulatorOverlay::panelLeftPx(), in both modes and on
+// both device classes, so it is answerable before zen has ever been entered.
+//
+// Zero until the first present, and a zero answers "nothing is in the left
+// margin" -- the same conservative direction the other two take, and the same
+// rule: an unmeasured geometry must not invent a zone out of a zero.
+extern "C" float CrossPointZen_pageLeftPx(void) { return zenPageLeftPx(); }
 
 // --- Public entry points ---------------------------------------------------
 //

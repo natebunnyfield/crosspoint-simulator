@@ -911,7 +911,7 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now seventeen groups and 48 rows** (the six Ink sliders arrived 2026-09-11 as one group and became six titled groups on 2026-09-12, because iOS draws a `PSSliderSpecifier` with NO title and the owner's screenshot showed six anonymous sliders -- a group header is the only label a slider can have; the count before it was already 42, not the 37 this sentence claimed -- the 2026-09-05/06 rocker and tilt rows had not been added to it) — count them out of
+**Settings.app is now eighteen groups and 54 rows** (the eighteenth group is **The Left Margin**, 2026-09-21 -- six gesture rows, generated like the rest of the gesture half; it took the count from seventeen/48. Before it: the six Ink sliders arrived 2026-09-11 as one group and became six titled groups on 2026-09-12, because iOS draws a `PSSliderSpecifier` with NO title and the owner's screenshot showed six anonymous sliders -- a group header is the only label a slider can have; the count before it was already 42, not the 37 this sentence claimed -- the 2026-09-05/06 rocker and tilt rows had not been added to it) — count them out of
 `ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
 is how this paragraph was wrong four times. It said "seven groups and 29 rows"
 while the file held nine and 36, because the gesture groups were added to the
@@ -935,6 +935,7 @@ print(len(g),'groups,',len(s)-len(g),'rows')"
 | Gestures — The Device | Shake |
 | Above the Paper | Tap · Swipe Left / Right / Up · Hold — no Swipe Down (2026-09-02) |
 | Below the Paper | Tap · Swipe Left / Right / Up / Down · Hold |
+| The Left Margin | Tap · Swipe Left / Right / Up / Down · Hold — all six (2026-09-21) |
 | Screen | Allow Device to Sleep on Battery · Allow Device to Sleep While Charging |
 | Read Aloud | Read Aloud (Experimental) · Speaking Rate |
 | Library | GitHub Token |
@@ -954,11 +955,11 @@ serialized into the card that File Transfer and WebDAV serve to the whole
 network. `src/SimHostSettings.h` is the channel, `ios/CrossPointHostSettings.mm`
 the backend, `docs/library-sync-on-ios.md` the account. Nothing may log it.
 
-The five gesture groups arrived 2026-08-28 (T-025) and are the only rows here
+The five gesture groups arrived 2026-08-28 (T-025) — six since 2026-09-21 — and are the only rows here
 that are not appearance or behavior toggles — see the gesture block near the foot
 of this file, and `docs/zen-mode.md` for the rulings. **THE MODEL IS LAYERED, not
-three parallel zones**: the three `Gestures` groups are the base and apply
-anywhere on screen, and the two zone groups override them for the six
+parallel zones**: the three `Gestures` groups are the base and apply
+anywhere on screen, and the three zone groups override them for the six
 single-finger gestures only. Every zone row ships BLANK, which falls through.
 **There is no "on the paper" concept at all** (owner, verbatim: *"there is no 'on
 the paper', it's just normal configuration"*) — the paper is simply where nothing
@@ -966,7 +967,7 @@ overrides. They are INPUT rather than appearance, which is what lets them past
 the 2026-08-23 ruling that removed every surface dial from this screen.
 
 **The global layer is sub-grouped BY FINGER COUNT, and the gesture half of this
-plist is GENERATED** — 28 rows of `PSMultiValueSpecifier` from one table in
+plist is GENERATED** — 38 rows of `PSMultiValueSpecifier` from one table in
 `ios/GestureBindings.h`, by `tools/gen_gesture_plist.py`, with `run_all.sh`'s
 `gesture_plist` case running it `--check` so a stale projection fails the suite.
 Edit the header, re-run the generator; never hand-edit a gesture row.
@@ -1270,8 +1271,9 @@ Grown in one day; each is documented at its definition, this is the map:
   `tests/gesture_bindings_test.cpp`). Owner 2026-08-28, verbatim: *"if above and
   below the paper is blank, it should pass through to global configuration. if
   they are defined, they take precedence. there is no 'on the paper', it's just
-  normal configuration."* So: a GLOBAL layer holding all 17 gestures, plus 11
-  zone-override rows for the six single-finger ones (12 until 2026-09-02, when
+  normal configuration."* So: a GLOBAL layer holding all the gestures, plus 17
+  zone-override rows for the six single-finger ones across THREE zones (11
+  until 2026-09-21, when the left margin added its six; 12 until 2026-09-02, when
   *Above the Paper → Swipe Down* was dropped: a swipe is zoned where UIKit
   recognizes it, and the 68 pt band above the paper is crossed before a downward
   swipe is one; its mirror below the paper stays, that band being twice as tall
@@ -1312,12 +1314,21 @@ Grown in one day; each is documented at its definition, this is the map:
   the delegate answers NO, which is what UIKit does with no delegate at all, so
   the older gestures' arbitration is untouched. Found by adversarial review, not
   by a test, and now pinned by one.
-- **THE LANDING POINT PICKS THE LAYER, and the two boundaries are already
-  published.** Above `g_cardTopPx` (where black ends and paper begins) and at or
+- **THE LANDING POINT PICKS THE LAYER, and the three boundaries are already
+  published.** Above `g_cardTopPx` (where black ends and paper begins), at or
   past `g_zenRowTopPx` (the sheet's bottom edge, the same `line` the zen painter
-  cuts it at) are the two override zones; a bottom edge that is not below the top
-  edge leaves only the top boundary, so an unmeasured geometry cannot invent a
-  zone out of a zero. The hold split by POSITION on 2026-08-27 (owner: *"change
+  cuts it at), and — since 2026-09-21 — left of `SimulatorOverlay::panelLeftPx()`
+  (the PAGE's left edge, published as `CrossPointZen_pageLeftPx()`) are the three
+  override zones; a boundary that is not past its opposite leaves the others
+  alone, so an unmeasured geometry cannot invent a zone out of a zero.
+  **THE LEFT MARGIN RUNS TOP TO BOTTOM AND WINS ITS OVERLAP WITH BOTH BANDS**
+  (owner 2026-09-21, *"entire left margin (top to bottom)"*), so the top-left
+  corner is no longer `HoldAbove` and the Power default does not reach it — the
+  one behavior change, pinned by name in `tests/gesture_bindings_test.cpp` and
+  written up in `docs/zen-mode.md`. The boundary is the PAGE's left edge and not
+  the paper's because on the phone the sheet bleeds to the glass, so a
+  paper-derived left edge would be 0 and the zone would not exist on the device
+  the owner reads on. The hold split by POSITION on 2026-08-27 (owner: *"change
   long tap to only swap zen/singlefinger modes if tap held for .75 sec above
   paper..."*), replacing a two-threshold shape in which one hold wanted to fire
   two things; T-025 made the zones configurable and did NOT add a second

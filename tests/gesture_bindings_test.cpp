@@ -39,8 +39,12 @@
 //     bindings (owner 2026-08-28: "zen is toggleable in settings. drop this
 //     concern.") -- no guard, no special case, and this test is here so nobody
 //     adds one.
-//  6. THE ZONE BOUNDARIES are g_cardTopPx and the paper's bottom, and a landing
-//     point between them has no override at all.
+//  6. THE ZONE BOUNDARIES are g_cardTopPx, the paper's bottom and -- since
+//     2026-09-21 -- the PAGE's left edge, and a landing point inside all three
+//     has no override at all. The left margin runs top to bottom, so it
+//     OVERLAPS the other two zones and WINS the overlap; that precedence is
+//     pinned here corner by corner, because it is the one thing about this
+//     feature that no compiler and no rendered screen can check.
 //  7. ZEN SCOPE IS A PROPERTY OF THE GESTURE AND ITS ZONE, NEVER OF THE ACTION
 //     -- including the subtle half: an inherited action still takes the ZONE's
 //     gate, so a hold above the paper set to Inherit still fires out of zen.
@@ -447,7 +451,7 @@ static void testLayering() {
   // so eleven rows, not ten: dropped on measurement, not on symmetry.
   std::set<int> seen;
   for (int k = 0; k < kOneFingerCount; ++k) {
-    for (Zone z : {Zone::AbovePaper, Zone::BelowPaper}) {
+    for (Zone z : {Zone::AbovePaper, Zone::BelowPaper, Zone::LeftMargin}) {
       const Gesture g =
           gesturebind::zoneGesture(static_cast<OneFinger>(k), z);
       const bool dropped = static_cast<OneFinger>(k) == OneFinger::SwipeDown &&
@@ -463,8 +467,9 @@ static void testLayering() {
             "no two (gesture, zone) pairs share one row");
     }
   }
-  check(seen.size() == 11, "eleven override rows: six gestures, two zones, "
-                           "minus the one that could not fire");
+  check(seen.size() == 17,
+        "seventeen override rows: six gestures by three zones, minus the one "
+        "that could not fire");
   check(gesturebind::zoneGesture(OneFinger::SwipeUp, Zone::BelowPaper) !=
             Gesture::Count,
         "Swipe Up below the paper STAYS -- its band is tall enough to fire in");
@@ -480,7 +485,7 @@ static void testLayering() {
   // A TWO-FINGER GESTURE HAS NO ZONE OVERRIDE, by ruling: it is the same
   // gesture wherever it lands. Asked through zoneRowFor, which is the question
   // the recognizer file puts.
-  for (Zone z : {Zone::AbovePaper, Zone::Neither, Zone::BelowPaper}) {
+  for (Zone z : {Zone::AbovePaper, Zone::Neither, Zone::BelowPaper, Zone::LeftMargin}) {
     check(gesturebind::zoneRowFor(Gesture::TwoFingerTap, z) == Gesture::Count,
           "the 2-finger tap has no zone override");
     check(gesturebind::zoneRowFor(Gesture::Pinch, z) == Gesture::Count,
@@ -533,7 +538,7 @@ static void testUnbound() {
           gesturebind::gestureName(g));
   }
   for (int k = 0; k < kOneFingerCount; ++k)
-    for (Zone z : {Zone::AbovePaper, Zone::Neither, Zone::BelowPaper})
+    for (Zone z : {Zone::AbovePaper, Zone::Neither, Zone::BelowPaper, Zone::LeftMargin})
       check(gesturebind::oneFingerAction(static_cast<OneFinger>(k), z, true,
                                          stored(Action::Inherit),
                                          stored(Action::Inherit)) !=
@@ -590,7 +595,7 @@ static void testEveryBindingMayBeCleared() {
                 Action::Nothing, gesturebind::gestureName(g));
   }
   for (int k = 0; k < kOneFingerCount; ++k)
-    for (Zone z : {Zone::AbovePaper, Zone::Neither, Zone::BelowPaper})
+    for (Zone z : {Zone::AbovePaper, Zone::Neither, Zone::BelowPaper, Zone::LeftMargin})
       checkAction(gesturebind::oneFingerAction(static_cast<OneFinger>(k), z,
                                                true, stored(Action::Nothing),
                                                stored(Action::Nothing)),
@@ -600,32 +605,219 @@ static void testEveryBindingMayBeCleared() {
 // --- 6. THE ZONES ----------------------------------------------------------
 static void testZones() {
   // An iPhone Air's measured geometry: the card top at 204 device px, the
-  // rocker row (the paper's bottom edge in zen) at 852.
-  const float top = 204.0f, bottom = 852.0f;
-  check(gesturebind::zoneFor(0.0f, top, bottom) == Zone::AbovePaper,
+  // rocker row (the paper's bottom edge in zen) at 852, and the page's left
+  // edge at 102 (a 1056 px page centred on a 1260 px screen).
+  const float top = 204.0f, bottom = 852.0f, left = 102.0f;
+  // `mid` is any x comfortably ON the page, so these rows ask the y question
+  // the way they always did.
+  const float mid = 600.0f;
+  check(gesturebind::zoneFor(mid, 0.0f, left, top, bottom) == Zone::AbovePaper,
         "y=0 is above the paper");
-  check(gesturebind::zoneFor(203.9f, top, bottom) == Zone::AbovePaper,
+  check(gesturebind::zoneFor(mid, 203.9f, left, top, bottom) ==
+            Zone::AbovePaper,
         "one pixel above the card top is above the paper");
-  check(gesturebind::zoneFor(204.0f, top, bottom) == Zone::Neither,
+  check(gesturebind::zoneFor(mid, 204.0f, left, top, bottom) == Zone::Neither,
         "the card top itself is inside no override (the boundary is exclusive "
         "above)");
-  check(gesturebind::zoneFor(851.9f, top, bottom) == Zone::Neither,
+  check(gesturebind::zoneFor(mid, 851.9f, left, top, bottom) == Zone::Neither,
         "one pixel above the paper's bottom edge is still inside no override");
-  check(gesturebind::zoneFor(852.0f, top, bottom) == Zone::BelowPaper,
+  check(gesturebind::zoneFor(mid, 852.0f, left, top, bottom) ==
+            Zone::BelowPaper,
         "the paper's bottom edge itself is below the paper");
-  check(gesturebind::zoneFor(2000.0f, top, bottom) == Zone::BelowPaper,
+  check(gesturebind::zoneFor(mid, 2000.0f, left, top, bottom) ==
+            Zone::BelowPaper,
         "the bottom of the screen is below the paper");
 
   // A DEGENERATE BOTTOM EDGE LEAVES ONLY THE TOP BOUNDARY. Before the first
   // layout pass both boundaries read 0; a zone must not be invented out of a
   // zero, or every gesture in the lower two thirds of the screen would silently
   // change which row answers on the first frame after launch.
-  check(gesturebind::zoneFor(1000.0f, top, 0.0f) == Zone::Neither,
+  check(gesturebind::zoneFor(mid, 1000.0f, left, top, 0.0f) == Zone::Neither,
         "with no measured bottom edge, below the top has no override");
-  check(gesturebind::zoneFor(100.0f, top, 0.0f) == Zone::AbovePaper,
+  check(gesturebind::zoneFor(mid, 100.0f, left, top, 0.0f) == Zone::AbovePaper,
         "...and above the top still does");
-  check(gesturebind::zoneFor(1000.0f, top, top) == Zone::Neither,
+  check(gesturebind::zoneFor(mid, 1000.0f, left, top, top) == Zone::Neither,
         "a bottom edge equal to the top edge is not a zone");
+
+  // THE LEFT MARGIN (2026-09-21). Same exclusive-boundary shape as the card
+  // top: the strip is [0, pageLeft), and the page's own left column is on the
+  // page.
+  check(gesturebind::zoneFor(0.0f, 500.0f, left, top, bottom) ==
+            Zone::LeftMargin,
+        "x=0 on the page's own row is in the left margin");
+  check(gesturebind::zoneFor(101.9f, 500.0f, left, top, bottom) ==
+            Zone::LeftMargin,
+        "one pixel left of the page's left edge is in the left margin");
+  check(gesturebind::zoneFor(102.0f, 500.0f, left, top, bottom) ==
+            Zone::Neither,
+        "the page's left edge itself is on the page (the boundary is exclusive "
+        "left)");
+  check(gesturebind::zoneFor(1200.0f, 500.0f, left, top, bottom) ==
+            Zone::Neither,
+        "the RIGHT margin is not a zone -- the owner asked for the left one");
+
+  // A DEGENERATE LEFT EDGE LEAVES NO LEFT-MARGIN ZONE, exactly as a degenerate
+  // bottom edge leaves no below-the-paper zone. Before the first present the
+  // page's left edge reads 0, and x is never negative, so nothing can land in
+  // the strip -- which is the conservative answer, since the alternative is
+  // every gesture on the left of the screen silently taking a different row on
+  // the first frame after launch.
+  check(gesturebind::zoneFor(0.0f, 500.0f, 0.0f, top, bottom) == Zone::Neither,
+        "with no measured left edge there is no left-margin zone");
+  check(gesturebind::zoneFor(0.0f, 100.0f, 0.0f, top, bottom) ==
+            Zone::AbovePaper,
+        "...and the other two boundaries still answer");
+
+  // THE OVERLAP, AND WHO WINS IT. Owner 2026-09-21, shown both readings and
+  // what each costs: *"carve the corner out -- Above wins there."* So the two
+  // BANDS keep their corners and the left margin is the strip BETWEEN them.
+  // This is the one decision in the feature that no compiler and no screenshot
+  // can check, and the other implementation -- ask x first, so the margin runs
+  // uninterrupted top to bottom -- fails exactly these four lines.
+  check(gesturebind::zoneFor(20.0f, 20.0f, left, top, bottom) ==
+            Zone::AbovePaper,
+        "REGRESSION: the TOP-LEFT corner is ABOVE THE PAPER, not the left "
+        "margin -- the bands win the overlap");
+  check(gesturebind::zoneFor(20.0f, 2000.0f, left, top, bottom) ==
+            Zone::BelowPaper,
+        "REGRESSION: the BOTTOM-LEFT corner is BELOW THE PAPER, not the left "
+        "margin");
+  check(gesturebind::zoneFor(20.0f, 500.0f, left, top, bottom) ==
+            Zone::LeftMargin,
+        "...and BETWEEN the bands the left margin is the answer");
+  check(gesturebind::zoneFor(200.0f, 500.0f, left, top, bottom) ==
+            Zone::Neither,
+        "...while the page itself still has no zone at all");
+
+  // WHAT THE RULING BOUGHT, pinned so it cannot be given away by a refactor:
+  // nothing at shipped defaults moved. The hold above the paper ships bound to
+  // Power and is the one row that fires OUTSIDE zen, and the top-left corner
+  // is still that row. Under the other reading it would have inherited the
+  // global Hold and been silent there.
+  checkAction(gesturebind::oneFingerAction(OneFinger::Hold, Zone::AbovePaper,
+                                           /*zenOn=*/false,
+                                           shipped(Gesture::HoldAbove),
+                                           shipped(Gesture::HoldGlobal)),
+              Action::Power,
+              "the top-left corner still powers off out of zen -- what the "
+              "carve-out was for");
+  // AND THE PRICE, equally pinned: a gesture switched OFF in the margin still
+  // fires in the two corners, because they are not the margin. That is the
+  // case a zone override exists for, and it is the cost of the ruling.
+  checkAction(gesturebind::oneFingerAction(OneFinger::Tap, Zone::AbovePaper,
+                                           /*zenOn=*/true,
+                                           stored(Action::Inherit),
+                                           stored(Action::Right)),
+              Action::Right,
+              "a tap in the top-left corner takes the ABOVE row, so silencing "
+              "the left margin does not silence it there");
+}
+
+// --- 6b. THE LEFT MARGIN AS A LAYER ----------------------------------------
+//
+// Owner 2026-09-21, verbatim: *"add ios app setting entire left margin (top to
+// bottom) as a separate zone for tapping (full configuration)."* Everything
+// here is the same rule the other two zones obey; it is restated for this zone
+// because "full configuration" is the ask, and a zone that quietly resolved
+// differently from its neighbours would look identical in Settings.app.
+static void testLeftMargin() {
+  // ALL SIX single-finger gestures have a row, which is what "(full
+  // configuration)" means. Unlike the band above the paper, nothing is
+  // dropped here -- see the note beside the rows in ios/GestureBindings.h for
+  // the phone measurement that makes two of them unlikely to recognize, and
+  // why they ship anyway.
+  for (int k = 0; k < kOneFingerCount; ++k)
+    check(gesturebind::zoneGesture(static_cast<OneFinger>(k),
+                                   Zone::LeftMargin) != Gesture::Count,
+          "every one-finger gesture has a left-margin override");
+
+  // EVERY ROW SHIPS BLANK, so an install that never opens Settings.app behaves
+  // exactly as the build before this one did everywhere except the two corners
+  // (pinned in testZones above). This is the whole parity claim for the
+  // feature.
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const Gesture g = static_cast<Gesture>(i);
+    if (gesturebind::row(g).zone != Zone::LeftMargin) continue;
+    checkAction(gesturebind::defaultAction(g), Action::Inherit,
+                "every left-margin row ships blank");
+  }
+
+  // BLANK FALLS THROUGH, for each of the six, at the SHIPPED values -- the
+  // same answer the paper gives.
+  const struct {
+    OneFinger kind;
+    Action want;
+    const char* what;
+  } kInherits[] = {
+      {OneFinger::Tap, Action::Right, "tap in the left margin pages forward"},
+      {OneFinger::SwipeLeft, Action::Right, "swipe left inherits page forward"},
+      {OneFinger::SwipeRight, Action::Left, "swipe right inherits page back"},
+      {OneFinger::SwipeUp, Action::Back, "swipe up inherits Back"},
+      {OneFinger::SwipeDown, Action::Confirm, "swipe down inherits Confirm"},
+      {OneFinger::Hold, Action::Confirm, "hold inherits Select"},
+  };
+  for (const auto& c : kInherits) {
+    const Gesture zg = gesturebind::zoneGesture(c.kind, Zone::LeftMargin);
+    checkAction(
+        gesturebind::oneFingerAction(
+            c.kind, Zone::LeftMargin, /*zenOn=*/true, shipped(zg),
+            shipped(gesturebind::globalGesture(c.kind))),
+        c.want, c.what);
+  }
+
+  // A SET ROW WINS, and an explicit Nothing is an OVERRIDE rather than a
+  // blank. The second is the owner's stated use for a margin zone -- switch a
+  // gesture off where a thumb sets it off by accident -- and the obvious wrong
+  // implementation collapses the two, which compiles, reads fine, and makes
+  // the row do the global thing instead of nothing at all.
+  checkAction(gesturebind::oneFingerAction(OneFinger::Tap, Zone::LeftMargin,
+                                           true, stored(Action::Back),
+                                           stored(Action::Right)),
+              Action::Back, "a set left-margin row beats the global binding");
+  checkAction(gesturebind::oneFingerAction(OneFinger::Tap, Zone::LeftMargin,
+                                           true, stored(Action::Nothing),
+                                           stored(Action::Right)),
+              Action::Nothing,
+              "REGRESSION: an explicit Nothing in the left margin is an "
+              "OVERRIDE, not a blank");
+  checkAction(gesturebind::oneFingerAction(OneFinger::Hold, Zone::LeftMargin,
+                                           true, stored(Action::Inherit),
+                                           stored(Action::Power)),
+              Action::Power,
+              "...while Inherit really does fall through to whatever the "
+              "global row holds");
+
+  // A STORED 0 -- an unwritten key, or a Settings.bundle that would not load --
+  // resolves to the row's own default, which for all six is Inherit, which
+  // falls through. A lost store must render the app as it shipped, never as a
+  // device with a dead left edge.
+  for (int k = 0; k < kOneFingerCount; ++k) {
+    const OneFinger kind = static_cast<OneFinger>(k);
+    checkAction(gesturebind::oneFingerAction(kind, Zone::LeftMargin, true, 0,
+                                             stored(Action::Right)),
+                Action::Right,
+                "a stored 0 in the left margin inherits, it does not disable");
+  }
+
+  // The zone is a property of the LANDING POINT, so the rows are distinct from
+  // both other zones' and no two share a key. (The whole-table key uniqueness
+  // sweep in testStoredIntegers covers this too; asked here by name because
+  // "gestureSwipeLeftLeftMargin" is the kind of key a copy-paste mangles.)
+  check(gesturebind::zoneGesture(OneFinger::Tap, Zone::LeftMargin) !=
+            gesturebind::zoneGesture(OneFinger::Tap, Zone::AbovePaper),
+        "the left margin's tap row is not the above-the-paper one");
+  check(gesturebind::zoneGesture(OneFinger::Tap, Zone::LeftMargin) !=
+            gesturebind::zoneGesture(OneFinger::Tap, Zone::BelowPaper),
+        "...nor the below-the-paper one");
+
+  // Multi-finger is unchanged: the left margin overrides SINGLE-finger
+  // gestures only, by the same ruling that gave the other two zones none.
+  check(gesturebind::zoneRowFor(Gesture::TwoFingerTap, Zone::LeftMargin) ==
+            Gesture::Count,
+        "the 2-finger tap has no left-margin override either");
+  check(gesturebind::zoneRowFor(Gesture::Shake, Zone::LeftMargin) ==
+            Gesture::Count,
+        "nor the shake, which has no landing point at all");
 }
 
 // --- 7. ZEN SCOPE IS A PROPERTY OF THE GESTURE AND ITS ZONE ----------------
@@ -759,8 +951,9 @@ static void testStoredIntegers() {
     check(!k.empty(), "every row has a key");
     check(keys.insert(k).second, "no two rows share a key");
   }
-  check(gesturebind::kGestureCount == 32,
-        "32 rows: 21 gestures, 5 above the paper, 6 below it");
+  check(gesturebind::kGestureCount == 38,
+        "38 rows: 21 gestures, 5 above the paper, 6 below it, 6 in the left "
+        "margin");
   check(gesturebind::kGlobalActionCount == 12,
         "12 global actions: 7 buttons, Nothing, the zen toggle, the font "
         "step, the font step back, open action menu");
@@ -824,7 +1017,9 @@ static void testStoredIntegers() {
   check(gesturebind::isZoneRow(Gesture::TapAbove),
         "TapAbove is the first zone row");
   check(gesturebind::isZoneRow(Gesture::HoldBelow),
-        "HoldBelow is the last zone row");
+        "HoldBelow is a zone row");
+  check(gesturebind::isZoneRow(Gesture::HoldLeftMargin),
+        "HoldLeftMargin is the last zone row");
 
   // THE SHAPE OF THE SET, counted from the table rather than trusted. These are
   // the numbers the owner named; a family that quietly grows or shrinks moves
@@ -946,7 +1141,7 @@ static void testRootPlist(const char* path) {
   }
 
   // THE GROUPS, in the order the header lists them. The global layer is
-  // sub-grouped by finger count because 28 rows in one flat list is a scroll
+  // sub-grouped by finger count because 38 rows in one flat list is a scroll
   // with no landmarks; the two override groups come last, after everything they
   // can override.
   size_t groupAt[gesturebind::kGroupCount];
@@ -1120,6 +1315,7 @@ int main(int argc, char** argv) {
   testSharing();
   testEveryBindingMayBeCleared();
   testZones();
+  testLeftMargin();
   testZenScope();
   testStoredIntegers();
   testRootPlist(argc > 1 ? argv[1] : "ios/Settings.bundle/Root.plist");

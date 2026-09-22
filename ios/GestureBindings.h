@@ -71,6 +71,41 @@
 //   2. ABOVE THE PAPER     the six SINGLE-FINGER gestures (tap, four swipes,
 //                          the hold), defaulting to INHERIT (blank).
 //   3. BELOW THE PAPER     the same six, the same default.
+//   4. THE LEFT MARGIN     the same six again, the same default. Added
+//                          2026-09-21, owner: *"add ios app setting entire
+//                          left margin (top to bottom) as a separate zone for
+//                          tapping (full configuration)."*
+//
+// THE LEFT MARGIN OVERLAPS THE OTHER TWO, AND IT YIELDS. Owner 2026-09-21,
+// shown both readings with what each costs: *"carve the corner out -- Above
+// wins there."* So the margin is the left strip BETWEEN the two bands, notched
+// at both ends, and `zoneFor()` asks the Y question first.
+//
+// The argument for the other reading is recorded because it is not silly and
+// will be made again: "entire left margin (top to bottom)" describes an
+// uninterrupted strip, and the stated use for a zone override is switching a
+// gesture OFF where a thumb sets it off by accident -- a suppression with two
+// holes at the corners does not fully suppress. That cost is real and is the
+// price of this ruling.
+//
+// What it buys is that NOTHING at shipped defaults moves. The top-left corner
+// stays AbovePaper, where the hold ships bound to Power and is the one row
+// that fires OUTSIDE zen; under the other reading that corner would have
+// inherited the global Hold and the gesture would have been lost there.
+//
+// THE PRICE OF THAT, stated rather than discovered later: the top-left corner
+// -- roughly 34 x 68 pt on a phone -- used to be AbovePaper, where the hold
+// ships bound to Power and fires OUTSIDE zen. It is LeftMargin now, so a hold
+// there takes the (blank) LeftMargin row and inherits the global Hold: in zen
+// it SELECTS instead of powering off, and out of zen it does nothing at all.
+// THAT IS THE WHOLE CHANGE at the shipped defaults -- the tap and the four
+// swipes inherit the same actions in either zone, and the bottom-left corner
+// was already inheriting them from Below, so nothing else moves. Power is
+// unchanged across the rest of the band above the paper.
+// That is a behavior change on a shipped default, and it is the owner's to
+// reverse: pointing Left Margin -> Hold at Power restores the action in the
+// corner (though not the outside-zen gate, which firesOutsideZen() keys on
+// Gesture::HoldAbove alone).
 //
 // **THERE IS NO "ON THE PAPER".** The paper is simply where nothing overrides,
 // so the global binding applies -- there is no concept, no row, no key and no
@@ -80,7 +115,8 @@
 // MULTI-FINGER HAS NO ZONE OVERRIDE, by ruling: a two-finger tap is the same
 // gesture wherever it lands. Neither do the seven MOTION rows -- the shake, the
 // two volume buttons and the four tilts -- none of which has a landing point at
-// all. 21 global rows + 11 zone rows = 32.
+// all. 21 global rows + 17 zone rows = 38 (11 zone rows until 2026-09-21, when
+// the left margin added its six).
 //
 // ELEVEN, NOT TWELVE: there is no "Swipe Down above the paper" row (owner
 // ruling 2026-09-02, "drop the Above/Below swipe rows that cannot fire"). A
@@ -316,6 +352,21 @@ constexpr int kZoneActionCount =
 //                   is the SAME boundary the one-finger hold already split on.
 //   paperBottomPx   the bottom edge of the paper (g_zenRowTopPx, the old rocker
 //                   row's top), also published by layoutPad in both modes.
+//   pageLeftPx      the PAGE's left edge (SimulatorOverlay::panelLeftPx(), the
+//                   same number g_zenPanel.x is built from and the same one the
+//                   pad and the read-aloud painter already anchor to), recorded
+//                   on every present in both modes.
+//
+// THE LEFT BOUNDARY IS THE PAGE'S, NOT THE PAPER'S, and that is deliberate
+// rather than a near miss. On the phone the SHEET bleeds to the glass -- the
+// pad's field is the page's own paper tone by design (measured 215,233,211
+// against 215,233,211), so the paper has no left edge there at all and a
+// paper-derived boundary would be 0, i.e. no left-margin zone on the device
+// the owner reads on. What the eye and the thumb actually meet on the left is
+// the strip of blank paper beside the PAGE, which is what this measures. On
+// the tablet the same number sits inside the card's own margin, so the zone
+// there is the black surround plus the card's gap -- still "left of the page",
+// still one definition.
 //
 // `Neither` is geometrically the paper, and that is all it is: a landing point
 // no override covers, so the global binding applies. It is deliberately NOT
@@ -326,13 +377,18 @@ enum class Zone {
   AbovePaper,
   Neither,
   BelowPaper,
+  // 2026-09-21. Appended rather than placed in spatial order because nothing
+  // persists a Zone (only the ACTION integers and the row KEYS are stored), so
+  // the only cost of a position is churn in the tables that walk this enum.
+  LeftMargin,
 };
 
 // Whole phrases, not adjectives: these go straight into the `[zen]` log lines,
 // and "tap neither the paper" is what an adjective produced.
 constexpr const char* zoneName(Zone z) {
-  return z == Zone::AbovePaper  ? "above the paper"
+  return z == Zone::AbovePaper   ? "above the paper"
          : z == Zone::BelowPaper ? "below the paper"
+         : z == Zone::LeftMargin ? "in the left margin"
                                  : "in no override zone";
 }
 
@@ -363,10 +419,26 @@ constexpr const char* zoneName(Zone z) {
 // that fires outside zen, so a hold at the top of an iPad screen can now
 // toggle zen where it previously could not. Flagged as a behavior change,
 // not decided here.
-constexpr Zone zoneFor(float yPx, float paperTopPx, float paperBottomPx) {
+// A DEGENERATE LEFT EDGE LEAVES NO LEFT-MARGIN ZONE, by the same rule and for
+// the same reason: pageLeftPx is 0 before the first present, and a zero must
+// not become a zone. It cannot go the other way either -- xPx is never
+// negative -- so the `> 0` guard is the whole of it.
+//
+// THE Y QUESTION IS ASKED FIRST, which is the precedence ruling in one line:
+// the two BANDS win their overlap with the left margin, so the margin is the
+// left strip BETWEEN them rather than a strip past them. Owner 2026-09-21,
+// shown both readings and what each costs: *"carve the corner out -- Above
+// wins there."* The strip is therefore notched at both ends, and the price of
+// THAT is stated where the gain is: a gesture switched off in the margin still
+// fires in its two corners, which is the case a zone override exists for. The
+// gain is that NOTHING at shipped defaults moves -- the top-left corner keeps
+// `HoldAbove`, whose Power default is the one row that fires outside zen.
+constexpr Zone zoneFor(float xPx, float yPx, float pageLeftPx, float paperTopPx,
+                       float paperBottomPx) {
   if (yPx < paperTopPx) return Zone::AbovePaper;
   if (paperBottomPx > paperTopPx && yPx >= paperBottomPx)
     return Zone::BelowPaper;
+  if (pageLeftPx > 0.0f && xPx < pageLeftPx) return Zone::LeftMargin;
   return Zone::Neither;
 }
 
@@ -436,7 +508,7 @@ constexpr const char* dirName(Dir d) {
 
 // WHICH SETTINGS.APP GROUP A ROW APPEARS IN.
 //
-// 28 rows in one flat list is a long scroll with no landmarks, so the global
+// 38 rows in one flat list is a long scroll with no landmarks, so the global
 // layer is sub-grouped BY FINGER COUNT -- the one partition a hand can feel,
 // and the one that lets every row inside a group drop its "Two-Finger" prefix
 // and read as a short verb. Pinch and rotation sit in Two Fingers because that
@@ -447,6 +519,7 @@ enum class Group : int {
   Device,
   AbovePaper,
   BelowPaper,
+  LeftMargin,
   Count,
 };
 
@@ -459,6 +532,7 @@ constexpr const char* groupTitle(Group g) {
     case Group::Device: return "Gestures — Motion";
     case Group::AbovePaper: return "Above the Paper";
     case Group::BelowPaper: return "Below the Paper";
+    case Group::LeftMargin: return "The Left Margin";
     case Group::Count: break;
   }
   return "?";
@@ -515,6 +589,15 @@ enum class Gesture : int {
   SwipeUpBelow,
   SwipeDownBelow,
   HoldBelow,
+  // THE LEFT MARGIN -- overrides, blank by default. All six, per the owner's
+  // "(full configuration)"; see the note beside the rows for the two that are
+  // measured as unlikely to recognize inside a phone's 34 pt strip.
+  TapLeftMargin,
+  SwipeLeftLeftMargin,
+  SwipeRightLeftMargin,
+  SwipeUpLeftMargin,
+  SwipeDownLeftMargin,
+  HoldLeftMargin,
   Count,
 };
 
@@ -598,6 +681,32 @@ constexpr Row kRows[] = {
     {Gesture::SwipeUpBelow, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::BelowPaper, "gestureSwipeUpBelow", "swipe up below the paper", "Swipe Up", Action::Inherit},
     {Gesture::SwipeDownBelow, Family::Swipe, 1, Dir::Down, OneFinger::SwipeDown, Zone::BelowPaper, "gestureSwipeDownBelow", "swipe down below the paper", "Swipe Down", Action::Inherit},
     {Gesture::HoldBelow, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::BelowPaper, "gestureHoldBelow", "hold below the paper", "Hold", Action::Inherit},
+  // THE LEFT MARGIN -- overrides, blank by default (2026-09-21).
+  //
+  // ALL SIX, unlike the band above the paper, which is five. The owner asked
+  // for "(full configuration)" and a removed row is a capability nobody can
+  // reach, so they all ship -- but the 2026-09-02 measurement that dropped
+  // `SwipeDownAbove` applies to two of these and is recorded here rather than
+  // left for someone to rediscover. A swipe is zoned where UIKit RECOGNIZES
+  // it, ~50 pt of travel past the landing point, and this strip is ~34 pt wide
+  // on a phone (102 device px of a 1260 px screen at a 1056 px page): a swipe
+  // LEFT started in it runs out of screen before it is a swipe, and a swipe
+  // RIGHT started in it is recognized on the paper and zoned there. The two
+  // VERTICAL swipes barely move in x and recognize inside the strip; the tap
+  // and the hold have no travel at all. On a TABLET the margin is wide enough
+  // for all four, which is why these are shipped rather than dropped -- the
+  // rows are not dead, they are dead on one device class. Flagged to the owner
+  // as a ruling to make, not decided here.
+  //
+  // The keys carry the full `LeftMargin` suffix rather than a shorter `Margin`
+  // because a key is persisted and can never be renamed: if a RIGHT margin is
+  // ever asked for, `gestureTapMargin` would be the wrong name forever.
+    {Gesture::TapLeftMargin, Family::Tap, 1, Dir::None, OneFinger::Tap, Zone::LeftMargin, "gestureTapLeftMargin", "tap in the left margin", "Tap", Action::Inherit},
+    {Gesture::SwipeLeftLeftMargin, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::LeftMargin, "gestureSwipeLeftLeftMargin", "swipe left in the left margin", "Swipe Left", Action::Inherit},
+    {Gesture::SwipeRightLeftMargin, Family::Swipe, 1, Dir::Right, OneFinger::SwipeRight, Zone::LeftMargin, "gestureSwipeRightLeftMargin", "swipe right in the left margin", "Swipe Right", Action::Inherit},
+    {Gesture::SwipeUpLeftMargin, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::LeftMargin, "gestureSwipeUpLeftMargin", "swipe up in the left margin", "Swipe Up", Action::Inherit},
+    {Gesture::SwipeDownLeftMargin, Family::Swipe, 1, Dir::Down, OneFinger::SwipeDown, Zone::LeftMargin, "gestureSwipeDownLeftMargin", "swipe down in the left margin", "Swipe Down", Action::Inherit},
+    {Gesture::HoldLeftMargin, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::LeftMargin, "gestureHoldLeftMargin", "hold in the left margin", "Hold", Action::Inherit},
 };
 
 static_assert(sizeof(kRows) / sizeof(kRows[0]) == kGestureCount,
@@ -638,6 +747,7 @@ constexpr Group groupOf(Gesture g) {
   const Row& r = row(g);
   if (r.zone == Zone::AbovePaper) return Group::AbovePaper;
   if (r.zone == Zone::BelowPaper) return Group::BelowPaper;
+  if (r.zone == Zone::LeftMargin) return Group::LeftMargin;
   if (r.family == Family::Shake || r.family == Family::Button ||
       r.family == Family::Tilt)
     return Group::Device;

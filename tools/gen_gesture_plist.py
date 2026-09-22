@@ -3,7 +3,7 @@
 
 WHY THIS IS GENERATED AND THE REST OF THE PLIST IS NOT.
 
-There are 28 gesture rows (17 global + 11 zone overrides) and each one is a
+There are 38 gesture rows (21 global + 17 zone overrides) and each one is a
 ~34-line ``PSMultiValueSpecifier`` carrying the same eleven or twelve annotated
 action labels.  That is close to a thousand lines of XML whose every value is
 already stated, exactly once, in ``ios/GestureBindings.h`` -- the key, the
@@ -108,6 +108,20 @@ FOOTER = {
         "The band below the sheet, where the button pad sits outside zen mode. "
         "Same rule as above: blank inherits, anything else wins here only."
     ),
+    "The Left Margin": (
+        "The strip down the left of the screen, beside the page — the whole "
+        "height of it, top to bottom. Same rule again: blank inherits, "
+        "anything else wins here only, and Nothing switches a gesture off "
+        "along the left edge while it keeps working on the page." + NL + NL +
+        "It runs the full height, so where it crosses the two bands above and "
+        "below the sheet, THIS group wins — including the top-left corner, "
+        "where a hold no longer reaches the Above the Paper row." + NL + NL +
+        "A swipe is judged where iOS recognizes it, which is about 50 points "
+        "of travel from where your finger landed. On a phone this strip is "
+        "narrower than that, so Swipe Left and Swipe Right here will "
+        "usually be judged elsewhere; Tap, Hold, Swipe Up and Swipe Down are "
+        "the four that hold. On an iPad the strip is wide enough for all six."
+    ),
 }
 
 
@@ -155,6 +169,8 @@ def group_of(row):
         return "Above the Paper"
     if row["zone"] == "BelowPaper":
         return "Below the Paper"
+    if row["zone"] == "LeftMargin":
+        return "The Left Margin"
     # MUST MATCH groupOf() IN THE HEADER. It did not between 2026-09-06's two
     # commits: this asked only about Shake, so the volume rocker and the four
     # tilts -- fingers = 0, like the shake -- fell through to the finger-count
