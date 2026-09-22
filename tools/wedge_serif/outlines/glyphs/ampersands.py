@@ -1470,9 +1470,9 @@ ALT051_NIB_MIX = float(os.environ.get("ALBO_ALT051_NIB_MIX", 0.45))
 # their 1.40-1.66, and its advance 2.93x the o's -- nearly three letters wide.
 # A reference's proportions are not this face's, and a traced letter carries
 # them in whole.
-ALT051_WEIGHT = float(os.environ.get("ALBO_ALT051_WEIGHT", 1.0))   # x the traced width
-ALT051_CON = float(os.environ.get("ALBO_ALT051_CON", 1.0))         # <1 pulls the contrast toward the face's
-ALT051_SQUEEZE = float(os.environ.get("ALBO_ALT051_SQUEEZE", 1.0)) # x the width; the swash is most of it
+ALT051_WEIGHT = float(os.environ.get("ALBO_ALT051_WEIGHT", 1.36))   # ROUND 350: the ruled value, round 317, with the squeeze   # x the traced width
+ALT051_CON = float(os.environ.get("ALBO_ALT051_CON", 0.45))   # ROUND 350: the ruled value, round 317, with the squeeze         # <1 pulls the contrast toward the face's
+ALT051_SQUEEZE = float(os.environ.get("ALBO_ALT051_SQUEEZE", 0.38))   # ROUND 350: the ruled value, round 318: "squeeze 0.38 wins" # x the width; the swash is most of it
 # ROUND 317 -- THE SQUEEZE HOLDS THE LEFT SIDE. Owner 2026-09-21: *"keep the
 # left side strokes the same"*. Round 316 compressed the whole letter, which
 # narrows the E and the bowl along with the swash -- and those two are the part

@@ -7126,3 +7126,67 @@ were, and 3 units lighter at 330 than E, the lightest arm he had already seen.
 The ship build is byte-identical to the F arm he judged (0 of 493 glyph
 outlines differ) and the roman is untouched. `approved.json` carries
 `Italic:g` at round 347, superseding round 342's.
+
+### Round 350 — the italic ampersand finally ships, and two bugs it was hiding
+
+Owner 2026-09-21, shown the italic ampersand and told it was the face's
+outlier: ***"that is not the italic ampersand that was selected today."***
+He is right, and the reason is worse than a wrong render.
+
+**Rounds 312–321 drew, laddered and RULED an italic ampersand that never
+shipped.** *"trace alt051 in the albo style"* → *"make that letter form with
+the albo nib"* → *"squeeze 0.38 wins"* → *"e wins, but it needs to have the
+italic lean and finials need to match albo"* → *"c wins"*. Every one of those
+commits ends **"unset build: 0 of 493 glyphs differ"**, because not one of them
+moved a DEFAULT. `ALBO_IT_AMP` stayed at `a`, the sheared roman, and the ruled
+letter was reachable only by an environment variable nobody sets.
+
+Four ruled values were sitting unshipped: the selector `g` (alt051 on the Albo
+nib), `SQUEEZE 0.38`, `WEIGHT 1.36`, `CON 0.45` — the last three recorded in
+this repo's own README as *"Ruling 2026-09-21 (owner): the italic ampersand's
+SQUEEZE IS 0.38"* and never applied. This is round 336's failure again: a
+letter ruled and not shipped, with every gate green.
+
+#### Bug 1 — `ALBO_IT_AMP` reached BOTH faces
+
+`marks.g_ampersand` dispatched on `IT_AMP in ET_OPTIONS` with **no
+`pen.ITALIC` guard**, so making the ruled value the default handed the ROMAN
+the chancery Et as well. Dormant since round 309 because `a` is not in
+`ET_OPTIONS`, so the branch was never taken. Guarded now.
+
+#### Bug 2 — a glyph change re-cuts the rest of the font
+
+Selecting a different ampersand moved **169 other glyphs**, in both styles.
+`outlines/cut.py`'s `Cutter` keeps `self.n`, a RUNNING COUNTER advanced once
+per contour, and the decimation phase of every contour is
+`Random(seed * 7919 + n)`. So a glyph with a different contour count shifts the
+phase of every glyph built after it.
+
+Measured: an ordinary ampersand swap (`ALBO_AMP_OPT=b`) moves exactly **one**
+glyph, because it has the same contour count. alt051 does not, and 169
+composites and symbols — everything after the ampersand in build order — were
+re-cut.
+
+**Not fixed, and deliberately.** It is the deliberate-irregularity machinery
+working as written, the ripple is a phase shift rather than a defect, and
+re-seeding it per glyph would re-cut all 493 in both styles — a change nobody
+asked for. But two things follow for anyone reading a proof here:
+`"0 of 493 glyphs differ"` is only as strong as the contour count staying
+equal, and a gate delta in the symbols after a letter change is expected
+churn rather than a regression. `docs/albo-imperfections.md` says a TABLE
+never a jitter; this is a jitter with a seed, and it predates that rule.
+
+#### What ships, and the one finding it carries
+
+The italic ampersand is now `ALBO_IT_AMP=g` at the ruled dials, byte-identical
+to the arm he judged. The roman is untouched (identical by outline). The
+collision sweep is 0 touching pairs in both styles and the letters arm of the
+hair gate stays empty.
+
+It raises **one REVERSAL — 165.5° at (813, 676), arms 81.7 / 23.8 units** — at
+the top-right curl. That is the same region as his round-318 ask, *"reduce the
+visual distraction of a large top right extended stroke"*, whose dials
+(`ALBO_ALT051_CURL`, `ALBO_ALT051_CURL_CUT`) are built and **not ruled**. The
+finding is in `gates-baseline.txt` rather than silently accepted, and the
+letter was NOT quietly moved to `ALT051_PATH=a` to green the gate — he ruled
+`c`.

@@ -379,7 +379,13 @@ def g_ampersand(c):
     # they are picked by their own name. ALBO_IT_AMP defaults to 'a' -- the
     # drawing below, in either face -- so an unset build is byte-identical.
     from .ampersands import bred, VARIANTS2, AMP_OPTIONS, ET_OPTIONS
-    if IT_AMP in ET_OPTIONS:
+    # ROUND 350 -- AND IT IS THE ITALIC'S. There was no `pen.ITALIC` here, so
+    # `ALBO_IT_AMP` reached BOTH faces: setting it to the ruled 'g' handed the
+    # roman the chancery Et as well, and 169 roman glyphs moved with it (the
+    # ampersand itself, then every composite and symbol built after it). It
+    # was invisible while the default was 'a', which is not in ET_OPTIONS, so
+    # the branch was never taken and the bug shipped dormant from round 309.
+    if pen.ITALIC and IT_AMP in ET_OPTIONS:
         return ET_OPTIONS[IT_AMP](c)
     if AMP_OPT in AMP_OPTIONS:   # round 233: the owner's options (R54-R56), see ampersands.AMP_OPTIONS; 'a' is the drawing below
         g = bred(c, **AMP_OPTIONS[AMP_OPT])
@@ -396,7 +402,16 @@ def g_ampersand(c):
     dials = dict(dict(VARIANTS2)['round_bowl'].dials)
     dials.update(cross=41.2, arm_end='beak')
     return bred(c, **dials)
-IT_AMP = os.environ.get("ALBO_IT_AMP", "a")   # round 309: the chancery et, b-e; 'a' is the drawing above, in both faces
+# ROUND 350 -- 'g' SHIPS, AND IT SHOULD HAVE SINCE ROUND 319. Owner
+# 2026-09-21, shown the italic ampersand and told it was the outlier:
+# *"that is not the italic ampersand that was selected today"* -- correct.
+# Rounds 312-321 drew, laddered and RULED alt051 on the Albo nib ("make that
+# letter form with the albo nib", "squeeze 0.38 wins", "e wins, but it needs
+# to have the italic lean", "c wins") and every one of those commits ends
+# "unset build: 0 of 493 glyphs differ", because not one of them moved a
+# DEFAULT. The italic went on drawing 'a', the sheared roman. Same failure as
+# round 336's g: a letter ruled and not shipped, with every gate green.
+IT_AMP = os.environ.get("ALBO_IT_AMP", "g")   # round 309: the chancery et, b-e; 'a' is the drawing above; 'g' is alt051 on the Albo nib
 AMP_OPT = os.environ.get("ALBO_AMP_OPT", "a" if pen.ITALIC else "e")   # round 252: e ships on the roman -- owner 2026-09-18, "ALBO_AMP_OPT d with a b top" / "e wins for ampersand"
 @glyph('%')
 def g_percent(c):
