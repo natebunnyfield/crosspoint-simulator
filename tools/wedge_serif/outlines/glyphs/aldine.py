@@ -5206,9 +5206,15 @@ if ON:
     # `1 - _D`, so a NEGATIVE depth thickens (-1.0 is twice the wall) exactly
     # as a positive one thins. A fill has no hairline floor to breach, which
     # is the whole reason this direction is the cheaper one.
-    G_LOOP_CUT_AT = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_AT", 150.0))
-    G_LOOP_CUT_D = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_D", 0.0))
-    G_LOOP_CUT_W = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_W", 55.0))
+    # ROUND 347 -- F SHIPS. Owner 2026-09-21, from five arms spanning 33 to 50
+    # units at the bottom right: *"f wins"*. It is the TIGHTEST of the five --
+    # a narrow swelling centred at 322, not the wide lift of the lower right
+    # that D and E were. Measured, 315/330/345 go 18/17/25 -> 30/33/40 while 10
+    # o'clock holds at 17; both counters stay open and the collision sweep
+    # reads 0 touching pairs.
+    G_LOOP_CUT_AT = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_AT", 322.0))
+    G_LOOP_CUT_D = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_D", -1.8))
+    G_LOOP_CUT_W = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_W", 35.0))
     if G_LOOP_CUT_D and G_LRING_ADJ is None:
         G_LRING_ADJ = [[G_LOOP_CUT_AT - G_LOOP_CUT_W, 1.0],
                        [G_LOOP_CUT_AT, 1.0 - G_LOOP_CUT_D],

@@ -7117,5 +7117,12 @@ the five that shipped to him span 33 → 50 units at 330 by varying depth
 | H fullest | 330 / 65 / 2.2 | 45 | 50 | 55 | 67 |
 
 10 o'clock holds at 16–19 units in every arm — the thin he ruled for by keeping
-axis 45 — and all five keep both counters with 0 touching pairs. Unruled at the
-time of writing; nothing shipped, the default lobe depth is still 0.
+axis 45 — and all five keep both counters with 0 touching pairs.
+
+**F SHIPS** (owner, *"f wins"*): centre 322, half-width 35, depth −1.8 are the
+defaults in `aldine.py` from this round. It is the TIGHTEST of the five, not
+the widest — a local swelling rather than the lifted lower right D and E both
+were, and 3 units lighter at 330 than E, the lightest arm he had already seen.
+The ship build is byte-identical to the F arm he judged (0 of 493 glyph
+outlines differ) and the roman is untouched. `approved.json` carries
+`Italic:g` at round 347, superseding round 342's.
