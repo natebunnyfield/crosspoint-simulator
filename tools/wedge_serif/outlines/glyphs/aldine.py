@@ -5198,6 +5198,14 @@ if ON:
     #
     # An explicit ALBO_ALD_G_LRING_ADJ still wins: it is the general lever and
     # this is a named case of it.
+    # ROUND 346 -- THE DEPTH IS SIGNED, AND THE ASK REVERSED. Owner
+    # 2026-09-21, having seen the four: *"axis 45 but give me variations with
+    # thick bottom right of loop"*. So the axis stays where round 342 put it
+    # -- 10 o'clock is already thin there, at 15 units -- and the lobe is
+    # pointed at 330 to FILL it instead. Same one mechanism: the multiplier is
+    # `1 - _D`, so a NEGATIVE depth thickens (-1.0 is twice the wall) exactly
+    # as a positive one thins. A fill has no hairline floor to breach, which
+    # is the whole reason this direction is the cheaper one.
     G_LOOP_CUT_AT = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_AT", 150.0))
     G_LOOP_CUT_D = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_D", 0.0))
     G_LOOP_CUT_W = float(os.environ.get("ALBO_ALD_G_LOOP_CUT_W", 55.0))

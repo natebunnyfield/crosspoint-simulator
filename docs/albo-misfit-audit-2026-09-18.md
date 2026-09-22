@@ -251,3 +251,21 @@ The family regrouping in §b and §c is over `cmp_weight_survey.py`'s own
 as a permanent column, it belongs in the script beside `GROUPS`, not in this
 file — a table in a doc goes stale the moment a shared dial moves, which is the
 reason `cmp_aldine_metrics.py` is a script and not a table.
+
+---
+
+## 2026-09-21 — one finding added: the italic `9` carries a counter dent at 400
+
+`cmp_counter_dents.py` reports `9: 1086 / 13.7` on the shipped italic Regular.
+That contradicts what `CLAUDE.md` says about this gate — *"the 400s read
+none"* — which was true of the 2026-09-19 build the ruling was made on and is
+not true now. Found while checking that a change to the italic g's loop had
+introduced nothing: the dent is present in the pre-change font, in round 344's
+font, and in both arms of every comparison, so it is **pre-existing and not
+this round's**.
+
+Not acted on. The owner's dent ruling was explicitly *"for 700 and 900"*; a
+13.7-unit dent in one figure at 400 is inside the face's own hand-cut
+vocabulary and he has never been shown it. Recorded so the next run of that
+gate does not read it as new, and so the `CLAUDE.md` sentence can be corrected
+when someone is next in that file.
