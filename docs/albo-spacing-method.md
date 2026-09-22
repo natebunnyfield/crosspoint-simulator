@@ -1047,3 +1047,31 @@ roman's exactly, and still inside the italic references' absolute spread.
 
 Outlines are untouched in both styles — only the space advance moved — and
 every gate is unchanged.
+
+### Round 359 — his eye, and the number he gave it in
+
+Shown that, he replied ***"word space for roman is too much still"***, and from
+a four-rung ladder running down to the references, ***"2.55 or something around
+there wins"*** — **answering in the RATIO, not the em**, which is worth noting:
+the ratio is the frame this section put in front of him and it is the frame he
+chose to think in.
+
+| | before | **shipped** | ratio |
+|---|---|---|---|
+| roman | 312 | **301** | 2.551 |
+| italic | 267 | **258** | 2.554 |
+
+So the final number is neither instrument's. The absolute reading wanted 0.26
+and the ratio reading 0.40; his eye put the roman at 0.301, between them and
+nearer the wide end. **His round-202 `+27` is superseded by his own later
+judgment**, not overruled by a measurement — that matters for the record,
+because the +27 is quoted in this file as a bench value and someone will
+otherwise read the change as drift.
+
+The two styles stay matched, which is what round 358 set out to do; only the
+number they match at moved.
+
+**Both of his rulings sit ABOVE the absolute reference band** (0.241–0.278 for
+romans) and below the ratio band. Twice now he has been offered the references'
+own absolute value and has twice landed wider. Take that as the face's own
+preference and stop proposing 0.25.

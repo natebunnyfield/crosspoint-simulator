@@ -6,7 +6,14 @@ round-20 rule, write the TrueType and the round-19 specimen.
 """
 import os, sys, math
 # round 202: the owner's own word space, from the phone bench
-WORD_SPACE_ADJ = float(os.environ.get('ALBO_ALD_WORD_SPACE', 27.0))
+# ROUND 359 -- 27 -> 16. Owner 2026-09-22, shown four narrower rungs and
+# answering in the RATIO rather than the em: *"2.55 or something around there
+# wins"*. His +27 from the round-202 phone bench is therefore SUPERSEDED by his
+# own later eye, not overruled by a measurement: round 358's research was
+# published, he replied "word space for roman is too much still", and this is
+# where he put it. 2.55 x the roman's 0.118 em letterfit is 301 units, which
+# 285 + 16 gives exactly.
+WORD_SPACE_ADJ = float(os.environ.get('ALBO_ALD_WORD_SPACE', 16.0))
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.dirname(HERE))
 import round19, round20, latin, alphabet2 as A
 from fontTools.fontBuilder import FontBuilder
@@ -854,7 +861,11 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         # 2.64, so the same word set tighter in italic. 240 + the owner's 27
         # gives 267 units, ratio 2.64 -- the roman's exactly -- and stays
         # inside the italic references' absolute spread.
-        space_adv = 240.0 * (pen.XH / 429.0) + WORD_SPACE_ADJ
+        # ROUND 359: 240 -> 242, so the italic lands on the same 2.55 the owner
+        # ruled for the roman -- 2.55 x its own 0.101 em letterfit is 258, and
+        # 242 + his 16 gives it. The pair stays matched, which is what round
+        # 358 set out to do; only the number they match AT has moved.
+        space_adv = 242.0 * (pen.XH / 429.0) + WORD_SPACE_ADJ
     glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(round(space_adv)), 0)
     fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=VM_ASCENT, descent=VM_DESCENT, lineGap=0)
