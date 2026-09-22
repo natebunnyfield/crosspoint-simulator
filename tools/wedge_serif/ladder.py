@@ -33,8 +33,24 @@ moves, and that is reported separately rather than as a dead dial.
 import argparse, hashlib, os, re, shlex, subprocess, sys, tempfile
 
 
+# THE STYLE'S OWN ENVIRONMENT, or the ladder builds a DIFFERENT FONT and every
+# dial in it reads FLAT. `--style Italic` with no environment is not the aldine
+# italic: `ALBO_ITALIC` is unset, so aldine.py's letters are not drawn at all
+# and an aldine dial cannot move anything. On 2026-09-21 that reported
+# ALBO_ALD_Y_GAP as dead when it moves the gap 6.1 -> 17.1 units -- a FALSE
+# FLAT, which is worse than no tool, because this file's whole output is
+# "stop laddering that". Same two lines gates.sh and build_env.sh use.
+STYLE_ENV = {
+    "Regular": {"FJORD_STEM": "66.9", "FJORD_CONTRAST": "0.892"},
+    "Italic": {"ALBO_ITALIC": "aldine", "FJORD_STEM": "66.9",
+               "FJORD_CONTRAST": "0.80", "FJORD_WIDTH": "95", "FJORD_SLANT": "13"},
+}
+
+
 def build(style, env, outdir):
-    e = dict(os.environ); e.update(env); e.setdefault("PYTHON_GIL", "0")
+    e = dict(os.environ)
+    e.update(STYLE_ENV.get(style, {}))       # first, so an explicit --env still wins
+    e.update(env); e.setdefault("PYTHON_GIL", "0")
     r = subprocess.run([sys.executable, "-m", "outlines.build", outdir, "--style", style],
                        env=e, capture_output=True, text=True,
                        cwd=os.path.dirname(os.path.abspath(__file__)) or ".")

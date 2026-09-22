@@ -602,10 +602,10 @@ Italic V 1
 Italic W 1
 Italic Wcircumflex 2
 Italic X 1
-Italic Y 1
-Italic Yacute 2
-Italic Ycircumflex 2
-Italic Ydieresis 3
+Italic Y 2
+Italic Yacute 3
+Italic Ycircumflex 3
+Italic Ydieresis 4
 Italic Z 1
 Italic Zacute 2
 Italic Zcaron 2
@@ -974,7 +974,7 @@ Italic y 1
 Italic yacute 2
 Italic ycircumflex 2
 Italic ydieresis 3
-Italic yen 2
+Italic yen 1
 Italic z 1
 Italic zacute 2
 Italic zcaron 2

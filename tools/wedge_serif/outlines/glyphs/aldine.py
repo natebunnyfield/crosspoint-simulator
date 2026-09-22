@@ -9821,9 +9821,27 @@ if ON:
     # weight is bought on the SPINE now (Y_SPINE_INK, below); this dial is back
     # where his ladder left it.
     Y_ARM_INK = float(os.environ.get("ALBO_ALD_Y_ARM_INK", 1.38))  # the arm's own weight, x Y_INK
-    Y_ARM = [(round(0.4850 + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4),
+    # ROUND 354 -- THE GAP AT THE JOIN, AS ITS OWN DIAL. Owner 2026-09-21,
+    # having ruled the spine at 1.1: *"yes to 1.1 and increase hairline"*.
+    #
+    # The gap is not a width -- it is where the arm's root passes the spine.
+    # `Y_ARM_INK` was tried first and is a DEAD LEVER for it: 1.38 -> 1.08
+    # moves the gap 6.1 -> 6.3 -> 5.7 -> 5.8, non-monotone and inside the
+    # raster's own noise, because thinning the arm moves both its edges.
+    #
+    # So this displaces the arm's ROOT away from the spine in x and tapers to
+    # nothing by the fourth point, leaving the arm's own curve, its reach and
+    # its terminal where they were. Units of cap; 0 is bit-exact inert.
+    Y_GAP = float(os.environ.get("ALBO_ALD_Y_GAP", 0.0))
+    _Y_ARM_YS = (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)
+    def _y_gap_at(i, _n=len(_Y_ARM_YS)):
+        if not Y_GAP or i >= 4: return 0.0
+        u = i / 4.0                       # 1 at the root, 0 by the fourth point
+        return Y_GAP * (1.0 - u) ** 2
+    Y_ARM = [(round(0.4850 + _y_gap_at(i)
+                    + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4),
               y + (Y_TOP_LIFT if y > 0.9 else 0.0))
-             for y in (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)]
+             for i, y in enumerate(_Y_ARM_YS)]
     Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
                (0.78, 0.0684), (1.00, 0.0714)]
     # THE WEIGHT IS ALBO'S, THE DISTRIBUTION IS PAGELLA'S -- round 131c's rule,
@@ -9859,7 +9877,22 @@ if ON:
     # The roman-parity exemption stands for the same reason it was
     # written -- see cmp_cap_weight.py's EXEMPT block -- because Albo's roman Y
     # is the light one at 0.89 whichever stroke the italic spends on.
-    Y_SPINE_INK = float(os.environ.get("ALBO_ALD_Y_SPINE_INK", 1.44))  # the spine's own weight, x Y_INK
+    # ROUND 354 -- 1.1, owner 2026-09-21: *"yes to 1.1"*. The Y's THICK was
+    # 93.8 units, the heaviest of any diagonal in either style, where the rest
+    # of the italic's capital diagonals sit 66-75 (V 67.0, X 66.2, A 70.7,
+    # W 73.0, K 74.6). At 1.1 it reads 73.8, inside that band, with colour
+    # 0.167 against A's 0.165. Its thin does not move.
+    #
+    # THE AUDIT'S "+92% OF THE DIAGONALS" IS STALE -- that was 2026-09-18 and
+    # the face has moved; measured now the stroke median is +20%, which is
+    # unremarkable. The fault was never the median.
+    #
+    # And thinning the spine OPENS THE HAIRLINE GAP at the join: the glyph
+    # goes from one contour to two below 1.18, which is the owner's own named
+    # feature arriving on the capital (docs/albo-hairline-gap.md). The
+    # contour census caught that on its first real use, which is what it is
+    # for -- see contours-baseline.txt.
+    Y_SPINE_INK = float(os.environ.get("ALBO_ALD_Y_SPINE_INK", 1.10))  # the spine's own weight, x Y_INK
 
     @glyph('Y')
     def a_Y(c):
