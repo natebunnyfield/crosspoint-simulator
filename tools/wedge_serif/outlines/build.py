@@ -824,7 +824,37 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         # the letter gap against every text reference's 2.32-2.95 (Poetica
         # 2.32, Pagella 2.47, Flanker 2.95, mean 2.58) -- and at 27 px "It is
         # a truth" set as "It isa truth". 205 puts the ratio at 2.51.
-        space_adv = 205.0 * (pen.XH / 429.0) + WORD_SPACE_ADJ
+        # ROUND 358 -- 205 -> 240, so the ITALIC'S word space stands in the same
+        # relation to its own letters that the ROMAN's does. Owner 2026-09-21,
+        # "adjust albo's word spacing based on research from other fonts and
+        # optical principles", then "proceed".
+        #
+        # WHAT THE RESEARCH ACTUALLY SAID, because it did not say "widen":
+        # measured against five text romans two ways, the answers point
+        # OPPOSITE ways. Absolute, Albo's roman space is the widest of the set
+        # (0.312 em against 0.241-0.278). Relative to its own letterfit --
+        # Measure 4, the 2-D closest approach -- the romans cluster hard at
+        # 3.26-3.47 and Albo reads 2.64, which says widen to 0.40. They
+        # disagree because Albo's letters are LOOSE (0.118 em against a
+        # 0.072-0.088 band), and the loose fitting is round 258's "leave the
+        # tracking alone".
+        #
+        # THE ROMAN THEREFORE DOES NOT MOVE. Its 312 is 285 from round 100's
+        # absolute fit plus the owner's OWN +27 from the round-202 phone bench
+        # -- his eye, at reading size, on the device -- and it sits 8 units
+        # under the value round 100's own 13 pt ladder called "holes". Two
+        # instruments that contradict each other do not outrank that.
+        #
+        # THE ITALIC IS WHAT MOVES, and on the one comparison that needs no
+        # external band: the two styles disagreed with EACH OTHER. Against
+        # italic references (measured with italic faces, not the romans -- the
+        # first pass used the wrong set) Albo's italic is mid-band on absolute,
+        # 0.232 em in a 0.205-0.278 spread, so nothing external asks for a
+        # change; but its space-to-letterfit ratio is 2.30 where the roman's is
+        # 2.64, so the same word set tighter in italic. 240 + the owner's 27
+        # gives 267 units, ratio 2.64 -- the roman's exactly -- and stays
+        # inside the italic references' absolute spread.
+        space_adv = 240.0 * (pen.XH / 429.0) + WORD_SPACE_ADJ
     glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(round(space_adv)), 0)
     fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=VM_ASCENT, descent=VM_DESCENT, lineGap=0)

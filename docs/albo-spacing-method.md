@@ -1018,4 +1018,32 @@ into the reference band (0.076), then at ratio 3.42 the space would be 0.26 em
 tension. That road is a whole-face tracking move, and round 258's ruling is
 *"Leave the tracking alone."* Do not cite this section to re-open it.
 
-Nothing shipped from this round; the ladder went to the owner.
+### What shipped, on *"proceed"*
+
+**The roman does not move.** Its 312 is round 100's absolute fit (285) plus the
+owner's OWN +27 from the round-202 phone bench — his eye, at reading size, on
+the device — and it sits 8 units under the value round 100's 13 pt ladder
+called "holes". Two instruments that contradict each other do not outrank that.
+
+**The italic goes 232 → 267**, and on the one comparison that needs no external
+band: *the two styles disagreed with each other.*
+
+A first pass compared Albo's italic against ROMAN references, which is the
+wrong set and the same mistake the ampersand round made. Measured against
+italics:
+
+| | Albo ital | Baskerville | Charter | Hoefler | Times | Georgia |
+|---|---|---|---|---|---|---|
+| space / em | 0.232 | 0.250 | 0.278 | 0.205 | 0.250 | 0.241 |
+| letterfit | 0.101 | 0.061 | 0.079 | 0.066 | 0.084 | 0.087 |
+| ratio | **2.30** | 4.10 | 3.52 | 3.11 | 2.98 | 2.77 |
+
+Albo's italic is **mid-band on absolute** — nothing external asks it to move —
+and the italic ratio band is 2.77–4.10, a scatter rather than the romans' tight
+3.26–3.47, so it is weak evidence on its own. What is not weak: **the roman
+reads 2.64 and the italic 2.30**, so the same sentence set in italic separates
+its words less than the roman does. 240 + his 27 = 267 units, ratio 2.64, the
+roman's exactly, and still inside the italic references' absolute spread.
+
+Outlines are untouched in both styles — only the space advance moved — and
+every gate is unchanged.
