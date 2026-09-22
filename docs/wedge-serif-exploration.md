@@ -7082,3 +7082,40 @@ inside it.
 
 Stopped here rather than making a fourth attempt at it in one sitting. The
 picture is the judge and the owner has not seen one.
+
+### Round 347 — between D and E, and why the obvious interpolation collapsed
+
+Owner 2026-09-21, after round 346's five: *"show me options like and between d
+and e."* D was the lobe at centre 330 / half-width 65 / depth −1.4, E at
+315 / 45 / −1.4.
+
+**The obvious ladder is dead and it is worth saying why.** Interpolating the
+two levers TOGETHER — centre 315→330 with width 45→65 in five steps — produced
+three arms that measure the same to the unit:
+
+|  centre / width | 315 | 330 | 345 |
+|---|---|---|---|
+| 315 / 45 (E) | 35 | 35 | 39 |
+| 318 / 50 | 37 | 37 | 42 |
+| 322 / 55 | 36 | **39** | 45 |
+| 326 / 60 | 36 | **39** | 45 |
+| 330 / 65 (D) | 36 | **39** | 45 |
+
+Once the lobe is wide enough its centre stops mattering: a raised cosine 65°
+wide covers 265–35 either way, so moving the peak 15° inside it moves nothing.
+**D and E are 4 units apart at the bottom right**, which is the whole band the
+ask was pointed at. The separation that exists is in DEPTH, not placement, and
+the five that shipped to him span 33 → 50 units at 330 by varying depth
+(−1.4 to −2.2) with the centre and width along for shape:
+
+| arm | centre / width / depth | 315 | 330 | 345 | 0 |
+|---|---|---|---|---|---|
+| F tight | 322 / 35 / 1.8 | 30 | 33 | 40 | 57 |
+| E | 315 / 45 / 1.4 | 35 | 35 | 39 | 53 |
+| D | 330 / 65 / 1.4 | 36 | 39 | 45 | 59 |
+| G fuller | 322 / 55 / 1.8 | 41 | 44 | 49 | 61 |
+| H fullest | 330 / 65 / 2.2 | 45 | 50 | 55 | 67 |
+
+10 o'clock holds at 16–19 units in every arm — the thin he ruled for by keeping
+axis 45 — and all five keep both counters with 0 touching pairs. Unruled at the
+time of writing; nothing shipped, the default lobe depth is still 0.
