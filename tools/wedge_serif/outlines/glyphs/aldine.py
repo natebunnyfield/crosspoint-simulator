@@ -9832,7 +9832,13 @@ if ON:
     # So this displaces the arm's ROOT away from the spine in x and tapers to
     # nothing by the fourth point, leaving the arm's own curve, its reach and
     # its terminal where they were. Units of cap; 0 is bit-exact inert.
-    Y_GAP = float(os.environ.get("ALBO_ALD_Y_GAP", 0.0))
+    # ROUND 355 -- 0.016 SHIPS. Owner 2026-09-21, from five widths: *".016
+    # wins"*. It puts the join's white at 14.3 units, where the spine change
+    # alone left 6.1 and the roman Y's own gap -- the one he named and kept --
+    # is 7.2-7.9. So this is deliberately the WIDEST reading of "increase
+    # hairline": nearly twice the roman's, on a letter whose arm and spine
+    # genuinely meet rather than lie alongside each other.
+    Y_GAP = float(os.environ.get("ALBO_ALD_Y_GAP", 0.016))
     _Y_ARM_YS = (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)
     def _y_gap_at(i, _n=len(_Y_ARM_YS)):
         if not Y_GAP or i >= 4: return 0.0

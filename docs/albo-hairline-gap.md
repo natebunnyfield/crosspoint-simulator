@@ -110,3 +110,44 @@ not an omission:
 
 If the owner wants it spread, the mechanism generalises immediately — the
 cutout is five numbers and `geom.ink` already takes a list.
+
+---
+
+## 2026-09-21 — the ITALIC CAPITAL Y gets one, and it is the widest in the face
+
+Owner, across two rounds: *"yes to 1.1 and increase hairline"*, then from five
+widths, *".016 wins"*.
+
+Until now this page described the ROMAN Y and the P. The italic capital Y had
+no gap: its spine was heavy enough (thick 93.8 units, the heaviest diagonal in
+either style) that the arm merged solid into it. Correcting that weight to 1.1
+— which put the thick at 73.8, inside the family's 66–75 — **opened a gap by
+itself**, 6.1 units, and he then asked for it wider.
+
+| | units of white at the join |
+|---|---|
+| italic Y before round 354 | none — one contour |
+| after the spine correction alone | 6.1 |
+| the roman Y's own, for scale | 7.2–7.9 |
+| **shipped** | **14.3** |
+
+So the italic capital's gap is deliberately about twice the roman's. That is
+his reading of *"increase"*, made on the rendered letter at four sizes.
+
+| dial | ships | what it is |
+|---|---|---|
+| `ALBO_ALD_Y_GAP` | 0.016 | the arm's ROOT displaced from the spine, × cap; tapers to nothing by the fourth point, so the arm's curve, reach and terminal do not move. 0 is bit-exact inert |
+| `ALBO_ALD_Y_SPINE_INK` | 1.10 | the spine's weight, × `Y_INK`. Below 1.18 the glyph is two contours — which IS the gap |
+
+**`ALBO_ALD_Y_ARM_INK` IS NOT THE LEVER and was tried first.** Thinning the arm
+moves both of its edges, so 1.38 → 1.08 walks the gap 6.1 → 6.3 → 5.7 → 5.8:
+non-monotone, inside the raster's own noise, and no use. The gap is where the
+arm's root PASSES the spine, not how wide the arm is. Same shape of mistake as
+the three spacing measures in `albo-spacing-method.md`: a lever that plausibly
+should work, measured, and rejected.
+
+**And `ladder.py` reported the real dial FLAT** before it was fixed — it built
+`--style Italic` with no environment, which is not the aldine italic, so no
+aldine dial could move anything. It now carries the style's own environment.
+A false FLAT is worse than no tool: the entire output of that file is
+"stop laddering that."
