@@ -61,6 +61,16 @@ BENCH_OUT="$(PYTHON_GIL=0 python3 bench_fit.py --check 2>&1 | grep -E '^(DIFFERS
 BENCH_RC=0; echo "$BENCH_OUT" | grep -q 'does NOT match' && BENCH_RC=1
 echo "$BENCH_OUT"
 
+# The contour census: cut.py's decimation phase runs off a counter advanced
+# per contour, so a glyph whose CONTOUR COUNT moves re-cuts every glyph built
+# after it -- 169 of them when the italic ampersand shipped. Owner ruling
+# 2026-09-21: gate it, do not change the drawing. cmp_contours.py's header
+# has the whole account.
+CONTOUR_OUT="$(PYTHON_GIL=0 python3 cmp_contours.py --check \
+    --regular "$OUT/Albo-Regular.ttf" --italic "$OUT/Albo-Italic.ttf" 2>&1)"
+CONTOUR_RC=$?
+echo "$CONTOUR_OUT"
+
 if [ "$ACCEPT" = "1" ]; then
   cp "$REP" "$BASE"; echo "baseline written to $BASE:"; cat "$BASE"; exit 0
 fi
@@ -74,6 +84,11 @@ if diff -u "$BASE" "$REP" >"$OUT/diff"; then
   if [ "$BENCH_RC" != "0" ]; then
     echo "GATES unchanged, but build.py no longer matches the BENCH (above)."
     echo "Run ./bench_fit.py and paste its tables, or refresh bench_values.json."; exit 1
+  fi
+  if [ "$CONTOUR_RC" != "0" ]; then
+    echo "GATES unchanged, but a glyph's CONTOUR COUNT moved (above), which"
+    echo "re-cuts every glyph after it. Accept it deliberately:"
+    echo "  python3 cmp_contours.py --accept --regular <R.ttf> --italic <I.ttf>"; exit 1
   fi
   echo "GATES UNCHANGED against $BASE"; exit 0
 fi
