@@ -7190,3 +7190,11 @@ visual distraction of a large top right extended stroke"*, whose dials
 finding is in `gates-baseline.txt` rather than silently accepted, and the
 letter was NOT quietly moved to `ALT051_PATH=a` to green the gate — he ruled
 `c`.
+
+**Ruling 2026-09-21, round 352 — the ampersand's curl stays as drawn.** Shown
+the shipped letter and asked whether he still wanted round 318's *"reduce the
+visual distraction of a large top right extended stroke"*: **"leave the curl,
+it reads fine now."** `ALBO_ALT051_CURL` and `ALBO_ALT051_CURL_CUT` stay inert
+(1.0 / 0.0) and the thread is CLOSED. The 165.5° reversal at (813, 676) in that
+curl is therefore an accepted baseline row and not a fault to chase — the shape
+it belongs to is ruled. The ampersand is finished.

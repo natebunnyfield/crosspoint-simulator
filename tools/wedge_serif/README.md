@@ -338,9 +338,23 @@ round-317 ladder, which holds the E and the bowl at full width and compresses
 only the swash: *"squeeze 0.38 wins"*. With `ALBO_ALT051_WEIGHT=1.36` and
 `ALBO_ALT051_CON=0.45` that measures 1.09 x the face's body letters, contrast
 1.57, advance 2.07 x the o — against the shipped ampersand's 1.09 / 1.54 /
-1.87. His next ask on the same letter, *"reduce the visual distraction of a
-large top right extended stroke"*, is round 318's `ALBO_ALT051_CURL` /
-`ALBO_ALT051_CURL_CUT` and is NOT yet ruled.
+1.87. **All four of those values SHIP as of round 350** -- they sat unapplied
+for a day while `ALBO_IT_AMP` stayed at `a`, the sheared roman, and every
+commit in the chain ended "unset build: 0 of 493 glyphs differ".
+
+**Ruling 2026-09-21 (owner): THE CURL STAYS AS DRAWN.** His round-318 ask on
+the same letter, *"reduce the visual distraction of a large top right extended
+stroke"*, was built as `ALBO_ALT051_CURL` / `ALBO_ALT051_CURL_CUT` and,
+shown the shipped letter, he ruled *"leave the curl, it reads fine now"*. Both
+dials stay at their inert defaults (1.0 / 0.0). **The thread is closed -- do
+not re-propose damping that tail.**
+
+That also settles the one gate finding the letter carries: a REVERSAL of
+165.5 degrees at (813, 676), arms 81.7 / 23.8 units, in that same curl. It is
+an ACCEPTED row in `gates-baseline.txt` and not a defect to chase; the shape it
+belongs to is ruled. The letter was deliberately not moved to
+`ALT051_PATH=a` -- which clears a reversal -- to make the gate green, because
+he ruled `c`.
 
 `ALBO_ALT051_PATH` (`off|a|b|c`, **default `c`** -- owner 2026-09-21, *"c
 wins"*) is round 321 and is about the RIGHT SIDE's ROUTE rather than its
