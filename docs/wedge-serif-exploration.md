@@ -7198,3 +7198,22 @@ it reads fine now."** `ALBO_ALT051_CURL` and `ALBO_ALT051_CURL_CUT` stay inert
 (1.0 / 0.0) and the thread is CLOSED. The 165.5° reversal at (813, 676) in that
 curl is therefore an accepted baseline row and not a fault to chase — the shape
 it belongs to is ruled. The ampersand is finished.
+
+### Round 354 — the cut ripple reaches an APPROVED letter, and how to tell it apart
+
+Shipping the italic Y at spine 1.1 changed its contour count (1 → 2, the
+hairline gap opening), which re-cut all 377 glyphs built after it — and one of
+them is the **approved italic `g`**. `approved.py` refused the build, correctly:
+that ledger exists because round 336 shipped a letter no ruling was made on.
+
+**The technique that settles it: build both arms with `--nocut`.** With the
+decimation off, spine 1.44 against 1.10 differs in exactly five glyphs — `Y`,
+`Yacute`, `Ycircumflex`, `Ydieresis`, `yen` — so every other difference in the
+cut build is phase, not drawing. The g's outline moved; the g's *design* did
+not. Re-approved on that evidence, with the evidence as its recorded reason.
+
+This is the cost of the 2026-09-21 ruling to gate the ripple rather than
+re-seed the cutter, and it is the expected cost: **a contour-count change will
+periodically demand that approved letters be re-blessed.** `--nocut` is the
+instrument that makes that a thirty-second check instead of an argument. It
+belongs in any investigation that starts "why did 169 glyphs move".
