@@ -316,3 +316,63 @@ the glyph 0.643 → 0.667 em. The arm is long and thin, so width buys almost no
 ink out there — round 320 wrote that sentence about its own linear cut and it
 is just as true of the smoothstep that replaced it. **Mass on the right of an
 ampersand needs structure, not weight.**
+
+---
+
+## 2026-09-21 — the ROMAN FIGURES: checked against references, and CLEAN
+
+Owner picked this off the list as the last unaddressed audit finding. It does
+not survive measurement, and that makes **two of the three findings checked
+today that dissolve on a reference** (the ampersand was the other).
+
+### The width claim was two different measures
+
+The audit says *"the roman figures never received round 216's body fit (spread
+2.10× against the italic's 1.31×)"*. Measured now:
+
+| | with the `1` | without it |
+|---|---|---|
+| roman | 2.07× | **1.31×** |
+| italic | 1.92× | 1.23× |
+
+**1.31 is the ROMAN's own figure**, with the `1` excluded — so the quoted pair
+is one style measured two ways, not two styles measured the same way. However
+they are paired, the roman and the italic differ by about 8%, not by 60%. The
+spread is dominated by the `1` being narrow, which is what a `1` is for.
+
+### The weight is in band, and my first reading of it was wrong too
+
+The survey's own ridge measure, figures against a matched lowercase set
+(`n o e a u s` — **not** all 26 letters, most of which are stems, which is how
+I first got a spurious 0.82):
+
+| face | figures / lowercase | spread among the digits | lightest / heaviest |
+|---|---|---|---|
+| **ALBO roman** | **0.99** | **1.71×** | 7 · 4 |
+| ALBO italic | 0.92 | 1.40× | 4 · 0 |
+| Baskerville | 0.98 | 2.00× | 4 · 0 |
+| Hoefler | 0.87 | 1.78× | 7 · 5 |
+| Times | 1.04 | 1.46× | 8 · 0 |
+| Georgia | 0.94 | 1.46× | 7 · 0 |
+
+Albo's roman sits in the middle of both bands. Its lightest digit is the `7`,
+which is also Hoefler's and Georgia's — a `7` is a bar and a diagonal, and it
+is light in real faces.
+
+### And the `8` is not too black either
+
+It measures 1.67× the other digits' median colour, against Baskerville 1.39,
+Times 1.35, Georgia 1.60 and Hoefler 1.98. An `8` is two bowls; that is what
+it costs.
+
+### The lesson the two clean findings share
+
+Both headline numbers were **group medians compared across different letter
+shapes**, and both dissolved the moment the same measure was run on a real
+face. This audit's percentages are a screening tool: they say where to look,
+never what is wrong. **Measure against references before drawing anything**,
+and if a finding's comparison set was not stated, reconstruct it before
+trusting the number.
+
+**Nothing was changed. Do not re-open the roman figures on this audit's
+numbers.**
