@@ -941,3 +941,81 @@ that sources a file the change under test may edit is not a gate.
 
 This is the same signature the retrospective named — **a number that barely
 moves is a dial that never arrived** — in its fourth appearance in two days.
+
+---
+
+## Round 358 — the WORD space, and the two measures that point opposite ways
+
+Owner 2026-09-21: *"need to adjust albo's word spacing based on research from
+other fonts and optical principles."*
+
+### The two readings
+
+**Absolute.** Albo's space is the widest of the set, and it is not close:
+
+| | Albo rom | Albo ital | Baskerville | Charter | Hoefler | Times | Georgia |
+|---|---|---|---|---|---|---|---|
+| space / em | **0.312** | 0.232 | 0.250 | 0.278 | 0.250 | 0.250 | 0.241 |
+| space / n | **0.539** | 0.507 | 0.471 | 0.489 | 0.456 | 0.500 | 0.408 |
+| space / xh | **0.727** | 0.541 | 0.625 | 0.578 | 0.588 | 0.559 | 0.501 |
+
+Read that way the roman's space should come DOWN, to about 0.26 em.
+
+**Relative to the face's own letterfit.** The references cluster remarkably
+tightly on word-space ÷ interletter white, measured with Measure 4 (the 2-D
+closest approach, `cmp_space_2d.py`) on the `lower+lower` class:
+
+| face | space / em | letterfit | **space ÷ letterfit** |
+|---|---|---|---|
+| Baskerville | 0.250 | 0.072 | 3.47 |
+| Charter | 0.278 | 0.080 | 3.47 |
+| Hoefler | 0.250 | 0.073 | 3.42 |
+| Times | 0.250 | 0.073 | 3.42 |
+| Georgia | 0.241 | 0.074 | 3.26 |
+| **Albo roman** | 0.312 | **0.118** | **2.64** |
+| **Albo italic** | 0.232 | **0.101** | **2.30** |
+
+**3.26–3.47 across five faces is the optical principle stated as a number**:
+the word gap runs about three and a half times the letter gap, which is what
+makes a word cohere and still separate. Read THAT way Albo's words are
+under-separated and the roman's space should go UP, to about 0.40 em.
+
+### Why they disagree, and it is not a bug in either
+
+**Albo's letterfit is LOOSE** — 0.118 em on `lower+lower` against a 0.072–0.088
+reference band, and LOOSE on six of eight classes. A loose face needs a wide
+word space to keep the ratio; but applying the ratio to a loose face puts the
+absolute gap past every reference, which is how rivers start.
+
+### Round 100 already had this argument, and ruled the other way
+
+This is not a new finding. `build.py`'s own comment records it, from the
+opposite direction and with the older mean-white measure:
+
+> *The RATIO was never far off; the trouble is that Albo's letters are already
+> the loosest of the four (232 against 178–194), so the same ratio puts its
+> word gap 25–50% past every reference in absolute white.*
+
+Round 100 set the space by the references' **absolute** white, not their ratio,
+and confirmed it *"on a five-rung paragraph ladder at 13 pt, where 225 begins
+to crowd `low over` and 320 still reads as holes."* The italic got the same
+treatment in round 133.
+
+**So the prior is strong and against widening**: 320 units was already judged
+to read as holes, and the ratio answer is 404.
+
+Two things have changed since, which is why it was re-measured rather than
+closed: the face is 250 rounds older, and round 100's measure was **mean white
+across the x-height band**, which this document elsewhere records as one of the
+three measures that got letterfit wrong — it counts an open letter's own splay
+as spacing. Measure 4 replaced it.
+
+### What was NOT done
+
+**The third option is ruled out and stays ruled out.** If Albo's letterfit came
+into the reference band (0.076), then at ratio 3.42 the space would be 0.26 em
+— the absolute answer and the ratio answer would agree, and nothing would be in
+tension. That road is a whole-face tracking move, and round 258's ruling is
+*"Leave the tracking alone."* Do not cite this section to re-open it.
+
+Nothing shipped from this round; the ladder went to the owner.
