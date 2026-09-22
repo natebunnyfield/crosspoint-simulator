@@ -269,3 +269,50 @@ Not acted on. The owner's dent ruling was explicitly *"for 700 and 900"*; a
 vocabulary and he has never been shown it. Recorded so the next run of that
 gate does not read it as new, and so the `CLAUDE.md` sentence can be corrected
 when someone is next in that file.
+
+---
+
+## Round 349 — the ampersand: the roman is CLEAN, the italic is the outlier
+
+Owner 2026-09-21: *"finish amper"*, reviving round 320's *"reduce imbalance and
+add line contrast to the ampersand."*
+
+### Round 320's arms were void
+
+`ALT051_BALANCE` — the lever those arms were rendered from — is **FLAT in both
+default builds**, proven with `ladder.py`. alt051 is an italic OPTION
+(`ALBO_IT_AMP=f|g`) and neither style selects it, so that round laddered a
+letter nobody sees. Nothing was ruled and nothing was lost.
+
+### The imbalance is not there
+
+Ink mass in left / middle / right thirds. The first comparison — against the
+face's own letters, where e, o, a, g, R and B carry 28–52% on their right —
+said the & was starved at 21.4, and all ten `AMP_OPTIONS` read 17.6–24.5.
+
+**That comparison is wrong: an ampersand is not a symmetric shape.** Measured
+the same way, seven reference faces:
+
+| | Baskerville | New York | Charter | Times | **Albo** | Georgia | Hoefler | Didot |
+|---|---|---|---|---|---|---|---|---|
+| right third | 19.7 | 18.4 | 20.7 | 21.2 | **21.4** | 21.9 | 22.3 | 22.8 |
+
+Albo's roman sits in the middle of the band. **CHECKED AND FOUND CLEAN — do
+not re-open the roman ampersand's balance.**
+
+### The italic is a genuine outlier
+
+30.3 / 57.1 / **12.6** — a right third below every reference's floor and a
+middle far above their 36–45. It is the sheared roman (`ALBO_IT_AMP` default
+`a`), which is exactly why its mass piles in the centre: shearing moves ink
+sideways without redistributing it. It wants a drawing, not a dial.
+
+### And the width ramp is a weak lever wherever it is pointed
+
+`ALBO_AMP_BALANCE` was built for this and is kept INERT at 0, with its
+measurement, because the negative result is the useful part: 0 → 0.36 moves the
+roman's right third 21.4 → 22.4 and the italic's 12.6 → 15.0, while widening
+the glyph 0.643 → 0.667 em. The arm is long and thin, so width buys almost no
+ink out there — round 320 wrote that sentence about its own linear cut and it
+is just as true of the smoothstep that replaced it. **Mass on the right of an
+ampersand needs structure, not weight.**

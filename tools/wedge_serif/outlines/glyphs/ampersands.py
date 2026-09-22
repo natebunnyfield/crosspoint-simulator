@@ -458,7 +458,8 @@ BOWL_O = [(0.05, 0.12), (0.15, 0.01), (0.35, 0.0), (0.55, 0.04), (0.65, 0.17)]
 
 def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm_end='flag',
          spur_w=1.0, spur_x=0.97, spur_foot='hook', bowl=0.5, width=1.0, opening=0.58, hook_end='cut',
-         loop_shape='tear', egg_pinch=0.85, egg_power=3.0, bowl_shape='points', bowl_k=(1.0, 1.0), bowl_bottom=0.35):
+         loop_shape='tear', egg_pinch=0.85, egg_power=3.0, bowl_shape='points', bowl_k=(1.0, 1.0), bowl_bottom=0.35,
+         balance=0.0):
     """One & from the dials.
     loop_shape (round 233): 'tear' = `loop_path`, the teardrop every entry
          in VARIANTS2 was built on; 'egg' = `egg_loop_path`, one smooth
@@ -489,7 +490,61 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
     # strokes lighten by sqrt(84/S) -- 0.85 at the 700, 0.75 at the 900 -- as
     # the eszett's do (round 267). At and under 84 the factor is 1.
     _lt = (84.0 / S) ** 0.5 if S > 84.0 else 1.0
-    _L = lambda f: (lambda t, _f=f: _f(t) * _lt)
+    # ROUND 349 -- THE BALANCE RAMP, on the ampersand that actually ships.
+    # Owner 2026-09-21, "finish amper", reviving the round-320 ask (*"reduce
+    # imbalance ... in the ampersand"*).
+    #
+    # AND IT DOES NOT SHIP, BECAUSE THE FAULT IS NOT THERE. Kept inert, with
+    # the measurement, because both halves of that were bought and the next
+    # round will otherwise buy them again.
+    #
+    # The first measure compared the & against the rest of the face -- ink in
+    # left/middle/right thirds, roman: 38.6 / 40.0 / 21.4 where e, o, a, g, R
+    # and B carry 28-52% on their right -- and all ten `AMP_OPTIONS` read the
+    # same 17.6 to 24.5. THAT COMPARISON IS WRONG: an ampersand is not a
+    # symmetric shape, and measured the same way, seven reference faces read
+    #
+    #   Baskerville 19.7  Charter 20.7  Times 21.2  Georgia 21.9
+    #   Hoefler 22.3  Didot 22.8  New York 18.4
+    #
+    # on their right thirds. Albo's roman at 21.4 sits in the middle of that
+    # band. There is no imbalance in the roman ampersand to fix.
+    #
+    # THE ITALIC IS A REAL OUTLIER and this lever does not fix it either:
+    # 30.3 / 57.1 / 12.6, a right third under every reference's floor and a
+    # middle far above their 36-45. It is the sheared roman (`ALBO_IT_AMP=a`),
+    # which is why its mass piles in the centre; it wants a drawing, not a
+    # width ramp.
+    #
+    # AND THE RAMP IS A WEAK LEVER WHEREVER IT IS POINTED, which is the second
+    # thing worth keeping: 0 -> 0.36 moves the roman's right third 21.4 -> 22.4
+    # and the italic's 12.6 -> 15.0, while widening the glyph 0.643 -> 0.667
+    # em. The arm is long and thin, so width buys very little ink out there --
+    # round 320 wrote that sentence about its own linear cut and it is just as
+    # true of the smoothstep. Mass on the right needs STRUCTURE, not weight.
+    #
+    # Round 320's `ALT051_BALANCE` is NOT this lever and never reached the
+    # shipping glyph: `ladder.py` reports it FLAT in both default builds,
+    # because alt051 is an italic OPTION (`ALBO_IT_AMP=f|g`) that neither style
+    # selects. The arms rendered for him that round were arms of a letter
+    # nobody sees.
+    #
+    # Same SHAPE as round 320's second cut, which is the part that was worth
+    # keeping: a smoothstep from (1 - b) to (1 + 1.45 b) between t 0.30 and
+    # 0.70, not a linear ramp (which moved the thirds by two points, the arm
+    # being thin and long) and not a step (two hard edges left a notch at the
+    # bowl's foot). `_L` is the one wrapper every stroke's width goes through,
+    # and with top='open' -- which is what ships -- the glyph is ONE spine
+    # running spur -> crossing -> loop -> bowl -> arm, so t IS left-to-right.
+    _amp_b = float(os.environ.get("ALBO_AMP_BALANCE", balance))
+    def _L(f, _b=_amp_b):
+        if not _b:
+            return lambda t, _f=f: _f(t) * _lt
+        lo, hi = 1.0 - _b, 1.0 + _b * 1.45
+        def _w(t, _f=f):
+            u = min(1.0, max(0.0, (t - 0.30) / 0.40))
+            return _f(t) * _lt * (lo + (u * u * (3.0 - 2.0 * u)) * (hi - lo))
+        return _w
     X = (point[0] * w, point[1] * C)
     # ---- the loop: outer top on C + OVER, widest rx, centre a little left of the point
     rx = 0.22 * w * loop; ry = 0.20 * C + OVER; cy = C + OVER - ry; cx = X[0] - 0.06 * w
