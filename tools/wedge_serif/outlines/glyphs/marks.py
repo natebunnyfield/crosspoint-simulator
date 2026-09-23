@@ -48,6 +48,9 @@ def CAP(c): return c["cap"]
 # tittle is untouched. If the two should stay locked together, that is a
 # separate ruling and this dial is where it would be made.
 MARK_DOT = float(os.environ.get("ALBO_MARK_DOT", 1.0))   # x DOT_R, punctuation only
+EXCL_BOT = float(os.environ.get("ALBO_EXCL_BOT", 0.55))  # the !'s profile at the foot, x the pen
+EXCL_TOP = float(os.environ.get("ALBO_EXCL_TOP", 1.05))  # ...and at the cap
+EXCL_DOT = float(os.environ.get("ALBO_EXCL_DOT", 1.0))   # the !'s dot, x the marks' dot
 MDOT = DOT_R * MARK_DOT
 
 @glyph('.')
@@ -77,8 +80,26 @@ def g_colon(c): return geom.ink([dot(MDOT, MDOT, MDOT), dot(MDOT, XH - MDOT, MDO
 def g_semicolon(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT), dot(MDOT, XH - MDOT, MDOT)])
 @glyph('!')
 def g_exclam(c):
-    C = CAP(c); x = MDOT; y0 = 2 * MDOT + 0.8 * S   # same gap above the dot as round 51's (0.8 stem)
-    return geom.ink([dot(x, MDOT, MDOT), stroke(line((x, y0), (x, C)), pen_widths(line((x, y0), (x, C)), lambda t: 0.55 + 0.5 * t), cut1=CUT)])
+    # ROUND 364 -- THE STEM THICKENED, THEN THE DOT BALANCED AGAINST IT.
+    # Owner 2026-09-23: *"thicken exclamation stem to better match letters,
+    # then adjust dot to optically balance against it"* -- in that order, and
+    # the order matters, because the dot's right size depends on the stem it
+    # stands under.
+    #
+    # MEASURED FIRST, and the obvious reading was wrong. The !'s stroke MEDIAN
+    # against the face's own stem reads 0.76 where Baskerville, Hoefler, Times
+    # and Georgia run 0.75-0.91 -- in band, at the low end. What is out of band
+    # is the TAPER'S TOP: the ! is a wedge, and at its widest Albo reads 0.93
+    # of the stem where those four run 1.10-1.30. So the fault is not that the
+    # mark is thin everywhere; it is that it never gets thick.
+    #
+    # EXCL_BOT and EXCL_TOP are the profile's two ends, x the pen. Shipped
+    # 0.55 / 1.05 is round 51's original; an unset build is bit-identical.
+    # EXCL_DOT scales the dot against MDOT, and is the second half of the ask.
+    C = CAP(c); x = MDOT; y0 = 2 * MDOT * EXCL_DOT + 0.8 * S   # same gap above the dot as round 51's (0.8 stem)
+    _p = line((x, y0), (x, C))
+    return geom.ink([dot(x, MDOT * EXCL_DOT, MDOT * EXCL_DOT),
+                     stroke(_p, pen_widths(_p, lambda t: EXCL_BOT + (EXCL_TOP - EXCL_BOT) * t), cut1=CUT)])
 @glyph('?')
 def g_question(c):
     """Owner 2026-09-13: "make more variations of '?' for me to choose
