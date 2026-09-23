@@ -843,7 +843,11 @@ DOT_STYLE = int(os.environ.get("FJORD_DOT_STYLE", 1))   # owner 2026-09-14: "dot
 #      centre and the width do not move, the ink's weight does
 # Styles 2-9 keep the ladder's polygons; 0 keeps the round superellipse.
 DOT_PUNCH = os.environ.get("ALBO_DOT_PUNCH", "a")
-DOT_PUNCH_N = 40           # vertices: 8.2 units apart on the i's dot, under the family's 11-unit SPACING
+# ROUND 366 -- these five became env dials so the mechanisms can be laddered
+# and, more to the point, MEASURED at reading size. Owner 2026-09-23: *"show
+# me the ways dots can read as circles but on closer inspection, they are
+# metal punched."* Every default is the shipped value.
+DOT_PUNCH_N = int(os.environ.get("ALBO_DOT_PUNCH_N", 40))           # vertices: 8.2 units apart on the i's dot, under the family's 11-unit SPACING
 # The punch is drawn at 0.98 r, not r, and that number is the old polygon's SIZE
 # and not a taste: an 11-gon on circumradius r is 1.9595 r wide (vertex to the
 # opposite flat) and 0.9575 pi r^2 in area, and a circle at 0.98 r is 1.96 r wide
@@ -853,10 +857,12 @@ DOT_PUNCH_N = 40           # vertices: 8.2 units apart on the i's dot, under the
 # is 2 units wider, and the build's bearing rule then moves every stop's and
 # curly quote's advance by those 2 units (measured: period 260 -> 262). At
 # 0.98 r the advances are byte-identical to the ship's.
-DOT_PUNCH_SCALE = 0.98
-DOT_PUNCH_K = 2.3          # option b's exponent
-DOT_PUNCH_LEAN = 0.08      # option c: the radius swells 8% toward the lean and shrinks 8% away from it
-DOT_PUNCH_LEAN_DEG = -20.0 # option c: the lean's direction, degrees from 3 o'clock (negative = below it)
+DOT_PUNCH_SCALE = float(os.environ.get("ALBO_DOT_PUNCH_SCALE", 0.98))
+DOT_PUNCH_K = float(os.environ.get("ALBO_DOT_PUNCH_K", 2.3))          # option b's exponent
+DOT_PUNCH_LEAN = float(os.environ.get("ALBO_DOT_PUNCH_LEAN", 0.08))      # option c: the radius swells 8% toward the lean and shrinks 8% away from it
+DOT_PUNCH_LEAN_DEG = float(os.environ.get("ALBO_DOT_PUNCH_LEAN_DEG", -20.0))
+DOT_PUNCH_FLAT = float(os.environ.get("ALBO_DOT_PUNCH_FLAT", 0.07))      # option d: how deep the filed flat cuts, x the radius
+DOT_PUNCH_FLAT_DEG = float(os.environ.get("ALBO_DOT_PUNCH_FLAT_DEG", 125.0))  # option d: which way the flat faces # option c: the lean's direction, degrees from 3 o'clock (negative = below it)
 def _punch_dot(cx, cy, r, opt):
     n = DOT_PUNCH_N; pts = []; r = r * DOT_PUNCH_SCALE
     lean = math.radians(DOT_PUNCH_LEAN_DEG)
@@ -869,6 +875,20 @@ def _punch_dot(cx, cy, r, opt):
             x, y = ca, sa
         rr = r * (1 + DOT_PUNCH_LEAN * math.cos(a - lean)) if opt == "c" else r
         pts.append((cx + rr * x, cy + rr * y))
+    if opt == "d":
+        # ONE FILED FLAT. A punch is finished on a stone, and a face that was
+        # trued against it comes back with a single chord where the rest of
+        # the round is untouched. Not a squaring (option b flattens four
+        # shoulders at once) and not a lean (option c moves the whole centre):
+        # this is one side, at one angle, and the other three quarters of the
+        # circumference are exactly the full round.
+        fa = math.radians(DOT_PUNCH_FLAT_DEG)
+        d = r * (1.0 - DOT_PUNCH_FLAT)          # the chord's distance from the centre
+        nx, ny = math.cos(fa), math.sin(fa)
+        pts = [(px, py) if ((px - cx) * nx + (py - cy) * ny) <= d
+               else (px - nx * ((px - cx) * nx + (py - cy) * ny - d),
+                     py - ny * ((px - cx) * nx + (py - cy) * ny - d))
+               for px, py in pts]
     return geom.poly(pts)
 def dot(cx, cy, r, k=2.0):
     """The dot of i j and the marks. DOT_STYLE 0-9 (owner 2026-09-14: "make
