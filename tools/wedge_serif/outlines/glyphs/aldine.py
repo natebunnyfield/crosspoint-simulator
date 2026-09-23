@@ -4108,6 +4108,51 @@ if ON:
     F_BAR = d_dial("F_BAR", 0.92)     # the crossbar's height, x xh
     F_TOP = d_dial("F_TOP", 1.78)     # the hook's top, x xh (Albo's ascender)
     F_TAIL = d_dial("F_TAIL", -0.62)  # the tail's floor, x xh
+    # OWNER 2026-09-23: *"thin out italic f to match weight of rest of italic"*.
+    # `F_INK` scales every declared width of this letter -- body AND bar -- on
+    # top of the fitted `F_TW`, which is left at 1.12 so the round-216 colour
+    # fit stays the record and this change is one named, ladderable number.
+    # Default 1.0, which is an exact IEEE multiply and reproduces the shipped
+    # drawing bit for bit (proved: 0 of 493 outlines differ, advances included).
+    # It is italic-only by CONSTRUCTION, not by a `pen.ITALIC` guard: this whole
+    # module is reached only under ALBO_ITALIC=aldine, so the roman cannot see it.
+    #
+    # WHAT THE MEASUREMENT SAYS, on the round-367 build (cmp_weight_survey.py,
+    # the fixed instrument -- slant sign and crop edge, method doc bugs 6 and 7):
+    # the f's STROKE MEDIAN is only +8% of the italic lowercase (63.2 against
+    # 58.7) and +2% of its own stem family, so a stroke-median survey nearly
+    # misses it. Its THIN is 48.2 units -- THE THICKEST THIN IN THE ITALIC
+    # LOWERCASE, +64% of that median (29.4) -- and its cut is 1.55 against the
+    # style's 2.27. Every reference italic's f sits at or below its own
+    # lowercase stroke median (Flanker -3%, Coelacanth +1%, Pagella -9%,
+    # Poetica +0%) and every one carries a genuinely thin thin (17.3-38.4);
+    # Albo's is the only f of five that is HEAVIER than its own style.
+    #
+    # The terminals do NOT move with this dial and that is deliberate: `fin0` /
+    # `fin1` land both ends on `fin_floor()` through `finial_widths`'
+    # `sw = max(swell, floor / w_end)`, so the c's top finial keeps its ruled
+    # 65.6 (round 276, owner's finial ruling) however thin the stroke behind it
+    # gets. The dial thins the letter, not the family's terminal.
+    #
+    # THE LADDER, measured (cmp_weight_survey.py on the built font; `vs lc` is
+    # the italic lowercase median, `vs stem` its construction family's). Every
+    # arm moves exactly ONE of 493 outlines -- the f -- and the advance holds at
+    # 321 down to 0.82. cmp_contour_hairs (full and --letters), cmp_touch,
+    # cmp_aldine_glitch and cmp_aldine_metrics return reports byte-identical to
+    # the shipped build's at every rung:
+    #
+    #   F_INK   thin  stroke   cut  colour | strk vs lc  col vs lc  col vs stem
+    #    1.00   48.2    63.2  1.55   0.284 |       +8%        +3%         +13%   SHIPPED
+    #    0.94   45.2    61.0  1.60   0.270 |       +4%        -1%          +7%
+    #    0.88   44.4    56.4  1.53   0.255 |       -2%        -7%          +1%
+    #    0.82   39.1    54.2  1.62   0.238 |       -6%       -13%          -3%
+    #    0.76   38.4    51.9  1.53   0.225 |      -10%       -18%          -8%
+    #
+    # A uniform scale cannot take the f's THIN to the style's thin median (29.4)
+    # -- the declared table's own range is only 42..66, so the letter is nearly
+    # monoline by construction and 0.61 would be needed. Shaping that contrast
+    # is a different lever and a separate ask.
+    F_INK = d_dial("F_INK", 1.0)      # every declared width of the f, x this
 
     @glyph('f')
     def a_f(c):
@@ -4132,9 +4177,9 @@ if ON:
                      [(0.00, 44), (0.17, 44), (0.26, 42),
                       (0.35, 60), (0.47, 66), (0.54, 64), (0.66, 60), (0.74, 52),
                       (0.81, 43), (0.87, 34), (0.93, 38), (1.00, 42)],
-                     u, tw=F_TW, fin0=True, fin1=True)
+                     u, tw=F_TW * F_INK, fin0=True, fin1=True)
         bar = d_pen([P(117, F_BAR - 0.045), P(230, F_BAR), P(350, F_BAR + 0.045)],
-                    [(0.0, 22), (0.18, 48), (0.80, 48), (1.0, 24)], u, tw=F_TW)
+                    [(0.0, 22), (0.18, 48), (0.80, 48), (1.0, 24)], u, tw=F_TW * F_INK)
         return geom.ink([body, bar])
 
     # ---------------------------------------------------------------- THE t
