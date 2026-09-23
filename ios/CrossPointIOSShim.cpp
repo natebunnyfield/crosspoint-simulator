@@ -1678,6 +1678,19 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
   // of the change above is that it must NOT suspend anything. It is here so a
   // Mirroring session shows the transitions it actually goes through.
   case SDL_EVENT_WILL_ENTER_BACKGROUND:
+    // THE PRE-FIX BEHAVIOUR, on demand, so the freeze has a negative arm that
+    // can actually be observed. The shim before 2026-09-23 suspended presents
+    // HERE, at resign-active, and cleared it only at did-become-active; the
+    // pre-fix file cannot simply be built against this tree any more (shared
+    // signatures have moved), so reproducing it on the SAME binary is the only
+    // honest A/B left. Scripted `RESIGN` then a tap: with this set the glass
+    // must hold its frame, without it the page must turn.
+    if (std::getenv("CROSSPOINT_SIM_SUSPEND_ON_RESIGN")) {
+      SDL_Log("[lifecycle] willResignActive -- SUSPENDING (pre-fix behaviour, "
+              "CROSSPOINT_SIM_SUSPEND_ON_RESIGN)");
+      HalDisplay::setBackgrounded(true);
+      break;
+    }
     SDL_Log("[lifecycle] willResignActive -- presents left RUNNING");
     break;
   default:

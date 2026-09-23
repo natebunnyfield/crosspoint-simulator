@@ -74,8 +74,25 @@ the hunt doc). Filed so the next pass starts here rather than re-measuring.
 ### [S-041] Under iPhone Mirroring the app does not receive clicks or taps — OPEN, cause NOT established; the first hypothesis was refuted and an input trace ships in its place
 **severity: high (owner, 2026-09-20: "iphone mirroring ... is not receiving clicks and taps") · scope: not yet localized; `ios/CrossPointIOSShim.cpp` (`padWatch`, `traceInput`) is where the instrument lives · found 2026-09-20 · NOT reproducible on this Mac: Mirroring needs the owner's phone, and both screen-control requests were declined, so every line below is read off sources rather than measured under Mirroring**
 
-**THE LEADING CANDIDATE, and the only one so far that is a measured defect
-rather than a reading of sources — fixed in `b5a0f27`.** The app stopped
+**THE MECHANISM IS NOW REPRODUCED AND CURED, on the same binary — fixed in
+`b5a0f27`, shipped in build 209.** Scripted `12000:RESIGN` (SDL's own
+resign-active pair, nothing after it), then a tap, with one hatch deciding
+which edge suspends:
+
+| arm | glass after the tap | was the tap received? |
+|---|---|---|
+| `CROSSPOINT_SIM_SUSPEND_ON_RESIGN=1` (pre-fix edge) | `23dc868c` → **`23dc868c`**, FROZEN | yes — `[zen] deliberate tap -> right (button 3)` |
+| shipped fix | `8cf2ffca` → `ea58959d`, page turned | yes |
+
+The failing arm is the reported symptom exactly: **the tap is received, the
+firmware turns the page, and the glass never updates.** From outside, that is
+indistinguishable from an app that has stopped receiving input — which is why
+the report reads the way it does. What this does NOT prove is that iPhone
+Mirroring is what drives the app into a resign-active state it never leaves;
+that still needs a Mirroring session. But the failure mode is no longer a
+theory, and the cure is no longer a candidate.
+
+**The defect itself —** The app stopped
 presenting on the wrong lifecycle edge. `HalDisplay::setBackgrounded(true)` hung
 off `SDL_EVENT_WILL_ENTER_BACKGROUND`, which SDL raises from
 **`sceneWillResignActive:`** (`SDL_uikitappdelegate.m`) — not backgrounding.
