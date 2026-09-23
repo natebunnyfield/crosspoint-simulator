@@ -122,6 +122,31 @@ This is NOT yet confirmed as the cause — no Mirroring session has been read.
 But it is a defect on its own terms, it needed no remote session to prove, and
 it is the first candidate that produces the reported symptom exactly.
 
+**NEGATIVE RESULT, 2026-09-23 — the SDL-renderer half of the freeze theory did
+NOT reproduce.** SDL sets `renderer->hidden` on `SDL_EVENT_WINDOW_MINIMIZED`,
+which it sends at resign-active, and clears it only on
+`SDL_EVENT_WINDOW_RESTORED`, which it sends exclusively from did-become-active
+(`SDL_video.c`, `SDL_render.c`); while hidden it discards the command queue and
+the present. That is a real asymmetry in SDL's source and it predicts the same
+freeze one layer below the harness. It was tested directly, on the same binary,
+with a new `RESIGN` script verb (`pushResignActive` pushes MINIMIZED per window
+plus the app event, and nothing after it) and a QA hatch
+`CROSSPOINT_SIM_NO_MINIMIZED_COUNTER` to disable the countermeasure:
+
+| arm | glass after a tap |
+|---|---|
+| counter ON | updated (md5 `8cf2ffca` → `ea58959d`) |
+| counter OFF | **updated anyway** (md5 `23dc868c` → `ea58959d`) |
+
+The arm that should have held its frame did not. So the counter is unproven:
+most likely a pushed `SDL_EVENT_WINDOW_MINIMIZED` does not reproduce
+`SDL_SendWindowEvent`, which also sets the window's own `SDL_WINDOW_MINIMIZED`
+flag — something `SDL_PushEvent` cannot do. The countermeasure ships anyway
+because it is correct against SDL's source and cannot harm (a window on iOS is
+never really minimized), but it is NOT a demonstrated fix and must not be
+described as one. Recorded here so the next session does not re-derive the
+theory and re-run the same arms.
+
 **The refuted hypothesis, recorded because it is convincing and wrong.** The
 first diagnosis was that Mirroring delivers a click as
 `UITouchTypeIndirectPointer`, that SDL3's UIKit backend diverts that touch type

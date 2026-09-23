@@ -286,6 +286,10 @@ enum class SyntheticAction {
   Sleep,
   Quit,
   QueuedTap,
+  // RESIGN pushes SDL's own resign-active pair -- WINDOW_MINIMIZED per window
+  // plus the WILL_ENTER_BACKGROUND app event -- and nothing after it, which is
+  // the stranded state S-041 is about. See pushResignActive().
+  ResignActive,
   // SHAKE fires HalGPIO::injectFontFamilyStep — the API the iOS zen shake
   // responder steps fonts with — so a headless script pins that exact path,
   // the same argument as QueuedTap below.
@@ -691,6 +695,33 @@ void pushForeground() {
   SDL_PushEvent(&e);
 }
 
+// RESIGN-ACTIVE, exactly as SDL delivers it, and WITHOUT any follow-up. This
+// is the stranded state S-041's leading candidate is about: the app goes
+// inactive and never becomes active again, so nothing ever undoes it.
+//
+// SDL_OnApplicationWillEnterBackground does two things (SDL_video.c) and the
+// test needs both, because the freeze had TWO independent causes stacked:
+// SDL_EVENT_WINDOW_MINIMIZED per window, which sets renderer->hidden in SDL's
+// own renderer watch and makes SDL discard the command queue AND the present;
+// and the app event, which is what the harness reads. Pushing only one would
+// prove half a cure.
+void pushResignActive() {
+  int count = 0;
+  SDL_Window **windows = SDL_GetWindows(&count);
+  for (int i = 0; i < count; ++i) {
+    SDL_Event w{};
+    w.type = SDL_EVENT_WINDOW_MINIMIZED;
+    w.window.windowID = SDL_GetWindowID(windows[i]);
+    w.common.timestamp = SDL_GetTicksNS();
+    SDL_PushEvent(&w);
+  }
+  if (windows) SDL_free(windows);
+  SDL_Event e{};
+  e.type = SDL_EVENT_WILL_ENTER_BACKGROUND;
+  e.common.timestamp = SDL_GetTicksNS();
+  SDL_PushEvent(&e);
+}
+
 void initializeSyntheticEvents() {
   if (syntheticEventsInitialized)
     return;
@@ -733,6 +764,8 @@ void initializeSyntheticEvents() {
         syntheticEvents.push_back({atMs, SyntheticAction::OpenActionMenu});
       } else if (key == "S" || key == "SLEEP") {
         syntheticEvents.push_back({atMs, SyntheticAction::Sleep});
+      } else if (key == "RESIGN") {
+        syntheticEvents.push_back({atMs, SyntheticAction::ResignActive});
       } else if (key == "FOREGROUND" || key == "RESUME") {
         syntheticEvents.push_back({atMs, SyntheticAction::Foreground});
       } else if (key == "HOME") {
@@ -882,6 +915,9 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::Foreground:
       pushForeground();
+      break;
+    case SyntheticAction::ResignActive:
+      pushResignActive();
       break;
     }
   }

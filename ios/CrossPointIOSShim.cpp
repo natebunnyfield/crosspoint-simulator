@@ -1535,6 +1535,11 @@ Uint64 g_foregroundAt = 0;
 // discarded -- so both need the same answer, and a single present is not it.
 inline void armSettleRepaint() { g_foregroundAt = SDL_GetTicks(); }
 
+// Did the app genuinely BACKGROUND, as opposed to merely resign active? Only
+// SDL_EVENT_DID_ENTER_BACKGROUND sets it. Read by the MINIMIZED counter below,
+// which must not un-hide a renderer we really are backgrounded behind.
+bool g_appBackgrounded = false;
+
 // A watch of its own, deliberately not a case inside padWatch: everything here
 // is a painting concern and none of it reads input. Both cases only write a
 // flag and a handful of atomics -- no renderer call happens on this thread; the
@@ -1571,7 +1576,63 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
   // defect either way, and the freeze needs no remote session to be wrong.
   case SDL_EVENT_DID_ENTER_BACKGROUND:
     SDL_Log("[lifecycle] didEnterBackground -> presents suspended");
+    g_appBackgrounded = true;
     HalDisplay::setBackgrounded(true);
+    break;
+  // THE OTHER HALF OF THE FREEZE, and the half the harness does not own.
+  // SDL_OnApplicationWillEnterBackground -- resign-active -- sends
+  // SDL_EVENT_WINDOW_MINIMIZED for every window (SDL_video.c), and SDL's own
+  // renderer watch sets renderer->hidden on it (SDL_render.c). While hidden,
+  // SDL discards the command queue AND the present, under
+  // DONT_DRAW_WHILE_HIDDEN on iOS. The only thing that clears it is
+  // SDL_EVENT_WINDOW_RESTORED, which SDL sends exclusively from
+  // did-become-ACTIVE. So a scene that resigns active and never becomes active
+  // again leaves the renderer hidden forever, and the glass holds its last
+  // frame no matter what the harness does with its own flag.
+  //
+  // A window on iOS is never actually minimized: SDL is using MINIMIZED as a
+  // proxy for resign-active, and it is that proxy that strands the renderer.
+  // So counter it the moment it arrives, unless we have genuinely backgrounded
+  // -- in which case the suspend above is what stops the drawing, and SDL's
+  // view of visibility does not matter because we will not ask it to draw.
+  //
+  // Ordering is safe on a real background: MINIMIZED arrives at resign-active,
+  // BEFORE DID_ENTER_BACKGROUND, so this un-hides a renderer we are about to
+  // stop using anyway. On the way back SDL sends its own RESTORED at
+  // didBecomeActive, and clearing a flag twice costs nothing.
+  case SDL_EVENT_WINDOW_MINIMIZED:
+    // QA hatch for the negative arm -- and the negative arm DID NOT FAIL,
+    // which is the honest state of this counter and the reason to read on.
+    //
+    // Measured 2026-09-23 on an iPhone Air simulator, same binary, scripted
+    // `12000:RESIGN` (WINDOW_MINIMIZED per window + WILL_ENTER_BACKGROUND, no
+    // follow-up) and then a tap:
+    //   counter ON  -- glass updated (md5 8cf2ffca -> ea58959d)
+    //   counter OFF -- glass updated ANYWAY (md5 23dc868c -> ea58959d)
+    // If SDL's renderer->hidden really stranded the renderer, the second row
+    // should have held its frame. It did not. So the SDL half of the theory is
+    // NOT demonstrated: either a pushed SDL_EVENT_WINDOW_MINIMIZED does not
+    // reproduce what SDL_SendWindowEvent does internally (it also sets the
+    // window's own SDL_WINDOW_MINIMIZED flag, which SDL_PushEvent cannot), or
+    // the gate does not bite the way SDL_render.c reads.
+    //
+    // The counter is KEPT because it is correct against SDL's source
+    // (renderer->hidden is set on MINIMIZED and cleared only by RESTORED,
+    // which SDL sends exclusively from did-become-active) and because it
+    // cannot do harm -- a window on iOS is never really minimized. But it is
+    // UNPROVEN in practice and must not be described as the fix for anything.
+    // The two things that ARE measured are the harness's own wrong edge and
+    // the dead lifecycle branches; see S-041.
+    if (!g_appBackgrounded && std::getenv("CROSSPOINT_SIM_NO_MINIMIZED_COUNTER") == nullptr) {
+      SDL_Log("[lifecycle] WINDOW_MINIMIZED at resign-active -> countered "
+              "with RESTORED (SDL would otherwise hide the renderer until "
+              "did-become-active)");
+      SDL_Event restored;
+      SDL_zero(restored);
+      restored.type = SDL_EVENT_WINDOW_RESTORED;
+      restored.window.windowID = e->window.windowID;
+      SDL_PushEvent(&restored);
+    }
     break;
   // RESUME ON EITHER EDGE. sceneWillEnterForeground precedes
   // sceneDidBecomeActive, and a scene can be brought forward without ever
@@ -1583,6 +1644,7 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
             e->type == SDL_EVENT_WILL_ENTER_FOREGROUND
                 ? "willEnterForeground"
                 : "didBecomeActive");
+    g_appBackgrounded = false;
     HalDisplay::setBackgrounded(false);
     // SDL HAS THE SAME BUG ONE LAYER DOWN, and without this the early resume
     // above is a no-op at the GPU. SDL_OnApplicationWillEnterBackground -- i.e.
