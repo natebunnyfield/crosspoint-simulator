@@ -436,6 +436,12 @@ _FIG_OPT_ENV = {d: (os.environ.get("ALBO_FIG_" + d, "") or _FIG_OPT_ALL).strip()
                 for d in "0123456789"}
 FIG_SHIP_ROM = dict.fromkeys("0123456789", 'a')
 FIG_SHIP_ROM.update({'1': 'h', '2': 'b'})   # round 249, owner 2026-09-18: "ALBO_FIG_1 h", "ALBO_FIG_2 b without the bulge"
+# ROUND 361, owner 2026-09-23: *"j wins"*, from six 7s shown in the numeral
+# run. j is the bar at the 0's own thick -- the heaviest of the six and the
+# closest to the rest of the figures: against their stroke 53.4 / thick 68.9 /
+# colour 0.159 it reads -14% / -2% / -3%, where the 7 it replaces read
+# -28 / -28 / -24 and was the lightest glyph among the figures.
+FIG_SHIP_ROM.update({'7': 'j'})
 FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 'u'})   # round 257: the 9's tail joins as the 6's does, tip 5 units past the bowl (owner: "p wins but only got optically just past bowl and switch tail to join the same way that 6's tail does"); round 254: the 9 ships as s (p's short deep wedge, tail flush with the bowl -- owner 2026-09-19: "p wins but shorten the tail until it fits the rest of the 9"); round 253 j; round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
 FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 
