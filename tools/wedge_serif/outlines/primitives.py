@@ -6,6 +6,7 @@ join -- one outline per solid, counters as holes, nothing buried.
 Widths are DECLARED here and in the glyph code, read against pen.th()
 (the reference), not generated from it: `widths(keys)` interpolates the
 designer's keypoints along a stroke."""
+import hashlib
 import os, math
 from . import geom, pen
 from .geom import cubic, quad, line, superellipse, join, resample, tangents, smooth
@@ -461,7 +462,7 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
             ws.append(S * w_scale * (_thin + (_thick - _thin)
                                      * abs(math.sin(math.radians(_d - _phi)))))
     if con != 1.0 and ws:
-        import math as _m
+        import hashlib, math as _m
         gm = _m.exp(sum(_m.log(max(w, 1e-6)) for w in ws) / len(ws))
         ws = [gm * (w / gm) ** con for w in ws]
     inner = []
@@ -842,7 +843,11 @@ DOT_STYLE = int(os.environ.get("FJORD_DOT_STYLE", 1))   # owner 2026-09-14: "dot
 #      little down) and shrinks by the same on the far side; the geometric
 #      centre and the width do not move, the ink's weight does
 # Styles 2-9 keep the ladder's polygons; 0 keeps the round superellipse.
-DOT_PUNCH = os.environ.get("ALBO_DOT_PUNCH", "a")
+# ROUND 367 -- `d` SHIPS. Owner 2026-09-23, from eight mechanisms rendered
+# magnified and at reading size: *"filed flat wins but it needs to be subtly
+# unique to each dot."* So the punch is the filed flat, and DOT_FLAT_SPREAD /
+# DOT_FLAT_VAR give each dot in the face its own angle and depth.
+DOT_PUNCH = os.environ.get("ALBO_DOT_PUNCH", "d")
 # ROUND 366 -- these five became env dials so the mechanisms can be laddered
 # and, more to the point, MEASURED at reading size. Owner 2026-09-23: *"show
 # me the ways dots can read as circles but on closer inspection, they are
@@ -862,7 +867,28 @@ DOT_PUNCH_K = float(os.environ.get("ALBO_DOT_PUNCH_K", 2.3))          # option b
 DOT_PUNCH_LEAN = float(os.environ.get("ALBO_DOT_PUNCH_LEAN", 0.08))      # option c: the radius swells 8% toward the lean and shrinks 8% away from it
 DOT_PUNCH_LEAN_DEG = float(os.environ.get("ALBO_DOT_PUNCH_LEAN_DEG", -20.0))
 DOT_PUNCH_FLAT = float(os.environ.get("ALBO_DOT_PUNCH_FLAT", 0.07))      # option d: how deep the filed flat cuts, x the radius
-DOT_PUNCH_FLAT_DEG = float(os.environ.get("ALBO_DOT_PUNCH_FLAT_DEG", 125.0))  # option d: which way the flat faces # option c: the lean's direction, degrees from 3 o'clock (negative = below it)
+DOT_PUNCH_FLAT_DEG = float(os.environ.get("ALBO_DOT_PUNCH_FLAT_DEG", 125.0))  # option d: which way the flat faces, before this dot's own variation
+DOT_FLAT_SPREAD = float(os.environ.get("ALBO_DOT_FLAT_SPREAD", 60.0))    # round 367: +/- degrees each dot wanders from that angle
+DOT_FLAT_VAR = float(os.environ.get("ALBO_DOT_FLAT_VAR", 0.25))          # round 367: +/- fraction each dot varies in depth # option c: the lean's direction, degrees from 3 o'clock (negative = below it)
+def _flat_for(key):
+    """This dot's own flat: (angle in degrees, depth x the radius).
+
+    ROUND 367, owner 2026-09-23: *"filed flat wins but it needs to be subtly
+    unique to each dot."* A punch shop does not file two faces identically,
+    so the flat's ANGLE and DEPTH are drawn per dot from a stable hash of
+    which glyph it sits in and which dot it is within that glyph -- the
+    colon's two differ from each other, and both differ from the period's.
+
+    md5 and not `hash()`: Python salts str hashing per process, so the same
+    font would come out different on every build and no proof about it would
+    hold. This is deterministic across runs and machines.
+    """
+    h = hashlib.md5(key.encode()).digest()
+    a = DOT_PUNCH_FLAT_DEG + (h[0] / 255.0 * 2.0 - 1.0) * DOT_FLAT_SPREAD
+    d = DOT_PUNCH_FLAT * (1.0 + (h[1] / 255.0 * 2.0 - 1.0) * DOT_FLAT_VAR)
+    return a, d
+
+
 def _punch_dot(cx, cy, r, opt):
     n = DOT_PUNCH_N; pts = []; r = r * DOT_PUNCH_SCALE
     lean = math.radians(DOT_PUNCH_LEAN_DEG)
@@ -876,14 +902,17 @@ def _punch_dot(cx, cy, r, opt):
         rr = r * (1 + DOT_PUNCH_LEAN * math.cos(a - lean)) if opt == "c" else r
         pts.append((cx + rr * x, cy + rr * y))
     if opt == "d":
+        from .glyphs import CURRENT
+        CURRENT["n"] += 1
+        _fdeg, _fdep = _flat_for(f'{CURRENT["ch"]}#{CURRENT["n"]}')
         # ONE FILED FLAT. A punch is finished on a stone, and a face that was
         # trued against it comes back with a single chord where the rest of
         # the round is untouched. Not a squaring (option b flattens four
         # shoulders at once) and not a lean (option c moves the whole centre):
         # this is one side, at one angle, and the other three quarters of the
         # circumference are exactly the full round.
-        fa = math.radians(DOT_PUNCH_FLAT_DEG)
-        d = r * (1.0 - DOT_PUNCH_FLAT)          # the chord's distance from the centre
+        fa = math.radians(_fdeg)
+        d = r * (1.0 - _fdep)          # the chord's distance from the centre
         nx, ny = math.cos(fa), math.sin(fa)
         pts = [(px, py) if ((px - cx) * nx + (py - cy) * ny) <= d
                else (px - nx * ((px - cx) * nx + (py - cy) * ny - d),
