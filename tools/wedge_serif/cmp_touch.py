@@ -60,6 +60,13 @@ EXEMPT = {
     ('Q', '7'): "round 348: NOT kerned -- it already clears by 0.0125 em on ink",
     ('Q', '9'): "round 348: kerned +60, as Qg",
     ('Q', '('): "round 348: kerned +440, as Qg", ('Q', ')'): "round 348: kerned +440, as Qg",
+    # ROUND 360 -- the two that only ever surfaced at the BOLD weight, and
+    # neither is touching: measured 2-D, Q, clears by 0.0613 em on the Bold
+    # and 0.1360 on the Regular, Q; by 0.0632 and 0.1259. Same row-wise blind
+    # spot as the thirteen above -- the tail reaches past the mark on rows the
+    # mark also occupies, without ever meeting it. They take no kern.
+    ('Q', ','): "round 360: not touching -- clears 0.061 em on the Bold, measured 2-D",
+    ('Q', ';'): "round 360: not touching -- clears 0.063 em on the Bold, measured 2-D",
     ('f', 'h'): "as f+b",
     ('f', 'k'): "as f+b",
     ('f', 'l'): "as f+b",
@@ -109,6 +116,48 @@ def profiles(ttf, chars, xh_px=300, index=0, xh_src="declared"):
     return out, fnt, size
 
 
+def ligating_pairs(ttf, index=0):
+    """The two-glyph sequences the font's own `liga` feature replaces.
+
+    WHY THE GATE NEEDS THIS. `ff` and `fi` were reported TOUCHING on the Bold
+    at -0.034 and -0.023 em, and they are neither touching nor a sequence the
+    font ever draws: both ligate. Measured on the Bold, `ff` shapes to 618
+    units against 772 for two separate f's. The row-wise measure below places
+    the second glyph at `getlength(xy) - getlength(y)` -- the LIGATURE's
+    advance applied to two loose glyphs -- so it overlaps them by construction
+    and then reports the overlap.
+
+    Read from GSUB rather than kept as a hand list, because the roman carries
+    ff fi fl ffi ffl and the italic carries none (owner 2026-09-21), so a
+    hand list would be wrong for one of the two styles the moment it was
+    written.
+    """
+    from fontTools.ttLib import TTFont as _TT
+    f = _TT(ttf, fontNumber=index) if ttf.lower().endswith(".ttc") else _TT(ttf)
+    if "GSUB" not in f:
+        return set()
+    rev = {}
+    for ch, g in f.getBestCmap().items():
+        rev.setdefault(g, chr(ch))
+    out = set()
+    gsub = f["GSUB"].table
+    liga_idx = set()
+    for fr in gsub.FeatureList.FeatureRecord:
+        if fr.FeatureTag == "liga":
+            liga_idx.update(fr.Feature.LookupListIndex)
+    for i in liga_idx:
+        lk = gsub.LookupList.Lookup[i]
+        for st in lk.SubTable:
+            for first, ligs in getattr(st, "ligatures", {}).items():
+                for lg in ligs:
+                    if len(lg.Component) != 1:      # only 2-glyph sequences
+                        continue
+                    a, b = rev.get(first), rev.get(lg.Component[0])
+                    if a and b:
+                        out.add((a, b))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("ttf")
@@ -142,6 +191,11 @@ def main():
             rows.append((g, x, y))
     rows.sort()
 
+    # A PAIR THE FONT LIGATES IS NOT A PAIR. Dropped before the verdict rather
+    # than exempted, because it is read from the font's own GSUB and is
+    # therefore right for each style without anyone maintaining a list.
+    liga = ligating_pairs(a.ttf)
+    rows = [r for r in rows if (r[1], r[2]) not in liga]
     bad = [r for r in rows if r[0] < a.floor and (r[1], r[2]) not in EXEMPT]
     exm = [r for r in rows if r[0] < a.floor and (r[1], r[2]) in EXEMPT]
     print(f"\n{len(rows)} pairs swept at a {a.xh} px x-height; floor {a.floor:.3f} em\n")
