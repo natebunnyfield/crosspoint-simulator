@@ -48,9 +48,12 @@ def CAP(c): return c["cap"]
 # tittle is untouched. If the two should stay locked together, that is a
 # separate ruling and this dial is where it would be made.
 MARK_DOT = float(os.environ.get("ALBO_MARK_DOT", 1.0))   # x DOT_R, punctuation only
-EXCL_BOT = float(os.environ.get("ALBO_EXCL_BOT", 0.55))  # the !'s profile at the foot, x the pen
-EXCL_TOP = float(os.environ.get("ALBO_EXCL_TOP", 1.05))  # ...and at the cap
+EXCL_BOT = float(os.environ.get("ALBO_EXCL_BOT", 0.74))  # the !'s profile at the foot, x the pen (round 364: 0.55 before)
+EXCL_TOP = float(os.environ.get("ALBO_EXCL_TOP", 1.38))  # ...and at the cap (round 364: 1.05 before). 1.38 puts the ! thick at 1.24 x the face's stem, against the references' 1.10-1.30
 EXCL_DOT = float(os.environ.get("ALBO_EXCL_DOT", 1.0))   # the !'s dot, x the marks' dot
+EXCL_NIB = int(os.environ.get("ALBO_EXCL_NIB", 1))       # 1 = the dot is a pressed nib; 0 = the old round dot
+EXCL_NIB_LEN = float(os.environ.get("ALBO_EXCL_NIB_LEN", 0.62))  # half the press's length along the nib's edge, x the dot radius
+EXCL_NIB_W = float(os.environ.get("ALBO_EXCL_NIB_W", 1.15))      # the press's thickness across the edge, x the dot radius
 MDOT = DOT_R * MARK_DOT
 
 @glyph('.')
@@ -96,9 +99,36 @@ def g_exclam(c):
     # EXCL_BOT and EXCL_TOP are the profile's two ends, x the pen. Shipped
     # 0.55 / 1.05 is round 51's original; an unset build is bit-identical.
     # EXCL_DOT scales the dot against MDOT, and is the second half of the ask.
-    C = CAP(c); x = MDOT; y0 = 2 * MDOT * EXCL_DOT + 0.8 * S   # same gap above the dot as round 51's (0.8 stem)
+    # ROUND 365 -- THE DOT IS A PRESSED NIB, NEVER A ROUND ONE. Owner
+    # 2026-09-23: *"it needs to be done with a nib, never rounded."* So it is
+    # not `dot()` at all -- not the superellipse and not DOT_STYLE 1's punched
+    # dot, both of which are circles with the corners worked. It is the pen
+    # set down once: a short run along the stem's own direction, taking the
+    # pen's width there and the family's cut at both ends, which leaves the
+    # four-sided mark a broad nib actually makes.
+    C = CAP(c); x = MDOT
+    _r = MDOT * EXCL_DOT
+    if EXCL_NIB:
+        # THE FOOTPRINT ITSELF, not a stroke with cuts on it. The first cut ran
+        # a short vertical stroke and let the two pen cuts meet, which ate most
+        # of the path and left a lopsided wedge -- visible the moment it was
+        # rendered. A broad nib set down once leaves a PARALLELOGRAM: its long
+        # edge lies along the nib's own angle (the face's stress, 26 degrees
+        # here) and its short edge is the nib's thickness.
+        _th = pen.PEN.stress
+        _ca, _sa = math.cos(_th), math.sin(_th)
+        _L = _r * EXCL_NIB_LEN * 2.0        # half the mark's length, along the edge
+        _W = _r * EXCL_NIB_W * 0.5          # half its thickness, across
+        _dot = geom.poly([(x + _ca * _L - _sa * _W, _r + _sa * _L + _ca * _W),
+                          (x + _ca * _L + _sa * _W, _r + _sa * _L - _ca * _W),
+                          (x - _ca * _L + _sa * _W, _r - _sa * _L - _ca * _W),
+                          (x - _ca * _L - _sa * _W, _r - _sa * _L + _ca * _W)])
+        y0 = 2 * _r + 0.8 * S
+    else:
+        _dot = dot(x, _r, _r)
+        y0 = 2 * _r + 0.8 * S
     _p = line((x, y0), (x, C))
-    return geom.ink([dot(x, MDOT * EXCL_DOT, MDOT * EXCL_DOT),
+    return geom.ink([_dot,
                      stroke(_p, pen_widths(_p, lambda t: EXCL_BOT + (EXCL_TOP - EXCL_BOT) * t), cut1=CUT)])
 @glyph('?')
 def g_question(c):
