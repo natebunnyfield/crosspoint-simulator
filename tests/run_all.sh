@@ -194,6 +194,18 @@ run_direct tap_dispatch_source \
 run_direct pointer_touch_hints \
   python3 tests/pointer_touch_hints_test.py
 
+# THE APP LIFECYCLE EVENTS ARE NEVER QUEUED. SDL_SendAppEvent hands the four
+# BACKGROUND/FOREGROUND events (plus TERMINATING and LOW_MEMORY) to
+# SDL_CallEventWatchers only -- "We won't actually queue this event" -- so any
+# branch reading one out of SDL_PollEvent is dead on a device. S-037's wake fix
+# shipped that way on 2026-09-06 and did not run on a phone for eighteen days;
+# the compiler cannot see it (the branch is reachable code on a real type) and
+# test_foreground_wake.sh could not, because the script's FOREGROUND verb goes
+# through SDL_PushEvent, which DOES queue. Source-level gate: the poll loop must
+# not test for one of these types, and the watch must be installed.
+run_direct lifecycle_watch_source \
+  python3 tests/lifecycle_watch_source_test.py
+
 # WHAT EVERY GESTURE DOES (ios/GestureBindings.h), after the owner made the
 # bindings configurable from Settings.app on 2026-08-28 (T-025) and then re-cut
 # the SET twice the same day. What ships is 17 gestures -- single taps on 1 and
