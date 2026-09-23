@@ -74,6 +74,54 @@ the hunt doc). Filed so the next pass starts here rather than re-measuring.
 ### [S-041] Under iPhone Mirroring the app does not receive clicks or taps — OPEN, cause NOT established; the first hypothesis was refuted and an input trace ships in its place
 **severity: high (owner, 2026-09-20: "iphone mirroring ... is not receiving clicks and taps") · scope: not yet localized; `ios/CrossPointIOSShim.cpp` (`padWatch`, `traceInput`) is where the instrument lives · found 2026-09-20 · NOT reproducible on this Mac: Mirroring needs the owner's phone, and both screen-control requests were declined, so every line below is read off sources rather than measured under Mirroring**
 
+**THE LEADING CANDIDATE, and the only one so far that is a measured defect
+rather than a reading of sources — fixed in `b5a0f27`.** The app stopped
+presenting on the wrong lifecycle edge. `HalDisplay::setBackgrounded(true)` hung
+off `SDL_EVENT_WILL_ENTER_BACKGROUND`, which SDL raises from
+**`sceneWillResignActive:`** (`SDL_uikitappdelegate.m`) — not backgrounding.
+Resign-active fires for every transient inactivity: Control Center or
+Notification Center pulled down, a notification or call banner, the screen
+locking, and a scene that is foreground-INACTIVE rather than backgrounded. The
+only thing that cleared it was `SDL_EVENT_DID_ENTER_FOREGROUND`, i.e.
+`sceneDidBecomeActive:`.
+
+So a scene that went inactive and never came back active left GPU presents
+suspended **forever**. The firmware goes on running, `padWatch` goes on taking
+touches, pages go on turning — and the glass holds the last frame it managed to
+draw. From outside that is indistinguishable from an app that has stopped
+receiving input, which is exactly what this entry is a report of. **iPhone
+Mirroring runs the phone locked**, which is the shape that can strand it.
+
+Measured on an iPhone Air simulator, which is what makes this a defect rather
+than a third theory. One HOME press produced:
+
+```
+[lifecycle] sceneWillResignActive -- presents left RUNNING
+[lifecycle] sceneWillResignActive -- presents left RUNNING
+[lifecycle] sceneDidEnterBackground -> presents suspended
+```
+
+`sceneWillResignActive` arrived TWICE before anything backgrounded. Under the
+old code each of those suspended presents while the app was still on screen.
+
+The reason the suppression exists is unchanged and still honoured: Metal
+submitted from the BACKGROUND is grounds for termination, and read-aloud
+declares `UIBackgroundModes:audio` so the process goes on turning pages with the
+screen locked. Apple's boundary for that is `didEnterBackground`, and
+`SDL_EVENT_DID_ENTER_BACKGROUND` is exactly it — raised from
+`sceneDidEnterBackground:`, and an event watch runs inline on the pushing
+thread, so the suspend executes INSIDE that callback. Resume now happens on
+either forward edge (`sceneWillEnterForeground` as well as
+`sceneDidBecomeActive`), so it no longer depends on becoming active at all;
+both are idempotent. Verified on the same run: the resume landed on
+`sceneWillEnterForeground`, and a tap after the full cycle still classified and
+turned the page. Every transition now logs, so one Mirroring session says which
+edges that session actually goes through.
+
+This is NOT yet confirmed as the cause — no Mirroring session has been read.
+But it is a defect on its own terms, it needed no remote session to prove, and
+it is the first candidate that produces the reported symptom exactly.
+
 **The refuted hypothesis, recorded because it is convincing and wrong.** The
 first diagnosis was that Mirroring delivers a click as
 `UITouchTypeIndirectPointer`, that SDL3's UIKit backend diverts that touch type

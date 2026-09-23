@@ -533,6 +533,21 @@ true: it also connects GCMouse, which silences
 moves clicks onto a background dispatch queue, i.e. `padHitTest` → `PadCore` →
 `injectButtonDown` off the main thread.
 
+**The lifecycle boundary that came out of it, which is load-bearing on its own:**
+presents are suspended on `SDL_EVENT_DID_ENTER_BACKGROUND`
+(`sceneDidEnterBackground:`) and resumed on EITHER forward edge. They must NOT
+be suspended on `SDL_EVENT_WILL_ENTER_BACKGROUND` — SDL raises that from
+`sceneWillResignActive:`, which fires for Control Center, a banner, the screen
+locking and any foreground-inactive scene, and which measurably arrives twice
+before a real background. Suspending there and resuming only on
+`sceneDidBecomeActive` leaves a scene that never becomes active with presents
+off forever: input still flows, pages still turn, and the glass holds its last
+frame — an app that looks dead but is not. The reason for suspending at all is
+that Metal from the BACKGROUND is grounds for termination (read-aloud keeps the
+process alive with the screen locked), and `didEnterBackground` is Apple's own
+boundary for that; the event watch runs inline inside that callback, so it is
+in time. S-041.
+
 What exists instead is `traceInput` at the top of `padWatch`: the first 24
 finger and pointer-button events with the state that decides each one's fate
 (direct vs synthesized-from-pointer, finger id, position, `zen` / `asleep` /
