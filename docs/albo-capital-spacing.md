@@ -183,3 +183,40 @@ contour at 0.2 px/unit renders as sub-pixel spans that PIL's `polygon` fill
 discards — so `Q7`, `Q9` and `Q4` came back clear at a 20-unit kern while the
 tail ran straight through the figure. Caught by rendering the pair and looking
 at it. Use the font's own rasteriser.
+
+---
+
+## Round 360 — the Bold had no collisions at all, and two were the gate's own
+
+The Bold carried **four TOUCHING pairs** through builds 205, 206 and 207, and
+they were reported in each deploy as pre-existing and unfixed. Measured, none
+of the four is touching.
+
+| pair | the gate said | measured 2-D | what it actually is |
+|---|---|---|---|
+| `Q,` | −0.4254 | **+0.0613 em** | the tail reaching past a mark, never meeting it |
+| `Q;` | −0.4168 | **+0.0632 em** | same |
+| `ff` | −0.0341 | — | **the font ligates it**; the sequence is never drawn |
+| `fi` | −0.0234 | — | same |
+
+**`Q,` and `Q;` are the row-wise blind spot round 348 already documented** for
+the other thirteen Q pairs — they only surfaced at the Bold because a mark's
+own width moves with weight. Exempted with their measured clearance; no kern,
+because none is needed.
+
+**`ff` and `fi` were a different bug, and it is fixed rather than exempted.**
+`cmp_touch` places the second glyph at `getlength(xy) − getlength(y)`; for a
+ligating pair that is the LIGATURE's advance applied to two loose glyphs, which
+overlaps them by construction and then reports the overlap. Measured on the
+Bold, `ff` shapes to 618 units against 772 for two separate f's.
+`ligating_pairs()` now reads the two-glyph sequences out of the font's own
+`liga` feature and drops them before the verdict — from GSUB rather than a hand
+list, because the roman carries ff fi fl ffi ffl and the italic carries none
+(owner 2026-09-21), so any hand list would be wrong for one of the two styles
+the day it was written.
+
+**The Bold now reports 0 touching pairs.** What is left across the whole family
+is one genuine row: the Regular's `VI` at −0.0052 em, long-standing and in the
+baseline.
+
+**Neither font changed.** This round is the instrument.
