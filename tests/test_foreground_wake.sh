@@ -16,6 +16,23 @@
 # Desktop SDL never sends that event, so the script's FOREGROUND verb pushes
 # the real one (HalGPIO.cpp, pushForeground) and the test runs anywhere.
 #
+# WHAT THIS TEST CANNOT SEE, corrected 2026-09-23 after adversarial review.
+# Until that date both places read the event out of SDL_PollEvent, and SDL
+# NEVER QUEUES IT: SDL_SendAppEvent special-cases the four BACKGROUND/FOREGROUND
+# events (plus TERMINATING and LOW_MEMORY) and hands them to
+# SDL_CallEventWatchers only -- "We won't actually queue this event, it needs to
+# be handled in this call stack by an event watcher" (SDL_events.c). So the
+# shipped fix did nothing on the phone, which is the only device it exists for,
+# and this test went green for eighteen days anyway: pushForeground() uses
+# SDL_PushEvent, which DOES queue, so the scripted verb exercised a route the
+# real lifecycle transition never takes. CLAUDE.md's "a scripted pass is not
+# evidence about input routing", in a new place.
+#
+# Both sites read an event WATCH now (HalGPIO.cpp, lifecycleWatch and
+# consumeHostForeground), which sees the real transition AND the pushed one --
+# SDL_PushEvent calls the watchers before it queues. This test is therefore
+# still a real test of the wake LOGIC, and still not evidence about delivery.
+#
 # Scenario (all times from process start):
 #   2500ms POWER held 700ms  -> firmware's own sleep path (threshold 400ms;
 #                               main.cpp only allows sleep after boot+2000ms)
