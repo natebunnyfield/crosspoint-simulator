@@ -30,7 +30,7 @@ Construction rules, so a later round can extend the set without a survey:
 - nothing here is fitted by hand: `round19.SIDES` gives every one of them
   the 'punct' side, and round 97b's mark bearings apply.
 """
-import math
+import math, os
 from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line, superellipse
@@ -116,8 +116,55 @@ def g_dblarrowleft(c): return _darrow(c, -1)
 def g_dblarrowboth(c): return _darrow(c, 1, both=True)
 
 # ---------------------------------------------------------------- dots, quotes, braces
+# ROUND 363 -- THE MIDDLE DOT IS A TRAJAN TRIANGLE. Owner 2026-09-23: *"make
+# the middot a trajan style triangle."*
+#
+# It is worth doing carefully: the middle dot is the SECOND most-used symbol
+# in his own books (1,879 uses across the 34 epubs, after the rightwards
+# arrow) -- see this file's header.
+#
+# The inscriptional interpunct is chisel-cut, so its sides are not quite
+# straight: a V-gouge leaves edges that fall slightly INTO the shape. `CONC`
+# bows each side inward by that fraction of the triangle's height; 0 is a
+# plain triangle. `DIR` is which way the apex points -- the Trajan column
+# carries both an apex-up point and a rightward wedge, so it is a dial rather
+# than an assumption.
+MIDDOT_TRI = float(os.environ.get("ALBO_MIDDOT_TRI", 1.0))   # 0 = the round dot, 1 = the triangle
+MIDDOT_SIZE = float(os.environ.get("ALBO_MIDDOT_SIZE", 1.55))  # x the marks' dot DIAMETER, across the base
+MIDDOT_DIR = os.environ.get("ALBO_MIDDOT_DIR", "up")         # up | right | down
+MIDDOT_CONC = float(os.environ.get("ALBO_MIDDOT_CONC", 0.03))  # the chisel's hollow: the SAGITTA of each side, x the height. 0.10 is a shuriken; the useful range is 0 to about 0.05
+
+def _tri(cx, cy, a, direction, conc):
+    """An equilateral triangle centred on its own area, sides bowed inward."""
+    h = a * math.sqrt(3.0) / 2.0
+    # apex-up in local coords, centroid at the origin
+    pts = [(0.0, h * 2.0 / 3.0), (-a / 2.0, -h / 3.0), (a / 2.0, -h / 3.0)]
+    rot = {"up": 0.0, "right": -math.pi / 2.0, "down": math.pi}[direction]
+    ca, sa = math.cos(rot), math.sin(rot)
+    pts = [(x * ca - y * sa, x * sa + y * ca) for x, y in pts]
+    out = []
+    for i in range(3):
+        p0 = pts[i]; p1 = pts[(i + 1) % 3]
+        mx, my = (p0[0] + p1[0]) / 2.0, (p0[1] + p1[1]) / 2.0
+        # pull the midpoint toward the centre by `conc` of the height
+        nx, ny = -mx, -my
+        L = math.hypot(nx, ny) or 1.0
+        ctrl = (mx + nx / L * h * conc, my + ny / L * h * conc)
+        # THE HOLLOW IS A WHISPER, NOT A WAIST. The first cut pulled each
+        # midpoint in by `conc` of the height AND ran its handles 1.2x past
+        # the control, which at conc 0.10 turned the triangle into a
+        # three-pointed star -- a shuriken, not an interpunct. At 600 px
+        # that was obvious and the numbers said nothing, which is why it was
+        # looked at before it was published. The handles reach the control
+        # exactly now, so `conc` is the sagitta of each side and no more.
+        out += geom.cubic(p0, ctrl, ctrl, p1)
+    return [(cx + x, cy + y) for x, y in out]
+
 @glyph('·')      # middle dot
-def g_middot(c): return dot(DOT_R, MID, DOT_R)
+def g_middot(c):
+    if not MIDDOT_TRI:
+        return dot(DOT_R, MID, DOT_R)
+    return geom.poly(_tri(DOT_R, MID, DOT_R * 2.0 * MIDDOT_SIZE, MIDDOT_DIR, MIDDOT_CONC))
 @glyph('•')      # bullet
 def g_bullet(c): return dot(DOT_R * 1.5, MID, DOT_R * 1.5)
 @glyph('∙')
