@@ -417,6 +417,23 @@ with a peer on the same Wi-Fi: upload a book of a few MB through the page and
 watch it reach 100% and `DONE`; download it back and compare sizes.
 
 ### [S-037] The iOS app came back from the background asleep and stayed asleep — a foreground return neither woke the sleep loop nor counted as activity — FIXED 2026-09-06
+
+**REOPENED IN PART, 2026-09-23 — the shipped fix never ran on the phone.** Both
+halves read `SDL_EVENT_DID_ENTER_FOREGROUND` out of `SDL_PollEvent`, and SDL
+does not queue that event: `SDL_SendAppEvent` special-cases the four
+BACKGROUND/FOREGROUND events and hands them to `SDL_CallEventWatchers` only —
+*"We won't actually queue this event, it needs to be handled in this call stack
+by an event watcher"* (`SDL_events.c`). So on a real device neither the
+activity latch nor the sleep-loop wake could fire, and the device could come
+back from the background and re-sleep immediately — which is indistinguishable
+from an app that has stopped receiving input, and is therefore a live candidate
+for S-041 as well. `tests/test_foreground_wake.sh` was green throughout because
+the script's `FOREGROUND` verb goes through `pushForeground()` →
+`SDL_PushEvent`, which DOES queue; the scripted route was never the real one.
+Found by adversarial review, not by a test. Both sites now read an event watch
+(`lifecycleWatch` / `consumeHostForeground` in `src/HalGPIO.cpp`), which sees
+the real transition and the pushed one alike, since `SDL_PushEvent` calls the
+watchers before queueing.
 **severity: high (owner report; the app reads as stuck off) · scope: `src/HalGPIO.cpp` (`update()`, `startDeepSleep()`) · found 2026-09-06 from the owner's report, fixed the same day, pinned headlessly by `tests/test_foreground_wake.sh`; device-unconfirmed until the next TestFlight build**
 
 Owner, verbatim: *"ios app needs to wake on reactivation. is staying power

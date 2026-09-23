@@ -219,9 +219,55 @@ struct TouchState {
 TouchState touchState;
 // Set by update() when the app returned to the foreground this frame, cleared
 // by beginFrame() with the other per-frame edges, read by wasTouchActivity().
-// See the SDL_EVENT_DID_ENTER_FOREGROUND branch in update() for why a
-// reactivation has to count as activity.
+// See the foreground latch below for why a reactivation has to count as
+// activity, and why it cannot be read out of the event QUEUE.
 bool hostResumeThisFrame = false;
+
+// THE FOREGROUND LATCH, and why the three branches that used to read these
+// events out of SDL_PollEvent were dead on a real device.
+//
+// SDL does NOT queue the six app lifecycle events. SDL_SendAppEvent special-
+// cases TERMINATING, LOW_MEMORY and the four BACKGROUND/FOREGROUND events and
+// hands them to SDL_CallEventWatchers only, with the comment "We won't
+// actually queue this event, it needs to be handled in this call stack by an
+// event watcher" (SDL_events.c). So update()'s poll loop and the deep-sleep
+// loop's poll loop could never see one on the phone, and S-037's two halves --
+// a resume counting as activity, and the sleep loop waking on a resume -- did
+// not run there at all. The shell test passed because the script's FOREGROUND
+// verb goes through pushForeground(), which uses SDL_PushEvent, and THAT does
+// queue. CLAUDE.md's "a scripted pass is not evidence about input routing",
+// in a new place.
+//
+// An event WATCH sees both: SDL_PushEvent calls the watchers before it queues
+// (SDL_events.c), so the scripted verb still arrives here, once. The watch
+// only latches -- the wake it feeds reboots the process, which must happen on
+// the firmware's own thread and not inside a UIKit callback.
+std::atomic<bool> hostForegroundLatch{false};
+bool lifecycleWatchInstalled = false;
+
+bool SDLCALL lifecycleWatch(void * /*userdata*/, SDL_Event *e) {
+  switch (e->type) {
+  case SDL_EVENT_WILL_ENTER_FOREGROUND:
+  case SDL_EVENT_DID_ENTER_FOREGROUND:
+    hostForegroundLatch.store(true, std::memory_order_release);
+    break;
+  case SDL_EVENT_WILL_ENTER_BACKGROUND:
+    // The last buffered diagnostics lines have to survive a suspend: the owner
+    // backgrounds the app to read the file in Files, and iOS is free never to
+    // resume this process. Done here rather than latched, because after this
+    // returns there may be no more frames.
+    firmwarelog::flush();
+    break;
+  default:
+    break;
+  }
+  return true;  // never filter anything out
+}
+
+// True once, and clears itself: a resume is an edge, not a state.
+bool consumeHostForeground() {
+  return hostForegroundLatch.exchange(false, std::memory_order_acq_rel);
+}
 bool homeKeyDown = false;
 bool homeKeyPressedThisFrame = false;
 bool homeKeyTappedThisFrame = false;
@@ -925,6 +971,21 @@ void HalGPIO::beginFrame() {
 }
 
 void HalGPIO::update() {
+  // Once per PROCESS. The iOS reboot longjmps back through here with statics
+  // intact, and SDL_AddEventWatch stacks -- N wakes would otherwise run the
+  // watch N times per event.
+  if (!lifecycleWatchInstalled) {
+    lifecycleWatchInstalled = true;
+    SDL_AddEventWatch(lifecycleWatch, nullptr);
+  }
+  // The app came back to the foreground since the last update. Consumed here
+  // rather than read from the queue, because SDL never queues that event --
+  // see the latch's own comment.
+  if (consumeHostForeground()) {
+    hostResumeThisFrame = true;
+    if (powerLogWanted())
+      SDL_Log("[power] foreground return counts as activity");
+  }
   if (powerLogFirstUpdate) {
     powerLogFirstUpdate = false;
     if (powerLogWanted())
@@ -983,20 +1044,11 @@ void HalGPIO::update() {
     // that would have slept sees activity instead; startDeepSleep handles
     // the same event for the case where the device was already asleep.
     // Desktop SDL never sends it, so the desktop is unchanged.
-    if (e.type == SDL_EVENT_DID_ENTER_FOREGROUND) {
-      hostResumeThisFrame = true;
-      if (powerLogWanted())
-        SDL_Log("[power] foreground return counts as activity");
-      continue;
-    }
-
-    // The diagnostics log's last buffered lines have to survive a suspend: the
-    // owner backgrounds the app to read the file in Files, and iOS is free to
-    // never resume this process. Falls through -- nothing else reads the event
-    // today, and a future branch on it should still get it.
-    if (e.type == SDL_EVENT_WILL_ENTER_BACKGROUND) {
-      firmwarelog::flush();
-    }
+    // The foreground return and the pre-suspend flush used to be read out of
+    // this queue. They are handled by lifecycleWatch now -- SDL hands the app
+    // lifecycle events to watchers ONLY and never queues them, so neither
+    // branch could ever run on the phone. A scripted FOREGROUND still arrives
+    // at the watch, because SDL_PushEvent calls the watchers before queueing.
 
     // ST-010: any real input re-energises a fading page. Keyed on the event
     // TYPE rather than on a decoded button, so a touch, a key or a tap on the
@@ -1778,6 +1830,28 @@ void HalGPIO::startDeepSleep() {
 
   while (true) {
     processSyntheticEvents();
+    // THE FOREGROUND WAKE. On a phone the app becoming active IS the owner
+    // picking the device up -- there is no power button to reach for first --
+    // and a sleep screen that waits for one reads as the app being stuck off
+    // (owner, 2026-09-06: "ios app needs to wake on reactivation. is staying
+    // power off"). Same reboot as a real key, and the same on both
+    // reactivation shapes: a return from the background, and a return from
+    // Control Center or the lock screen.
+    //
+    // Consumed from the latch rather than read from the poll loop below: SDL
+    // hands the app lifecycle events to event WATCHERS only and never queues
+    // them (SDL_events.c), so the branch that used to sit in that loop could
+    // not fire on the phone -- the one device this wake exists for. It passed
+    // its shell test because the script's FOREGROUND verb goes through
+    // SDL_PushEvent, which queues. Desktop SDL sends no such event at all, so
+    // the desktop is unchanged either way.
+    if (consumeHostForeground()) {
+      if (powerLogWanted())
+        SDL_Log("[power] waking: app returned to the foreground -> "
+                "rebootAsPowerWake");
+      clearButtonState();
+      SimulatorLifecycle::rebootAsPowerWake();
+    }
     // Queued taps (queueButtonTap: a finger on a sleeping zen glass -- the
     // harness queues POWER for it, ios/SleepTouch.h -- a bound gesture,
     // accessibility taps, QTAP in a script) only ever fire inside update(),
@@ -1822,13 +1896,9 @@ void HalGPIO::startDeepSleep() {
       // from Control Center or the lock screen, which also send this event.
       // Desktop SDL never sends it. update() handles the same event for the
       // device that was AWAKE when it was put away.
-      if (e.type == SDL_EVENT_DID_ENTER_FOREGROUND) {
-        if (powerLogWanted())
-          SDL_Log("[power] waking: app returned to the foreground -> "
-                  "rebootAsPowerWake");
-        clearButtonState();
-        SimulatorLifecycle::rebootAsPowerWake();
-      }
+      // The foreground return is NOT read from this queue -- SDL never queues
+      // it (see the latch). Consumed below, outside the poll loop, on the same
+      // iteration.
 
       if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
           scancodeToButton(e.key.scancode) >= 0) {

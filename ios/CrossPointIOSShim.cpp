@@ -1570,7 +1570,7 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
   // report of. Whether it is S-041's cause is for the log to say; it is a
   // defect either way, and the freeze needs no remote session to be wrong.
   case SDL_EVENT_DID_ENTER_BACKGROUND:
-    SDL_Log("[lifecycle] sceneDidEnterBackground -> presents suspended");
+    SDL_Log("[lifecycle] didEnterBackground -> presents suspended");
     HalDisplay::setBackgrounded(true);
     break;
   // RESUME ON EITHER EDGE. sceneWillEnterForeground precedes
@@ -1581,9 +1581,34 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
   case SDL_EVENT_DID_ENTER_FOREGROUND:
     SDL_Log("[lifecycle] %s -> presents resumed",
             e->type == SDL_EVENT_WILL_ENTER_FOREGROUND
-                ? "sceneWillEnterForeground"
-                : "sceneDidBecomeActive");
+                ? "willEnterForeground"
+                : "didBecomeActive");
     HalDisplay::setBackgrounded(false);
+    // SDL HAS THE SAME BUG ONE LAYER DOWN, and without this the early resume
+    // above is a no-op at the GPU. SDL_OnApplicationWillEnterBackground -- i.e.
+    // RESIGN-ACTIVE, the same wrong edge -- sends SDL_EVENT_WINDOW_MINIMIZED
+    // for every window (SDL_video.c), and SDL's own renderer watch sets
+    // renderer->hidden on it (SDL_render.c). While hidden, SDL discards BOTH
+    // the command queue and the present, under DONT_DRAW_WHILE_HIDDEN on iOS.
+    // The only thing that clears it is SDL_EVENT_WINDOW_RESTORED, which SDL
+    // sends exclusively from SDL_OnApplicationDidEnterForeground -- did-become-
+    // ACTIVE. So every frame we resume between willEnterForeground and
+    // didBecomeActive was being thrown away below us.
+    //
+    // RESTORED is an ordinary window event, so unlike the app lifecycle events
+    // it really is queued and really does reach SDL's renderer watch. Sending
+    // it here is idempotent: SDL sends its own on didBecomeActive, and the
+    // watch only clears a flag. It cannot un-hide us into a background draw,
+    // because this is the FORWARD edge -- the background path goes through
+    // DID_ENTER_BACKGROUND above, which suspends our presents regardless of
+    // what SDL thinks about visibility.
+    if (e->type == SDL_EVENT_WILL_ENTER_FOREGROUND && g_windowId) {
+      SDL_Event restored;
+      SDL_zero(restored);
+      restored.type = SDL_EVENT_WINDOW_RESTORED;
+      restored.window.windowID = g_windowId;
+      SDL_PushEvent(&restored);
+    }
     armSettleRepaint();
     SimulatorOverlay::requestPresent();
     break;
@@ -1591,7 +1616,7 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
   // of the change above is that it must NOT suspend anything. It is here so a
   // Mirroring session shows the transitions it actually goes through.
   case SDL_EVENT_WILL_ENTER_BACKGROUND:
-    SDL_Log("[lifecycle] sceneWillResignActive -- presents left RUNNING");
+    SDL_Log("[lifecycle] willResignActive -- presents left RUNNING");
     break;
   default:
     break;
