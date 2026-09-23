@@ -94,7 +94,12 @@ def bumps(polys, r=12.0, min_area=70.0, max_extent=80.0):
     return out
 
 
-def sheet(ttf, out_png, out_index, label, per_row=6, cap_px=300):
+def sheet(ttf, out_png, out_index, label, per_row=6, cap_px=300, chars=None):
+    """`chars` sweeps a set other than GLYPHS -- round 368, because the Greek
+    is not in the Latin list above and the owner asked for it by name
+    ("address awful glitches and hairs in greek letters"). Omitted, the sheet
+    is exactly the one this instrument has always drawn."""
+    GLYPHS = chars or globals()['GLYPHS']
     f = TTFont(ttf); upm = f['head'].unitsPerEm
     cap = 674.0; scale = cap_px / cap
     fnt = ImageFont.truetype(ttf, int(round(upm * scale)))
@@ -130,9 +135,12 @@ def sheet(ttf, out_png, out_index, label, per_row=6, cap_px=300):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--roman", required=True); ap.add_argument("--italic", required=True); ap.add_argument("--out", required=True)
+    ap.add_argument("--chars", default=None, help="sweep these characters instead of the Latin set (e.g. the Greek)")
+    ap.add_argument("--tag", default="", help="suffix for the output filenames, so a narrowed sweep does not overwrite the full one")
     a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
+    chars = list(a.chars) if a.chars else None
     for sty, p in (("roman", a.roman), ("italic", a.italic)):
-        n, size = sheet(p, os.path.join(a.out, f"bumps-{sty}.png"), os.path.join(a.out, f"bumps-{sty}.json"), f"Albo {sty}")
+        n, size = sheet(p, os.path.join(a.out, f"bumps-{sty}{a.tag}.png"), os.path.join(a.out, f"bumps-{sty}{a.tag}.json"), f"Albo {sty}", chars=chars)
         print(f"{sty}: {n} circles, {size}")
 
 

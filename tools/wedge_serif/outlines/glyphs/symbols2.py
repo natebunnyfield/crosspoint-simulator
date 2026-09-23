@@ -104,7 +104,24 @@ def g_phi(c):
     # of the radius (154) and the stem through the middle cut the counter to
     # two slits (CRACKs of 5.4 and 5.3). The wall scale falls with the stem
     # above 84; at and under 84 it is 0.84 as drawn.
-    r = XH * 0.36; ws = 0.84 * min(1.0, 84.0 / S)
+    #
+    # ROUND 368 -- THE WALL WAS HELD AND THE STEM WAS NOT, so the counter went
+    # on closing. Above 84 the wall is CONSTANT in units (0.84 x 84 = 70.6),
+    # so the counter's half width holds at 83.8 -- but the stem keeps growing,
+    # 33.0 units of half width at 84 and 45.6 at 116, and it is the stem that
+    # splits this counter in two. The share it takes went 0.394 -> 0.544 of
+    # the counter, which is why the BoldItalic's left lune came to a CUSP:
+    # `cmp_contour_hairs` read 153.2 degrees at (222, 67) on a 7.81-unit arm,
+    # and the Bold 153.4 on 11.2, the same fault a unit the other side of the
+    # test. The cusp angle is set by how far out toward its own extreme the
+    # stem's straight edge cuts the counter's arc, and nothing else.
+    #
+    # So the bowl WIDENS above 84 by exactly what the stem's half width grew,
+    # which is the physical statement "the counter keeps the room beside the
+    # stem it had at the weight this letter was drawn at" -- clearance 50.8
+    # units per side at 84 and at every weight above it. At and under 84 the
+    # growth is zero and the letter is byte-identical.
+    r = XH * 0.36 + max(0.0, TH_V * 0.43 * (1.0 - 84.0 / S)); ws = 0.84 * min(1.0, 84.0 / S)
     return geom.ink([_bowl(r, XH * 0.50, r, XH * 0.50, ws),
                      _s(line((r, -DESC * 0.62), (r, XH + XH * 0.30)), w=TH_V * 0.86)])
 @glyph('α')      # alpha
@@ -131,10 +148,43 @@ def g_beta(c):
     # it at 84 -- made it WORSE, two cracks of 5.84 and 2.89, so the relation
     # is not monotonic in the centres and the fix is a re-sweep of this letter
     # at the new anchor rather than a nudge. Left as it is, and recorded.
+    #
+    # ROUND 368 -- AND NOW IT IS NOT A SWEEP, IT IS THE B's CONSTRUCTION.
+    # Owner 2026-09-23: *"address awful glitches and hairs in greek letters."*
+    # MEASURED FIRST, on the designed Regular: the letter carried TWO holes
+    # that are not counters -- 112 units^2, mean width 4.34, at
+    # (62.8..74.0, 183.9..204.9), and 27 units^2 at (155.4..178.4, 190.9) --
+    # and the built font reported one CRACK of 4.65 (Regular) and 4.40
+    # (Italic). The mechanism, computed rather than guessed: both rings have
+    # their LEFT EXTREME at x = S*0.5, the stem's CENTRE, and two ellipses
+    # tangent to the same vertical only begin to overlap each other some way
+    # out from it -- here at x = 78, while the stem's ink stops at x = 62.8.
+    # The 15-unit strip between is the crack, and whether it is covered
+    # depends on the stem's HALF WIDTH, which is why the letter closed at
+    # stem 84 and reopened at 66.9. No pair of centres fixes that; the
+    # anchor is wrong.
+    #
+    # So the beta is now drawn the way the B is drawn (`caps_straight.g_B`),
+    # on `primitives.half_bowl`: a stem, and two half bowls whose ends both
+    # run INTO the stem's ink and whose waist strokes SHARE one centreline
+    # (the upper's outer bottom at waist - hair/2, the lower's outer top at
+    # waist + hair/2, each stroke a hairline thick, so the two occupy the
+    # same band). A crack between them is not reachable at any weight,
+    # because there is no pair of free edges left to leave one. It also puts
+    # the counters where a beta's are -- closed on the left BY THE STEM
+    # rather than by a second wall standing beside it, which is what made
+    # the old letter read as a b with a white line through it.
+    #
+    # The silhouette is kept: the right extremes stay at x + XH*0.60 and
+    # x + XH*0.66 (the old rings' 2 x 0.30 and 2 x 0.33 from the stem's
+    # centre), and `half_bowl`'s own outer extent is edge + 1.05 rx.
+    from ..primitives import half_bowl, bowl_hair
     x = S * 0.5; h = ASC * 0.86
-    return geom.ink([_s(line((x, -DESC * 0.62), (x, h * 0.92)), w=TH_V * 0.92),
-                     _bowl(x + XH * 0.30, XH * 0.68, XH * 0.30, XH * 0.30, 0.86),
-                     _bowl(x + XH * 0.33, XH * 0.26, XH * 0.33, XH * 0.26, 0.92)])
+    sw = TH_V * 0.92; edge = x + sw / 2            # the stem's RIGHT edge
+    hr = bowl_hair(); waist = XH * 0.46
+    up, *_ = half_bowl(edge, XH * 0.98, waist - hr / 2, (x + XH * 0.60 - edge) / 1.05)
+    lo, *_ = half_bowl(edge, waist + hr / 2, 0.0, (x + XH * 0.66 - edge) / 1.05, open_bottom=0.06)
+    return geom.ink([_s(line((x, -DESC * 0.62), (x, h * 0.92)), w=sw), up, lo])
 @glyph('γ')      # gamma
 def g_gamma(c):
     # ROUND 267 -- THE SHORT STROKE ENDED BESIDE THE LONG ONE, NOT ON IT. Its
@@ -160,8 +210,26 @@ def g_epsilon(c):
     # at the 200 it closed to a 2.8-unit point contact (PINCH at 292, 209).
     # From -50 degrees the upper arc's centreline runs 7 units inside the
     # lower stroke's centreline, so the two overlap at any weight.
-    up = superellipse(XH * 0.30, XH * 0.70, XH * 0.30, XH * 0.30, math.radians(-50), math.radians(200), 2.05)
-    lo = superellipse(XH * 0.30, XH * 0.26, XH * 0.30, XH * 0.26, math.radians(160), math.radians(-70), 2.05)
+    # ROUND 368 -- THE LETTER WAS MIRRORED. It rendered as a DIGIT THREE: both
+    # arcs opened to the LEFT, where every reference (Times, Georgia, Palatino,
+    # set beside it at 200 px) opens an epsilon to the RIGHT. Not a subtlety --
+    # a reader sees a 3. Neither instrument could say so, because a mirrored
+    # letter is geometrically perfect; it was found by setting the Greek beside
+    # three reference faces, which is the check this round added.
+    #
+    # Both arcs are reflected about the vertical (theta -> 180 - theta), and
+    # each is traversed from the same PHYSICAL end as before, so the width
+    # profile's 0.62 and 0.68 stay on the terminals they were drawn for. The
+    # arcs are re-aimed rather than the finished ink being flipped, because
+    # `_s` takes its widths from `pen_widths` -- the pen's own width for the
+    # direction the stroke runs -- and reflecting the OUTPUT would reflect the
+    # stress with it and stand the humanist axis on its head.
+    #
+    # Round 267's junction survives the reflection, being a reflection: the
+    # upper arc's start is now 230 degrees, which lies inside the lower arc's
+    # 20..250 span exactly as -50 lay inside -70..160.
+    up = superellipse(XH * 0.30, XH * 0.70, XH * 0.30, XH * 0.30, math.radians(230), math.radians(-20), 2.05)
+    lo = superellipse(XH * 0.30, XH * 0.26, XH * 0.30, XH * 0.26, math.radians(20), math.radians(250), 2.05)
     pr = widths([(0.0, 0.62), (0.5, 1.0), (1.0, 0.68)])
     return geom.ink([_s(up, pr), _s(lo, pr)])
 @glyph('θ')      # theta
@@ -200,8 +268,27 @@ def g_rho(c):
                      _bowl(XH * 0.32, XH * 0.50, XH * 0.32, XH * 0.50, ws)])
 @glyph('σ')      # sigma
 def g_sigma(c):
+    # ROUND 368 -- THE BAR WAS TANGENT TO THE BOWL, NOT ON IT. The bowl's
+    # outer top is XH*0.34 + XH*0.34 = XH*0.68 and the bar's bottom edge was
+    # declared at XH*0.68 with align='bottom': the same number, so the two
+    # met along ONE LINE and the union had to walk out along the bar's
+    # underside and straight back along the arc. `cmp_contour_hairs` reads
+    # that as a HAIR -- 161.6 degrees at (220, 291) on a 6.32-unit arm at
+    # BOTH 700s, and 163.3 / 10.4 at the Regular and 161.6 / 9.5 at the
+    # Italic, which miss the 8-unit arm test by a unit and are the same
+    # fault, not a different letter.
+    #
+    # Same cure as round 267 gave the theta's bar: the bar is BURIED. Its
+    # TOP edge stays exactly where it was (XH*0.68 + TH_H*0.88, so nothing
+    # about the letter's height moves) and its underside drops 0.20 S into
+    # the bowl's top wall -- which is the profile's thin, 0.42 S before the
+    # 0.92 scale, so the bar's bottom stays clear of the counter at every
+    # weight (measured: 16 units of wall left at the Regular, 21.6 at the
+    # Bold). The crossing then happens where the arc is steep instead of
+    # where it is horizontal: a transversal, not a graze.
+    th = TH_H * 0.88
     return geom.ink([_bowl(XH * 0.34, XH * 0.34, XH * 0.34, XH * 0.34, 0.92),
-                     bar(XH * 0.30, XH * 0.90, XH * 0.68, TH_H * 0.88, align='bottom')])
+                     bar(XH * 0.30, XH * 0.90, XH * 0.68 + th, th + S * 0.20, align='top')])
 @glyph('τ')      # tau
 def g_tau(c):
     return geom.ink([bar(0, XH * 0.74, XH, TH_H * 0.92, align='top'),
