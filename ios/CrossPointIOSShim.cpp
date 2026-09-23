@@ -1548,10 +1548,50 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
     // any more -- pollAppearance below reads UIKit directly every frame.
     applyTheme();
     break;
+  // STOP PRESENTING ON *BACKGROUND*, NOT ON RESIGN-ACTIVE. The reason for
+  // suspending GPU work is that Metal submitted from the BACKGROUND is grounds
+  // for termination (read-aloud declares UIBackgroundModes:audio, so the
+  // process goes on running and turning pages with the screen locked). Apple's
+  // boundary for that is didEnterBackground, and this event is exactly it:
+  // SDL raises it from sceneDidEnterBackground: (SDL_uikitappdelegate.m), and
+  // an event watch runs inline on the pushing thread, so this executes INSIDE
+  // that callback -- in time, by Apple's own rule.
+  //
+  // It used to hang off SDL_EVENT_WILL_ENTER_BACKGROUND, which SDL raises from
+  // scene*WillResignActive* -- one notch too early and a different thing.
+  // Resign-active fires for every transient inactivity: Control Center or
+  // Notification Center pulled down, a notification or call banner, the screen
+  // locking, and a scene that is foreground-INACTIVE rather than backgrounded.
+  // Nothing cleared it but sceneDidBecomeActive, so a scene that went inactive
+  // and never came back active left presents suspended FOREVER: the firmware
+  // goes on running, padWatch goes on taking touches, pages go on turning --
+  // and the glass holds the last frame it managed to draw. That reads exactly
+  // like an app that has stopped receiving input, which is what S-041 is a
+  // report of. Whether it is S-041's cause is for the log to say; it is a
+  // defect either way, and the freeze needs no remote session to be wrong.
+  case SDL_EVENT_DID_ENTER_BACKGROUND:
+    SDL_Log("[lifecycle] sceneDidEnterBackground -> presents suspended");
+    HalDisplay::setBackgrounded(true);
+    break;
+  // RESUME ON EITHER EDGE. sceneWillEnterForeground precedes
+  // sceneDidBecomeActive, and a scene can be brought forward without ever
+  // becoming active -- which is the shape that stranded the old code. Both are
+  // idempotent: setBackgrounded exits early when the flag has not moved.
+  case SDL_EVENT_WILL_ENTER_FOREGROUND:
   case SDL_EVENT_DID_ENTER_FOREGROUND:
+    SDL_Log("[lifecycle] %s -> presents resumed",
+            e->type == SDL_EVENT_WILL_ENTER_FOREGROUND
+                ? "sceneWillEnterForeground"
+                : "sceneDidBecomeActive");
     HalDisplay::setBackgrounded(false);
     armSettleRepaint();
     SimulatorOverlay::requestPresent();
+    break;
+  // Logged, not acted on: this is sceneWillResignActive, and the whole point
+  // of the change above is that it must NOT suspend anything. It is here so a
+  // Mirroring session shows the transitions it actually goes through.
+  case SDL_EVENT_WILL_ENTER_BACKGROUND:
+    SDL_Log("[lifecycle] sceneWillResignActive -- presents left RUNNING");
     break;
   default:
     break;
@@ -3462,11 +3502,11 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // Re-arms itself from perFrame once the app is active again.
       CrossPointVolumeButtons_appWillResignActive();
       CrossPointTiltGestures_appWillResignActive();
-      // Read-aloud keeps the process alive with the screen locked, and it
-      // turns pages while it reads -- so the firmware goes on rendering. Stop
-      // presenting: Metal work submitted from the background is grounds for
-      // termination.
-      HalDisplay::setBackgrounded(true);
+      // The present suppression used to be here and has moved to
+      // presentationWatch, onto SDL_EVENT_DID_ENTER_BACKGROUND. This event is
+      // sceneWillResignActive, which is NOT backgrounding -- see the comment
+      // there. What stays is the input state, which resign-active is exactly
+      // the right moment for: the finger really is gone.
       [[fallthrough]];
     case SDL_EVENT_WINDOW_FOCUS_LOST:
       // Audit #5: everything per-touch and everything queued dies at this
