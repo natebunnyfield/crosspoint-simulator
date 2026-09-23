@@ -34,26 +34,51 @@ def CAP(c): return c["cap"]
 # the SAME body height (2 x DOT_R) so nothing about a quote's size depends on
 # whether it is straight or curly. The double marks stay 1.3 stem apart
 # (unchanged; already equal between the straight and curly pairs).
+# ROUND 362 -- THE MARKS' OWN DOT SIZE, and why it is a multiplier rather
+# than a change to DOT_R. Owner 2026-09-23, after the survey: Albo's period
+# reads 0.19 of the x-height where Baskerville, Hoefler, Times and Georgia run
+# 0.24-0.28, and the comma, colon and semicolon are small with it.
+#
+# `DOT_R` is 0.62 x S and it is NOT the marks' alone: the i's and j's tittles
+# take it (italic.py) and so do the dieresis and the dot accents
+# (accents.py). Raising it would re-cut the tittle on every i in the face,
+# which is a bigger change than the one that was asked for and is not
+# obviously wanted -- a tittle is read at the top of an x-height, a period on
+# the baseline between words. So the marks scale their own copy and the
+# tittle is untouched. If the two should stay locked together, that is a
+# separate ruling and this dial is where it would be made.
+MARK_DOT = float(os.environ.get("ALBO_MARK_DOT", 1.0))   # x DOT_R, punctuation only
+MDOT = DOT_R * MARK_DOT
+
 @glyph('.')
-def g_period(c): return dot(DOT_R, DOT_R, DOT_R)
+def g_period(c): return dot(MDOT, MDOT, MDOT)
+# ROUND 362 -- THE COMMA'S REACH. Measured 0.38 of the x-height tall against
+# the references' 0.59-0.70, and 0.20 wide against their 0.33-0.35: it is the
+# most undersized mark after the quotes. COMMA_LEN scales how far the tail
+# runs below the dot, COMMA_W how far it swings across; 1.0 is the shipped
+# tail exactly, so an unset build is bit-identical.
+COMMA_LEN = float(os.environ.get("ALBO_COMMA_LEN", 1.0))
+COMMA_W = float(os.environ.get("ALBO_COMMA_W", 1.0))
+
 def comma_tail(x, y, up=True, w0=0.9, w1=0.3):
-    if up: tail = cubic((x + S * 0.1, y - S * 0.35), (x + S * 0.1, y - S * 1.05), (x - S * 0.3, y - S * 1.45), (x - S * 0.6, y - S * 1.75))
+    _L, _W = COMMA_LEN, COMMA_W
+    if up: tail = cubic((x + S * 0.1, y - S * 0.35 * _L), (x + S * 0.1, y - S * 1.05 * _L), (x - S * 0.3 * _W, y - S * 1.45 * _L), (x - S * 0.6 * _W, y - S * 1.75 * _L))
     # mirrored in x only (round 51 flipped y too, sending the left quote's
     # tail UP past the cap height instead of down like a real turned comma --
     # the defect behind the misaligned "‘"/"“"): the tail still descends,
     # it just curls to the right instead of the left.
-    else:  tail = cubic((x - S * 0.1, y - S * 0.35), (x - S * 0.1, y - S * 1.05), (x + S * 0.3, y - S * 1.45), (x + S * 0.55, y - S * 1.75))
+    else:  tail = cubic((x - S * 0.1, y - S * 0.35 * _L), (x - S * 0.1, y - S * 1.05 * _L), (x + S * 0.3 * _W, y - S * 1.45 * _L), (x + S * 0.55 * _W, y - S * 1.75 * _L))
     return stroke(tail, pen_widths(tail, lambda t: w0 - (w0 - w1) * t))   # round 51: the pen x (0.9 - 0.6 t)
 @glyph(',')
-def g_comma(c): return geom.ink([dot(DOT_R, DOT_R, DOT_R), comma_tail(DOT_R, DOT_R)])
+def g_comma(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT)])
 @glyph(':')
-def g_colon(c): return geom.ink([dot(DOT_R, DOT_R, DOT_R), dot(DOT_R, XH - DOT_R, DOT_R)])
+def g_colon(c): return geom.ink([dot(MDOT, MDOT, MDOT), dot(MDOT, XH - MDOT, MDOT)])
 @glyph(';')
-def g_semicolon(c): return geom.ink([dot(DOT_R, DOT_R, DOT_R), comma_tail(DOT_R, DOT_R), dot(DOT_R, XH - DOT_R, DOT_R)])
+def g_semicolon(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT), dot(MDOT, XH - MDOT, MDOT)])
 @glyph('!')
 def g_exclam(c):
-    C = CAP(c); x = DOT_R; y0 = 2 * DOT_R + 0.8 * S   # same gap above the dot as round 51's (0.8 stem)
-    return geom.ink([dot(x, DOT_R, DOT_R), stroke(line((x, y0), (x, C)), pen_widths(line((x, y0), (x, C)), lambda t: 0.55 + 0.5 * t), cut1=CUT)])
+    C = CAP(c); x = MDOT; y0 = 2 * MDOT + 0.8 * S   # same gap above the dot as round 51's (0.8 stem)
+    return geom.ink([dot(x, MDOT, MDOT), stroke(line((x, y0), (x, C)), pen_widths(line((x, y0), (x, C)), lambda t: 0.55 + 0.5 * t), cut1=CUT)])
 @glyph('?')
 def g_question(c):
     """Owner 2026-09-13: "make more variations of '?' for me to choose
@@ -75,7 +100,7 @@ def Q_DOT_CLEAR(r=None, half=None):
     stroke standing over a dot (`2 * DOT_R + 0.8 * S`, round 51); the
     question mark uses it now too, so the two marks clear identically at
     every weight."""
-    r = DOT_R if r is None else r
+    r = MDOT if r is None else r
     return 2 * r + (half or 0) + 0.55 * S
 
 def _q_common(c, pts, prof, tension=0.62, cut0=CUT, beak_start=False, floor=0.5, w=380):
@@ -177,7 +202,20 @@ Q8_TAIL_K1, Q8_TAIL_K2 = 0.35, 0.45   # round 233: the descent cubic's handles, 
 QUESTION_VARIANTS = [('original, Albertus heavy', _q8), ('round 77', _q0), ('bowl profile', _q1), ('garalde wide', _q2), ('tall narrow', _q3), ('beak terminal', _q4), ('Albertus heavy', _q5), ('curled terminal', _q7)]   # a stem-foot variant was built and dropped: its foot wedges read as a claw
 QUESTION_VARIANT = int(os.environ.get('FJORD_Q_VARIANT', 0))
 
-QUOTE_BODY = 2 * DOT_R   # straight and curly quotes share this body height, top-aligned to CAP
+# ROUND 362 -- THE QUOTES ARE THE WORST OF THE MARKS, by a distance: 0.26 of
+# the x-height tall against the references' 0.57-0.71, and 0.13 wide against
+# their 0.22-0.25 -- LESS THAN HALF the smallest reference on both. QUOTE_SIZE
+# scales the shared body; 1.0 is the shipped mark exactly.
+# QUOTE_SIZE ALONE ONLY SOLVES HALF THE GLYPH, which the measurement caught:
+# swept 1.0 -> 2.6 the apostrophe's HEIGHT runs 0.259 -> 0.611 of the
+# x-height, straight through the references' 0.57-0.71, while its WIDTH sits
+# at 0.126 -> 0.131 and never reaches their 0.22-0.25. The straight quote's
+# stroke is `TH_V * 0.8`, which no size dial touched, so a taller mark was
+# still a hairline. QUOTE_W is that missing half; the two are set together
+# per arm because a quote is one mark, not a height and a width.
+QUOTE_SIZE = float(os.environ.get("ALBO_QUOTE_SIZE", 1.0))
+QUOTE_W = float(os.environ.get("ALBO_QUOTE_W", 1.0))
+QUOTE_BODY = 2 * DOT_R * QUOTE_SIZE   # straight and curly quotes share this body height, top-aligned to CAP
 # ROUND 222 -- THE ITALIC'S QUOTES SIT LOWER. Owner 2026-09-18, on the round-221
 # proof: *"too much space between apostrophe and previous and next letters.
 # compare with other reference fonts."* Measured at one x-height, Albo's
@@ -218,13 +256,17 @@ QUOTE_B_VAR = [(1.00, 1.00), (0.96, 1.12), (1.03, 0.90)]   # (body x, lean x): r
 def straight_quote(c, x, k=0):
     """One straight-quote mark at x, per QUOTE_OPT (see above); k is the
     mark's row in QUOTE_B_VAR (option b only)."""
-    C = CAP(c) - _qdrop(); top, bot = C, C - QUOTE_BODY; w = TH_V * 0.8; opt = QUOTE_OPT
+    C = CAP(c) - _qdrop(); top, bot = C, C - QUOTE_BODY; w = TH_V * 0.8 * QUOTE_W; opt = QUOTE_OPT
     if opt == "b":
         bs, ls = QUOTE_B_VAR[k % len(QUOTE_B_VAR)]
         body = QUOTE_BODY * QUOTE_B_TALL * bs; bot = top - body
         dx = S * 0.16 * ls
         p = cubic((x + dx * 0.5, top), (x + dx * 0.35, top - body * 0.45), (x - dx * 0.2, bot + body * 0.35), (x - dx * 0.6, bot))
-        return stroke(p, pen_widths(p, widths([(0.0, 0.85), (0.5, 0.8), (1.0, 0.5)]), scale=TH_V / pen.PEN.th((0.0, 1.0))), cut0=CUT)
+        # round 362: option b is what the ROMAN ships and it never touched `w`
+        # -- it scales straight off TH_V -- so QUOTE_W was inert here until
+        # this line carried it. Caught by laddering the dial rather than by
+        # reading the branch.
+        return stroke(p, pen_widths(p, widths([(0.0, 0.85), (0.5, 0.8), (1.0, 0.5)]), scale=TH_V * QUOTE_W / pen.PEN.th((0.0, 1.0))), cut0=CUT)
     if opt == "c":
         A = (x - w / 2, top); B = (x + w / 2, top); P = (x - w * 0.18, bot)
         # the bracket: a concave quadratic from each top corner to the apex, its control 0.65 of the way down the straight side and pulled INTO the wedge
@@ -248,8 +290,9 @@ def quote(c, x, up):
     other mark), turned to hang from the top instead of sitting on the
     baseline -- top of the dot flush with CAP, matching the straight
     quotes' top and body height exactly."""
-    C = CAP(c) - _qdrop(); y = C - DOT_R
-    return geom.ink([dot(x, y, DOT_R), comma_tail(x, y, up, 0.85, 0.3)])
+    _r = DOT_R * QUOTE_SIZE          # round 362: the curly pair scales with the straight
+    C = CAP(c) - _qdrop(); y = C - _r
+    return geom.ink([dot(x, y, _r), comma_tail(x, y, up, 0.85, 0.3)])
 @glyph('’')
 def g_quoteright(c): return quote(c, S * 0.7, True)
 @glyph('‘')
@@ -519,7 +562,7 @@ def g_figuredash(c): return dash(c, 0.45)
 @glyph('\u2015')   # HORIZONTAL BAR -- the quotation dash, the em dash's length
 def g_horizbar(c): return dash(c, 1.41)
 @glyph('\u201A')   # SINGLE LOW-9 QUOTATION MARK -- the comma, as the opening quote of German and Czech
-def g_quotesinglbase(c): return geom.ink([dot(DOT_R, DOT_R, DOT_R), comma_tail(DOT_R, DOT_R)])
+def g_quotesinglbase(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT)])
 @glyph('\u201E')   # DOUBLE LOW-9 QUOTATION MARK
 def g_quotedblbase(c):
     return geom.ink([p_ for i in (0, 1) for p_ in (dot(DOT_R + i * S * DQ_GAP, DOT_R, DOT_R), comma_tail(DOT_R + i * S * DQ_GAP, DOT_R))])
