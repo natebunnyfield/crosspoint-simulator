@@ -195,6 +195,60 @@ def draw(ch, W=None):
 
 CAP_NARROW = float(os.environ.get("ALBO_IT_CAP_NARROW", 0.953))
 
+# THE CAPITAL X's WIDTH. Owner 2026-09-23: *"make versions of X that are less
+# wide by reducing angles but keeping rest of letter stylistically intact."*
+#
+# IT HAS TO GO ON THE TARGET AND NOT ON THE DRAWING, for the reason the comment
+# inside solve_widths already gives about the italic's 5%: the solver re-solves
+# every capital's multiplier until its ink hits `target`, so a narrowing applied
+# inside `caps_straight.g_X` -- a smaller box, a deeper endpoint inset -- is
+# undone on the next pass. Measured rather than assumed: pulling both diagonals'
+# endpoints 44 units further in on each side (88 units, 12% of the ink) moved
+# the advance 786 -> 787 and the angle 42.99 -> 43.11 degrees. A dead dial that
+# builds clean and renders a letter nobody asked for.
+#
+# The ANGLES follow, because the X's diagonals run corner to corner of that box:
+# angle-from-vertical = atan((w - 0.6 CS) / cap), which agrees with a raster fit
+# on the built letter to 0.01 degrees. So this IS the angle dial, expressed in
+# the one quantity the solver does not overwrite.
+#
+# And the two STROKES' WIDTHS then follow the angles, which is the pen being
+# honest (docs/albo-method.md, THE ONE RULE). Measured on built fonts at 2000
+# px/em, 1.00 -> 0.80: the thick diagonal moves 66.9 -> 68.7 units while the
+# thin FATTENS 28.9 -> 36.0, so the X's contrast falls 2.32 -> 1.91. The V,
+# measured the same way, is 1.90 -- so narrowing the X walks it onto its own
+# sibling's footing, which is the direction `X_THIN`'s comment in
+# caps_straight.py wanted and could not get from a multiplier. Do NOT
+# compensate with X_THIN: that is a table standing in for a pen.
+#
+# WHY THE X AND NOT THE REST OF THE DIAGONALS -- and the ask's usual measure
+# does NOT catch it. By advance over cap the X is not an outlier for this face
+# at all: 1.066 of the humanist median against a face median of 1.058, rank 10
+# of 26, and four of the six other diagonals are wider FOR THE FACE than it is
+# (A 1.105, K 1.118, V 1.092, Y 1.106, against W 1.048 and Z 1.063). By SPLAY
+# it is: 42.99 degrees from vertical against a humanist median of 37.06, the
+# MOST SPLAYED of the seven reference faces measured (Trajan 32.3, Helvetica
+# 35.5, Van den Keere 37.1, Coelacanth 38.3, Doves 40.1). And Albo is the only
+# one of the four systems whose X is WIDER THAN ITS OWN O -- X/O 1.013 against
+# humanist 0.946, Helvetica 0.858, Trajan 0.758, which is the capital-widths
+# doc's round-to-square finding landing on this one letter.
+#
+# 1.0 is today's drawing, bit-identical (a RecordingPen diff over all 493
+# glyphs: 0 differ, hmtx included, and GPOS byte-identical across the whole
+# ladder -- the X is the only glyph any arm moves). Landmarks, measured: 0.93
+# lands the advance on the humanist median (-0.1%) and X/O on humanist (0.948);
+# 0.89 lands the splay INSIDE the humanist spread and is the first rung whose
+# contrast comes within 8% of the V's; 0.85 lands the splay on the humanist
+# median (36.94); 0.80 lands the advance within 3.5% of Trajan. `W['X']` solves
+# to 1.248 against a 0.70 clamp floor, so the dial stays live down to ~0.56 --
+# below that a rung renders identically to its neighbour, which is this repo's
+# recurring dead-ladder failure.
+#
+# STYLE-AGNOSTIC ON PURPOSE: `solve_widths` is shared, so a non-default value
+# narrows the italic's and the bold's X too. Harmless while it is 1.0. If a
+# value is ever ruled for the ROMAN alone, this wants `and not pen.SHEAR`.
+CAP_X_WIDTH = float(os.environ.get("ALBO_CAP_X_WIDTH", 1.0))
+
 
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink
@@ -222,6 +276,7 @@ def solve_widths(passes=3):
             # real italic and this does NOT address them; that is drawing work.
             target = REF[ch]["w"] * C * pen.WIDTH
             if pen.SHEAR: target *= CAP_NARROW
+            if ch == 'X': target *= CAP_X_WIDTH          # owner 2026-09-23, see CAP_X_WIDTH
             if drawn > 1: W[ch] = max(0.7, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))
     return W
 

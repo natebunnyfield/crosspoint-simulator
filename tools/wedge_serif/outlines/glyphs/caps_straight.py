@@ -528,9 +528,55 @@ def g_H(c):
     C = c["cap"]; x0 = CS / 2; x1 = x0 + W_(c, 'H', 520)
     return geom.ink([cstem(x0, 0, C), cstem(x1, 0, C, top='right'), bar(x0, x1, C * 0.52, CAP_BAR * 0.95)])   # round 94
 
+# ---------------------------------------------------------------- THE I's TOP
+# Owner, verbatim: "reduce I top left serif to be more optically symmetrically
+# matched to top right."
+#
+# WHAT THE LETTER IS. `g_I` is one `cstem` with `top='left+'`, and that single
+# string is the whole asymmetry: `primitives.stem` reads 'left+' as MAIN on the
+# left plus the family's SMALL wedge on the right, and the small one is hard-
+# coded at (0.4 length, 0.6 depth, 0.4 drop) of the family's wedge against the
+# main one's (1.0, 1.0, 1.0) -- `primitives.stem`, the `small` branch. At the
+# shipping stem 66.9 that is 52.32 units of reach on the left against 20.93 on
+# the right, a ratio of 2.500 in the drawing before the ink spread rounds
+# either apex.  So the two serifs are not near each other and then drifted:
+# they are 2.5x apart BY CONSTRUCTION and always have been.
+#
+# THE DIAL. `ALBO_CAP_I_LSERIF` is the LEFT wedge's length as a fraction of the
+# family's wedge -- 1.0 is the drawing as it stands, byte for byte, and 0.4 is
+# the RIGHT serif's own number, at which the two wedges are the same wedge and
+# the top is symmetric. Depth and drop are carried with it, LINEARLY IN THE
+# DIAL, from the main wedge's (1.0, 1.0) at 1.0 to the small wedge's (0.6, 0.4)
+# at 0.4 -- so the two ends of the ladder are the two wedges the letter already
+# owns and nothing in between is invented. Scaling the length alone was tried
+# first and is wrong: the bracket's depth is what seats a wedge on the stem, so
+# a 0.4-length wedge still running 104.6 units down the stem is a ramp, not a
+# serif of this family.
+#
+# `ALBO_CAP_I_LSERIF_DEPTH` overrides the depth arm alone (a fraction of the
+# family's wedge depth); < 0 means follow the coupling, which is the default.
+# It is here because the depth and the reach are what an eye trades off at this
+# junction and a one-armed ladder cannot separate them.
+#
+# SCOPE: this is `g_I`, so it moves the ROMAN I and -- through
+# `aldine.a_I` -> `_thin_stem(_CS.g_I, ...)` -- the Aldine italic's I as well.
+# Both are inert at the default.
+CAP_I_LSERIF = float(os.environ.get("ALBO_CAP_I_LSERIF", 1.0))
+CAP_I_LSERIF_DEPTH = float(os.environ.get("ALBO_CAP_I_LSERIF_DEPTH", -1.0))
+
+def _i_left_wedge():
+    """(top_len, top_depth, top_drop) for the I's LEFT top wedge, keyed on the
+    dial. t = 0 at the dial's 1.0 (the main wedge) and 1 at its 0.4 (the small
+    wedge the right side already carries)."""
+    L = CAP_I_LSERIF
+    t = (1.0 - L) / 0.6
+    depth = CAP_I_LSERIF_DEPTH if CAP_I_LSERIF_DEPTH >= 0 else 1.0 - 0.4 * t
+    return L, depth, 1.0 - 0.6 * t
+
 @glyph('I')
 def g_I(c):
-    return geom.ink([cstem(CS / 2, 0, c["cap"], top='left+')])
+    L_, D_, dr_ = _i_left_wedge()
+    return geom.ink([cstem(CS / 2, 0, c["cap"], top='left+', top_len=L_, top_depth=D_, top_drop=dr_)])
 
 J_DROP = float(os.environ.get("ALBO_J_DROP", 120.0))
 
