@@ -1408,6 +1408,19 @@ SEVEN_OPT = {
     'i': dict(bar_w=1.48, diag_w=0.90, top_up=14.0),                  # a FLAT bar one step under the cliff (measured 0.78 of the 0's thick), the leg to the references' median (measured 0.64), the top on the box line
     'j': dict(bar_w=1.80, diag_w=0.90, top_up=14.0),                  # the bar at the 0's own thick (measured 0.95; bar/leg 1.48, beside Pagella's 1.51) -- past the cliff, cost recorded
     'k': dict(bar_w=1.48, diag_w=0.90, top_up=14.0, foot_x=0.18),     # i with the leg at the references' angle: the foot at 0.18 of the width (Georgia 0.19, Flanker 0.18) puts the leg at ~24 degrees against today's 22 (they run 24-30)
+    # ROUND 361 -- two directions i-k do not cover. Owner 2026-09-23 asked
+    # again for "five optically balanced version of 7 that fit with the rest
+    # of the numerals"; i, j and k were drawn for that same words in round 255
+    # and never ruled, so they stand as three of the five and these are the
+    # other two. Both take i's leg (0.90) and i's top, and differ only in what
+    # they do with the BAR and the FOOT -- the two places the other figures
+    # put mass that this one does not.
+    'l': dict(bar_w=1.62, diag_w=0.90, top_up=14.0, bar_mod=0.74),    # i's leg under a TAPERED bar: heavier at the stem, thinner at the mitre, so the figure gains colour without gaining a slab. i-k are all flat bars
+    # `flare` lives inside the `if _leg:` branch, so a row that sets it without
+    # a `leg_taper` is INERT -- caught by measuring, where m read byte-equal to
+    # i on all four numbers. It needs the tapered leg to press against.
+    'm': dict(bar_w=1.48, diag_w=0.90, top_up=14.0,
+              leg_taper=0.72, leg_from=0.58, curve=0.0, flare=1.45),  # i with a FLARED FOOT: the leg tapers and then the pen presses at the baseline, where every other figure has a terminal and this one has a bare cut. The italic 7 has carried one since round 219
 }
 # ROUND 231 -- FOUR MORE ITALIC 7s, e TO h. Owner 2026-09-18: *"give me more
 # options for the italic 7 that match the rest of the numerals and font's
