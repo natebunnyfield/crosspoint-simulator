@@ -151,7 +151,7 @@ Regular atilde 3
 Regular b 2
 Regular backslash 1
 Regular bar 1
-Regular beta 4
+Regular beta 3
 Regular braceleft 1
 Regular braceright 1
 Regular bracketleft 1
@@ -642,7 +642,7 @@ Italic atilde 3
 Italic b 2
 Italic backslash 1
 Italic bar 1
-Italic beta 4
+Italic beta 3
 Italic braceleft 1
 Italic braceright 1
 Italic bracketleft 1

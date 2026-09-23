@@ -739,6 +739,13 @@ def g_two(c):
     _drop = TWO_BAR_DROP if pen.ITALIC else 0.0
     foot = (S * 0.5, barw * 0.60 - _drop)
     _o2 = _okw('2', TWO_OPT, TWO_OPT_IT)
+    # ROUND 368 (2026-09-23) -- the two levers that decide where this figure's
+    # foot lands. `lift` TRANSLATES the whole glyph (which moves the top with
+    # it) and `foot_ext` extends the BASE BAR downward alone, its top edge and
+    # its end wedge unmoved. Both default to today's drawing exactly, so every
+    # row a-i is byte-identical.
+    _lift = _E('ALBO_2_LIFT', _o2.get('lift', TWO_LIFT))
+    _fext = _E('ALBO_2_FOOT_EXT', _o2.get('foot_ext', 0.0))
     _topw = _o2.get('top_w', TWO_TOP_W); _slashw = _o2.get('slash_w', TWO_SLASH_W)
     _basew = _o2.get('base_w', TWO_BASE_W); _over2 = _o2.get('over', NINE_OVERHANG)
     _turn = _o2.get('turn')
@@ -797,7 +804,7 @@ def g_two(c):
         # the family's bar-end wedge rising from the base's top-right corner,
         # its bracket back along the stroke's real top edge (as the bar's was)
         wdg = wedge(Ls[-1], (1, 0), (0, 1), WL * 0.85, WD * 0.9, 0.0, edge_at=_walk_back(Ls))
-        return _aff.translate(geom.ink([solid, wdg]), 0, TWO_LIFT)
+        return _aff.translate(geom.ink([solid, wdg]), 0, _lift)
     center = join(top, line(tipd, foot))
     # owner 2026-09-13: "rebalance 2 to be heavier on the bottom and lighter
     # on the top": the arc at TWO_TOP_W of the profile, the slash growing to
@@ -849,7 +856,7 @@ def g_two(c):
     else:
         body = stroke(center, wfn, cut0=CUT)
     x1 = geom.bbox(body)[2] + _over2
-    parts = [body, bar(0, x1, -_drop, barw * _basew, align='bottom', wedges=[('right', 1)])]
+    parts = [body, bar(0, x1, -_drop - _fext, barw * _basew + _fext, align='bottom', wedges=[('right', 1)])]
     if _o2.get('fillet'):
         # option d: the INSIDE join filleted -- the family's concave bracket
         # (the wedge's own quad) laid into the crotch where the slash's inner
@@ -865,8 +872,18 @@ def g_two(c):
     g = geom.ink(parts)
     # owner 2026-09-13: "push 2 back up to optical baseline" -- the built 2
     # bottomed at -7 (the cut's facets and the ink spread under a flat base);
-    # lifted so the base sits on the line like the 1's feet
-    return _aff.translate(g, 0, TWO_LIFT)
+    # lifted so the base sits on the line like the 1's feet.
+    # ROUND 368: THAT CONSTANT IS STALE, and it is section 5 of albo-method in
+    # one line -- a table that outlived the letter it was fitted to. It was
+    # fitted when the 2 bottomed at -7; the shipped drawing is round 249's
+    # option b, whose base is 1.50 of the bar weight and 26 units longer, and
+    # under that drawing the same +8 puts the ink's lowest point at +7. So the
+    # roman 2 stands 8 units OVER the 1's flat feet (-1) and 36 over the round
+    # figures' overshoot (0, 6, 8 at -28/-29). Owner 2026-09-23: *"moving 2
+    # down to match other numerals (top of curve matches others, does not hover
+    # over baseline)"*. He is right, and the number is 8 against the right
+    # comparison group. Left at 8.0 and answered by the option rows.
+    return _aff.translate(g, 0, _lift)
 
 def _edge_cross_y(side, y):
     """Where a side polyline (walked from its start) first crosses the line
@@ -941,6 +958,52 @@ TWO_OPT = {
     'g': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.50, over=26.0, start_w=1.0),  # the ARC to the 0's weight; base as b
     'h': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.90, over=26.0, start_w=1.0),  # ...and the BASE to the references' median (80 units, 0.93 of the 0's thick): heavier on the bottom, as ruled in round 81
     'i': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.90, over=60.0, start_w=1.0),  # ...and the base LONGER: 60 units past the body (0.17 of the width -- Pagella 0.17, Coelacanth 0.18, Big Caslon 0.17; b's 26 is Georgia's 0.06)
+    # ROUND 368 (2026-09-23), owner: *"moving '2' down to match other numerals
+    # (top of curve matches others, does not hover over baseline)"*.
+    #
+    # BOTH HALVES MEASURED FIRST, on the shipped roman, ink extremes in design
+    # units. These are OLD-STYLE figures, so 3 4 5 7 9 descend and the
+    # comparison group is the five that sit on the line -- and within it the
+    # FLAT feet, because a round foot is supposed to overshoot:
+    #
+    #        bottom   top        foot
+    #   0      -28    460       round (overshoots)
+    #   1       -1    433       FLAT
+    #   2       +7    473       FLAT   <- 8 units over the 1, 36 over the 0/6/8
+    #   6      -29    624       round
+    #   8      -29    603       round
+    #   (3 -226/465, 4 -210/446, 5 -226/450, 7 -219/447, 9 -216/463 descend)
+    #
+    # (a) THE FOOT HOVERS: yes, by 8 units against the 1's flat feet. The cause
+    # is `TWO_LIFT`, a constant fitted in 2026-09-13 to a drawing that has since
+    # been replaced by round 249's option b -- see the note at the return.
+    # (b) THE TOP: he says it matches and it nearly does, but it is the TALLEST
+    # of the eight low figures -- 473 against the 3's 465, the 9's 463 and the
+    # 0's 460. So dropping the whole glyph by 8 would move the top TOWARD its
+    # neighbours, not away; that is arm j, offered for exactly that reason.
+    # THE ITALIC 2 DOES NOT HOVER and is not touched: it bottoms at -35, below
+    # even the round figures, because its bar carries the round-212 drop of 42.
+    # These rows are roman-only (TWO_OPT_IT is built from 'b' and 'c' alone).
+    #
+    # THE TRADE, and there is no third way inside this construction: bringing
+    # the foot down either MOVES THE TOP (translate the glyph: `lift`) or
+    # THICKENS THE BASE (extend the bar's bottom edge, its top edge and end
+    # wedge unmoved: `foot_ext`). Every arm below is the shipped b plus one of
+    # those, so his round-249 ruling stands under all five.
+    #
+    #        foot    top    base depth   what it is
+    #   b      +7    473       83        shipped
+    #   j      -1    465       83        the glyph down 8: foot on the 1's line, top 8 nearer the 0's
+    #   k      -1    473       91        the FOOT down 8, top untouched -- what he described
+    #   l      -9    473       99        ...8 further
+    #   m     -17    473      107        ...and further
+    #   n     -29    473      119        level with the round figures' overshoot, base +43%
+    #
+    'j': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, lift=0.0),                 # b, translated down 8: the foot lands on the 1's -1 and the top on 465, between the 3's 465 and the 0's 460. Nothing is redrawn and no stroke changes weight
+    'k': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=8.0),             # b, with the BASE BAR extended 8 units downward -- its top edge, its end wedge and every other stroke where they are. The foot reaches the 1's line with the top held at 473, which is the ask read literally. Cost: the base is 8 units deeper, 83 -> 91 (+10%)
+    'l': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=16.0),            # ...16: the foot 8 under the 1's
+    'm': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=24.0),            # ...24
+    'n': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=36.0),            # ...36: the foot level with the 0, 6 and 8's overshoot. A FLAT foot is not supposed to overshoot, so this is the end of the ladder rather than a candidate -- and the base is then 43% deeper than the shipped one
 }
 TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229's two and draws 'a' under d-i: its bar sits on the round-212 drop and its press cuts are placed on the bbox
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
@@ -1713,6 +1776,91 @@ EIGHT_OPT = {
     # references' needs lobes that narrow toward the waist (option f's
     # teardrops), which round 250 ruled out as "creative". Not offered.
     'q': dict(to_six='shipped', upper=0.84, up_tall=1.09),               # ...o's height ratio (0.84 x 1.09 / 1.08 = 0.85) with the upper counter WIDER: 0.84 of the lower's width, Georgia's (theirs 0.74-0.98; a is 0.75)
+    # ROUND 368 (2026-09-23), owner on a picture of the roman 8: *"thinning out
+    # bottom left stroke and top right stroke of 8"* -- the lower ring at
+    # 7-8 o'clock and the upper at 1-2, which is the same diagonal on both.
+    #
+    # MEASURED FIRST, with `cmp_fig_axis.py`: the chamfer-ridge thickness of
+    # `cmp_g_strokes` (perpendicular to the stroke by construction, since it is
+    # twice an inscribed-circle radius -- a row-wise scan across a diagonal
+    # reads wide and is one of the five recorded instrument bugs) re-binned by
+    # CLOCK POSITION about each ring's own counter, because a ring runs through
+    # every direction and two places on it can share one. The figure that
+    # carries the ask is the named point over the ring's own robust peak:
+    #
+    #                    lower 7:30   upper 1:30   ring contrast   7:30 / 4:30
+    #   Albo 8a (today)     0.82         0.77        1.50:1           1.16
+    #   Georgia             0.73         0.71        2.86:1           1.45
+    #   Flanker Griffo      0.65         0.65        2.51:1           1.42
+    #   Pagella             0.62         0.62        2.87:1           1.57
+    #   Big Caslon          0.49         0.49        6.69:1           2.08
+    #   Poetica             0.99         0.98        3.46:1           2.66
+    #
+    # HE IS RIGHT, and the mechanism is not the one the phrase suggests. The 8
+    # is not heavy there because its axis is wrong -- its thin sits at 11.5-6
+    # o'clock, where Georgia's and Flanker's sit. It is heavy there because the
+    # RING NEVER GETS THIN: 1.50:1, against the face's own o at 2.04 and its 0
+    # at 1.95, the flattest round in the roman. A flat ring is near its maximum
+    # everywhere but at the two points of its axis, so the diagonal shoulder
+    # never comes down. EIGHT_FLOOR at 0.65 S is what holds it flat -- 41% over
+    # the family's own bowl hair of 0.46 S.
+    #
+    # AND THE LAST COLUMN IS THE RULING TO MAKE. At 1.16 the 8 is the LEAST
+    # diagonal of the six, and Albo's own rounds run 1.15-1.20 (o 1.15, 0 1.18,
+    # 6 1.20; the 9 is 0.92). Thinning the named points by TURNING the nib
+    # (r, s, t) does exactly what he asked and takes the 8's axis AWAY from its
+    # own family and from every reference; CUTTING the ring deeper (u) moves
+    # toward them but leaves the lower point where it was. v does both.
+    #
+    # FOUR NEGATIVE RESULTS, measured, so none is proposed again:
+    #   `con` -- option c's lever, and the obvious one -- CANNOT do this. It
+    #   re-spreads the ring's widths about their GEOMETRIC MEAN, and 7:30 sits
+    #   ABOVE that mean, so raising it THICKENS the named point: `ALBO_8_CON=
+    #   1.85 ALBO_8_OVAL=1` moves the lower 0.82 -> 0.82 and the upper 0.77 ->
+    #   0.85, with the peak 69 -> 79. The contrast ratio improves and the letter
+    #   he is looking at does not.
+    #   `k`, THE SQUARENESS, reads as a fix and is not one. 2.9 measures 0.78 /
+    #   0.68 at no cost in height -- and the render is a rounded RECTANGLE, not
+    #   an 8, at 2.55 already and unmistakably at 2.9. The number and the
+    #   picture disagreed and the picture won. (Part of the "gain" was the
+    #   instrument too: see `cmp_fig_axis.peak` -- a squared corner inscribes a
+    #   larger circle than the wall is thick and inflates one bin, 69 -> 79 at
+    #   k 2.9 and 69 -> 114 at k 4.0.)
+    #   THE FLOOR IS NOT FREE. Releasing it alone takes the 8's top from 603 to
+    #   553 and widens the recorded 8-vs-6 shortfall from 21 units to 71,
+    #   because `ring_for_counter` solves the OUTER radius from the counter and
+    #   a thinner wall is a smaller ring -- four wall crossings x 12.7 units.
+    #   `hold_h` buys it back and the counters necessarily grow by those same 50
+    #   units. `ring_stress` costs nothing: it holds 603 to the unit, since it
+    #   does not change the width at 12 and 6 o'clock, which is what the
+    #   vertical radius is solved against.
+    #   A TRUE NIB (option w), which is what round 195 said this letter wants,
+    #   reaches 3.91:1 -- and puts its thin at 18 units, the thinnest ink in the
+    #   roman (the s's hairline is 16.6), on a figure that has to survive a
+    #   13 px four-level render. Offered, not recommended.
+    #
+    # THE ARMS. All seven are HEIGHT-NEUTRAL (top 603, bottom -29, 8/6 = 0.966,
+    # ship's to the unit) so each shows one change. `cmp_contour_hairs` finding
+    # set against the shipped build: r, s, t IDENTICAL (12 glyphs); u, v, w each
+    # add ONE -- a HAIR in `threeeighths`, 2.0 units, where the released floor
+    # thins the denominator 8's 12 o'clock. The `eight` glyph itself carries no
+    # finding in any of the seven.
+    #
+    #        lower 7:30   upper 1:30   contrast   7:30 / 4:30   counter (lower)
+    #   a       0.82         0.77       1.50        1.16          271 x 283
+    #   r       0.71         0.73       1.53        0.93          273 x 283
+    #   s       0.67         0.70       1.53        0.81          280 x 283
+    #   t       0.69         0.67       1.51        0.77          288 x 283
+    #   u       0.83         0.72       1.98        1.21          271 x 312
+    #   v       0.75         0.67       2.00        0.98          273 x 309
+    #   w       0.81         0.71       3.91        1.36          268 x 333
+    #
+    'r': dict(ring_stress=9.0),                              # THE NIB TURNED 9 degrees, so the ring's own thin moves toward the two points he named. Nothing else moves: height, advance and counters are ship's. The axis goes 1.16 -> 0.93, just past its own family's 1.15-1.20
+    's': dict(ring_stress=18.0),                             # ...18 degrees: both named points inside the references' band (0.67 / 0.70) and the cleanest answer to the ask as asked, at 0.81 on the mirror -- a reverse axis, which no reference and no other Albo round has
+    't': dict(ring_stress=26.0),                             # ...26: past the band on the upper ring, and the lower counter has started to lean (271 -> 288 wide). The end of this route
+    'u': dict(floor=0.35, hold_h=True),                      # THE RING CUT DEEPER, and nothing else: the floor released to the family's own bowl hair, the height bought back by `hold_h` (counters +10% tall -- at a fixed outer height that is what a thinner pen does). Contrast 1.50 -> 1.98, the face's own o and 0 at last; but the LOWER named point does not move, because the counter it grew put 7:30 on a steeper part of the ring
+    'v': dict(floor=0.35, hold_h=True, ring_stress=9.0),     # ...and r's 9 degrees with it. The only arm that answers the diagnosis and the symptom together: 0.75 / 0.67 at 2.00:1, the axis near neutral at 0.98 rather than reversed, height and advance unmoved
+    'w': dict(floor=0.0, hold_h=True, nib="1.03,0.15,0", oval=1.0),   # THE TRUE NIB of round 195 -- width read from the stroke's own DIRECTION rather than from the family profile, `oval` on in the same breath or the counter necks. 3.91:1, and the thin at 18 units is the risk
 }
 EIGHT_OPT_IT = {
     'b': dict(tall=1.16),
@@ -1774,8 +1922,13 @@ def g_eight(c):
     w_up, w_lo = E('ALBO_8_W_UP', _w8), E('ALBO_8_W_LO', _w8)   # stroke weight x, upper / lower ring
     waist = E('ALBO_8_WAIST', _o8.get('waist', 1.0))               # the rings' overlap, x one bowl stroke (round 233: >1 makes the strokes CROSS)
     lean = E('ALBO_8_LEAN', 0.0)                                   # the upper ring's centre, units right of the lower's
-    floor_ = E('ALBO_8_FLOOR', EIGHT_FLOOR_IT if pen.ITALIC else EIGHT_FLOOR) * S                    # the hair floor, x the stem (the 6's tail is 0.55)
-    kk = E('ALBO_8_K', 0.0) or None                                # the outer's squareness (BOWL_K 2.1 when unset)
+    # ROUND 368 -- the four levers below were reachable ONLY from the
+    # environment, so an option row could not carry them and the owner's ask
+    # of 2026-09-23 had no home in this table. Each now takes the option's
+    # value as its DEFAULT and the env var still wins, so a row that names
+    # none of them (every row a..q) builds exactly as before.
+    floor_ = E('ALBO_8_FLOOR', _o8.get('floor', EIGHT_FLOOR_IT if pen.ITALIC else EIGHT_FLOOR)) * S   # the hair floor, x the stem (the 6's tail is 0.55)
+    kk = E('ALBO_8_K', _o8.get('k', 0.0)) or None                  # the outer's squareness (BOWL_K 2.1 when unset)
     rot_up = math.radians(E('ALBO_8_ROT', 0.0))                    # the upper ring's tilt
     rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
     rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, k=kk, floor=floor_, rot=rot_up)
@@ -1810,8 +1963,11 @@ def g_eight(c):
     # no way in. `ALBO_8_OVAL` and `ALBO_8_STRESS` now reach both styles (they
     # default to exactly what each style had), and `ALBO_8_NIB` puts the two
     # rings on a true nib: "thin,phi" or "thick,thin,phi", x the stem.
-    _st = math.radians(E('ALBO_8_STRESS', math.degrees(_st)))
-    _nib = os.environ.get('ALBO_8_NIB')
+    # `ring_stress`, NOT `stress`: the option key `stress` already belongs to
+    # the `written` branch below (option f, -25 degrees), and one key meaning
+    # two things in one table is how a row silently acquires a second effect.
+    _st = math.radians(E('ALBO_8_STRESS', math.degrees(_st) + _o8.get('ring_stress', 0.0)))
+    _nib = os.environ.get('ALBO_8_NIB') or _o8.get('nib')
     if _nib:
         _v = [float(x) for x in _nib.split(',')]
         _nib = (1.0, _v[0], _v[1]) if len(_v) == 2 else tuple(_v)
@@ -1853,6 +2009,33 @@ def g_eight(c):
             top8 = y1 + ry1
             if abs(top8 - six_top) < 0.3: break
             _tall *= (six_top + OVER) / (top8 + OVER)
+            ch2 = bw2 / EIGHT_COUNTER_WH * EIGHT_LOWER_TALL * _tall + 2 * sp
+            ch1 = bw1 / EIGHT_COUNTER_WH * _tall * _uptall + 2 * sp
+            rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
+            rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, k=kk, floor=floor_, rot=rot_up)
+            cx = rx2; y2 = -OVER + ry2; y1 = -OVER + 2 * ry2 - bowl_hair() * waist + ry1
+    if _o8.get('hold_h'):
+        # ROUND 368 -- HOLD THE FIGURE'S HEIGHT WHILE A WEIGHT LEVER MOVES.
+        # `ring_for_counter` solves the OUTER radii for a target COUNTER, so a
+        # thinner wall gives a smaller ring and the stack loses height:
+        # releasing the floor alone takes the roman 8's top from 603 to 553 and
+        # widens the recorded 8-vs-6 shortfall from 21 units to 71. Measured,
+        # and it is worth knowing which levers do this: the FLOOR is the only
+        # one -- `ring_stress` at 9, 18 and 26 and `k` at 2.55 and 2.9 all hold
+        # 603 to the unit, because neither changes the width at 12 and 6
+        # o'clock, which is what the ring's vertical radius is solved against.
+        # So a floor arm re-solves `tall` against the top the SHIPPED floor and
+        # squareness would have given -- the same iteration `to_six` runs, with
+        # the 6's line replaced by this figure's own -- and the arm then shows
+        # ONE change. The counters necessarily grow by the units the walls
+        # lost; at a fixed height that is what a thinner pen does.
+        _f0 = (EIGHT_FLOOR_IT if pen.ITALIC else EIGHT_FLOOR) * S
+        _top0 = (-OVER + 2 * ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, floor=_f0)[1]
+                 - bowl_hair() * waist
+                 + 2 * ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, floor=_f0, rot=rot_up)[1])
+        for _ in range(6):
+            if abs(y1 + ry1 - _top0) < 0.3: break
+            _tall *= (_top0 + OVER) / (y1 + ry1 + OVER)
             ch2 = bw2 / EIGHT_COUNTER_WH * EIGHT_LOWER_TALL * _tall + 2 * sp
             ch1 = bw1 / EIGHT_COUNTER_WH * _tall * _uptall + 2 * sp
             rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
@@ -2054,6 +2237,74 @@ NINE_OPT = {
     'w': dict(k=2.0, flag=(0.35, 0.70), reach=5.0, tip_x=1.00),
 }
 NINE_OPT_IT = {k: NINE_OPT[k] for k in ('b', 'c', 'd')}
+# ROUND 368 (2026-09-23), owner on the ITALIC: *"fix 9 awkward left outside
+# curve and counter"* -- two named faults, measured separately because they are
+# separate contours.
+#
+# THE LEFT OUTSIDE CURVE IS NOT THE FAULT, and the first instrument said it
+# was. Reading the leftmost ink over the glyph's whole height puts the TAIL in
+# the sample -- it descends to the left -- and every face then reports a wobble:
+# Flanker's italic 9 came back at 303 units of departure from a parabola, Albo's
+# at 138. Windowed to the BOWL's own rows (the rows its counter spans, which is
+# the part that has an outer curve to judge), the italic 9's left flank reads
+# ONE reversal and 2.0 units of departure, against the italic 6's 4.1, the 0's
+# 2.0, Flanker's 9 at 4.7 and Pagella's at 1.8. It is the cleanest left flank
+# among Albo's own italic rounds. Reported as measured rather than fixed.
+#
+# THE COUNTER IS, and it is the TAIL that does it. `cmp_aldine_counter`, largest
+# counter, italic:
+#                   area/ink   w/h    fill   widest row   floor
+#   9  (today)        0.82     0.68   0.76      0.55       0.43
+#   6                 0.89     0.68   0.78      0.45       0.05
+#   0                 1.17     0.57   0.78      0.55       0.07
+#   o                 1.10     0.58   0.76      0.45       0.10
+# `fill` is area over the bounding box: 0.785 is an ellipse exactly. The 9's
+# 0.76 is the flattening, and the lever is where the tail enters the ring --
+# `NINE_JOIN_SINK_IT`, which is 30 units on the italic against the roman's 8.
+# Measured on a ladder: sink 8 gives 0.78, the 6's and the 0's number; sink 45
+# gives 0.75. LESS SINK IS BETTER, which is exactly what round 211's own note
+# says ("the join wants to start further OUT") -- and 30 is further IN than the
+# 8 it replaced, so the constant and the note beside it disagree. The note is
+# the one the measurement supports.
+#
+# DEAD-DIAL CONTROL, run first: `ALBO_ALD_NINE_RING_OVAL=1.0` reproduces the
+# shipped italic to every digit of every number above, because the italic's
+# ring already takes FIG_OVAL 1.0 through `fig_ring`. The counter is already
+# pulled onto its own ellipse; what dents it happens after that, in the union.
+#
+# AND THE SHIPPED ITALIC 9 CARRIES A GATE FINDING TODAY, which nothing in this
+# file recorded: `cmp_contour_hairs` reports a REVERSAL of 170.4 degrees at
+# (389, 162), arms 14.9 / 17.3 -- the right flank at mid-height, where the tail
+# leaves the ring. `albo_bumps` circles the same place (italic mark 223, a
+# spur at (387, 180)) and two more on this glyph, against ONE on the roman 9.
+# So the fault the owner is looking at has been visible to two instruments and
+# was never read off them.
+#
+# THE ITALIC'S ARMS. e-i mean something different here from what they mean in
+# NINE_OPT, which is this file's standing convention. Measured per arm
+# (`cmp_aldine_counter` largest counter; the flank as above; the gate's finding
+# set diffed against the shipped italic):
+#
+#        area/ink  fill  widest  flank   cmp_contour_hairs on the nine
+#   a      0.82    0.76   0.55    2.0    REVERSAL (389,162) 14.9/17.3   <- shipped
+#   e      0.83    0.78   0.55    2.0    HAIR (328,66) 3.6/10.8
+#   f      0.83    0.78   0.45    2.8    NONE -- the glyph leaves the report
+#   g      0.86    0.77   0.45    1.6    HAIR (390,164) 16.2/4.0
+#   h      0.86    0.79   0.45    1.6    HAIR (328,66) 3.6/10.8
+#   i      0.89    0.78   0.45    3.3    NONE -- the glyph leaves the report
+#   6      0.89    0.78   0.45     4.1   (the family, for scale)
+#   0      1.17    0.78   0.55     2.0
+#
+# f AND i ARE THE ONLY TWO THAT REMOVE THE SHIPPED FINDING WITHOUT ADDING ONE.
+# The glitch gate is 2 findings on every arm including the shipped one, and
+# `nine` is in none of them.
+NINE_OPT_IT.update({
+    'e': dict(sink=8.0),                         # THE TAIL ENTERS ON THE RING'S OWN EDGE, the roman's 8 units instead of 30: counter fill 0.76 -> 0.78, the 6's and the 0's. Trades the shipped reversal for a hair lower down
+    'f': dict(sink=0.0),                         # ...on the ring's CENTERLINE, no sink at all. The counter's widest row comes down from 0.55 of its height to 0.45, the 6's, and the glyph leaves the hairs report altogether. The flank pays 0.8 of a unit (2.0 -> 2.8, still under the 6's 4.1 and Flanker's 4.7)
+    'g': dict(ring_con=1.4),                     # THE RING'S CUT milder than the figures' 1.8: a bigger counter (area/ink 0.82 -> 0.86) and the straightest flank of the six (1.6), but the reversal only becomes a hair
+    'h': dict(sink=8.0, ring_con=1.4),           # e and g together: the roundest counter by `fill` (0.79) and still a hair
+    'i': dict(sink=8.0, r=0.325),                # e with option c's BIGGER BOWL: the counter reaches the 6's 0.89 and the gate is clean -- but the bowl's own radius moves, which is a larger change than was asked for, and the flank is the worst of the six
+})
 # ROUND 233 (R43), owner 2026-09-18 on the roman 9: *"redo bottom and middle
 # right side of loop. treat the inside join, too."* Measured on the built
 # outline: the tail's cubic left the ring with its first handle pointing
@@ -2112,8 +2363,16 @@ def g_nine(c):
     _o9 = _okw('9', NINE_OPT, NINE_OPT_IT)
     D = c["figH"]; rx = W_(c, '9', 230); r = D * _o9.get('r', 0.29); cx = rx + TH_V / 2
     _k9 = _o9.get('k')
-    solid, o, i = fig_ring(cx, D - r, rx, r, con=NINE_RING_CON, oval=NINE_RING_OVAL, **({'k': _k9} if _k9 else {}))
-    _sink = NINE_JOIN_SINK_IT if pen.ITALIC else NINE_JOIN_SINK
+    # ROUND 368 (2026-09-23) -- the ring's CUT and the tail's SINK taken from
+    # the option row, env still winning, both defaulting to exactly today's
+    # values so every existing row is byte-identical. Until now the italic's
+    # two were module constants with no way into the option table, which is why
+    # the italic 9's counter had never been laddered.
+    solid, o, i = fig_ring(cx, D - r, rx, r,
+                           con=_o9.get('ring_con', NINE_RING_CON),
+                           oval=_o9.get('ring_oval', NINE_RING_OVAL),
+                           **({'k': _k9} if _k9 else {}))
+    _sink = _o9.get('sink', NINE_JOIN_SINK_IT if pen.ITALIC else NINE_JOIN_SINK)
     _exit = NINE_EXIT_DEG if pen.ITALIC else _o9.get('exit', -20.0)
     p0 = (cx + (rx - _sink) * math.cos(math.radians(_exit)),
           D - r + (r - _sink) * math.sin(math.radians(_exit)))
