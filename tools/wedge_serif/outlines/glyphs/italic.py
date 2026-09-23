@@ -37,7 +37,7 @@ from ..geom import cubic, line, catmull
 from ..primitives import stem, stroke, pen_widths, widths, ring, dot, stem_edge_x, bar
 from .. import primitives as PR
 from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, ENT
-from .stems import DOT_R, dot_y
+from .stems import DOT_R, TIT_R, dot_y
 from .rounds import o_ring, O_RX
 
 # ---------------------------------------------------------------- the levers
@@ -176,7 +176,7 @@ if pen.ITALIC:
     @glyph('i')
     def g_i_it(c):
         xh = c["xh"]; x = S / 2
-        return geom.ink([stem(x, 0, xh, top=None, foot=None), dot(x, dot_y(xh), DOT_R * 0.92)])
+        return geom.ink([stem(x, 0, xh, top=None, foot=None), dot(x, dot_y(xh), TIT_R * 0.92)])
 
     @glyph('j')
     def g_j_it(c):
@@ -186,7 +186,7 @@ if pen.ITALIC:
         a0, a1 = 0.0, math.radians(-108)
         tail = [(x - r + r * math.cos(a0 + (a1 - a0) * i / 48), y0 + r * math.sin(a0 + (a1 - a0) * i / 48)) for i in range(49)]
         wfn = widths([(0.0, TH_V * 0.92), (0.45, S * 0.70), (1.0, S * 0.09)])
-        return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), DOT_R * 0.92)])
+        return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), TIT_R * 0.92)])
 
     # ------------------------------------------------------------ the bowls
     # b d p q keep the ROMAN's bowl construction (`stems.bowl_stem`): the o's

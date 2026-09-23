@@ -18,18 +18,19 @@ Sizes are the pen's, not invented: the strokes take `pen.th()` at their own
 angle exactly as a letter's do, the dots are the family's `DOT_R`, the
 macron is the pen's horizontal, and the ring is a bowl.
 """
-import math
+import math, os
 from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line
 from ..primitives import stroke, pen_widths, widths, dot, ring, bar
 from ..pen import S, XH, CAP, ASC, TH_V, TH_H, HAIR, CUT, BOWL_K
-from .stems import DOT_R, dot_y
+from .stems import DOT_R, TIT_R, dot_y
 
 # The family's accent box. Width and height are the proportions a garalde
 # gives an acute: about a third of the x-height tall and two fifths wide.
 ACC_H = 0.26 * XH          # 112 at xh 429
 ACC_W = 0.38 * XH          # 163
+DIE_GAP = float(os.environ.get("ALBO_DIE_GAP", 3.70))   # the dieresis's centres apart, x a dot RADIUS (round 369)
 ACC_LIGHT = 0.86           # the marks' strokes, x the pen (a mark is lighter than a stem)
 
 def _stroke(pts, prof=None, cut0=CUT, cut1=CUT, light=ACC_LIGHT):
@@ -80,12 +81,20 @@ def g_dieresis(c):
     the mark merged into a single blob -- every German and Swedish umlaut, in
     the bold. Found by the cross-weight contour count, which is what that
     check exists for."""
-    r = DOT_R * 0.92; gap = r * 2.1
+    # ROUND 369 -- AND THEY WERE ALL BUT TOUCHING. Owner 2026-09-23: *"center
+    # dieresis optically and give them enough space between."* Measured on a
+    # real letter against six references (`cmp_marks.py`), the white between
+    # Albo's two dots was 0.104 of a dot's own diameter where they run
+    # 0.642-1.250 -- not tight, effectively closed, and at 13 px the pair
+    # quantised to one bar. DIE_GAP is the centre-to-centre distance in dot
+    # RADII, so white/dot is (DIE_GAP - 2) / 2: the shipped 2.1 is 0.05 and
+    # the references' middle is 3.7.
+    r = TIT_R * 0.92; gap = r * DIE_GAP
     return geom.ink([dot(r, r, r), dot(r + gap, r, r)])
 
 @glyph('˙')      # dot above
 def g_dotaccent(c):
-    r = DOT_R * 0.92
+    r = TIT_R * 0.92
     return dot(r, r, r)
 
 @glyph('˚')      # ring above

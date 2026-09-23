@@ -657,6 +657,22 @@ for _ch, _k in _Q_KERNS.items():
     if _g and not (_ALD is not None and _ALD.ON):
         PAIRS[('Q', _g)] = _k
 
+# ROUND 369 -- THE RAISED ? AGAINST AN OPEN CAPITAL. Taking the ? up to the
+# ascender scales its hook uniformly about its own lowest point, so the
+# upper-left arm -- the part that overhangs backwards -- travelled 25 units
+# LEFT. In the italic, where the slant already carries that arm over whatever
+# precedes it, `U?` closed to 0.0093 em against the sweep's 0.012 floor.
+#
+# A KERN AND NOT A WIDER FITTING BAND, which is this face's standing rule for
+# a clash that only some neighbours can have (docs/albo-capital-spacing.md):
+# widening the ?'s left bearing would loosen it after every one of the 26
+# lowercase letters to fix five capitals with open right sides. Swept: U? is
+# the only pair under the floor; V? W? Y? T? all sit at 0.03 em or better.
+_QUESTION_KERNS = {'U': 30}
+for _ch, _k in _QUESTION_KERNS.items():
+    _g = _gname(_ch)
+    if _g: PAIRS[(_g, 'question')] = _k
+
 # ROUND 357 -- THE BOLD ITALIC'S `q` PAIRS, and why they are weight-gated.
 #
 # The bench's bearings are fitted on the 400 and applied at every weight, so a

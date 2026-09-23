@@ -96,6 +96,36 @@ COMBINING = {'\u0300': '\u0060', '\u0301': '\u00b4', '\u0302': '\u02c6', '\u0303
 # is not in this table: a row mapping it to itself makes a glyph whose one
 # component is the glyph, which fontTools rejects as recursive.
 
+# ROUND 369 -- WHERE AN ACCENT ACTUALLY SITS OVER A LETTER. Owner 2026-09-23:
+# *"center dieresis optically."* The composite below centres every above-mark
+# on the base letter's INK BOUNDING BOX, and Albo therefore measured a centring
+# error of 0.000-0.002 of the x-height on every letter -- dead centre, and
+# wrong, because no reference does that.
+#
+# MEASURED, six roman faces, accent centre minus the base's ink centre, as a
+# fraction of the x-height (`cmp_marks.py`):
+#
+#   letter   Georgia   Times   Baskerville   Charter   Hoefler     verdict
+#   o         +0.008  -0.001        +0.018    +0.000    +0.002     centred
+#   u         -0.009  -0.001        +0.001    +0.003   -0.013      centred
+#   n         -0.007  -0.001        +0.000   -0.036    -0.005      centred
+#   a         -0.050  -0.034        -0.087   -0.024    -0.030     LEFT, 5 of 5
+#   e         +0.019  +0.034        +0.000   +0.028    +0.034     RIGHT, 4 of 5
+#
+# So the references' rule is not a formula -- two candidate formulas were
+# tested and both failed. Centring on the letter's TOP BAND reproduces the a
+# (-0.019) and the o (+0.002) and then invents a shift the references do not
+# make on the u (-0.047) and the n (-0.068), and would throw the L's accent
+# 0.433 of an x-height to the left. Centring on the ADVANCE is noisier still.
+# What the references have is a SHORT HAND-MADE TABLE, and this is it: the
+# double-storey a carries its weight low and right, so its mark goes left; the
+# e's bar and terminal put its optical centre right of its box.
+#
+# The keys are LOWERCASE, so the capitals A and E are untouched -- the
+# measurement was taken on lowercase and says nothing about them.
+ACC_OPTICAL_ON = float(os.environ.get("ALBO_ACC_OPTICAL", 1.0))
+ACC_OPTICAL = {'a': -0.030, 'e': +0.030}    # x the x-height; + moves the mark RIGHT
+
 ACC_GAP_LC = 0.10 * pen.XH      # the mark's foot over the x-height
 ACC_GAP_CAP = 0.055 * pen.XH
 S_GAP_RIGHT = 0.10 * pen.S     # the apostrophe-caron's gap off the letter's right ink    # tighter over a capital: the eye reads the cap line as the ceiling
@@ -753,6 +783,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         isCap = base.isupper()
         if kind == 'above':
             dx = (bx0 + bx1) / 2 - (mx0 + mx1) / 2
+            dx += ACC_OPTICAL.get(base, 0.0) * pen.XH * ACC_OPTICAL_ON
             top = max(by1, C if isCap else pen.XH)
             dy = top + (ACC_GAP_CAP if isCap else ACC_GAP_LC) - my0
         elif kind == 'below':

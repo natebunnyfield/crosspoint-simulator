@@ -131,32 +131,43 @@ def g_dblarrowboth(c): return _darrow(c, 1, both=True)
 # than an assumption.
 MIDDOT_TRI = float(os.environ.get("ALBO_MIDDOT_TRI", 1.0))   # 0 = the round dot, 1 = the triangle
 MIDDOT_SIZE = float(os.environ.get("ALBO_MIDDOT_SIZE", 1.55))  # x the marks' dot DIAMETER, across the base
-MIDDOT_DIR = os.environ.get("ALBO_MIDDOT_DIR", "up")         # up | right | down
+MIDDOT_APEX = float(os.environ.get("ALBO_MIDDOT_APEX", 180.0))   # where the point goes, degrees from 3 o'clock. 180 = to the LEFT, as the column cuts it
+MIDDOT_TILT = float(os.environ.get("ALBO_MIDDOT_TILT", -12.0))   # the whole wedge rotated, degrees
+MIDDOT_ASPECT = float(os.environ.get("ALBO_MIDDOT_ASPECT", 0.72))# the base's spread, x the wedge's length
+MIDDOT_Y = float(os.environ.get("ALBO_MIDDOT_Y", 0.46))          # its centre, x the CAP height
 MIDDOT_CONC = float(os.environ.get("ALBO_MIDDOT_CONC", 0.03))  # the chisel's hollow: the SAGITTA of each side, x the height. 0.10 is a shuriken; the useful range is 0 to about 0.05
 
-def _tri(cx, cy, a, direction, conc):
-    """An equilateral triangle centred on its own area, sides bowed inward."""
-    h = a * math.sqrt(3.0) / 2.0
-    # apex-up in local coords, centroid at the origin
-    pts = [(0.0, h * 2.0 / 3.0), (-a / 2.0, -h / 3.0), (a / 2.0, -h / 3.0)]
-    rot = {"up": 0.0, "right": -math.pi / 2.0, "down": math.pi}[direction]
+def _tri(cx, cy, w, h, apex, tilt, conc):
+    """The inscriptional interpunct: a chisel-cut WEDGE, not an equilateral
+    triangle.
+
+    ROUND 368, from the owner's own photograph of the column: the mark is a
+    scalene wedge with its POINT TO THE LEFT and its mass to the right -- a
+    short base on the right, a long edge running back to the point. Round
+    363 built an equilateral triangle standing apex-up, which is the shape
+    the phrase "Trajan triangle" suggests and is not what is cut in the
+    stone. Corrected against the photograph rather than against the phrase.
+
+    `apex` is where the point goes, degrees from 3 o'clock; `tilt` rotates
+    the whole mark; `w`/`h` are its extents before that rotation; `conc` is
+    the chisel's hollow on each edge.
+    """
+    # local: point at (-w/2, 0), base on the right, its two corners spread by h
+    pts = [(-w / 2.0, 0.0), (w / 2.0, h / 2.0), (w / 2.0, -h / 2.0)]
+    rot = math.radians(apex - 180.0 + tilt)
     ca, sa = math.cos(rot), math.sin(rot)
     pts = [(x * ca - y * sa, x * sa + y * ca) for x, y in pts]
+    gx = sum(p[0] for p in pts) / 3.0; gy = sum(p[1] for p in pts) / 3.0
+    pts = [(x - gx, y - gy) for x, y in pts]
     out = []
     for i in range(3):
         p0 = pts[i]; p1 = pts[(i + 1) % 3]
         mx, my = (p0[0] + p1[0]) / 2.0, (p0[1] + p1[1]) / 2.0
-        # pull the midpoint toward the centre by `conc` of the height
         nx, ny = -mx, -my
         L = math.hypot(nx, ny) or 1.0
         ctrl = (mx + nx / L * h * conc, my + ny / L * h * conc)
-        # THE HOLLOW IS A WHISPER, NOT A WAIST. The first cut pulled each
-        # midpoint in by `conc` of the height AND ran its handles 1.2x past
-        # the control, which at conc 0.10 turned the triangle into a
-        # three-pointed star -- a shuriken, not an interpunct. At 600 px
-        # that was obvious and the numbers said nothing, which is why it was
-        # looked at before it was published. The handles reach the control
-        # exactly now, so `conc` is the sagitta of each side and no more.
+        # the hollow is the sagitta of each side and no more -- see round 363:
+        # handles that overran the control turned this into a shuriken.
         out += geom.cubic(p0, ctrl, ctrl, p1)
     return [(cx + x, cy + y) for x, y in out]
 
@@ -164,7 +175,13 @@ def _tri(cx, cy, a, direction, conc):
 def g_middot(c):
     if not MIDDOT_TRI:
         return dot(DOT_R, MID, DOT_R)
-    return geom.poly(_tri(DOT_R, MID, DOT_R * 2.0 * MIDDOT_SIZE, MIDDOT_DIR, MIDDOT_CONC))
+    # AND IT SITS AT MID-CAP, not mid-x-height. On the column the points
+    # divide CAPITALS and are centred on them; MID is XH * 0.5, which on a
+    # face with capitals is a good deal lower than the photograph shows.
+    _w = DOT_R * 2.0 * MIDDOT_SIZE
+    _cy = CAP * MIDDOT_Y
+    return geom.poly(_tri(DOT_R, _cy, _w, _w * MIDDOT_ASPECT, MIDDOT_APEX,
+                          MIDDOT_TILT, MIDDOT_CONC))
 @glyph('•')      # bullet
 def g_bullet(c): return dot(DOT_R * 1.5, MID, DOT_R * 1.5)
 @glyph('∙')

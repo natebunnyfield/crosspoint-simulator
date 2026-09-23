@@ -7,7 +7,7 @@ from .. import geom, pen
 from .. import primitives as PR
 from ..geom import cubic, line, superellipse, catmull
 from ..primitives import stem, ring, stroke, pen_widths, widths, dot, wedge, diagonal, bar, beak
-from ..pen import S, XH, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, WL, WD, DROP
+from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, WL, WD, DROP
 from .rounds import o_ring
 from .stems import g_a, DOT_R
 
@@ -47,11 +47,38 @@ def CAP(c): return c["cap"]
 # the baseline between words. So the marks scale their own copy and the
 # tittle is untouched. If the two should stay locked together, that is a
 # separate ruling and this dial is where it would be made.
-MARK_DOT = float(os.environ.get("ALBO_MARK_DOT", 1.0))   # x DOT_R, punctuation only
+# ROUND 369 -- SHIPPED AT 1.50. Owner 2026-09-23: *"scale up punctuation
+# slightly to be readable at small sizes."* "Slightly" undersells what the
+# measurement found: against six roman references at a common x-height
+# (`cmp_marks.py`) Albo's period read 0.174 where they run 0.241-0.277 -- 28%
+# under the SMALLEST of them, not a shade under the middle. 1.50 puts it at
+# 0.259, the middle of the band, and the colon's dot at 0.258.
+MARK_DOT = float(os.environ.get("ALBO_MARK_DOT", 1.50))   # x DOT_R, punctuation only
 EXCL_BOT = float(os.environ.get("ALBO_EXCL_BOT", 0.74))  # the !'s profile at the foot, x the pen (round 364: 0.55 before)
 EXCL_TOP = float(os.environ.get("ALBO_EXCL_TOP", 1.38))  # ...and at the cap (round 364: 1.05 before). 1.38 puts the ! thick at 1.24 x the face's stem, against the references' 1.10-1.30
 EXCL_DOT = float(os.environ.get("ALBO_EXCL_DOT", 1.0))   # the !'s dot, x the marks' dot
-EXCL_NIB = int(os.environ.get("ALBO_EXCL_NIB", 1))       # 1 = the dot is a pressed nib; 0 = the old round dot
+# ROUND 369 -- AND THE NIB IS OFF AGAIN. Owner 2026-09-23, one round after
+# ruling the nib in: *"exclamation needs to be a dot."* Which is not a
+# reversal of "never rounded" -- Albo's dots have not been plain circles since
+# round 367, they are punched and filed flat -- so the mark goes back through
+# `dot()` and gets the same metal every other dot in the face carries. The nib
+# drawing stays behind ALBO_EXCL_NIB=1; nothing about it was wrong except that
+# it is not what the ! wants.
+EXCL_NIB = int(os.environ.get("ALBO_EXCL_NIB", 0))       # 1 = the dot is a pressed nib; 0 = the round punched dot
+# ROUND 369 -- HOW TALL THE ! AND THE ? STAND. Owner 2026-09-23: *"smartly
+# raise exclamation and question mark strokes up to height of ascender."*
+# 0 leaves them on the CAP line, 1 takes them to the ASCENDER, and a fraction
+# lands between.
+#
+# WHAT THE REFERENCES ACTUALLY DO, since it is the opposite: all six cut both
+# marks to the CAP line and not to the ascender -- `! of cap` runs 0.988-1.024
+# across Georgia, Times, Baskerville, Charter, Hoefler and Palatino, while
+# `! of asc` runs 0.909-0.956. Albo already sat at 1.021 of its cap, exactly
+# where they all sit. But the eye that asked for this is reading something
+# real: Albo's ascender overshoots its own cap by 16%, the largest gap of the
+# seven (Baskerville 4%, Palatino 7%, Times 7%), so beside an h or a b Albo's
+# ! looks shorter than the same ratio looks anywhere else.
+MARK_TALL = float(os.environ.get("ALBO_MARK_TALL", 1.0))   # round 369, owner: to the ASCENDER. 0 restores the cap line, which is where all six references cut both marks.
 EXCL_NIB_LEN = float(os.environ.get("ALBO_EXCL_NIB_LEN", 0.62))  # half the press's length along the nib's edge, x the dot radius
 EXCL_NIB_W = float(os.environ.get("ALBO_EXCL_NIB_W", 1.15))      # the press's thickness across the edge, x the dot radius
 MDOT = DOT_R * MARK_DOT
@@ -63,11 +90,21 @@ def g_period(c): return dot(MDOT, MDOT, MDOT)
 # most undersized mark after the quotes. COMMA_LEN scales how far the tail
 # runs below the dot, COMMA_W how far it swings across; 1.0 is the shipped
 # tail exactly, so an unset build is bit-identical.
-COMMA_LEN = float(os.environ.get("ALBO_COMMA_LEN", 1.0))
-COMMA_W = float(os.environ.get("ALBO_COMMA_W", 1.0))
+# ROUND 369: 1.95 / 2.40, which lands the comma at 0.344 wide and 0.619 tall
+# against the references' 0.323-0.427 and 0.570-0.700. They carry the CURLY
+# QUOTES with them -- an apostrophe is the comma's own dot and tail -- so the
+# quote dials below do less work than their numbers suggest.
+COMMA_LEN = float(os.environ.get("ALBO_COMMA_LEN", 1.95))
+COMMA_W = float(os.environ.get("ALBO_COMMA_W", 2.40))
 
-def comma_tail(x, y, up=True, w0=0.9, w1=0.3):
-    _L, _W = COMMA_LEN, COMMA_W
+def comma_tail(x, y, up=True, w0=0.9, w1=0.3, k=None):
+    """`k` overrides the punctuation dials for a caller that is not
+    punctuation. The comma BELOW a letter (U+0326, and the S T s t that
+    carry it) is an accent on an accent-sized dot: round 369's scale-up
+    grew its tail and not its dot, and the tail walked off the dot --
+    contour count 1 -> 2, which is a mark in two pieces. The gate caught it;
+    no render of the comma itself could have."""
+    _L, _W = (COMMA_LEN, COMMA_W) if k is None else (k, k)
     if up: tail = cubic((x + S * 0.1, y - S * 0.35 * _L), (x + S * 0.1, y - S * 1.05 * _L), (x - S * 0.3 * _W, y - S * 1.45 * _L), (x - S * 0.6 * _W, y - S * 1.75 * _L))
     # mirrored in x only (round 51 flipped y too, sending the left quote's
     # tail UP past the cap height instead of down like a real turned comma --
@@ -77,10 +114,21 @@ def comma_tail(x, y, up=True, w0=0.9, w1=0.3):
     return stroke(tail, pen_widths(tail, lambda t: w0 - (w0 - w1) * t))   # round 51: the pen x (0.9 - 0.6 t)
 @glyph(',')
 def g_comma(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT)])
+# ROUND 369 -- AND THE COLON CLOSES AS THE DOT OPENS. Both dots are anchored
+# INSIDE the x-height band -- the lower resting on the baseline, the upper
+# hung from the x-height line -- so every unit the dot gains, the white
+# between them loses two. Swept with the punctuation: white 0.560 of the
+# x-height at MARK_DOT 1.0 down to 0.346 at 1.62, straight out through the
+# references' floor of 0.401. That is the opposite of "readable at small
+# sizes": the mark the scale-up is most likely to close is the colon.
+# COLON_SPAN is the pair's total reach as a multiple of the x-height, so the
+# upper dot may sit a little proud of it. 1.0 is exactly the shipped mark.
+COLON_SPAN = float(os.environ.get("ALBO_COLON_SPAN", 1.05))   # round 369: white 0.433 at MARK_DOT 1.50, against 0.386 with the pair held inside the band
+
 @glyph(':')
-def g_colon(c): return geom.ink([dot(MDOT, MDOT, MDOT), dot(MDOT, XH - MDOT, MDOT)])
+def g_colon(c): return geom.ink([dot(MDOT, MDOT, MDOT), dot(MDOT, XH * COLON_SPAN - MDOT, MDOT)])
 @glyph(';')
-def g_semicolon(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT), dot(MDOT, XH - MDOT, MDOT)])
+def g_semicolon(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT), dot(MDOT, XH * COLON_SPAN - MDOT, MDOT)])
 @glyph('!')
 def g_exclam(c):
     # ROUND 364 -- THE STEM THICKENED, THEN THE DOT BALANCED AGAINST IT.
@@ -106,7 +154,7 @@ def g_exclam(c):
     # set down once: a short run along the stem's own direction, taking the
     # pen's width there and the family's cut at both ends, which leaves the
     # four-sided mark a broad nib actually makes.
-    C = CAP(c); x = MDOT
+    C = CAP(c) + MARK_TALL * (ASC - CAP(c)); x = MDOT
     _r = MDOT * EXCL_DOT
     if EXCL_NIB:
         # THE FOOTPRINT ITSELF, not a stroke with cuts on it. The first cut ran
@@ -134,12 +182,31 @@ def g_exclam(c):
 def g_question(c):
     """Owner 2026-09-13: "make more variations of '?' for me to choose
     from." QUESTION_VARIANT picks one of QUESTION_VARIANTS (env
-    FJORD_Q_VARIANT for the ladder builds); 0 is the round-77 hook (the
-    marks agent's, landed). All on the bowl profile (the pen's thin is the
+    FJORD_Q_VARIANT for the ladder builds). VARIANT 0 IS `_q8`, the original
+    Albertus-heavy mark -- this line read "0 is the round-77 hook" until round
+    369, which is `_q0` and sits at index 1. That sentence cost round 369 a
+    patch applied to a constructor nothing builds: the ! rose and the ? did
+    not, across a four-rung ladder, which is the only reason it was caught. All on the bowl profile (the pen's thin is the
     floor at this contrast), the dot on the marks' rule (DOT_R, bottom at
     0), the terminal in the family's pen cut unless the variant says a
     beak."""
     return QUESTION_VARIANTS[QUESTION_VARIANT][1](c)
+
+def _raise(body, c, w, y_bottom):
+    """The ! and the ? raised toward the ascender (round 369).
+
+    The ! only needs a longer wedge: its taper is parametric in t, so both
+    ends keep the weight they were drawn with and nothing distorts. The ?
+    cannot be stretched the same way -- scaling y alone turns a round bowl
+    into an ellipse -- so its hook is scaled UNIFORMLY about its own lowest
+    point. The bottom stays where it was, which leaves the dot and the
+    clearance above it exactly as drawn, and the whole drawing simply gets
+    bigger upward.
+    """
+    if MARK_TALL <= 0: return body
+    C = CAP(c)
+    k = (C + MARK_TALL * (ASC - C)) / C
+    return aff.scale(body, xfact=k, yfact=k, origin=(w * 0.5, y_bottom))
 
 def Q_DOT_CLEAR(r=None, half=None):
     """Where the question mark's descent STOPS, so its dot stays a dot.
@@ -158,7 +225,7 @@ def _q_common(c, pts, prof, tension=0.62, cut0=CUT, beak_start=False, floor=0.5,
     C = CAP(c)
     hook = catmull(pts, tension=tension)
     wf = PR.bowl_widths(hook, widths(prof), floor=S * floor)
-    body = stroke(hook, wf, cut0=None if beak_start else cut0, cut1=CUT)
+    body = _raise(stroke(hook, wf, cut0=None if beak_start else cut0, cut1=CUT), c, w, pts[-1][1])
     # round 100: the dot's gap under the hook's terminal must clear at the
     # BOLD too -- at stem 107 the two merged and the ? lost its dot. The
     # hook's own floor is S * `floor`, so the clearance is taken from there.
@@ -170,7 +237,8 @@ def _q0(c):   # round 77's, the marks agent's hook
     C = CAP(c); w = 380
     end_y = C * 0.2 + max(0.0, (S - 94) * 2.2)
     hook = catmull([(w * 0.14, C * 0.60), (w * 0.00, C * 0.86), (w * 0.32, C * 1.00), (w * 0.70, C * 0.92), (w * 0.60, C * 0.52), (w * 0.5, end_y)], tension=0.62)
-    return geom.ink([dot(w * 0.5, DOT_R, DOT_R), stroke(hook, pen_widths(hook, widths([(0.0, 0.40), (0.30, 1.0), (0.58, 0.95), (1.0, 0.55)])), cut0=CUT, cut1=CUT)])
+    return geom.ink([dot(w * 0.5, MDOT, MDOT),
+                     _raise(stroke(hook, pen_widths(hook, widths([(0.0, 0.40), (0.30, 1.0), (0.58, 0.95), (1.0, 0.55)])), cut0=CUT, cut1=CUT), c, w, end_y)])
 def _q1(c):   # the same gesture on the bowl profile: no hairline anywhere
     C = CAP(c); w = 380; e = Q_DOT_CLEAR()
     return _q_common(c, [(w * 0.14, C * 0.60), (w * 0.00, C * 0.86), (w * 0.32, C * 1.00), (w * 0.70, C * 0.92), (w * 0.60, C * 0.52), (w * 0.5, e)], [(0.0, 0.55), (0.30, 1.0), (0.60, 0.95), (1.0, 0.7)])
@@ -237,7 +305,8 @@ def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and 
     P = upper[-1]; tn = geom.tangents(upper)[-1]; E = (w * 0.5, end_y); L = math.dist(P, E)
     hook = geom.resample(upper + cubic(P, (P[0] + tn[0] * Q8_TAIL_K1 * L, P[1] + tn[1] * Q8_TAIL_K1 * L), (E[0], E[1] + Q8_TAIL_K2 * L), E)[1:])
     wf = _smooth_wf(PR.bowl_widths(hook, widths([(0.0, 0.7), (0.25, 0.7), (0.5, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR), len(hook) - 1)
-    return geom.ink([dot(w * 0.5, DOT_R * 1.1, DOT_R * 1.1), stroke(hook, wf, cut0=CUT, cut1=CUT)])
+    return geom.ink([dot(w * 0.5, MDOT * 1.1, MDOT * 1.1),
+                     _raise(stroke(hook, wf, cut0=CUT, cut1=CUT), c, w, end_y)])
 def _smooth_wf(wf, n, passes=4):
     """A width function sampled at the spine's n+1 points and smoothed by a
     [1 2 1]/4 kernel `passes` times, so a floor's C0 crossing becomes a curve
@@ -264,8 +333,8 @@ QUESTION_VARIANT = int(os.environ.get('FJORD_Q_VARIANT', 0))
 # stroke is `TH_V * 0.8`, which no size dial touched, so a taller mark was
 # still a hairline. QUOTE_W is that missing half; the two are set together
 # per arm because a quote is one mark, not a height and a width.
-QUOTE_SIZE = float(os.environ.get("ALBO_QUOTE_SIZE", 1.0))
-QUOTE_W = float(os.environ.get("ALBO_QUOTE_W", 1.0))
+QUOTE_SIZE = float(os.environ.get("ALBO_QUOTE_SIZE", 1.75))   # round 369: apostrophe 0.358 x 0.645, against references 0.289-0.399 and 0.547-0.661
+QUOTE_W = float(os.environ.get("ALBO_QUOTE_W", 1.65))
 QUOTE_BODY = 2 * DOT_R * QUOTE_SIZE   # straight and curly quotes share this body height, top-aligned to CAP
 # ROUND 222 -- THE ITALIC'S QUOTES SIT LOWER. Owner 2026-09-18, on the round-221
 # proof: *"too much space between apostrophe and previous and next letters.
@@ -279,6 +348,23 @@ QUOTE_BODY = 2 * DOT_R * QUOTE_SIZE   # straight and curly quotes share this bod
 # without moving it toward a capital's stem. Units below CAP; italic only.
 QUOTE_DROP = float(os.environ.get("ALBO_ALD_QUOTE_DROP", "50"))
 def _qdrop(): return QUOTE_DROP if pen.ITALIC else 0.0
+# ROUND 369 -- AND IT TOUCHED AGAIN, for the reason it touched in round 94.
+# DQ_GAP is a CENTRE-TO-CENTRE distance in a face whose marks had just grown
+# 1.5-2.4x, so the white between the two marks of a double quote closed and
+# `quotedblleft` and `quotedblright` merged from two contours into ONE -- a
+# double quote drawn as a single blob. The owner's round-94 complaint was
+# *"give more space for double quotes so they don't touch"*, which is a
+# statement about the WHITE; so the pair is spaced by white now, measured off
+# the first mark's own ink, and the size of the mark can no longer close it.
+# 0.63 S reproduces the white the 1.8 centre-step gave at the old mark size.
+DQ_WHITE = float(os.environ.get("ALBO_DQ_WHITE", 0.63))   # the white BETWEEN the two marks, x S
+
+def _dbl(make):
+    """Two of a mark, the second clearing the first by DQ_WHITE of ink."""
+    a = make(0.0)
+    step = (a.bounds[2] - a.bounds[0]) + S * DQ_WHITE
+    return geom.ink([a, make(step)])
+
 DQ_GAP = 1.8   # round 94 (owner: "give more space for double quotes so they don't touch"): the two marks' centers, x S (1.3 before: a 48-unit gap, 2.6 px at 13 pt, gray between them)
 # ROUND 233 -- CALLIGRAPHIC OPTIONS FOR THE STRAIGHT QUOTES. Owner 2026-09-18
 # (R51 ', R52 "): *"give me calligraphic options."* Today's mark is one
@@ -335,7 +421,7 @@ def straight_quote(c, x, k=0):
 @glyph("'")
 def g_quotesingle(c): return straight_quote(c, S * 0.5)
 @glyph('"')
-def g_quotedbl(c): return geom.ink([straight_quote(c, S * 0.5 + i * S * DQ_GAP, k=i + 1) for i in (0, 1)])
+def g_quotedbl(c): return _dbl(lambda dx: straight_quote(c, S * 0.5 + dx, k=1))
 def quote(c, x, up):
     """The curly quotes: the comma's own dot+tail (same DOT_R body as every
     other mark), turned to hang from the top instead of sitting on the
@@ -349,9 +435,9 @@ def g_quoteright(c): return quote(c, S * 0.7, True)
 @glyph('‘')
 def g_quoteleft(c): return quote(c, S * 0.7, False)
 @glyph('”')
-def g_quotedblright(c): return geom.ink([quote(c, S * 0.7, True), quote(c, S * (0.7 + DQ_GAP), True)])
+def g_quotedblright(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, True))
 @glyph('“')
-def g_quotedblleft(c): return geom.ink([quote(c, S * 0.7, False), quote(c, S * (0.7 + DQ_GAP), False)])
+def g_quotedblleft(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, False))
 # ROUND 233 -- CALLIGRAPHIC OPTIONS FOR THE HYPHEN. Owner 2026-09-18 (R53):
 # *"give me calligraphic options."* Today's hyphen is a plain bar, TH_H thick,
 # square ends, at 0.34 C. ALBO_HYPHEN_OPT picks; the en and em dashes go
@@ -616,7 +702,10 @@ def g_horizbar(c): return dash(c, 1.41)
 def g_quotesinglbase(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT)])
 @glyph('\u201E')   # DOUBLE LOW-9 QUOTATION MARK
 def g_quotedblbase(c):
-    return geom.ink([p_ for i in (0, 1) for p_ in (dot(DOT_R + i * S * DQ_GAP, DOT_R, DOT_R), comma_tail(DOT_R + i * S * DQ_GAP, DOT_R))])
+    # it was built on the RAW DOT_R while its tail took the punctuation
+    # dials -- a small dot with a large mark's tail, which detached (2 -> 4
+    # contours). Every other comma in the face is on MDOT.
+    return _dbl(lambda dx: geom.ink([dot(MDOT + dx, MDOT, MDOT), comma_tail(MDOT + dx, MDOT)]))
 @glyph('\u02BC')   # MODIFIER LETTER APOSTROPHE -- the letter, not the punctuation: Ukrainian, Uzbek, many transliterations
 def g_modapostrophe(c): return quote(c, S * 0.7, True)
 @glyph('\u02BB')   # MODIFIER LETTER TURNED COMMA -- the Hawaiian okina

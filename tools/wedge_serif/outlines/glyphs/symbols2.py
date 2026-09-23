@@ -481,7 +481,7 @@ def g_kra(c):
 @glyph('̦')
 def g_commabelow(c):
     from .marks import comma_tail
-    return geom.ink([dot(DOT_R * 0.92, -DOT_R * 1.2, DOT_R * 0.92), comma_tail(DOT_R * 0.92, -DOT_R * 1.2)])
+    return geom.ink([dot(DOT_R * 0.92, -DOT_R * 1.2, DOT_R * 0.92), comma_tail(DOT_R * 0.92, -DOT_R * 1.2, k=1.0)])   # k=1.0: an accent, not punctuation -- see comma_tail
 
 # ---------------------------------------------------------------- chess
 def _piece_body(top_h, neck_w, base_w, shoulder=0.30):

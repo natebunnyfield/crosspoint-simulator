@@ -11,7 +11,7 @@ from . import glyph
 from .. import geom
 from ..primitives import stem, dot
 from ..pen import S, XH, ASC, TH_H, adj
-from .stems import f_ink, f_geometry, dot_y, DOT_R, DOT_R_ADJ
+from .stems import f_ink, f_geometry, dot_y, DOT_R, DOT_R_ADJ, TIT_R, TIT_R_ADJ
 
 import os as _os
 # ROUND 292 -- HOW TIGHT AN f-LIGATURE MAY SET. Owner 2026-09-20: *"update
@@ -36,7 +36,7 @@ def fi_parts(c, x_f_shift=0.0):
     on a diagonal (a vertical arrival takes the pen's full stem weight and
     read as the stem climbing into a knot -- the first cut)."""
     x, r, _ = f_geometry(c); x += x_f_shift
-    dr = DOT_R_ADJ if adj('i') else DOT_R
+    dr = TIT_R_ADJ if adj('i') else TIT_R
     ix = x + r * 1.25 + S * FI_PUSH
     dy = dot_y(c["xh"])
     end = (ix - dr * 0.55, dy + dr * 0.55)                     # the dot's upper-left shoulder
@@ -173,7 +173,7 @@ def g_fj(c):
     """f + j: the j's dot is the one the hook flows into, as the i's is."""
     x, r, _ = f_geometry(c)
     jx = x + r * 1.25 + S * FI_PUSH
-    dr = DOT_R_ADJ if adj('j') else DOT_R
+    dr = TIT_R_ADJ if adj('j') else TIT_R
     dy = dot_y(c["xh"])
     end = (jx - dr * 0.55, dy + dr * 0.55)
     c2 = (x + r * 1.25, c["asc"] - r * 0.15)

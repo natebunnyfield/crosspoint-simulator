@@ -1,0 +1,196 @@
+# Albo's marks, measured — round 369
+
+**2026-09-23.** Six owner instructions in one round, all about the small
+marks. Every one was measured against six roman references before anything
+moved, and the instrument is `tools/wedge_serif/cmp_marks.py` — **a file, not
+a heredoc**, which is the first thing this round got right and the previous
+one got wrong.
+
+## Why the instrument is a file this time
+
+Round 362 measured the same marks from an inline heredoc, published the
+numbers, and deleted the script. Round 369 needed them again — for the
+exclamation's dot, the tittles, the dieresis and "scale up punctuation" — and
+had nothing to re-run, so the whole measurement was paid for twice. Per the
+repo's own rule: a surprising number IS the instrument until proven otherwise,
+and that cannot be done against a script that is gone.
+
+```
+python3 cmp_marks.py <font.ttf> [more...]     # subjects first, then six references
+```
+
+It renders every font to a common x-height and reads each mark back from the
+raster. Extents could come out of `glyf` bounds exactly and for free; the
+things that actually decide these asks cannot — a dot's DIAMETER when the mark
+has two, the WHITE between a colon's pair, an exclamation stem's THICK,
+whether a dieresis sits centred over its letter. One measurement path, no
+per-font special case. **Every figure is divided by that font's own x-height**,
+because a period is not "0.25 em" in any useful sense; it is a mark read beside
+a lowercase, and the references disagree about em far more than about the body.
+
+References: Georgia, Times New Roman, Baskerville, Charter, Hoefler Text,
+Palatino (macOS system copies). `.ttc` files open at index 0, which is not
+always the roman — the instrument prints each family name so that is visible.
+
+## What was measured, and what shipped
+
+| measure | Albo before | references | Albo after |
+|---|---|---|---|
+| `.` width | 0.174 | 0.241–0.277 | **0.259** |
+| `.` height | 0.172 | 0.243–0.277 | **0.252** |
+| `,` width | 0.181 | 0.323–0.427 | **0.344** |
+| `,` height | 0.346 | 0.570–0.700 | **0.619** |
+| `’` width | 0.181 | 0.289–0.399 | **0.358** |
+| `’` height | 0.344 | 0.547–0.661 | **0.645** |
+| `:` dot | 0.174 | 0.243–0.279 | **0.258** |
+| `:` white | 0.560 | 0.401–0.586 | **0.433** |
+| `!` dot | 0.247 (nib) | 0.236–0.277 | **0.261** |
+| `!` thick | 0.184 | 0.217–0.259 | 0.181 |
+| `!` dot ÷ thick | 1.346 | 0.970–1.205 | 1.442 ⚠ |
+| `i` tittle | 0.160 | 0.221–0.261 | **0.191** |
+| `i` stem | 0.139 | 0.175–0.209 | 0.136 |
+| tittle ÷ stem | 1.153 | 1.148–1.444 | **1.397** |
+| tittle gap | 0.209 | 0.224–0.383 | 0.212 ⚠ |
+| `¨` white ÷ dot | **0.104** | 0.628–1.250 | **0.907** |
+| `¨` centring on `ä` | 0.002 | −0.007…−0.086 | **−0.024** |
+
+Shipped dials: `ALBO_MARK_DOT` 1.50, `ALBO_COMMA_LEN` 1.95, `ALBO_COMMA_W`
+2.40, `ALBO_QUOTE_SIZE` 1.75, `ALBO_QUOTE_W` 1.65, `ALBO_COLON_SPAN` 1.05,
+`ALBO_TITTLE` 1.20, `ALBO_DIE_GAP` 3.70, `ALBO_MARK_TALL` 1.0,
+`ALBO_EXCL_NIB` 0, `ALBO_ACC_OPTICAL` 1.0.
+
+## The five findings worth keeping
+
+### 1. The dieresis was not tight, it was closed
+
+White between the two dots measured **0.104 of a dot's own diameter** where the
+references run 0.628–1.250. At 13 px the pair quantised to a single bar — every
+German and Swedish umlaut in the face. The owner reported it as "give them
+enough space between"; the measurement says it was ten times too tight, not a
+shade.
+
+### 2. "Center dieresis optically" has a precise meaning, and it is a TABLE
+
+The composite builder centres every above-mark on the base letter's **ink
+bounding box** (`outlines/build.py`), so Albo measured a centring error of
+0.000–0.002 of the x-height on every letter — dead centre, and wrong, because
+no reference does that. Accent centre minus the base's ink centre, ÷ x-height:
+
+| letter | Georgia | Times | Baskerville | Charter | Hoefler | verdict |
+|---|---|---|---|---|---|---|
+| `o` | +0.008 | −0.001 | +0.018 | +0.000 | +0.002 | centred |
+| `u` | −0.009 | −0.001 | +0.001 | +0.003 | −0.013 | centred |
+| `n` | −0.007 | −0.001 | +0.000 | −0.036 | −0.005 | centred |
+| `a` | −0.050 | −0.034 | −0.087 | −0.024 | −0.030 | **LEFT, 5 of 5** |
+| `e` | +0.019 | +0.034 | +0.000 | +0.028 | +0.034 | **RIGHT, 4 of 5** |
+
+**Two candidate formulas were tested and both failed.** Centring on the
+letter's TOP BAND reproduces the `a` (−0.019) and the `o` (+0.002) and then
+invents a shift the references do not make on the `u` (−0.047) and the `n`
+(−0.068), and would throw the `Ĺ`'s accent 0.433 of an x-height left. Centring
+on the ADVANCE is noisier still (the `a` ranges +0.022 to −0.052 across the
+same five faces). What the references have is a short hand-made table, so
+that is what shipped: `ACC_OPTICAL = {'a': -0.030, 'e': +0.030}`, lowercase
+keys only, because the measurement was taken on lowercase and says nothing
+about `A` and `E`.
+
+### 3. All six references cut `!` and `?` to the CAP line, not the ascender
+
+`! of cap` runs 0.988–1.024 across all six; `! of asc` runs 0.909–0.956. Albo
+already sat at 1.021 of cap, exactly where they all sit. The owner asked for
+the ascender and that is what shipped (`ALBO_MARK_TALL` 1.0) — but his eye is
+reading something real: **Albo's ascender overshoots its own cap by 16%, the
+largest gap of the seven** (Baskerville 4%, Palatino 7%, Times 7%, Hoefler 8%,
+Charter 10%, Georgia 13%). So beside an `h` or a `b`, Albo's `!` looks shorter
+than the same ratio looks anywhere else. `ALBO_MARK_TALL=0` restores the cap
+line exactly.
+
+### 4. The exclamation's dot cannot satisfy both measures, and the reason is structural
+
+All six references put the `!`'s dot at the same size as their period (0.236–
+0.277 against 0.241–0.277) AND at 0.97–1.21 of the `!`'s own thick. Albo cannot
+have both, because **its exclamation stem is thinner than every reference
+relative to the x-height** — 0.181 against 0.217–0.259. That is not a fault in
+the mark: `! thick ÷ i stem` reads 1.32 against the references' 1.19–1.37, in
+band, because Albo is simply a lighter face than all six. Shipped on the
+direct measurement (dot = period, 6 of 6 references) rather than on the derived
+ratio, which is confounded by the stem. `ALBO_EXCL_DOT` 0.76 is the
+stem-matched arm and is one word away.
+
+### 5. Three marks broke on the scale-up, and the gate found all three
+
+Every one is the same shape — **a fixed separation, or an unscaled dot, against
+a mark that grew**:
+
+- `quotedblleft` / `quotedblright` merged **2 contours → 1**: a double quote
+  drawn as a single blob. `DQ_GAP` was a centre-to-centre distance, so a bigger
+  mark closed the white. The owner's round-94 complaint was *"give more space
+  for double quotes so they don't touch"* — a statement about the WHITE — so
+  the pair is spaced by white now, measured off the first mark's own ink.
+- `quotedblbase` went **2 → 4**: built on the raw `DOT_R` while its tail took
+  the punctuation dials, so a small dot carried a large mark's tail and the two
+  detached. Every other comma in the face is on `MDOT`.
+- `U+0326` comma-below and the four `Ș ș Ț ț` that carry it went **1 → 2** and
+  **2 → 3**: an accent on an accent-sized dot, whose tail grew with punctuation
+  it is not. `comma_tail` takes an explicit `k` now, and the accent passes 1.0.
+
+**None of these is visible in a render of the mark that changed** — the comma
+itself is fine at every setting. They were found by the contour census in
+`gates.sh`, and the hair-gate churn they caused (a dozen glyphs entering and
+leaving the Regular's and Italic's hair lists) was the **cut ripple**, not new
+drawing faults: `cut.py`'s phase counter advances per contour, so a
+contour-count change re-cuts every glyph built after it. Fixing the three
+contour counts returned the hair lists to the baseline exactly.
+
+### 6. The colon closes as its dot opens
+
+Both of the colon's dots are anchored inside the x-height band, so every unit
+the dot gains, the white loses two: swept 0.560 at `MARK_DOT` 1.0 down to
+0.346 at 1.62, out through the references' floor of 0.401. **The mark a
+punctuation scale-up is most likely to close is the colon** — the opposite of
+"readable at small sizes". `ALBO_COLON_SPAN` 1.05 lets the upper dot sit a
+little proud of the x-height; white 0.433.
+
+## What was checked and found CLEAN
+
+- **The tittle's gap over the x-height.** Growing the dot on a fixed centre
+  took it 0.209 → 0.179 at `TITTLE` 1.40 — a bigger tittle that reads as a
+  MERGED one. `dot_y` rises with the tittle now, so the gap held at 0.212. It
+  remains 5% under the references' 0.224 floor, which is pre-existing and was
+  not made worse.
+- **The `tittle offset`** (tittle centre against its stem's) is 0.006, inside
+  the references' −0.010…+0.024. Nothing to do.
+- **`ö` and `ü` centring** after the optical table: +0.002 both, against the
+  references' −0.000…+0.021 and −0.013…+0.020. The table touches only `a` and
+  `e`, as intended.
+- **All four cuts build**, and the contour census is unchanged at 982 glyphs.
+- **`approved.py`**: both owner-ruled glyphs unchanged. **`bench_fit --check`**:
+  `build.py` still matches the bench.
+- **`cmp_touch`**: the raised `?` scaled its hook uniformly about its own
+  lowest point, which carried the upper-left arm **25 units left**; in the
+  italic, where the slant already leans that arm backwards, `U?` closed to
+  0.0093 em against the 0.012 floor. Swept: `U?` is the ONLY pair under the
+  floor — `V? W? Y? T?` all sit at 0.03 em or better. Fixed with a kern pair
+  and not a wider fitting band, per `docs/albo-capital-spacing.md`: widening
+  the `?`'s left bearing would loosen it after all 26 lowercase to fix five
+  capitals.
+
+## The stale-doc trap this round walked into
+
+`marks.py`'s `g_question` docstring said *"0 is the round-77 hook"*. It is not:
+`QUESTION_VARIANTS[0]` is `_q8`, the original Albertus-heavy mark, and `_q0` is
+at index 1. The ascender change was therefore applied to a constructor nothing
+builds. **The `!` rose and the `?` did not, identically, across a four-rung
+ladder** — which is the only reason it was caught, and is exactly the dead-dial
+signature this repo keeps rediscovering. The docstring is corrected in place
+and says what it cost.
+
+## Still open
+
+- `ALBO_EXCL_DOT` — shipped 1.00 (dot = period). 0.88 and 0.76 built and
+  rendered; the owner's eye decides.
+- `ALBO_MARK_TALL` — shipped 1.0 (the ascender, as asked). 0 / 0.35 / 0.70
+  built and rendered, with the references' cap-line band on the page.
+- The middle dot's wedge — apex, tilt and aspect are dials; five arms rendered.
+- The `?` variant selection and the `1`'s fitting, both carried over from
+  round 362 and still unruled.

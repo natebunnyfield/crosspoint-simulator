@@ -13,7 +13,30 @@ from .arches import smooth_widths   # R23's sawtooth fix, shared by the f's hook
 BOWL_BLEND = float(os.environ.get("ALBO_BOWL_BLEND", 0.0))   # round 343: close_corners radius on b d p q, units
 DOT_R = 0.62 * S   # round 36: a dot 1.24 stems across reads as the stem's weight
 DOT_R_ADJ = 0.58 * S   # round 92 (adj 'i', 'j'): the i a dot with a stalk (band -11%), the j's dot +27%
-def dot_y(xh): return xh + 118 + S * 0.3
+# ROUND 369 -- THE TITTLE. Owner 2026-09-23: *"scale up tittles to optically
+# line up with characters."* Measured against six roman references at a common
+# x-height (`cmp_marks.py`), Albo's tittle is 0.160 of the x-height where they
+# run 0.221-0.261 -- but that comparison flatters them, because Albo's STEM is
+# also the lightest of the seven (0.139 against 0.175-0.209). The measure that
+# answers "lines up with the characters" is the tittle against the face's OWN
+# stem, and there Albo reads 1.153 where the references run 1.148-1.444: at
+# the very floor of the band rather than outside it. Both readings point the
+# same way, which is why this dial only goes up.
+# It carries the ACCENT dots too -- the dieresis's pair and the dot-above --
+# because a tittle and a dot accent are the same optical object, a dot sitting
+# over an x-height, and moving one without the other is how an i and an i-dot-
+# accent stop matching. 1.0 is the shipped drawing exactly.
+TITTLE = float(os.environ.get("ALBO_TITTLE", 1.20))   # round 369: tittle/stem 1.153 -> ~1.40, against the references' 1.148-1.444 (Georgia 1.378, Charter 1.368)
+TIT_R = DOT_R * TITTLE
+TIT_R_ADJ = DOT_R_ADJ * TITTLE
+def dot_y(xh):
+    """The tittle's CENTRE. It rises with the tittle, so scaling the dot does
+    not close the white under it: the gap over the x-height was already 0.209
+    where the references run 0.224-0.383 -- the tightest of the seven -- and
+    growing the dot on a fixed centre took it to 0.179 at TITTLE 1.40, which
+    is a bigger tittle that reads as a MERGED one at 13 px. At TITTLE 1.0 the
+    added term is zero and the i is byte-identical."""
+    return xh + 118 + S * 0.3 + (TIT_R - DOT_R)
 
 # owner, 2026-09-13: "slightly extend the top right serif of g" -- the ear's
 # LENGTH only (the wedge family's L, WL, scaled), its DEPTH (the stroke's own
@@ -58,7 +81,7 @@ T_TRI_SCALE = 0.55   # tunes the triangle's apex height so its ink area matches 
 @glyph('i')
 def g_i(c):
     xh = c["xh"]; x = S / 2
-    return geom.ink([stem(x, 0, xh, top='left', foot='both'), dot(x, dot_y(xh), DOT_R_ADJ if adj('i') else DOT_R)])
+    return geom.ink([stem(x, 0, xh, top='left', foot='both'), dot(x, dot_y(xh), TIT_R_ADJ if adj('i') else TIT_R)])
 
 @glyph('l')
 def g_l(c):
@@ -96,7 +119,7 @@ def g_j(c):
     tail = [(x - r + r * math.cos(a0 + (a1 - a0) * i / 48), y0 + r * math.sin(a0 + (a1 - a0) * i / 48)) for i in range(49)]
     jt = 0.9 if adj('j') else 1.0   # round 92 (adj 'j'): the heaviest letter by band (+27%) -- the tail 0.9, the dot as the i's
     wfn = widths([(0.0, TH_V * jt if pen.ITALIC else w_st), (0.45, S * jt), (1.0, S * 0.10)])
-    return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), DOT_R_ADJ if adj('j') else DOT_R)])
+    return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), TIT_R_ADJ if adj('j') else TIT_R)])
 
 # ALBO_ROM_F_BAR -- R21 / R22, owner 2026-09-18, on the f's bar ends: "give me
 # options for slightly calligraphic treatments." Today's bar is a plain
