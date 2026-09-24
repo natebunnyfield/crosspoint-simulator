@@ -267,3 +267,197 @@ on the flank (2.0 → 2.8, still under the 6's 4.1 and Flanker's 4.7).
 - **`cmp_aldine_glitch`** is unchanged by every arm of all three glyphs.
 - **`cmp_fig_axis`'s validation case** (the `o`/`O`/`0` reading thin at 12 and 6)
   passes, which is what licenses every other number it produced.
+
+---
+
+# Round 373 (2026-09-23) — the rulings on round 372, and the baseline
+
+Owner rulings, verbatim: *"8: cut deeper wins"*; *"for 2: the bottom stroke
+needs to not be thicker, vertically align the numerals to the baseline (check
+italic numerals too)"*; *"9: h sink 8 + cut but patch the concave part on
+bottom right outside"*. All in `outlines/glyphs/figures.py`. Baseline and after
+were built from ONE snapshot of `tools/wedge_serif` at `1fd1fdd`, differing
+only in `figures.py`, all four cuts through `build_env.sh`.
+
+## 1. The 8 — option `w` ships, roman and Bold (`FIG_SHIP_ROM['8'] = 'w'`)
+
+**Round 372's objection to `w` was arithmetic run backwards.** Its thin is
+18 units, and 18 is *thicker* than the roman `s`'s 16.6 hairline, not thinner.
+Re-measured on the shipped build with `cmp_fig_axis` (the chamfer ridge, which
+is perpendicular to the stroke by construction): 18 at the upper ring's
+12 o'clock, 20 at the lower ring's 6. Ring contrast is 3.77 (upper) and 3.58
+(lower), against 1.50 before. (3.91 in round 372 was a single number, taken
+before the waist fix below.)
+
+**It failed a gate at the 700 and passed at the 400, and the fault was
+there at both weights.** At the Bold, `w` opened a **CRACK** in the waist
+(`cmp_aldine_glitch`, a hole of mean width 4.4) and a **HAIR** on `eight`
+(`cmp_contour_hairs`, (231, 311)). At the 400, `fiveeighths` took a new HAIR.
+The mechanism, measured on the rings before the ink spread:
+
+| | lower-top wall + upper-bottom wall | overlap (`bowl_hair() x waist`) | result |
+|---|---|---|---|
+| a, 400 | 87.0 | 30.7 | covered |
+| v, 400 | 65.4 | 30.7 | covered |
+| **w, 400** | **29.8** | **30.7** | the counters intersect by 0.9; the 1.2 ink spread closed it |
+| a, 700 | 150.9 | 53.3 | covered |
+| **w, 700** | **46.0** | **53.3** | the counters intersect by 7.3: the CRACK |
+
+The rings overlap by one family bowl stroke. A true nib's walls at 12 and
+6 o'clock are its thin, which is less than that, so when the overlap exceeds
+both walls together the two counters meet. This is §1b of `albo-method`: the
+fault is in how the two strokes meet, and no width dial reaches it. **Fix
+(WAIST ROOM, end of `g_eight`):** the overlap never exceeds the two walls as
+drawn, less a quarter of the thinner wall. The figure is re-solved from the top
+with the life counter reset, and `hold_h` still holds the height. After the fix
+the overlap is 26.1 at the 400 and 40.2 at the 700. Every row whose walls
+already cover the overlap (every row but `w`) never enters the branch, and
+`a` was re-probed identical.
+
+So `w` ships without falling back to a shallower arm. Its gates:
+`cmp_contour_hairs` has no finding on `eight` and no new finding anywhere, in
+any cut. `cmp_counter_dents` at 700 and 700 italic reads 0 and 0.
+`cmp_aldine_glitch` reports the same sets as before.
+
+**The italic 8 has the same fault and was NOT changed** (the asks were about
+the roman). Italic `cmp_fig_axis --slant 13`: the 8's rings measure **1.50:1
+(lower) and 1.38:1 (upper)**, against its own `0` at 3.39 and `o` at 3.07 —
+flatter than the roman 8 was. Its thick also falls at 0 and 6.5 o'clock,
+which no other italic round does.
+
+## 2. The 2, and every figure on the baseline
+
+Rejected on the ruling: `foot_ext` (rows k–n). They stay in the table and now
+build 8 lower, because `TWO_LIFT` moved underneath them.
+
+- **Roman 2:** `TWO_LIFT` 8.0 → **0.0**. This is the stale constant from
+  round 372, corrected by translation only; no stroke changes weight. The foot
+  goes from +7 to −1 (the 1's line), and the top from 473 to 465, level with
+  the 3.
+- **Italic 2:** `TWO_BAR_DROP` 42 → **0** as well. With the drop it bottomed at
+  −35, 34 units below its one flat-footed sibling (the 1, at −1). **This
+  reverses round 212's ruling** (*"lower the crossbar of 2 … to where the
+  crossbar of 4 is"*), on the newer ruling's word. `ALBO_ALD_TWO_BAR_DROP=42`
+  restores it exactly. **Flagged for the owner.**
+- **0, 6, 8: their foot overshot twice.** `latin.FIG_BOX` gives these three a
+  bottom of −0.02 CAP (13.5 units), and their rings are then drawn from −OVER,
+  so the overshoot is counted twice: −28/−29 against the face's own `o`, `O`
+  and `e` at −15. Every reference with old-style figures puts its round
+  figures' foot at its own `o`'s overshoot:
+
+  | | 0 / 6 / 8 bottom | o bottom |
+  |---|---|---|
+  | Georgia | −16 / −16 / −17 | −15 |
+  | Pagella | −11 / −11 / −11 | −11 |
+  | Flanker | −10 / −10 / −10 | −10 |
+  | Poetica | −16 / −16 / −16 | −14 |
+  | Big Caslon | −3 / 0 / −4 | −3 |
+  | Albo before | −28 / −29 / −29 | −15 |
+
+  The correction is `ROUND_FOOT` in `figures.py`; `latin.py` was left alone,
+  because FIG_BOX also sets heights. **The 0** is drawn 13.5 units shorter and
+  lifted 13.5, so its top stays at 460, level with the round-topped 3 and 9, as
+  every reference keeps it. **The 6 and 8** are only translated up 13.5: they
+  are ascenders with ruled drawings, and both move together, so the 8's
+  21-unit shortfall under the 6 is kept to the unit. `ALBO_FIG_ROUND_FOOT=0`
+  restores the old −28/−29.
+
+Bottom / top of every figure, in design units, built fonts:
+
+| | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Regular before | −28/460 | −1/433 | **+7/473** | −226/465 | −210/446 | −226/450 | −29/624 | −219/447 | −29/603 | −216/463 |
+| Regular after | **−15**/460 | −1/433 | **−1/465** | = | = | = | **−15/638** | = | **−15/617** | = |
+| Italic before | −28/460 | −1/433 | **−35/476** | −223/467 | −210/446 | −224/452 | −29/654 | −210/433 | −29/579 | −216/465 |
+| Italic after | **−15**/460 | −1/433 | **−1/467** | = | = | = | **−15/667** | = | **−15/593** | = |
+| Bold before | −29/460 | −1/433 | +7/488 | −229/484 | −210/446 | −228/466 | −29/625 | −225/447 | −29/571 | −216/479 |
+| Bold after | **−15**/460 | −1/433 | **−1/480** | = | = | = | **−15/639** | = | **−15/584** | = |
+| BoldItalic before | −29/460 | −1/433 | −35/492 | −225/484 | −210/446 | −224/466 | −29/655 | −210/433 | −29/658 | −216/479 |
+| BoldItalic after | **−15**/460 | −1/433 | **−1/484** | = | = | = | **−15/668** | = | **−15/671** | = |
+
+The Bold and BoldItalic follow the 400s without separate handling.
+
+**The descenders were checked and NOT changed.** The flat feet sit on the box
+line (the 4 at −210 in every cut, and the italic 7), and the round bottoms (3,
+5) overshoot it by 13–19, which is the face's round overshoot. Between them are
+the roman 7's angled cut at −219 (−225 Bold) and the 9's tail flag at −216,
+the owner's ruled `NINE_BOTTOM`. Georgia runs its descenders level (−178 to
+−181) and Pagella spreads 20 (−212 to −232), so Albo's 16 is inside the
+references' range and follows the same flat-vs-round logic the baseline now
+does.
+
+## 3. The italic 9 — `h` plus the patch, shipped as row `j` (`FIG_SHIP_IT['9'] = 'j'`)
+
+`h` stays in the table unchanged, as the picture he ruled on. **The concavity,
+found on the outline:** walking the outer contour's right side, `h` turns
+−26.8° then −5.2° at (402, 117)–(407, 123). That is a 32° re-entrant kink
+where the tail's outer edge leaves the ring's flank. The shipped `a` has the
+same kink at (378, 97), so it is not new to `h`. `h`'s HAIR at (328, 66) is a
+different place, the crotch under the bowl.
+
+**The mechanism** is the roman's round-233 fault. The italic tail started
+8 units inside the wall at 0.08 of its width, with its first handle almost
+straight down, while the ring's tangent at −20° runs 3.6× further left. Its
+outer edge therefore came out through the ring's outer contour at an angle.
+**Negative result:** turning only the handle onto the tangent (built, measured)
+removes the (328, 66) hair but leaves the kink at 22°. Direction was half the
+cause and width the other half.
+
+**The patch** is the roman's round-233 construction, with the wall measured on
+the italic's own cut ring (con, stress and oval make it anything but
+`bowl_th`). The tail starts at the middle of the wall, its handle lies along
+the ring's tangent, and it begins at the wall's own width and sheds to its
+width rule over `NINE_TAPER_ROM_T`. Both edges then leave on the ring's two
+contours. The roman's start dials (0.97 / 0.20) were kept after a 5-rung ladder
+(0.85–1.00 × 0.10–0.30): every rung was clean, and the counter moved by 0.02 at
+most.
+
+| | worst concave turn, right outside | `cmp_contour_hairs` on `nine` | counter area/ink | fill | widest |
+|---|---|---|---|---|---|
+| a (shipped before) | 31.7° at (378, 97) | REVERSAL (389, 162) | 0.82 | 0.76 | 0.55 |
+| h (as ruled) | 26.8° at (402, 117) | HAIR (328, 66) | 0.86 | 0.79 | 0.45 |
+| **j (ships)** | **6.6°** (facet level) | **none** | 0.85 | 0.78 | 0.45 |
+
+What the patch costs: the counter's lower right comes in by 3% of its width at
+rows 0.15–0.25, because the tail's inner edge now runs along the wall. **The
+roman 9 is clean there:** its right outside turns no more than 5.2° at any
+vertex. Its only large turns are the inside crotch fillet at (345, 73), which
+is deliberate (round 233).
+
+## Changed glyphs (fontTools `glyf` + `hmtx`, per style)
+
+- **Regular**, 13: `zero two six eight` + `onehalf uni2070 uni2078 uni2080 uni2088 oneeighth threeeighths fiveeighths seveneighths`.
+- **Italic**, 19: `zero two six eight nine` + `uni00B2 onehalf uni2070 uni2078 uni2079 uni2080 uni2082 uni2086 uni2089 twothirds oneeighth threeeighths fiveeighths seveneighths`.
+- **Bold**, 12: `zero two six eight` + `uni2070 uni2078 uni2080 uni2088 oneeighth threeeighths fiveeighths seveneighths`.
+- **BoldItalic**, 13: `zero two six eight nine` + `uni00B2 onehalf uni2070 uni2079 uni2080 uni2082 uni2089 twothirds`.
+
+Every changed glyph is a figure or a superscript, subscript or fraction built
+from one. No contour count changed (the `cmp_contours` census is unchanged, so
+no re-cut cascade). The advances move by 1–2 units, except the italic 2 (471 →
+475, lsb 9 → 19) and the BoldItalic 2 (504 → 512): its bar now sits inside the
+fitting band. `approved.py`: both approved glyphs are unchanged.
+
+## Gates, before → after
+
+- **`cmp_contour_hairs`:** `--letters` is identical in all four cuts. The full
+  sweep has no new finding in any cut and two fewer. Italic `nine` is the
+  patch. **BoldItalic `six` is NOT a fix:** its 1.4-unit arm is still there,
+  re-snapped by the 13.5-unit lift into a 128.7° turn that the gate does not
+  flag.
+- **`cmp_touch`:** identical rows in all four cuts.
+- **`cmp_counter_dents`:** 0 and 0 at the 700s, as before.
+- **`cmp_aldine_glitch --ttf`:** identical sets (Italic Y and ﬆ, BoldItalic Y),
+  and none of them a figure.
+
+## Checked and found CLEAN
+
+- The roman 9's right outside (see above).
+- Every 8 row other than `w` never reaches the waist-room branch.
+- `hold_h` holds the Bold `w`'s height: 571 before, 584.5 after the 13.5 lift.
+- The italic 9's left flank, as round 372 already found.
+- The glyph lists above are the only changes, from a shared snapshot.
+
+## What was not done
+
+- **The italic 8's flat ring**, reported above. It wants its own ruling.
+- **The italic 2's round-212 reversal** needs the owner's confirmation.

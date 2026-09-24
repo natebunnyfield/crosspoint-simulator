@@ -387,7 +387,15 @@ FIG_OVAL = float(os.environ.get("ALBO_ALD_FIG_OVAL", 1.0))      # italic: pull t
 # centres at +43 and the 4's crossbar at +7.3, so the drop is 36 units. The
 # slash's foot goes down with it, or the stroke stops short of its own bar.
 # Italic only; the roman's 2 keeps the baseline.
-TWO_BAR_DROP = float(os.environ.get("ALBO_ALD_TWO_BAR_DROP", 42.0))
+# ROUND 373 -- AND THE DROP IS WITHDRAWN, on the newer ruling. Owner
+# 2026-09-23: *"vertically align the numerals to the baseline (check italic
+# numerals too)"*. With the drop the italic 2 bottomed at -35: 34 units under
+# the italic's one flat-footed figure on the line (the 1, at -1) and 6 under
+# even its round figures' overshoot. That is the misalignment the ruling
+# names, and the italic's own flat foot says where the 2 belongs. This
+# REVERSES round 212's ruling above and is flagged as such for the owner;
+# `ALBO_ALD_TWO_BAR_DROP=42` restores it exactly.
+TWO_BAR_DROP = float(os.environ.get("ALBO_ALD_TWO_BAR_DROP", 0.0))
 NINE_RING_CON = float(os.environ.get("ALBO_ALD_NINE_RING_CON", 0.0)) or None
 NINE_RING_OVAL = float(os.environ.get("ALBO_ALD_NINE_RING_OVAL", -1.0))
 NINE_RING_OVAL = None if NINE_RING_OVAL < 0 else NINE_RING_OVAL
@@ -443,7 +451,17 @@ FIG_SHIP_ROM.update({'1': 'h', '2': 'b'})   # round 249, owner 2026-09-18: "ALBO
 # -28 / -28 / -24 and was the lightest glyph among the figures.
 FIG_SHIP_ROM.update({'7': 'j'})
 FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 'u'})   # round 257: the 9's tail joins as the 6's does, tip 5 units past the bowl (owner: "p wins but only got optically just past bowl and switch tail to join the same way that 6's tail does"); round 254: the 9 ships as s (p's short deep wedge, tail flush with the bowl -- owner 2026-09-19: "p wins but shorten the tail until it fits the rest of the 9"); round 253 j; round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
+# ROUND 373, owner 2026-09-23: *"8: cut deeper wins"* -- of round 372's arms
+# the deepest cut is w, the true nib (ring contrast 3.91:1 against a's 1.50).
+# It ships in the roman AND the Bold, which share this dict; at the 700 it
+# first opened a CRACK in the waist, fixed at the drawing (WAIST ROOM, in
+# g_eight) rather than by choosing a shallower arm.
+FIG_SHIP_ROM.update({'8': 'w'})
 FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
+# ROUND 373, owner 2026-09-23: *"9: h sink 8 + cut but patch the concave part
+# on bottom right outside"* -- NINE_OPT_IT 'h' (sink 8, ring cut 1.4), with the
+# patch in g_nine (THE TAIL'S OUTER JOIN).
+FIG_SHIP_IT.update({'9': 'j'})   # j = h + the patch; 'h' stays the picture he ruled on
 
 def OPT(d):
     """Which option this build draws for digit `d`. Env first, then the
@@ -587,6 +605,40 @@ ONE_OPT_IT = {'b': dict(flag=(_E('ALBO_FIG_1B_X_IT', 158.0), 0.72)),
 # The ROMAN has room and takes it: b reaches 0.692 and c 0.787 with `O1` at
 # 0.0429 and 0.0471, four times the floor.
 
+# ROUND 373 -- THE ROUND FIGURES' FOOT. Owner 2026-09-23, *"vertically align
+# the numerals to the baseline (check italic numerals too)"*. Measured on the
+# built fonts, all four cuts: the 0, 6 and 8 bottom at -28/-29, where the
+# face's own rounds bottom at -15 (o, O, e; c and S -13) and the flat 1 at -1.
+# Every reference with old-style figures puts its round figures' foot at ITS
+# OWN o's overshoot: Georgia 0/6/8 -16/-16/-17 against o -15, Pagella -11 all
+# three against o -11, Flanker -10 against -10, Poetica -16 against -14, Big
+# Caslon -3/0/-4 against -3. Albo's are TWICE its o's.
+#
+# The mechanism is a double count, and it is old: `latin.FIG_BOX` gives the
+# three a bottom of -0.02 CAP (13.5 units) -- an overshoot written into the
+# BOX -- and the rings are then drawn from -OVER inside that box, which is the
+# overshoot again. Round 63's log says the 8's double count was fixed ("it sat
+# 14 low before, an overshoot double-counted"); the 0 and 6 have carried it
+# since round 54, and round 66's 8 docstring records "all three 28 under".
+#
+# FIG_BOX lives in latin.py and also sets each figure's HEIGHT, so it is left
+# alone and corrected here, per figure, by what each one's TOP needs:
+#   the 0 -- its top (460) is a LOW figure's round top and must stay level with
+#     the 3 (465) and the 9 (463), as every reference keeps it (Georgia 540 =
+#     540, Pagella 478 = 478). So it is drawn 13.5 units shorter and lifted
+#     13.5: foot -15, top unchanged. This is the box as it would read without
+#     the double count.
+#   the 6 and 8 -- ascending figures, whose tops meet nothing but each other,
+#     and whose drawings the owner has ruled on (6 option i, round 250; 8
+#     option w, this round). So they are TRANSLATED up 13.5 and nothing is
+#     redrawn; both tops rise 13.5 together and the 8-to-6 relation is kept to
+#     the unit.
+# `ALBO_FIG_ROUND_FOOT=0` restores the -28/-29 foot exactly.
+ROUND_FOOT = float(os.environ.get('ALBO_FIG_ROUND_FOOT', 1.0))
+def _round_foot(ch):
+    """Units a round figure is raised so its foot overshoots once, not twice."""
+    return ROUND_FOOT * -latin.FIG_BOX[ch][1] * pen.CAP
+
 def zero_bowl(c, D, **kw):
     """The 0's ring at figure height D: (solid, outer, inner). Also the 8's
     reference counter when EIGHT_COUNTER_OF is '0'."""
@@ -620,8 +672,10 @@ def ring_for_counter(cx, cy, cw, ch, w_scale=1.0, k=None, floor=0.0, rot=0.0):
 
 @glyph('0')
 def g_zero(c):
-    D = c["figH"]
-    solid, o, i = zero_bowl(c, D, **_okw('0', ZERO_OPT, ZERO_OPT_IT)); return solid
+    _rf = _round_foot('0'); D = c["figH"] - _rf     # round 373: drawn without the box's overshoot, then lifted by it
+    solid, o, i = zero_bowl(c, D, **_okw('0', ZERO_OPT, ZERO_OPT_IT))
+    import shapely.affinity as _aff
+    return _aff.translate(solid, 0, _rf) if _rf else solid
 
 @glyph('1')
 def g_one(c):
@@ -883,6 +937,7 @@ def g_two(c):
     # down to match other numerals (top of curve matches others, does not hover
     # over baseline)"*. He is right, and the number is 8 against the right
     # comparison group. Left at 8.0 and answered by the option rows.
+    # ROUND 373: corrected to 0.0 -- see TWO_LIFT.
     return _aff.translate(g, 0, _lift)
 
 def _edge_cross_y(side, y):
@@ -899,7 +954,7 @@ def _edge_cross_y(side, y):
 # arc's side, one weight). The arc's end angle is solved per build.
 TWO_SLASH_W = 0.80
 TWO_TOP_W = 0.82      # the arc's weight, x the profile (lighter on top)
-TWO_LIFT = 8.0        # units up, so the base's ink bottoms at the baseline
+TWO_LIFT = 0.0        # units up. ROUND 373: 8.0 until today -- fitted 2026-09-13 to a 2 that bottomed at -7, and stale since round 249's option b replaced that drawing (it put the foot at +7, 8 over the 1's -1). Owner 2026-09-23: *"for 2: the bottom stroke needs to not be thicker, vertically align the numerals to the baseline"*. 0 lands the foot on the 1's line by TRANSLATION, no stroke re-weighted; the top comes down with it, 473 -> 465, level with the 3.
 TWO_BASE_W = 1.22     # the base bar, x the bar weight (heavier on the bottom)
 # THE 2'S OPTIONS, and they are two different readings of the same figure.
 # (b) is GEORGIA's: a light arc over a long, heavy, flat base -- the base runs
@@ -1003,6 +1058,12 @@ TWO_OPT = {
     'k': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=8.0),             # b, with the BASE BAR extended 8 units downward -- its top edge, its end wedge and every other stroke where they are. The foot reaches the 1's line with the top held at 473, which is the ask read literally. Cost: the base is 8 units deeper, 83 -> 91 (+10%)
     'l': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=16.0),            # ...16: the foot 8 under the 1's
     'm': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=24.0),            # ...24
+    # ROUND 373, owner 2026-09-23: *"the bottom stroke needs to not be
+    # thicker"* -- k, l, m and n (foot_ext) are REJECTED, and the foot is
+    # answered by correcting TWO_LIFT to 0 instead, which makes the shipped b
+    # what j was. The rows stay so the ruling can be re-seen, and all of them
+    # now build 8 units lower than the table above says, since TWO_LIFT moved
+    # under them (j, which pinned lift 0, is now identical to b).
     'n': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=36.0),            # ...36: the foot level with the 0, 6 and 8's overshoot. A FLAT foot is not supposed to overshoot, so this is the end of the ladder rather than a candidate -- and the base is then 43% deeper than the shipped one
 }
 TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229's two and draws 'a' under d-i: its bar sits on the round-212 drop and its press cuts are placed on the bbox
@@ -1389,8 +1450,11 @@ def g_six(c):
         ref = _six_draw(c, D, {})                      # today's 6, for its box only
         g = _aff.rotate(g_nine(c), 180, origin='center')
         x0, y0, _, _ = geom.bbox(g); rx0, ry0, _, _ = geom.bbox(ref)
-        return _aff.translate(g, rx0 - x0, ry0 - y0)
-    return _six_draw(c, D, o)
+        return _aff.translate(g, rx0 - x0, ry0 - y0 + _round_foot('6'))   # round 373: the foot overshoots once
+    import shapely.affinity as _aff6
+    _rf = _round_foot('6')                      # round 373: the foot overshoots once, not twice
+    g = _six_draw(c, D, o)
+    return _aff6.translate(g, 0, _rf) if _rf else g
 
 # ============================== THE 7'S OPTIONS ==========================
 # Owner 2026-09-18: *"improve both 7s."* They are two different faults.
@@ -1838,6 +1902,11 @@ EIGHT_OPT = {
     #   reaches 3.91:1 -- and puts its thin at 18 units, the thinnest ink in the
     #   roman (the s's hairline is 16.6), on a figure that has to survive a
     #   13 px four-level render. Offered, not recommended.
+    #   ROUND 373 CORRECTION: that arithmetic is backwards -- 18 is THICKER
+    #   than the s's 16.6, so the w's thin is not the roman's thinnest ink.
+    #   Re-measured on the shipped w (cmp_fig_axis, chamfer ridge, so
+    #   perpendicular to the stroke): 18 at the upper ring's 12 o'clock, 20 at
+    #   the lower's 6, contrast 3.77 / 3.58. w SHIPS (owner: "cut deeper wins").
     #
     # THE ARMS. All seven are HEIGHT-NEUTRAL (top 603, bottom -29, 8/6 = 0.966,
     # ship's to the unit) so each shows one change. `cmp_contour_hairs` finding
@@ -1869,7 +1938,7 @@ EIGHT_OPT_IT = {
 }
 
 @glyph('8')
-def g_eight(c):
+def g_eight(c, _ovl=None, _pass=0):
     """Two rings whose COUNTERS are both the o's optical circle
     (EIGHT_COUNTER_WH), the lower sized to a neighbour's bowl counter
     (EIGHT_COUNTER_OF, EIGHT_LOWER), the upper EIGHT_UPPER of it, the figure
@@ -1885,14 +1954,16 @@ def g_eight(c):
     by the same units. Sides on the bowl profile as the 0's, no 0.9
     scaling. The two rings overlap by exactly the bowl's horizontal stroke,
     so the waist is ONE band and not two stacked strokes. The lower ring's
-    bottom sits at -OVER as the 0's and the 6's do (the box shift then puts
-    all three 28 under the baseline in the font); the top is wherever the
+    bottom sits at -OVER as the 0's and the 6's do (the box shift put all
+    three 28 under the baseline until round 373's ROUND_FOOT, which lifts
+    them to the o's -15); the top is wherever the
     stack puts it. The counters are sized as the BUILT outline has them, ink
     spread included, which is why build.INK_SPREAD is read here; the
     reference bowl is drawn by the 6's or the 0's own helper at that
     figure's own height, so it cannot drift from the neighbour."""
     from .. import build as _build     # lazy: build imports this module
     sp = _build.INK_SPREAD
+    _n0 = PR._life['n']        # round 373: the waist-room re-solve restarts the life sequence here
     Dr = (latin.FIG_BOX[EIGHT_COUNTER_OF][0] - latin.FIG_BOX[EIGHT_COUNTER_OF][1]) * pen.CAP
     ref = six_bowl(c, Dr)[0][0] if EIGHT_COUNTER_OF == '6' else zero_bowl(c, Dr)[0]
     x0, y0, x1, y1 = counter_box(ref)
@@ -1934,7 +2005,11 @@ def g_eight(c):
     rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, k=kk, floor=floor_, rot=rot_up)
     cx = rx2
     y2 = -OVER + ry2                                     # the lower ring's bottom at -OVER
-    y1 = -OVER + 2 * ry2 - bowl_hair() * waist + ry1     # over the lower by one bowl stroke (x waist)
+    # ROUND 373: the overlap is `ovl`, which is one bowl stroke (x waist) unless
+    # the rings' OWN walls at the waist are thinner than that -- see the
+    # WAIST ROOM note at the foot of this function.
+    ovl = bowl_hair() * waist if _ovl is None else _ovl
+    y1 = -OVER + 2 * ry2 - ovl + ry1     # over the lower by one bowl stroke (x waist)
     # OWNER 2026-09-17: *"add line contrast to 8."* Measured against Coelacanth
     # the figure was nearly monolinear -- 1.63:1 against its 3.59:1, with thins
     # of 52 units where the reference's are 23. The FLOOR is not what was
@@ -2002,7 +2077,7 @@ def g_eight(c):
             got = y1_ - y0_; want = six_top + OVER
             if abs(got - want) < 0.5: break
             sc *= 1 + (want - got) / (b1 + b2) / 2 * 1.0
-        return g8
+        return _aff.translate(g8, 0, _round_foot('8'))    # round 373
     if _o8.get('to_six'):
         # options e/g: solve `tall` so the stack tops on the 6's line
         for _ in range(6):
@@ -2013,7 +2088,7 @@ def g_eight(c):
             ch1 = bw1 / EIGHT_COUNTER_WH * _tall * _uptall + 2 * sp
             rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
             rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, k=kk, floor=floor_, rot=rot_up)
-            cx = rx2; y2 = -OVER + ry2; y1 = -OVER + 2 * ry2 - bowl_hair() * waist + ry1
+            cx = rx2; y2 = -OVER + ry2; y1 = -OVER + 2 * ry2 - ovl + ry1
     if _o8.get('hold_h'):
         # ROUND 368 -- HOLD THE FIGURE'S HEIGHT WHILE A WEIGHT LEVER MOVES.
         # `ring_for_counter` solves the OUTER radii for a target COUNTER, so a
@@ -2040,10 +2115,51 @@ def g_eight(c):
             ch1 = bw1 / EIGHT_COUNTER_WH * _tall * _uptall + 2 * sp
             rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
             rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, k=kk, floor=floor_, rot=rot_up)
-            cx = rx2; y2 = -OVER + ry2; y1 = -OVER + 2 * ry2 - bowl_hair() * waist + ry1
+            cx = rx2; y2 = -OVER + ry2; y1 = -OVER + 2 * ry2 - ovl + ry1
     lo, *_ = ring(cx, y2, rx2, ry2, w_scale=w_lo, k=kk or pen.BOWL_K, floor=floor_, con=con8, counter_smooth=csm, stress=_st, oval=_ov, nib=_nib)
     up, *_ = ring(cx + lean, y1, rx1, ry1, w_scale=w_up, k=kk or pen.BOWL_K, floor=floor_, rot=rot_up, con=con8, counter_smooth=csm, stress=_st, oval=_ov, nib=_nib)
-    return geom.ink([up, lo])
+    # ROUND 373 -- THE WAIST ROOM. Owner 2026-09-23, *"8: cut deeper wins"*,
+    # which ships option w, the true nib. The two rings overlap by ONE BOWL
+    # STROKE, `bowl_hair() x waist` -- the right amount while each ring's wall
+    # at 12 and 6 o'clock IS a bowl stroke or more (the family profile's walls
+    # there are 43.5 at the 400 and 75.4 at the 700, under the 0.65 S floor).
+    # A true nib's walls there are its THIN, and they are thinner than that:
+    # measured before the ink spread, lower-top + upper-bottom wall = 29.8 at
+    # the 400 against an overlap of 30.7, and 46.0 at the 700 against 53.3.
+    # When the overlap exceeds the two walls, the two COUNTERS intersect: a
+    # lens of white inside the waist band, 0.9 deep at the 400 (the 1.2-unit
+    # ink spread closed it, so nothing saw it) and 7.3 at the 700, where
+    # `cmp_aldine_glitch` reports it as a CRACK and `cmp_contour_hairs` as a
+    # HAIR on `eight`. It is the §1b union rule again: the fault is in how the
+    # two strokes meet, and no width dial reaches it.
+    #
+    # So the overlap never exceeds the rings' own two walls less a quarter of
+    # the thinner, measured on the rings as drawn, so the walls genuinely
+    # overlap instead of meeting at a tangent the spread has to close. The
+    # figure is then re-solved from the top (life counter reset, so the
+    # perturbation sequence is the one a single pass would have drawn) and
+    # `hold_h` still holds its height. A ring pair whose walls cover the
+    # overlap -- every row but w -- never enters this branch and is
+    # byte-identical.
+    if _pass < 3:
+        from shapely.geometry import LineString as _LS
+        def _runs(g):
+            x = _LS([(cx, -2000.0), (cx, 3000.0)]).intersection(g)
+            gs = [x] if x.geom_type == 'LineString' else [q for q in getattr(x, 'geoms', []) if q.geom_type == 'LineString']
+            return sorted((q.bounds[1], q.bounds[3]) for q in gs)
+        _rl, _ru = _runs(lo), _runs(up)
+        if _rl and _ru:
+            _wl = _rl[-1][1] - _rl[-1][0]; _wu = _ru[0][1] - _ru[0][0]
+            _room = _wl + _wu - 0.25 * min(_wl, _wu)
+            if ovl > _room + 0.05:
+                PR._life['n'] = _n0
+                return g_eight(c, _ovl=_room, _pass=_pass + 1)
+    g8 = geom.ink([up, lo])
+    _rf = _round_foot('8')        # round 373: the foot overshoots once, not twice (see ROUND_FOOT)
+    if _rf:
+        import shapely.affinity as _aff8
+        g8 = _aff8.translate(g8, 0, _rf)
+    return g8
 
 def _fig8_path(cx, yX, a1, b1, a2, b2, psi=None):
     """One written figure-8 through the waist centre (cx, yX): the lemniscate
@@ -2303,6 +2419,41 @@ NINE_OPT_IT.update({
     'f': dict(sink=0.0),                         # ...on the ring's CENTERLINE, no sink at all. The counter's widest row comes down from 0.55 of its height to 0.45, the 6's, and the glyph leaves the hairs report altogether. The flank pays 0.8 of a unit (2.0 -> 2.8, still under the 6's 4.1 and Flanker's 4.7)
     'g': dict(ring_con=1.4),                     # THE RING'S CUT milder than the figures' 1.8: a bigger counter (area/ink 0.82 -> 0.86) and the straightest flank of the six (1.6), but the reversal only becomes a hair
     'h': dict(sink=8.0, ring_con=1.4),           # e and g together: the roundest counter by `fill` (0.79) and still a hair
+    # ROUND 373, owner 2026-09-23: *"9: h sink 8 + cut but patch the concave
+    # part on bottom right outside"*. THE TAIL'S OUTER JOIN. Found on the
+    # outline, not guessed: walking the outer contour's right side, h turns
+    # -26.8 then -5.2 degrees at (402, 117)-(407, 123) -- a 32-degree
+    # RE-ENTRANT KINK where the tail's outer edge leaves the ring's flank. (The
+    # shipped a has the same kink at (378, 97); it is not new to h.) Every
+    # other vertex there turns under 7 degrees, which is facet noise -- the
+    # roman's clean flank reaches 5.2. h's separate gate finding, the HAIR at
+    # (328, 66), is the crotch UNDER the bowl, a different place.
+    #
+    # THE MECHANISM is the roman's round-233 fault again (section 1b of
+    # albo-method): the italic tail started 8 units inside the wall at 0.08 of
+    # its width, its first handle 0.15 rx left of straight down where the
+    # ring's own tangent at -20 degrees runs 3.6x further left -- so its outer
+    # edge EMERGED through the ring's outer contour at an angle. Turning only
+    # the handle onto the tangent (built, measured) clears the hair and leaves
+    # the kink at 22 degrees; the direction was half of it and the width the
+    # other half.
+    #
+    # THE PATCH is the roman's construction, with the wall MEASURED on this
+    # ring (the italic's con / stress / oval make it anything but bowl_th):
+    # the tail starts at the middle of the wall on the exit's inward normal,
+    # its handle along the ring's tangent, at the wall's own width, shed to
+    # its width rule over NINE_TAPER_ROM_T. Both edges then leave on the
+    # ring's two contours in the ring's direction. The `sink` of 8 is
+    # therefore not read by this row -- the start is the wall's middle, which
+    # is where the sink was aiming -- and the ring's 1.4 cut is h's.
+    # Measured: the worst concave turn on the right outside 26.8 -> 6.6
+    # degrees (facet level), `nine` leaves the hairs report, counter area/ink
+    # 0.86 -> 0.85, fill 0.79 -> 0.78, widest row 0.45 unchanged; the
+    # counter's lower right comes in 3% of its width at rows 0.15-0.25, which
+    # is the tail's inner edge now running along the wall. Laddered the two
+    # start dials (0.85-1.00 x 0.10-0.30): every rung clean, the counter moved
+    # by 0.02 at most, so the roman's own 0.97 / 0.20 stand.
+    'j': dict(sink=8.0, ring_con=1.4, tan_exit=True),
     'i': dict(sink=8.0, r=0.325),                # e with option c's BIGGER BOWL: the counter reaches the 6's 0.89 and the gate is clean -- but the bowl's own radius moves, which is a larger change than was asked for, and the flank is the worst of the six
 })
 # ROUND 233 (R43), owner 2026-09-18 on the roman 9: *"redo bottom and middle
@@ -2381,6 +2532,30 @@ def g_nine(c):
         # round 257: the 6's own departure, mirrored (see NINE_OPT 'u')
         p0 = (cx + rx, D - r)
         c1 = (p0[0], p0[1] - r * 1.5)
+    elif pen.ITALIC and _o9.get('tan_exit'):
+        # ROUND 373 -- THE TAIL'S OUTER JOIN (italic row j). The roman's round-233
+        # construction, with the WALL MEASURED on the italic's own cut ring
+        # (con / stress / oval make it anything but bowl_th). The start is the
+        # middle of the wall on the exit's inward normal, the first handle lies
+        # along the ring's tangent there, and the tail starts at the wall's own
+        # width and sheds it to its width rule over NINE_TAPER_ROM_T of the
+        # run -- so BOTH of its edges leave on the ring's two contours with the
+        # ring's direction, and neither emerges through the outer at an angle.
+        from shapely.geometry import LineString as _LS9
+        _arc = superellipse(cx, D - r, rx, r, math.radians(_exit + 4), math.radians(_exit - 4), _k9 or BOWL_K)
+        _tg = tangents(_arc)[len(_arc) // 2]
+        _po = (cx + (rx + TH_V / 2) * math.cos(math.radians(_exit)), D - r + (r + TH_H / 2) * math.sin(math.radians(_exit)))
+        _nx, _ny = _tg[1], -_tg[0]                               # inward: the left normal of the ccw outer, as the roman
+        _ray = _LS9([(_po[0] - _nx * 2, _po[1] - _ny * 2), (_po[0] + _nx * 400, _po[1] + _ny * 400)])
+        _hit = _ray.intersection(_LS9(list(i) + [i[0]]))
+        _hp = [_hit] if _hit.geom_type == 'Point' else [q for q in getattr(_hit, 'geoms', []) if q.geom_type == 'Point']
+        _wall = min(math.dist(_po, (q.x, q.y)) for q in _hp) if _hp else bowl_th(_tg)
+        p0 = (_po[0] + _nx * _wall / 2, _po[1] + _ny * _wall / 2)
+        _L1 = math.hypot(rx * 0.15, r * 1.5)                     # the italic's own handle length
+        c1 = (p0[0] + _tg[0] * _L1, p0[1] + _tg[1] * _L1)
+        _w0 = max(pen.th_t(_tg), S * NINE_FLOOR)
+        _tap_rom = widths([(0.0, _wall * _E('ALBO_9J_START_W', _o9.get('start_w', NINE_START_W)) / _w0),
+                           (_E('ALBO_9J_TAP_T', _o9.get('tap_t', NINE_TAPER_ROM_T)), 1.0)])
     elif pen.ITALIC or not NINE_TANGENT_EXIT:
         c1 = (p0[0] - rx * 0.15, p0[1] - r * 1.5)
     else:
