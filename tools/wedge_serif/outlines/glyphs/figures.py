@@ -457,11 +457,22 @@ FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 'u'})   # round 257: the 9's tail 
 # first opened a CRACK in the waist, fixed at the drawing (WAIST ROOM, in
 # g_eight) rather than by choosing a shallower arm.
 FIG_SHIP_ROM.update({'8': 'w'})
+# ROUND 374, owner 2026-09-23: *"yes, address all numeral issues"* -- `x` is
+# `w` solved onto the 6's line (the references' 8), and the italic takes the
+# same construction on its own nib angle (EIGHT_OPT_IT 'x').
+FIG_SHIP_ROM.update({'8': 'x'})
+# ROUND 374, the rest of *"yes, address all numeral issues"* -- round 255's
+# measured misses, set aside on 2026-09-19 and picked up here, with the 2 on
+# `g` rather than the recommended `h` because `h` thickens the base and the
+# owner ruled today that it must not. Each row's measurement is at its table.
+FIG_SHIP_ROM.update({'1': 'i', '2': 'g', '3': 'g', '4': 'e'})
 FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 # ROUND 373, owner 2026-09-23: *"9: h sink 8 + cut but patch the concave part
 # on bottom right outside"* -- NINE_OPT_IT 'h' (sink 8, ring cut 1.4), with the
 # patch in g_nine (THE TAIL'S OUTER JOIN).
 FIG_SHIP_IT.update({'9': 'j'})   # j = h + the patch; 'h' stays the picture he ruled on
+FIG_SHIP_IT.update({'8': 'x'})   # round 374: the italic 8 cut on a true nib and set on the 6's line (EIGHT_OPT_IT 'x')
+FIG_SHIP_IT.update({'2': 'g', '4': 'd'})   # round 374: the 2's arc to the profile and its slash held (TWO_OPT_IT 'g'); the 4's bar up to the references' line (FOUR_OPT_IT 'd')
 
 def OPT(d):
     """Which option this build draws for digit `d`. Env first, then the
@@ -475,7 +486,10 @@ def OPT(d):
     so `ALBO_FIG_SET=e` draws eight arms of 'e' for the 7 and today's drawing
     for the other nine, and the roman 7 likewise. Proven on a build."""
     o = _FIG_OPT_ENV.get(d) or (FIG_SHIP_IT if pen.ITALIC else FIG_SHIP_ROM)[d]
-    return o if o in 'abcdefghijklmnopqrstuvw' and len(o) == 1 else 'a'
+    # ROUND 374: a-z. The set stopped at 'w' and a row 'x' resolved SILENTLY to
+    # 'a' -- the first ladder of this round built today's 8 under every rung
+    # and was caught only because the heights did not move.
+    return o if o in 'abcdefghijklmnopqrstuvwxyz' and len(o) == 1 else 'a'
 
 # WHAT THE REFERENCES MEASURE, and where each option comes from. Seven faces
 # with old-style figures, all measured at ONE x-height (429 units) by
@@ -590,7 +604,25 @@ ONE_OPT = {'b': dict(flag=(_E('ALBO_FIG_1B_X', 195.0), 0.72)),
            'e': dict(foot='left'),                   # one-sided: the L's foot, nothing right of the stem
            'f': dict(foot='slab'),                   # a flat slab, square-ended, S x 0.30 deep, the brackets' reach
            'g': dict(flag_tip=0.25),                 # the flag as a plain wedge: 0.25 of the profile at the tip, full into the stem, pen cut
-           'h': dict(flag=(95.0, 0.885), flag_tip=0.30, flag_curve=0.16, foot_len=1.20)}   # the references' 1: a short hook bowed UP and over (1.2 stems, 0.115 of the height; -0.16 sagged and its tip barbed upward), feet 3.3 stems wide
+           'h': dict(flag=(95.0, 0.885), flag_tip=0.30, flag_curve=0.16, foot_len=1.20),
+           # ROUND 374 -- `h` WITH THE FEET AND FLAG AT THE REFERENCES' WIDTH.
+           # Owner 2026-09-23, *"yes, address all numeral issues"*. The 1's
+           # INK is the narrow thing, not its bearings: ink / the 0's ink 0.477
+           # against Big Caslon 0.535, Georgia 0.645, Coelacanth 0.772, Poetica
+           # 0.791 (and per x-height 0.452 against 0.56-0.76), while its white
+           # flanks already read the widest of any figure (0.154 / 0.130 em
+           # against a 0.115 median). So the ink widens and the bearings do not.
+           'i': dict(flag=(_E('ALBO_1I_FX', 95.0), 0.885), flag_tip=0.30, flag_curve=0.16,
+                     foot_len=_E('ALBO_1I_FOOT', 1.60))}
+# (i) laddered on the roman: feet 1.6 / 2.0 / 2.4 x FOOT, flag reach 95 / 125.
+# 1.6 takes the ink to 0.579 of the 0's (inside the references' 0.535-0.79)
+# and costs the figure-space spread 1.62 -> 1.67x; 2.0 reaches 0.680 at 1.72x,
+# 2.4 0.778 at 1.83x and puts two more pairs under the touch floor. Every rung
+# widens the 1's white with its ink, because the bearings are fitted to the
+# ink, so the evenness gate moves the wrong way the whole way up; 1.6 is the
+# first rung inside the band. The flag's reach bought nothing measurable.
+# The ITALIC 1 is not moved: its ink ratio is 0.567 and `O1` touches past
+# about 0.58 of the 0's advance (the ladder above), so it needs a kern first.   # the references' 1: a short hook bowed UP and over (1.2 stems, 0.115 of the height; -0.16 sagged and its tip barbed upward), feet 3.3 stems wide
 ONE_OPT_IT = {'b': dict(flag=(_E('ALBO_FIG_1B_X_IT', 158.0), 0.72)),
               'c': dict(flag=(_E('ALBO_FIG_1C_X_IT', 180.0), 0.635))}
 # THE ITALIC LADDER, `O1`'s white in em (the floor is 0.012), and what the
@@ -1010,7 +1042,7 @@ TWO_OPT = {
     # light.
     # (`slash_w` is the slash's FLOOR, x S x top_w; at b's 0.80 it would stand
     # at 67 units and hold the slash up over `slash_k`, so it drops under it.)
-    'g': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.50, over=26.0, start_w=1.0),  # the ARC to the 0's weight; base as b
+    'g': dict(top_w=_E('ALBO_2G_TOPW', 1.0), slash_k=0.70, slash_w=0.55, base_w=1.50, over=26.0, start_w=1.0),  # the ARC to the 0's weight; base as b
     'h': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.90, over=26.0, start_w=1.0),  # ...and the BASE to the references' median (80 units, 0.93 of the 0's thick): heavier on the bottom, as ruled in round 81
     'i': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.90, over=60.0, start_w=1.0),  # ...and the base LONGER: 60 units past the body (0.17 of the width -- Pagella 0.17, Coelacanth 0.18, Big Caslon 0.17; b's 26 is Georgia's 0.06)
     # ROUND 368 (2026-09-23), owner: *"moving '2' down to match other numerals
@@ -1067,6 +1099,11 @@ TWO_OPT = {
     'n': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=36.0),            # ...36: the foot level with the 0, 6 and 8's overshoot. A FLAT foot is not supposed to overshoot, so this is the end of the ladder rather than a candidate -- and the base is then 43% deeper than the shipped one
 }
 TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229's two and draws 'a' under d-i: its bar sits on the round-212 drop and its press cuts are placed on the bbox
+# ROUND 374 -- THE ITALIC'S 2 GETS ROUND 255's `g` LEVERS on its own drawing:
+# the arc to the profile's full weight and the slash held at 0.70 of it, the
+# base untouched (owner 2026-09-23: "the bottom stroke needs to not be
+# thicker"). See the round-374 section of docs/albo-figures-2026-09-23.md.
+TWO_OPT_IT['g'] = dict(top_w=_E('ALBO_2G_TOPW_IT', 0.82), slash_k=0.70, slash_w=0.55)
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
 @glyph('3')
@@ -1317,6 +1354,21 @@ FOUR_OPT = {
     'f': dict(bar_y=0.378, bar=1.70, diag=0.80),             # ...the bar at the references' median (71 units, 0.90) and the diagonal at theirs (0.42): Coelacanth's, Flanker's
 }
 FOUR_OPT_IT = {k: FOUR_OPT[k] for k in ('b', 'c')}   # round 255: the italic keeps round 229's two and draws 'a' under d-f (the table was shared until then; b and c are the same dicts)
+# ROUND 374: the italic 4's bar sat where the roman's did, its centre 6 units
+# UNDER the baseline (measured on the built italic, rows spanning 0.75 of the
+# glyph), against Flanker +36, Pagella +28, Coelacanth +49 and Georgia Italic
+# +98. It takes the roman's `d` -- the bar raised, its weight unchanged --
+# at 0.36 of the figure rather than the roman's 0.378: at 0.378 (centre +42)
+# the bar met the z's foot bar (`z4` 0.0115 em, under the 0.012 floor) and in
+# the BoldItalic the q's tail (`q4` 0.0109). Laddered 0.34 / 0.35 / 0.36;
+# 0.36 is the highest rung with both pairs back over the floor (0.0201,
+# 0.0180) and puts the centre at +30 (BoldItalic +44), between Pagella's +28
+# and Flanker's +36. NEGATIVE RESULT: the roman's `e` (the same, at the capitals'
+# bar weight) was built first and opened a HAIR at the BoldItalic 4's counter
+# apex (152 degrees at (282, 330), a 5-unit arm) -- the smaller counter's
+# point, re-cut; `d` is gate-clean at both italic weights. Both rows stay.
+FOUR_OPT_IT['d'] = dict(bar_y=_E('ALBO_FIG_4_BAR_Y_IT', 0.36))
+FOUR_OPT_IT['e'] = FOUR_OPT['e']
 
 # THE 5'S OPTIONS, and they are two independent questions, so there are four
 # arms rather than three.
@@ -1930,11 +1982,45 @@ EIGHT_OPT = {
     'u': dict(floor=0.35, hold_h=True),                      # THE RING CUT DEEPER, and nothing else: the floor released to the family's own bowl hair, the height bought back by `hold_h` (counters +10% tall -- at a fixed outer height that is what a thinner pen does). Contrast 1.50 -> 1.98, the face's own o and 0 at last; but the LOWER named point does not move, because the counter it grew put 7:30 on a steeper part of the ring
     'v': dict(floor=0.35, hold_h=True, ring_stress=9.0),     # ...and r's 9 degrees with it. The only arm that answers the diagnosis and the symptom together: 0.75 / 0.67 at 2.00:1, the axis near neutral at 0.98 rather than reversed, height and advance unmoved
     'w': dict(floor=0.0, hold_h=True, nib="1.03,0.15,0", oval=1.0),   # THE TRUE NIB of round 195 -- width read from the stroke's own DIRECTION rather than from the family profile, `oval` on in the same breath or the counter necks. 3.91:1, and the thin at 18 units is the risk
+    # ROUND 374 -- `w` ON THE 6's LINE. Owner 2026-09-23, *"yes, address all
+    # numeral issues"*. Measured on round 373's build, the 8 tops 21 units
+    # under the 6 in the roman and 55 in the Bold; every reference with
+    # old-style figures tops its 8 on its 6 (Georgia 711/710, Pagella 699/699,
+    # Big Caslon 727/728, Coelacanth 631/630, Poetica 516/516 -- Flanker, at
+    # 649/674, is the one that does not). `to_six='shipped'` is round 255's
+    # solve onto the 6 this build draws; it replaces `hold_h`, which held the
+    # 8 at the height it had been ruled SHORT at in round 64 before any
+    # reference had been measured.
+    'x': dict(floor=0.0, to_six='shipped', nib="1.03,0.15,0", oval=1.0),
 }
 EIGHT_OPT_IT = {
     'b': dict(tall=1.16),
     'c': dict(con=3.40),
     'd': dict(tall=1.16, con=3.40),
+    # ROUND 374 -- THE ITALIC 8 GETS THE ROMAN'S TREATMENT. Owner 2026-09-23,
+    # *"yes, address all numeral issues"*, on round 373's finding that the
+    # italic 8's rings cut 1.50 / 1.38:1 against its own 0 at 3.39 and o at
+    # 3.07 -- flatter than the roman 8 was. Same construction as the roman `x`
+    # (a true nib, floor released, onto the 6's line), with the italic's own
+    # nib angle kept (FIG_STRESS rotates it, as it does the 0 and 6) and the
+    # contrast exponent returned to 1.0, because the nib IS the contrast and
+    # EIGHT_CON on top of it would square it.
+    #
+    # THE NIB IS THE ITALIC'S OWN, NOT THE ROMAN'S NUMBERS. At the roman's
+    # 1.03 / 0.15 the italic 8 cut 2.65 / 2.98:1 but its thick read 54 units
+    # against its own 0's 85 and 6's 86 -- the italic's 0 and 6 carry FIG_CON
+    # 1.8, which the roman's rings do not, so the same nib reads a third
+    # lighter here. Laddered thick x thin (1.30/0.20, 1.40/0.20, 1.40/0.25,
+    # 1.50/0.25, 1.60/0.22, 1.75/0.22), every rung gate-clean at both
+    # weights. 1.75 / 0.22 matches the 0's ring exactly (thick 88 against 85,
+    # 3.27 / 3.47:1 against 3.40) -- and RENDERED AS THE DARKEST THING IN A
+    # RUN OF FIGURES, visibly bold in `1889` at 13 px: an 8 is two rings, so a
+    # ring at the 0's weight is an 8 at 1.63x the 0's colour (0.274 against
+    # 0.168; it was 0.222 before). The picture won. 1.30 / 0.20 keeps the 8's
+    # COLOUR where it was (0.217, against 0.222) and moves only its cut:
+    # 2.76 / 2.92:1 against the o's 3.07 and the 0's 3.40, where it was
+    # 1.50 / 1.38. BoldItalic 3.56 / 3.51:1, against its 0's 3.91.
+    'x': dict(floor=0.0, to_six='shipped', nib="1.30,0.20,0", con=1.0),
 }
 
 @glyph('8')
@@ -2150,7 +2236,7 @@ def g_eight(c, _ovl=None, _pass=0):
         _rl, _ru = _runs(lo), _runs(up)
         if _rl and _ru:
             _wl = _rl[-1][1] - _rl[-1][0]; _wu = _ru[0][1] - _ru[0][0]
-            _room = _wl + _wu - 0.25 * min(_wl, _wu)
+            _room = _wl + _wu - _E('ALBO_8_WAIST_ROOM', 0.35) * min(_wl, _wu)
             if ovl > _room + 0.05:
                 PR._life['n'] = _n0
                 return g_eight(c, _ovl=_room, _pass=_pass + 1)

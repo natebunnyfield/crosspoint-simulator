@@ -250,6 +250,43 @@ CAP_NARROW = float(os.environ.get("ALBO_IT_CAP_NARROW", 0.953))
 CAP_X_WIDTH = float(os.environ.get("ALBO_CAP_X_WIDTH", 0.89))   # round 373, owner: "X .89 wins"
 
 
+# ROUND 374 -- THE FIGURES' WIDTH SOLVE, two faults, both FIGURE-ONLY (owner
+# 2026-09-23, *"yes, address all numeral issues"*; the capitals take exactly
+# the old path, proved byte-identical in all four cuts).
+#
+# 1. THE ITALIC SOLVED AGAINST ITS SHEARED INK. `draw` returns the italic
+#    already sheared, so every figure's "drawn" width carried the slant's
+#    run -- tan(13) x the figure's height, ~160 units on a 3 or a 9 -- and the
+#    solver kept asking for a narrower figure than the one it had. 8 of the 9
+#    solved italic figures sat on the floor, and the one that most needed the
+#    opposite was hidden: measured unsheared at the shipped W, the 7 was 13.5%
+#    UNDER its target while the solver pushed it narrower. The figure is now
+#    measured UNSHEARED (about its own baseline, which the box translate moved)
+#    and the target is the same one as before. `ALBO_FIG_WIDTH_UNSHEAR=0`
+#    restores the old reading.
+# 2. THE FLOOR. 0.70 is the capitals' clamp and figures inherited it; it bound
+#    the roman 3 (+2.9% over target) and 5 (+7.8%) and the Bold's 2 (+11%).
+#    Figures take their own floor. `ALBO_FIG_WIDTH_FLOOR=0.70` restores it.
+#    AT THE 400s AND THE MEDIUM ONLY (stem <= 84). The Bold's targets are the
+#    400's reference widths x 0.95, which a bold figure cannot reach without
+#    its counters closing -- built at 0.55, the Bold 5 went to the floor and
+#    still read +8.9% over, visibly pinched, and the 3 +5.3%. That is a bold
+#    TARGET problem, not a floor problem, so the bolds keep 0.70.
+# The measured before/after per figure is in the round-374 section of
+# docs/albo-figures-2026-09-23.md.
+FIG_WIDTH_FLOOR = float(os.environ.get("ALBO_FIG_WIDTH_FLOOR", 0.55))
+FIG_WIDTH_UNSHEAR = os.environ.get("ALBO_FIG_WIDTH_UNSHEAR", "1") != "0"
+
+def _fig_width_unsheared(ch, g):
+    """A figure's ink width with the italic's shear taken back out. The shear
+    is applied about y = 0 and the old-style box translate comes after it, so
+    the baseline the shear pivoted on now sits at the box's bottom."""
+    import shapely.affinity
+    ty = latin.FIG_BOX[ch][1] * C
+    u = shapely.affinity.affine_transform(g, (1, -pen.SHEAR, 0, 1, pen.SHEAR * ty, 0))
+    x0, _, x1, _ = u.bounds
+    return x1 - x0
+
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink
     width lands on the references' median (round 20's rule, same clamps)."""
@@ -258,6 +295,8 @@ def solve_widths(passes=3):
         for ch in CHARS:
             if not (ch.isupper() or isfig(ch)) or ch in ('I', '1') or ch not in REF or ch not in GLYPHS: continue
             g = draw(ch, W); x0, y0, x1, y1 = geom.bbox(g); drawn = x1 - x0
+            if isfig(ch) and pen.SHEAR and FIG_WIDTH_UNSHEAR:   # round 374, see FIG_WIDTH_UNSHEAR
+                drawn = _fig_width_unsheared(ch, g)
             # AN ITALIC'S CAPITALS ARE ~5% NARROWER, and for most of them that
             # is the ONLY change. Measured over 17 roman/italic pairs
             # (docs/albo-italic-capitals.md): median width ratio 0.953, cap
@@ -277,7 +316,8 @@ def solve_widths(passes=3):
             target = REF[ch]["w"] * C * pen.WIDTH
             if pen.SHEAR: target *= CAP_NARROW
             if ch == 'X': target *= CAP_X_WIDTH          # owner 2026-09-23, see CAP_X_WIDTH
-            if drawn > 1: W[ch] = max(0.7, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))
+            _lo = FIG_WIDTH_FLOOR if (isfig(ch) and pen.S <= 84.0) else 0.7   # round 374, see FIG_WIDTH_FLOOR
+            if drawn > 1: W[ch] = max(_lo, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))
     return W
 
 PUNCT_MARKS = set(".,:;!?'\"\u2018\u2019\u201c\u201d\u2026*"

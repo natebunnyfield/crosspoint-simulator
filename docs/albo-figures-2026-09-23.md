@@ -461,3 +461,162 @@ fitting band. `approved.py`: both approved glyphs are unchanged.
 
 - **The italic 8's flat ring**, reported above. It wants its own ruling.
 - **The italic 2's round-212 reversal** needs the owner's confirmation.
+
+---
+
+# Round 374 (2026-09-23) — *"yes, address all numeral issues"*
+
+**Scope.** Changes are in `outlines/glyphs/figures.py` and `outlines/build.py`
+(`solve_widths` only, as the coordinator authorised). The before and after
+builds come from one snapshot of HEAD `217d675`, which includes the Greek, and
+the two differ only in those two files. All four cuts use `build_env.sh`.
+Every number below is measured on the built fonts.
+
+## The ledger
+
+| # | item | before | fix | after |
+|---|---|---|---|---|
+| a | **Italic 8 flat** | rings 1.50 / 1.38:1 against its 0 (3.39) and o (3.07); BoldItalic 1.38 / 1.31 | `EIGHT_OPT_IT['x']`: a true nib (1.30 / 0.20 × S), floor released, `con` 1.0, set on the 6's line | **2.76 / 2.92:1**, colour 0.217 (was 0.222); BoldItalic 3.36 / 3.42 |
+| b | **8 short of its 6** | top 8/6: R 617/638, I 593/667, B 584/639, BI 671/668 | `to_six='shipped'` in the new `x` rows (roman `x` = `w` + to_six) | **637/638, 667/667, 639/639, 668/668** |
+| c | **the 2 flat** | cut: R 1.44 (o 2.00), I 1.55 (o 2.84) | roman `TWO_OPT['g']` (arc 1.0 of the profile, slash held at 0.70, base unchanged); italic `TWO_OPT_IT['g']` (the slash held at 0.70, the arc at the italic's own 0.82) | **R 1.85, I 2.09**; Bold 2.25 → 2.33; BoldItalic 2.40 → 2.16 |
+| c | the 3's upper lobe (roman) | upper/lower lobe 0.79 (refs 0.82–0.94) | `THREE_OPT['g']` (round 255) | **0.90**; Bold 0.80 → 0.90 |
+| c | the other figures' cut | 0 1 5 6 7 9 sit inside their references' ratio to the o (Georgia 0.77–1.15, Flanker 0.39–0.82, Pagella 0.78–1.17) | none | CLEAN |
+| d | spacing spread | `cmp_figure_space --body` R 1.62×, I 1.34×, B 1.54×, BI 1.42× (refs 1.78–5.58×); the "2.10×" of the misfit audit was already answered on 2026-09-21 | none needed | R 1.65×, I 1.36×, B 1.70×, BI 1.41×; `cmp_space_2d` digit+digit **in band in all four** (R 0.091 [0.086–0.142], I 0.129, B 0.088, BI 0.130) |
+| e | **width clamp** | italic solved against SHEARED ink, so 8 of 9 italic figures sat on the 0.70 floor; unsheared the 7 was **−13.5%** under its target, the 5 +13.5%, 3 +8.1%, 9 +7.9%, 2 +7.3%; roman 3 +2.9%, 5 +7.8% on the floor | `build.py`: figures measured unsheared (`ALBO_FIG_WIDTH_UNSHEAR`), figure floor 0.55 at stem ≤ 84 (`ALBO_FIG_WIDTH_FLOOR`) | italic, every figure within +2.0% of target (7 now +0.1%); roman 3 +1.0%, 5 +1.1% |
+| f | weight by family | the 7 as the lightest figure: roman 7 stroke −10% (round 361 fixed it); italic 4 −18% | italic 4 bar (below) | CLEAN / see g-4 |
+| g | **the 1 (roman)** | ink/0 ink 0.477 (refs 0.535–0.79); advance 249 | `ONE_OPT['i']` = h with feet 1.6 × FOOT | **0.579**, advance 277; Bold 0.594 → 0.696 |
+| g | the 1 (italic) | 0.567 | none: `O1` touches past ~0.58 (round 229's ladder) | NOT FIXED, needs a kern |
+| — | **the 4's bar under the baseline** (found in round 255, added here) | centre R −6, I −6, B +16, BI +1 u (refs +28 to +98) | roman `FOUR_OPT['e']` (raised to 0.378 and the capitals' bar weight); italic `FOUR_OPT_IT['d']` at 0.36 | **R +44, I +30, B +62, BI +44** |
+| h | BoldItalic `six`, the 1.4-unit arm | round 373 already put it under the gate (128.7°, arm 1.0 / 6.4) | none | looked at ×4 (below) |
+| i | gate findings on figures | hairs: `uni2081` (R), `uni2086` (I), `uni2074` (BI) | — | **all three gone, none added** |
+| j | italic vs Flanker / Pagella | heights, descenders and direction checked | the 4's bar (above) | see "checked" |
+
+## How each was fixed, and the negative results
+
+**The 8, both styles.** First negative result: the option alphabet ended at `w`,
+so a row `x` resolved silently to `a`. The first ladder built today's 8 under
+every rung, and it was caught only because the heights did not move. `OPT()`
+now accepts a–z.
+
+**The waist overlap** (`ALBO_8_WAIST_ROOM`) — the rings' two walls must overlap
+by more than a sliver.
+- On the taller rings, 0.25 put HAIRs on the scaled 8s (`threeeighths`,
+  `uni2088`) at the ring crossing. Laddered 0.10–0.80: the findings moved from
+  glyph to glyph at facet level.
+- 0.35 and 0.10 were clean in all four cuts. 0.35 ships, because 0.10 leaves
+  the walls overlapping by 1.5 units, next to the crack round 373 fixed.
+
+**The italic nib.**
+- At the roman's 1.03 / 0.15 the thick was 54 against the 0's 85. The
+  italic's 0 and 6 carry FIG_CON 1.8 and its 8 does not.
+- 1.75 / 0.22 matched the 0's ring exactly (thick 88, 3.27 / 3.47:1). It
+  rendered as the darkest glyph in a run, visibly bold in `1889` at 13 px:
+  colour 0.274 against the 0's 0.168.
+- 1.30 / 0.20 keeps the old colour (0.217) and moves only the cut.
+
+**The height.** This reverses the round-64 ruling (*"make it shorter"*) in
+favour of five references out of six. `w`, the unmoved height, is still one
+letter away.
+
+**The 2.**
+- Roman `g` answers round 255's two misses: the arc is 0.72 of the 0's side
+  where the references run 0.87–1.43, and the cut. It keeps the base the owner
+  ruled must not thicken.
+- Cost at the Bold: advance 474 → 503. The Bold's width target is 11% under
+  its ink and pinned at the 0.70 floor (see e).
+- Alternatives measured: `ALBO_2G_TOPW=0.85` (cut 1.73, Bold advance 487) and
+  `=0.74` (cut 1.92, colour −11%, Bold advance 474).
+- Italic arc laddered 0.82 / 0.90 / 1.0:
+  - 1.0: BoldItalic advance 512 → 543, and a larger notch where the finial
+    meets the counter.
+  - 0.82: best italic cut (2.09), BoldItalic advance 514. Colour 0.137 → 0.118.
+  - 0.90 is the middle: cut 1.98, colour 0.126.
+
+**The 4.**
+- Roman `e` is round 255's recommendation.
+- In the italic, `e` opened a HAIR at the BoldItalic counter apex (152°), so
+  `d` (raised only) ships.
+- At the roman's 0.378 the italic bar put `z4` at 0.0115 em and BoldItalic
+  `q4` at 0.0109, both under the 0.012 floor. Laddered 0.34 / 0.35 / 0.36;
+  0.36 is the highest clean rung.
+- The italic 4 stays the lightest italic figure by stroke (40.6 against the
+  figures' ~55). Weighting its bar is what opened the hair.
+
+**Width (e).**
+- Negative result: a 0.55 floor on the Bold pinned its 5 at 0.55 and still
+  read +8.9%, visibly squeezed.
+- The Bold's targets are the 400's reference widths × 0.95, which a bold
+  cannot reach. That is a target problem, so the bolds keep 0.70.
+- Residual, unchanged: Bold figures run +6% to +28% over target, BoldItalic
+  +12% to +32%.
+
+**The 1.**
+- Feet 1.6 / 2.0 / 2.4 × FOOT and flag reach 95 / 125 laddered. Every rung
+  widens the white with the ink, since the bearings follow the ink.
+- 1.6 is the first rung inside the band: spread 1.62 → 1.65× at the 400.
+- 2.4 put two more pairs under the touch floor. The flag's reach bought
+  nothing measurable.
+
+**BoldItalic `six` (h), NOT changed.**
+- Magnified ×4, the "arm" is the tip of the white pocket between the tail and
+  the bowl. The contour's first and last points sit one unit apart there
+  (246, 397) and (247, 397).
+- Round 373's lift already took it out of the gate. What remains is a sharp
+  pocket at integer precision, not a hair.
+- Clearing it would take a crotch fillet on the 6 in all four cuts, which is a
+  design change nobody asked for. Recorded rather than done.
+
+## Changed glyphs, per style (glyf + hmtx, one snapshot)
+
+- **Regular (27):** `one two three four five eight` + `uni00B2 uni00B3 uni00B9 onequarter onehalf threequarters uni2074 uni2075 uni2078 uni2081 uni2082 uni2083 uni2084 uni2085 uni2088 onethird twothirds oneeighth threeeighths fiveeighths seveneighths`.
+- **Italic (36):** all ten figures except `one` + 26 superiors, inferiors and
+  fractions. The 0/3/5/6/7/9 are here through the width solve.
+- **Bold (24):** `one two three four eight` + 19 composites.
+- **BoldItalic (20):** `two four seven eight` + 16 composites.
+
+Proof of scope:
+- Every non-figure glyph is byte-identical in glyf and hmtx in all four cuts,
+  capitals included.
+- GPOS is identical in all four.
+- No contour count moved (`cmp_contours` census unchanged).
+
+## Gates, before → after
+
+- `cmp_contour_hairs --letters` is unchanged in all four cuts.
+- Full sweep: −1 finding in the Regular (`uni2081`), −1 in the Italic
+  (`uni2086`), −1 in the BoldItalic (`uni2074`); the Bold is unchanged.
+- `cmp_touch`: counts unchanged in all four (R 0/1, I 0/0, B 0/1, BI 1/2);
+  the under-floor sets are identical.
+- `cmp_counter_dents` at the 700s: 0 / 0.
+- `cmp_aldine_glitch`: identical sets.
+- `./gates.sh`: the delta is the two removals only (`uni2081`, `uni2086`).
+  Approved glyphs are unchanged, the bench matches, and the contour census is
+  unchanged.
+- `albo_bumps` (a review sheet, not a gate): italic 8 2 → 4 marks, at the
+  crown and foot where `FIG_HAND`'s ±3-unit press lands on the nib's thin wall,
+  and at the ring crossing. Italic 9 1 → 2, roman 3 4 → 5, roman 4 4 → 3.
+  None is a gate finding.
+
+## Checked and found CLEAN
+
+- The 0 1 5 6 7 9 cut against the references' ratio to their own o.
+- The figures' spacing spread (d) is under every reference.
+- The roman 7's weight (round 361).
+- Descenders: 3 4 5 7 9 run −201 to −229 in all four cuts; Georgia spreads
+  3 units and Pagella 20.
+- Round foots at −15 and flat feet at −1 in all four cuts.
+- Italic heights: the low figures stand at 1.07 of the italic's x-height,
+  against Flanker and Pagella at ~1.0. That is inside the roman references'
+  1.04–1.12 and was left alone.
+- Direction and construction against Flanker and Pagella found nothing like
+  the Greek's faults. The only structural miss was the 4's bar, now fixed.
+
+## Not done
+
+- The italic 1's width needs an `O1` kern (`kern.py`).
+- The Bold width targets.
+- The italic 4's weight.
+- The BoldItalic 6 pocket.
+- `FIG_HAND` press positions on the italic 8 (`aldine.py`).
+
+Renders: `/private/tmp/.../scratchpad/albo/figs374/` — see the report.
