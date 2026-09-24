@@ -1689,3 +1689,115 @@ def alt051_nib(c):
         g = aff.skew(g, xs=-float(pen.SLANT) * (1.0 - ALT051_LEAN), ys=0.0,
                      origin=(0, 0), use_radians=False)
     return geom.ink([aff.translate(g, -geom.bbox(g)[0], -geom.bbox(g)[1])])
+
+
+# ================ ROUND 377 -- THE RULED Et, REDRAWN ON THE ALDINE PEN =======
+# Owner 2026-09-24, "yes to all", which carries the item round 349 left open:
+# *the italic ampersand is an outlier that needs a new drawing, not a dial.*
+# The account, the measurements and the negative results are
+# docs/albo-ampersand-2026-09-24.md; `instruments/amp_measure.py` re-runs them.
+#
+# WHAT IS KEPT -- everything the owner ruled on this letter in rounds 312-352,
+# because the form is his: alt051's route (ALT051_SPINE / _WAIST / _SPUR),
+# path pass c ("c wins"), the squeeze 0.38 about the 0.46 hold ("squeeze 0.38
+# wins"), the curl as drawn ("leave the curl, it reads fine now"), the family's
+# finials on both free ends ("finials need to match albo (never round)") and
+# the italic lean.
+#
+# WHAT IS REDRAWN -- the two things that made `alt051_nib` a trace in Albo's
+# metrics rather than a letter of this italic, both measured on the shipped
+# build (the doc's table):
+#
+#   1. THE PEN. `alt051_nib` takes its width at every sample from POETICA's
+#      own width table (ALT051_WIDTHS, 12-77 units), lets the nib modulate it
+#      at mix 0.45 (at phi 50 -- ALT051_PHI 35 is declared and never read),
+#      then compresses the result toward its own mean (CON 0.45) and inflates
+#      it (WEIGHT 1.36). Here the width is the Aldine nib's and nothing else:
+#      thick 0.86 S across the edge (the e's ALBO_ALD_E_THICK), 5:1
+#      (ALBO_ALD_CON, arm B), phi 35 (the o's, the c's and the e's), and the
+#      chancery floor of 0.30 S (ET_FLOOR, round 311: at phi 35 a stroke
+#      travelling up and right runs along the nib's own edge and would
+#      otherwise print at 11 units). Widths are keyed on ARC LENGTH, the
+#      parameter `stroke` itself uses -- round 317's bug 3.
+#
+#   2. THE LEAN. `ALT051_LEAN = 1.0` stopped counter-shearing the spine, and
+#      the spine is read off Poetica, which already leans 9.2 degrees
+#      (refs_registry, measured off its l). build.draw then adds the face's
+#      13, so the shipped letter leans about 22 degrees in a 13-degree italic.
+#      The ruling was "the italic lean"; the Aldine e reaches it by taking the
+#      SOURCE's slant out before the builder puts the face's in
+#      (E_PAGE_SLANT), and this does the same: the squeezed spine is unsheared
+#      by the source's 9.2 about the baseline, so the built letter leans 13.
+ALT376_SRC_SLANT = float(os.environ.get("ALBO_IT_AMP_SRC_SLANT", 9.2))  # Poetica's measured slant
+ALT376_WT = float(os.environ.get("ALBO_IT_AMP_H_WT", 1.00))             # one dial on the colour
+ALT376_THICK = float(os.environ.get("ALBO_IT_AMP_H_THICK", 0.86))       # x S -- the e's
+ALT376_CON = float(os.environ.get("ALBO_IT_AMP_H_CON", 5.0))            # thick:thin -- ALD_CON
+ALT376_FLOOR = float(os.environ.get("ALBO_IT_AMP_H_FLOOR", 0.30))       # x S -- ET_FLOOR
+
+
+def _alt376_widths(p, taper):
+    """Aldine-nib widths along `p`, returned as f(arc-length fraction)."""
+    n = len(p)
+    th = ALT376_THICK * S
+    ws = []
+    for i in range(n):
+        a_ = p[max(0, i - 1)]; b_ = p[min(n - 1, i + 1)]
+        d = math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0]))
+        ws.append(max(et_nib(d, thick=th, thin=th / ALT376_CON, phi=ET_PHI),
+                      ALT376_FLOOR * S))
+    sm = 9                                  # aldine.nib_widths' moving average
+    ws = [sum(ws[max(0, i - sm):i + sm + 1]) / len(ws[max(0, i - sm):i + sm + 1])
+          for i in range(n)]
+    acc = [0.0]
+    for q0, q1 in zip(p, p[1:]):
+        acc.append(acc[-1] + math.dist(q0, q1))
+    tot = acc[-1] or 1.0
+    ts = [a / tot for a in acc]
+    tp, run = ET_TIP, ET_TIP_RUN            # a brush leaves and arrives
+    for i, t in enumerate(ts):
+        m = 1.0
+        if taper[0] and t < run:
+            m = min(m, tp + (1 - tp) * (0.5 - 0.5 * math.cos(math.pi * t / run)))
+        if taper[1] and t > 1 - run:
+            m = min(m, tp + (1 - tp) * (0.5 - 0.5 * math.cos(math.pi * (1 - t) / run)))
+        ws[i] *= m * ALT376_WT
+    return widths(list(zip(ts, ws))), ws
+
+
+def alt376_aldine(c):
+    """alt051's ruled route, on the Aldine italic's own pen and at its lean."""
+    xs = [q[0] for q in ALT051_SPINE]; ys = [q[1] for q in ALT051_SPINE]
+    k = (c["xh"] * ALT051_NIB_H) / (max(ys) - min(ys))
+    span = (max(xs) - min(xs)) * k
+    hold = span * ALT051_HOLD
+    sh = math.tan(math.radians(ALT376_SRC_SLANT))
+
+    def place(pts):
+        out = []
+        for x, y in pts:
+            xv = (x - min(xs)) * k
+            xv = xv if xv <= hold else hold + (xv - hold) * ALT051_SQUEEZE
+            yv = (y - min(ys)) * k
+            out.append((xv - sh * yv, yv))      # the source's lean taken out
+        return geom.catmull(out, tension=0.5)
+
+    from ..primitives import finial_widths as _fw, finial_cut as _fc
+    parts = []
+    # the main stroke: both of its ends are free, and both take the family's
+    # finial -- the c's top, swell 1.10 over the last 13%, face sheared 28.
+    p = place(ALT051_SPINE)
+    wf, _ = _alt376_widths(p, (False, False))
+    fl = ALT376_FLOOR * S * 1.1
+    wf = _fw(wf, True, floor=fl); wf = _fw(wf, False, floor=fl)
+    parts.append(stroke(p, wf, cut0=_fc(p, True), cut1=_fc(p, False)))
+    # the E's middle bar and the inner spur: each is buried at one end in the
+    # stroke it leaves, so they leave and arrive on the pen's own taper.
+    for pts in (ALT051_WAIST, ALT051_SPUR):
+        q = place(pts)
+        wq, _ = _alt376_widths(q, (True, True))
+        parts.append(stroke(q, wq))
+    g = geom.ink(parts)
+    return geom.ink([aff.translate(g, -geom.bbox(g)[0], -geom.bbox(g)[1])])
+
+
+ET_OPTIONS['h'] = alt376_aldine          # round 377: the default, marks.IT_AMP

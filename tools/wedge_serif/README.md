@@ -354,7 +354,19 @@ That also settles the one gate finding the letter carries: a REVERSAL of
 an ACCEPTED row in `gates-baseline.txt` and not a defect to chase; the shape it
 belongs to is ruled. The letter was deliberately not moved to
 `ALT051_PATH=a` -- which clears a reversal -- to make the gate green, because
-he ruled `c`.
+he ruled `c`. (Round 377: that row is no longer in the baseline -- the
+redrawn `h` does not raise it, with the curl's route unchanged.)
+
+**Round 377, 2026-09-24 (owner, "yes to all": the italic ampersand is an
+outlier that needs a new drawing, not a dial): `ALBO_IT_AMP` ships `h`.** The
+same ruled route -- alt051's spine, path c, squeeze 0.38, the curl as drawn,
+Albo finials -- drawn on the Aldine italic's own pen (`alt376_aldine`: thick
+0.86 S, 5:1, phi 35, floor 0.30 S, widths on arc length) instead of Poetica's
+traced width table, and with Poetica's own 9.2-degree lean taken out so the
+letter leans the face's 13 rather than ~22. Weight, contrast, advance and lean
+come into the reference band; the curl's gate finding is gone. `g` is round
+350's letter, still reachable. Numbers, the trade it makes on the thirds, and
+the negative results: `docs/albo-ampersand-2026-09-24.md`.
 
 `ALBO_ALT051_PATH` (`off|a|b|c`, **default `c`** -- owner 2026-09-21, *"c
 wins"*) is round 321 and is about the RIGHT SIDE's ROUTE rather than its

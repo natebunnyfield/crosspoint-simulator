@@ -356,7 +356,7 @@ def _smooth_wf(wf, n, passes=4):
     return lambda t: ws[min(n, int(round(t * n)))]
 Q8_SCALE = 1.15   # owner 2026-09-13: "make the question mark back into its original question mark shape and albertus heavy, larger to read correctly in a sentence"
 Q8_FLOOR = 0.78   # the hook never under 0.78 S: Albertus weight
-# ROUND 376 -- NARROWER, SAME SHAPE. The ? stays the owner's 2026-09-13 mark
+# ROUND 377 -- NARROWER, SAME SHAPE. The ? stays the owner's 2026-09-13 mark
 # (original shape, Albertus heavy, larger) and stays at the ascender (round
 # 369). But raising it scaled it UNIFORMLY, so it got wider as well as taller:
 # measured 0.973 of the x-height wide against six references' 0.63-0.80, and
@@ -436,7 +436,7 @@ DQ_GAP = 1.8   # round 94 (owner: "give more space for double quotes so they don
 # double quote's two marks rows 1 and 2, so the pair differs by a few units
 # in height and in how far the stroke leans, and every build is the same.
 QUOTE_OPT = os.environ.get("ALBO_QUOTE_OPT", "a" if pen.ITALIC else "b")
-# ROUND 376 -- THE STRAIGHT QUOTES MATCH THE CURLY ONES. Owner 2026-09-24,
+# ROUND 377 -- THE STRAIGHT QUOTES MATCH THE CURLY ONES. Owner 2026-09-24,
 # "yes to all", on round 375's flag: the straight ' and " measured 182 (roman)
 # and 163 (italic) /1000 em tall against the curly quotes' 262 and the
 # references' straight quotes at 240-292 -- the two quote forms disagreed.
@@ -654,7 +654,14 @@ def g_ampersand(c):
 # "unset build: 0 of 493 glyphs differ", because not one of them moved a
 # DEFAULT. The italic went on drawing 'a', the sheared roman. Same failure as
 # round 336's g: a letter ruled and not shipped, with every gate green.
-IT_AMP = os.environ.get("ALBO_IT_AMP", "g")   # round 309: the chancery et, b-e; 'a' is the drawing above; 'g' is alt051 on the Albo nib
+# ROUND 377 -- 'h' SHIPS: the same ruled alt051 route, redrawn on the Aldine
+# italic's own pen (thick 0.86 S, 5:1, phi 35, floor 0.30 S) instead of
+# Poetica's traced widths, and with Poetica's own 9.2-degree lean taken out so
+# the built letter leans the face's 13 rather than ~22. Owner 2026-09-24, "yes
+# to all": the italic ampersand is an outlier that needs a new drawing, not a
+# dial. 'g' -- round 350's letter -- stays reachable by name.
+# docs/albo-ampersand-2026-09-24.md.
+IT_AMP = os.environ.get("ALBO_IT_AMP", "h")   # round 309: the chancery et, b-e; 'a' is the drawing above; 'g' is alt051 on the Albo nib; 'h' is alt051 on the Aldine pen (round 377)
 AMP_OPT = os.environ.get("ALBO_AMP_OPT", "a" if pen.ITALIC else "e")   # round 252: e ships on the roman -- owner 2026-09-18, "ALBO_AMP_OPT d with a b top" / "e wins for ampersand"
 @glyph('%')
 def g_percent(c):

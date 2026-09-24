@@ -7217,3 +7217,19 @@ re-seed the cutter, and it is the expected cost: **a contour-count change will
 periodically demand that approved letters be re-blessed.** `--nocut` is the
 instrument that makes that a thirty-second check instead of an argument. It
 belongs in any investigation that starts "why did 169 glyphs move".
+
+### Round 377 — the italic ampersand redrawn on the Aldine pen (2026-09-24)
+
+Owner, *"yes to all"*: the italic ampersand is an outlier that needs a new
+drawing, not a dial. Re-measured first: round 349's 30.3 / 57.1 / 12.6 was the
+sheared roman (`a`), reproduced at 30.4 / 57.5 / 12.1; the shipped `g` is inside
+the band on those thirds but is the heaviest (1.06 of its body letters against
+0.60–1.04) and flattest (contrast 0.70 of its body's against 0.73–1.19) &
+across nine reference italics, the widest (2.35 o's against ≤ 2.34), and leans
+~22° because Poetica's own 9.2° was never taken out before the face's 13 went
+on. `ALBO_IT_AMP=h` keeps every ruled part of the route and draws it on the
+Aldine pen at the face's lean: 0.78 / 0.78 / 2.12 o's, back lean 9.8° against
+Poetica-upright's 10.5°. Only the italic and bold italic `ampersand` move; the
+curl's gate finding leaves the baseline. It trades the thirds out of the band
+(middle 25.2, right 31.4) — the upright curl — and that is recorded, not
+chased. `docs/albo-ampersand-2026-09-24.md`.

@@ -307,6 +307,12 @@ middle far above their 36–45. It is the sheared roman (`ALBO_IT_AMP` default
 `a`), which is exactly why its mass piles in the centre: shearing moves ink
 sideways without redistributing it. It wants a drawing, not a dial.
 
+**Superseded twice.** Round 350 shipped `g` (the ruled alt051) the same day,
+so this letter stopped shipping; and round 377 (2026-09-24) re-measured `g`
+— inside the band on these thirds, but the heaviest, flattest and widest &
+on the shelf and leaning ~22° — and redrew it as `h`.
+`docs/albo-ampersand-2026-09-24.md`.
+
 ### And the width ramp is a weak lever wherever it is pointed
 
 `ALBO_AMP_BALANCE` was built for this and is kept INERT at 0, with its
