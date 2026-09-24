@@ -246,3 +246,28 @@ unchanged; touch and hair sweeps on both Bolds identical to before the round.
   white from the previous word to the f is 0.83–0.87 of the white to an n,
   where the references run Times 0.77–0.85, Flanker 0.77–0.92, Georgia
   0.55–0.80. Ordinary italic-f behaviour; left alone.
+
+## Round 380 — 2026-09-24: the italic's own marks, and the ?'s contrast
+
+Owner: *"italic punctuation is too big"* and *"question marks do not fit albo
+style (mostly line contrast)."*
+
+- **Italic marks, against ITALIC references for the first time** (Flanker,
+  Pagella, Coelacanth, Poetica, Georgia, Times, Palatino italic; per x-height):
+  period 0.267 → 0.226 (median 0.218 — italic references carry smaller dots
+  than roman ones), comma 0.464×0.630 → 0.389×0.553 (was outside the band on
+  both axes; median 0.384×0.540), curly quote width 0.415 → 0.357 (max 0.384).
+  `IT_DOT` 0.85, `IT_COMMA_W` 0.80, `IT_COMMA_LEN` 0.88, `IT_QUOTE` 0.90,
+  italic only; the roman is byte-identical.
+- **The ?'s line contrast.** Thick/thin on the hook (chamfer ridge p90/p10):
+  1.32, against Albo's own o and c 1.93, its 3 2.76, Georgia's ? 2.47, Times'
+  4.26 — near monoline, because round 19's 0.78 S floor held every part of the
+  hook at "Albertus weight". The floor drops to the family's bowl hairline
+  0.46 S (roman: 1.32 → 2.06, on its o; Bold 2.04 vs its o 1.96). The italic's
+  o runs 2.88; floor 0.36 alone saturated at 2.29, so the hook's light arm
+  plan also thins in the italic (`Q8_LIGHT` 0.45): 2.50. The THICK is
+  unchanged in every cut, so the 2026-09-13 ruling's weight holds where the pen
+  is heavy. Hook-to-dot white 39–72 units across the cuts; no hair, touch or
+  dent finding.
+- Seen and not fixed: the ?'s outline is faceted, like the round-377 ampersand
+  and — per the owner's note — the italic figures.

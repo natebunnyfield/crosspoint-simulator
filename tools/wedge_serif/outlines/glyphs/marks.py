@@ -97,7 +97,20 @@ EXCL_NIB_W = float(os.environ.get("ALBO_EXCL_NIB_W", 1.15))      # the press's t
 REF_S = 66.9                       # the 400's stem, build_env.sh
 WF = (REF_S / S) ** float(os.environ.get("ALBO_MARK_WEIGHT_EXP", 0.4))
 ST = REF_S if os.environ.get("ALBO_MARK_TAIL_FIXED", "1") == "1" else S
-MDOT = DOT_R * MARK_DOT * WF
+# ROUND 380 -- THE ITALIC'S MARKS ARE SMALLER. Owner 2026-09-24: *"italic
+# punctuation is too big."* Round 369 fitted every mark against ROMAN
+# references and gave both styles the same sizes. Measured against seven
+# ITALIC references (Flanker, Pagella, Coelacanth, Poetica, Georgia, Times,
+# Palatino italic), per x-height: the italic's period 0.267 against a median
+# 0.218 (italic references carry smaller dots than roman ones -- the roman
+# median is ~0.26), its comma 0.464 wide and 0.630 tall against a MAXIMUM of
+# 0.397 and 0.602, its curly quote 0.415 wide against a maximum 0.384. These
+# scale the italic only; at 1.0 each is the round-375 mark.
+IT_DOT = float(os.environ.get("ALBO_IT_MARK_DOT", 0.85)) if pen.ITALIC else 1.0
+IT_COMMA_W = float(os.environ.get("ALBO_IT_COMMA_W", 0.80)) if pen.ITALIC else 1.0
+IT_COMMA_LEN = float(os.environ.get("ALBO_IT_COMMA_LEN", 0.88)) if pen.ITALIC else 1.0
+IT_QUOTE = float(os.environ.get("ALBO_IT_QUOTE", 0.90)) if pen.ITALIC else 1.0
+MDOT = DOT_R * MARK_DOT * WF * IT_DOT
 # ROUND 375 -- THE DOTS SINK THROUGH THE BASELINE, AS THE o DOES. Owner
 # 2026-09-24, on the specimen: *"punctuation needs to rest on baseline
 # better."* Measured, lowest ink against the baseline in /1000 em, every mark
@@ -127,8 +140,8 @@ def g_period(c): return dot(MDOT, BY, MDOT)
 # against the references' 0.323-0.427 and 0.570-0.700. They carry the CURLY
 # QUOTES with them -- an apostrophe is the comma's own dot and tail -- so the
 # quote dials below do less work than their numbers suggest.
-COMMA_LEN = float(os.environ.get("ALBO_COMMA_LEN", 1.95))
-COMMA_W = float(os.environ.get("ALBO_COMMA_W", 2.40))
+COMMA_LEN = float(os.environ.get("ALBO_COMMA_LEN", 1.95)) * IT_COMMA_LEN
+COMMA_W = float(os.environ.get("ALBO_COMMA_W", 2.40)) * IT_COMMA_W   # round 380: x IT_COMMA_W in the italic
 
 def comma_tail(x, y, up=True, w0=0.9, w1=0.3, k=None):
     """`k` overrides the punctuation dials for a caller that is not
@@ -342,7 +355,7 @@ def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and 
     upper = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5)], tension=0.5)
     P = upper[-1]; tn = geom.tangents(upper)[-1]; E = (w * 0.5, end_y); L = math.dist(P, E)
     hook = geom.resample(upper + cubic(P, (P[0] + tn[0] * Q8_TAIL_K1 * L, P[1] + tn[1] * Q8_TAIL_K1 * L), (E[0], E[1] + Q8_TAIL_K2 * L), E)[1:])
-    wf = _smooth_wf(PR.bowl_widths(hook, widths([(0.0, 0.7), (0.25, 0.7), (0.5, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR), len(hook) - 1)
+    wf = _smooth_wf(PR.bowl_widths(hook, widths([(0.0, Q8_LIGHT), (0.25, Q8_LIGHT), (0.5, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR), len(hook) - 1)
     return geom.ink([dot(w * 0.5, BY, MDOT),   # round 375: the period's dot (was 1.1x, 10% over every other)
                      _raise(stroke(hook, wf, cut0=CUT, cut1=CUT), c, w, end_y)])
 def _smooth_wf(wf, n, passes=4):
@@ -355,7 +368,16 @@ def _smooth_wf(wf, n, passes=4):
         ws = [ws[0]] + [(ws[i - 1] + 2 * ws[i] + ws[i + 1]) / 4 for i in range(1, n)] + [ws[-1]]
     return lambda t: ws[min(n, int(round(t * n)))]
 Q8_SCALE = 1.15   # owner 2026-09-13: "make the question mark back into its original question mark shape and albertus heavy, larger to read correctly in a sentence"
-Q8_FLOOR = 0.78   # the hook never under 0.78 S: Albertus weight
+# ROUND 380 -- THE ? GETS THE FACE'S CONTRAST. Owner 2026-09-24: *"question
+# marks do not fit albo style (mostly line contrast)."* The 0.78 S floor held
+# the hook near monoline: measured thick/thin (chamfer ridge, p90/p10) 1.32,
+# against Albo's own o and c at 1.93, its 3 at 2.76, and Georgia's ? 2.47,
+# Times' 4.26. The floor drops to 0.46 S -- the family's own bowl hairline --
+# which measures 2.06, on the o and c. The THICK is untouched (56 -> 55 px at
+# the test size), so the Albertus weight of the 2026-09-13 ruling stays where
+# the pen is heavy; only the thin gets thin. Ladder: 0.60 -> 1.62, 0.36 -> 2.50.
+Q8_FLOOR = float(os.environ.get("ALBO_Q8_FLOOR", 0.36 if pen.ITALIC else 0.46))   # was 0.78 (round 19's "Albertus weight" everywhere on the hook)
+Q8_LIGHT = float(os.environ.get("ALBO_Q8_LIGHT", 0.45 if pen.ITALIC else 0.7))   # the width plan on the hook's light left arm and top (round 233's 0.7); round 380: 0.45 in the italic, whose o runs 2.88 -- floor 0.36 alone saturated at 2.29, this takes the ? to 2.50
 # ROUND 377 -- NARROWER, SAME SHAPE. The ? stays the owner's 2026-09-13 mark
 # (original shape, Albertus heavy, larger) and stays at the ascender (round
 # 369). But raising it scaled it UNIFORMLY, so it got wider as well as taller:
@@ -484,7 +506,7 @@ def quote(c, x, up):
     other mark), turned to hang from the top instead of sitting on the
     baseline -- top of the dot flush with CAP, matching the straight
     quotes' top and body height exactly."""
-    _r = DOT_R * QUOTE_SIZE * WF     # round 362: the curly pair scales with the straight; round 375: WF
+    _r = DOT_R * QUOTE_SIZE * WF * IT_QUOTE     # round 380: IT_QUOTE; round 362: the curly pair scales with the straight; round 375: WF
     C = CAP(c) - _qdrop(); y = C - _r
     g = geom.ink([dot(x, y, _r), comma_tail(x, y, up, 0.85, 0.3)])
     # ROUND 375 -- TOO BIG. Owner 2026-09-24: *"quotes are too big."* Measured:

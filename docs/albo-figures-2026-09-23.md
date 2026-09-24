@@ -798,3 +798,18 @@ No contour count moved in any cut, and no non-figure glyph changed.
 - The Bold 5 at W 0.57 (the round-374 worry) sits +2.9% over its reachable
   target and renders unpinched (render 1).
 - The superior and inferior 4s in the italic.
+
+## OPEN — owner note, 2026-09-24: "italic numerals are not polished enough"
+
+Recorded as a standing note, not yet a round. After rounds 372–378 fixed the
+measured faults (baseline alignment, the 8's contrast and height, the 2's and
+3's contrast, the width solver's slanted-ink bug, the 1's left bearing, the
+4's weight, the 7's bar), the owner's eye still finds the ITALIC figures
+unpolished. That is a finish judgment the instruments here have not captured:
+every italic figure now passes weight, contrast, width, baseline, hair, touch
+and dent checks, so the next pass must start from rendering the italic
+figures large beside Flanker Griffo, Pagella and Poetica's figures and
+reading them for curve quality, terminal finish, joins and rhythm — the same
+kind of fault the ampersand showed (right proportions, faceted contour) —
+rather than from another measurement table. Seen on the round-377 ampersand
+and worth checking here first: FACETED OUTLINES where the others are smooth.
