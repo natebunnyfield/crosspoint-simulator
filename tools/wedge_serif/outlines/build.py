@@ -277,6 +277,33 @@ CAP_X_WIDTH = float(os.environ.get("ALBO_CAP_X_WIDTH", 0.89))   # round 373, own
 FIG_WIDTH_FLOOR = float(os.environ.get("ALBO_FIG_WIDTH_FLOOR", 0.55))
 FIG_WIDTH_UNSHEAR = os.environ.get("ALBO_FIG_WIDTH_UNSHEAR", "1") != "0"
 
+# ROUND 376 -- THE FIGURES' TARGET KNOWS THE WEIGHT. Owner 2026-09-24, "yes to
+# all" (the open items of round 374). The target was the 400's reference width
+# x pen.WIDTH at every weight, so a bold figure's ink -- which carries ~50 more
+# units of stem -- could not reach it: measured on round 375's build, the Bold's
+# figures ran +6% to +28% over target and the BoldItalic's +12% to +32%, the
+# solver pinned at its floor, and the growth from 400 to 700 came out UNEVEN
+# (the 5 +70 units, the 3 +54, the 4 -23, the 7 -20).
+#
+# What bold references do, measured the same way on eleven regular/bold pairs
+# on this Mac (Georgia, Times New Roman, Charter, Palatino, Baskerville,
+# Hoefler Text; roman and italic; stem = the l's horizontal cut at 40% of its
+# height; figure = ink width, old-style where the face has it): the figures
+# gain K units of width per unit of stem gained, median 0.61 (range -0.11
+# Palatino to 1.20 Georgia Bold Italic); overall they widen x1.03-1.19.
+# FIG_BOLD_K is that median. The stem gained is pen.S's gain x Albo's own
+# measured l-stem-per-S (0.917 roman, 0.819 italic, from the round-375 build:
+# 64.0 -> 109.0 and 57.5 -> 97.7 against S 66.9 -> 116).
+#
+# At S = 66.9 the term is exactly zero, so the Regular and Italic are
+# byte-identical (proved). `ALBO_FIG_BOLD_K=0` restores the old target.
+FIG_BOLD_K = float(os.environ.get("ALBO_FIG_BOLD_K", 0.61))
+FIG_WIDTH_S0 = 66.9
+FIG_BOLD_FLOOR = os.environ.get('ALBO_FIG_BOLD_FLOOR', '1') != '0'   # round 376: with a reachable target the bolds take the figures' floor too (see the note above)
+def _fig_weight_gain():
+    """Units of figure width a heavier stem earns, per round 376."""
+    return FIG_BOLD_K * (pen.S - FIG_WIDTH_S0) * (0.819 if pen.SHEAR else 0.917)
+
 def _fig_width_unsheared(ch, g):
     """A figure's ink width with the italic's shear taken back out. The shear
     is applied about y = 0 and the old-style box translate comes after it, so
@@ -316,7 +343,8 @@ def solve_widths(passes=3):
             target = REF[ch]["w"] * C * pen.WIDTH
             if pen.SHEAR: target *= CAP_NARROW
             if ch == 'X': target *= CAP_X_WIDTH          # owner 2026-09-23, see CAP_X_WIDTH
-            _lo = FIG_WIDTH_FLOOR if (isfig(ch) and pen.S <= 84.0) else 0.7   # round 374, see FIG_WIDTH_FLOOR
+            if isfig(ch) and pen.S > FIG_WIDTH_S0: target += _fig_weight_gain()   # round 376, see FIG_BOLD_K
+            _lo = FIG_WIDTH_FLOOR if (isfig(ch) and (pen.S <= 84.0 or FIG_BOLD_FLOOR)) else 0.7   # round 374, see FIG_WIDTH_FLOOR; round 376 FIG_BOLD_FLOOR
             if drawn > 1: W[ch] = max(_lo, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))
     return W
 

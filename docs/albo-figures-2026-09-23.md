@@ -620,3 +620,181 @@ Proof of scope:
 - `FIG_HAND` press positions on the italic 8 (`aldine.py`).
 
 Renders: `/private/tmp/.../scratchpad/albo/figs374/` — see the report.
+
+---
+
+# Round 376, figures (2026-09-24) — the Bold width target and the italic 4's weight
+
+Owner: *"yes to all"* (round 374's open items). Changes are in
+`outlines/glyphs/figures.py` and `outlines/build.py` (`solve_widths` and its
+constants only). Before and after are built from one snapshot of HEAD
+(`8c2fddc`; the base `build.py` and `figures.py` were checked equal to HEAD),
+all four cuts, through `build_env.sh`.
+
+## 1. The figures' width target knows the weight (`build.py`)
+
+**Before.** The target was the 400's reference width × `pen.WIDTH` at every
+weight. The Bold's figures ran +6% to +28% over target, the BoldItalic's +12%
+to +32%, and the solver sat on its 0.70 floor. Growth from the 400 was
+uneven. Figure ink, Bold minus Regular, in units:
+
+| | 0 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---|---|---|---|---|---|---|---|---|
+| before | +3 | +48 | +54 | −23 | +70 | +22 | −20 | +17 | +20 |
+| after | +10 | +17 | +18 | +5 | +16 | +13 | +7 | +8 | +10 |
+
+**What bold references do.** Eleven regular/bold pairs on this Mac: Georgia,
+Times New Roman, Charter, Palatino and Baskerville in roman and italic, plus
+Hoefler Text Black. The stem is the `l`'s horizontal cut at 40% of its height;
+the figure is its ink width, old-style where the face has it. Figure width
+gained per unit of stem gained:
+
+| face | K |
+|---|---|
+| Georgia Bold | 1.15 |
+| Georgia Bold Italic | 1.20 |
+| Times New Roman Bold | 0.29 |
+| Times New Roman Bold Italic | 0.46 |
+| Charter Bold | 0.78 |
+| Charter Bold Italic | 0.38 |
+| Palatino Bold | −0.11 |
+| Palatino Bold Italic | 0.61 |
+| Baskerville Bold | 0.61 |
+| Baskerville Bold Italic | 0.63 |
+| Hoefler Text Black | 0.88 |
+
+The median is **0.61**, and overall the references' figures widen ×0.99 to
+×1.19.
+
+**The rule.**
+- `target += FIG_BOLD_K × (S − 66.9) × Albo's own measured l-stem per S`.
+- `FIG_BOLD_K` is 0.61. The l-stem-per-S factor is 0.917 roman and 0.819
+  italic: 64.0 → 109.0 and 57.5 → 97.7 against S 66.9 → 116.
+- With a target it can reach, the bold takes the figures' 0.55 floor
+  (`ALBO_FIG_BOLD_FLOOR`). At S = 66.9 the term is zero.
+- `ALBO_FIG_BOLD_K=0 ALBO_FIG_BOLD_FLOOR=0` restores the old solve.
+
+**After.** Every solved Bold figure is +0.0% to +2.9% of target, and every
+BoldItalic figure +0.3% to +2.2%. The exception is the 8 (Bold +8.5%,
+BoldItalic +4.3%), whose width comes from the 6's bowl counter rather than
+from W.
+
+Overall figure ink, bold over regular:
+
+| | before | after |
+|---|---|---|
+| Bold | ×1.061 (0.95–1.20 per figure) | ×1.030 (1.01–1.05) |
+| BoldItalic | ×1.119 (1.05–1.18) | ×1.069 (1.02–1.10) |
+
+The Bold's ×1.03 is inside the references' band but near its narrow end
+(Palatino 0.99, Times 1.05), because the Bold is condensed to `FJORD_WIDTH` 95
+by design.
+
+Spacing:
+
+| | figure-space spread | digit+digit |
+|---|---|---|
+| Bold | 1.70 → 1.81× | 0.088, in band, unchanged |
+| BoldItalic | 1.46 → 1.51× | 0.134 → 0.131, in band |
+
+Both spreads are still under every reference (1.78–5.58×).
+
+## 2. The italic 4's weight (`FOUR_OPT_IT['f']`, shipped)
+
+**Before.** `cmp_weight_survey` (the ridge median) read the 4 at −24% of the
+italic's figures and −26% of the BoldItalic's, the lightest in both. By mean
+stroke width (2 × area / outline length) it was −3%: the stem carries it. The
+light parts are the bar and the diagonal, which are what the eye reads.
+
+**Ladder** (bar × stem × diagonal):
+- 1.0 / 1.2 / 0.86: heavier stem, no change on the ridge measure (−24%).
+- 1.15 / 1.12 / 0.86 and 1.25 / 1.2 / 0.86: clean.
+- **1.15 / 1.0 / 0.86: clean. Ships.**
+- 1.2 / 1.0 / 0.90: a HAIR on the italic superior `uni2074`.
+- 1.25 / 1.05 / 0.86: clean.
+- 1.0 / 1.1 / 0.95: the BoldItalic went from 2 pairs under the touch floor to
+  5, with 3 touching.
+- Round 374's `e` (bar 1.45) had opened the counter-apex HAIR in the
+  BoldItalic.
+
+**After** (1.15 / 1.0 / 0.86: the bar 15% heavier, the diagonal option `b`'s
+0.86, the stem unchanged):
+
+| | ridge median | mean stroke width | colour |
+|---|---|---|---|
+| Italic | −24% → **−7%** | −3% → **+1%** | 0.134 → 0.141 |
+| BoldItalic | −27% → **−14%** | +1% → **+5%** | — |
+
+No hair, and touch and dents are unchanged.
+
+## 3. Found on the way: the 7's mitre misses the diagonal
+
+The BoldItalic 7's re-solved width turned a pre-existing construction step
+into a gate HAIR at 153°, (478, 371).
+
+**The mechanism.** The bar's end face is laid on the diagonal's edge as `pw`
+predicts it. The built diagonal, on its own profile and a curve in the italic,
+does not sit on that line. Measured as the diagonal's built edge, extended to
+the bar's end, minus the bar's end:
+
+| cut | step (units) |
+|---|---|
+| Regular | −1.1 |
+| Italic | +7.3 |
+| Bold | −6.7 (the bar stands proud) |
+| BoldItalic | +12.4 (the diagonal's corner stands proud) |
+
+**The fix.**
+- The bar's end is moved onto the BUILT edge, read just below the bar's end,
+  and cut parallel to it. It is re-measured until it lands within 0.1 unit.
+- **Bolds only**: the round required the Regular and Italic to be
+  byte-identical, and no tolerance separates the four cuts, because the
+  Italic's step (7.3) is larger than the Bold's (6.7).
+- The Regular's and Italic's steps are recorded, not fixed.
+  `ALBO_FIG_7_MITRE_ALL=1` applies the fix to them too; measured, it takes the
+  Italic from +7.3 to +0.3.
+
+**Two negative results, both caught on the probe and neither shipped:**
+- Reading the edge 60 units down the italic's CURVED diagonal misses the join
+  by ~4 units.
+- Reading at 0.85 of the full bar depth missed the italic's tapered end face,
+  and the correction ran away to W 0.55.
+
+## Changed glyphs (glyf + hmtx)
+
+| cut | changed |
+|---|---|
+| Regular | **0**: byte-identical |
+| Italic | 5: `four onequarter threequarters uni2074 uni2084` |
+| Bold | 36: all ten figures except the 1, and their 26 composites |
+| BoldItalic | 36: all ten figures except the 1, and their 26 composites |
+
+No contour count moved in any cut, and no non-figure glyph changed.
+
+## Gates
+
+- `./gates.sh`: **GATES UNCHANGED**. Approved glyphs are unchanged, the bench
+  matches, and the contour census is unchanged.
+- `cmp_contour_hairs --letters`: unchanged in all four cuts.
+- Full sweep: unchanged in the Regular, Italic and Bold.
+- **BoldItalic: +1, `uni2088` (the subscript 8), 153° at (132, 167), a 1-unit
+  arm.** It is rounding, not drawing:
+  - `uni2078`, the SUPERIOR 8, is the same outline 274 units higher; 162 of
+    its 312 points differ from the subscript only by 1 unit of rounding, and
+    at the same spot it reads 108°, which is clean.
+  - Laddering the 8's waist overlap (0.10 / 0.20 / 0.30 / 0.35 / 0.45 / 0.50)
+    left it at every rung.
+  - It appears because the BoldItalic 8 changed through the 6's re-solved
+    width, which is what sizes the 8's counters.
+  - Recorded, not fixed. A fix would be in `symbols2.py` (`SUB_Y`) or the
+    exporter, neither of which is mine.
+- `cmp_touch`: under-floor and touching sets identical in all four cuts.
+- `cmp_counter_dents` at 700: 0 / 0.
+- `cmp_aldine_glitch`: identical sets.
+
+## Checked and found CLEAN
+
+- The Regular and Italic width solve is untouched, proved byte-identical.
+- The Bold 5 at W 0.57 (the round-374 worry) sits +2.9% over its reachable
+  target and renders unpinched (render 1).
+- The superior and inferior 4s in the italic.

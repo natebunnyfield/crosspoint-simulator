@@ -473,6 +473,7 @@ FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 FIG_SHIP_IT.update({'9': 'j'})   # j = h + the patch; 'h' stays the picture he ruled on
 FIG_SHIP_IT.update({'8': 'x'})   # round 374: the italic 8 cut on a true nib and set on the 6's line (EIGHT_OPT_IT 'x')
 FIG_SHIP_IT.update({'2': 'g', '4': 'd'})   # round 374: the 2's arc to the profile and its slash held (TWO_OPT_IT 'g'); the 4's bar up to the references' line (FOUR_OPT_IT 'd')
+FIG_SHIP_IT.update({'4': 'f'})   # round 376: d's bar height with the bar and diagonal heavier (FOUR_OPT_IT 'f')
 
 def OPT(d):
     """Which option this build draws for digit `d`. Env first, then the
@@ -1369,6 +1370,24 @@ FOUR_OPT_IT = {k: FOUR_OPT[k] for k in ('b', 'c')}   # round 255: the italic kee
 # point, re-cut; `d` is gate-clean at both italic weights. Both rows stay.
 FOUR_OPT_IT['d'] = dict(bar_y=_E('ALBO_FIG_4_BAR_Y_IT', 0.36))
 FOUR_OPT_IT['e'] = FOUR_OPT['e']
+# ROUND 376 -- THE ITALIC 4's WEIGHT, without the hair. Owner 2026-09-24,
+# "yes to all". Measured on round 375's build with `cmp_weight_survey` (the
+# chamfer-ridge median, the survey's own measure): the italic 4 read -24% of
+# its figures and the BoldItalic's -26%, the lightest in both. Its ridge is
+# mostly the BAR and the DIAGONAL (0.75), which is why a heavier stem moves
+# nothing on that measure (stem 1.20 left it at -24%). By mean stroke width
+# (2 x area / outline length) it was -3% -- the stem carries it -- so the fault
+# is where the eye reads it: a thin bar and a thin diagonal.
+#
+# `e` (bar 1.45) opened a HAIR at the BoldItalic counter apex in round 374.
+# Laddered here (bar x stem x diag): 1.0/1.2/0.86, 1.15/1.12/0.86,
+# 1.25/1.2/0.86, 1.15/1.0/0.86, 1.2/1.0/0.90, 1.25/1.05/0.86, 1.0/1.1/0.95.
+# 1.20/1.0/0.90 put a HAIR on the italic superior `uni2074`; 1.0/1.1/0.95 put
+# the BoldItalic from 2 pairs under the touch floor to 5 and 3 touching.
+# 1.15 / 1.0 / 0.86 ships: survey -24% -> -7% (Italic), -26% -> -14%
+# (BoldItalic); mean width +1% / +5%; no hair, touch and dents unchanged. The
+# stem stays; the bar is 15% heavier and the diagonal takes option b's 0.86.
+FOUR_OPT_IT['f'] = dict(bar_y=0.36, bar=_E('ALBO_4F_BAR', 1.15), stem=_E('ALBO_4F_STEM', 1.0), diag=_E('ALBO_4F_DIAG', 0.86))
 
 # THE 5'S OPTIONS, and they are two independent questions, so there are four
 # arms rather than three.
@@ -1802,8 +1821,69 @@ def g_seven(c):
     else:
         _bp = widths([(0.0, 1.0), (1.0, _mod)]) if _mod != 1.0 else None
         _wedges = [('left', -1)]
-    return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre,
-                         wedges=_wedges, prof=_bp), diag])
+    # ROUND 376 -- THE MITRE ON THE DIAGONAL'S BUILT EDGE. The bar's end face
+    # is laid on the diagonal's right edge AS `pw` PREDICTS IT (ex, ey: the
+    # straight p0-p1 line at width wd). The built diagonal is a stroke on its
+    # own profile (in the italic a curve), and the bar's tapered, mitred end is
+    # a polygon of its own, so the two do not meet on one line. Measured on
+    # round 376's build, the diagonal's built edge extended to the middle of
+    # the bar's end, minus the bar's end there: Regular -1.1, Italic +7.3,
+    # Bold -6.7, BoldItalic +12.4 units. In the Bold the bar's end stands proud
+    # of the diagonal; in the italics the diagonal's start corner stands proud
+    # of the bar. Round 376's weight-aware width re-solved the BoldItalic 7 and
+    # its 12-unit step became a gate HAIR (153 degrees at (478, 371), a 2-unit
+    # arm) -- which is the only reason this is here.
+    #
+    # The bar's end is moved onto the BUILT edge (read just below the bar's
+    # end) and cut parallel to it, re-measured until it lands to a tenth of a
+    # unit. IN THE BOLDS ONLY (stem > 84): the round's ruling required the
+    # Regular and Italic to stay byte-identical, and a tolerance cannot sort
+    # the four -- the Italic's step is larger than the Bold's. The 400s' steps
+    # ROUND 378: MITRE_ALL now defaults ON -- owner, "address all numeral
+    # issues"; the italic's +7.3-unit step measured +0.3 with it.
+    # (Regular -1, Italic +7) are RECORDED, NOT FIXED; `ALBO_FIG_7_MITRE_ALL=1`
+    # applies it to them too. A first version gated on a 6- then 10-unit
+    # tolerance and was sorted by the sampling row rather than the step: read
+    # 60 units down the italic's CURVED diagonal the edge is ~4 units off the
+    # join, and read at 0.85 of the full bar depth the row missed the italic's
+    # tapered end face and ran the correction away (W 0.55) -- both caught on
+    # the probe, neither shipped.
+    _tol = _E('ALBO_FIG_7_MITRE_TOL', SEVEN_MITRE_TOL)
+    from shapely.geometry import LineString as _LS7
+    def _rx(g, y):
+        seg = _LS7([(-4000.0, y), (4000.0, y)]).intersection(g)
+        return None if seg.is_empty else seg.bounds[2]
+    _b = bar(0, x1, D, barw, align='top', cut1=mitre, wedges=_wedges, prof=_bp)
+    # the diagonal's edge, read just below the bar's END (whose depth the
+    # italic's taper thins to `_mod`) -- close, because the italic diagonal is
+    # a curve and a line read 60 units further down misses the join by ~4
+    _dend = barw * min(1.0, _mod if _bp is not None else 1.0)
+    _ya, _yb = D - _dend - 12.0, D - _dend - 30.0
+    _xa, _xb = _rx(diag, _ya), _rx(diag, _yb)
+    # the bar's end face low down, where it hands over to the diagonal -- 0.8 of
+    # the bar's depth AT ITS END, which the italic's taper (`_mod`) thins: read
+    # at 0.85 of the full depth the row missed the end face altogether, hit
+    # the bar's body far to the left and ran the correction away (W 0.55,
+    # x1 at 594 -- caught on the probe, never shipped)
+    _ym = D - _dend * 0.8
+    _xm = _rx(_b, _ym)
+    if None not in (_xa, _xb, _xm):
+        _sl = (_xa - _xb) / (_ya - _yb)                    # dx/dy of the built edge
+        _shift = (_xa + _sl * (_ym - _ya)) - _xm
+        if (pen.S > 84.0 or _E('ALBO_FIG_7_MITRE_ALL', 1.0)) and abs(_shift) > _tol:
+            # the bar's tapered, mitred end does not land exactly where x1
+            # asks, so the shift is re-measured and re-applied until the face
+            # meets the edge to a tenth of a unit (two passes settle it)
+            mitre = -math.atan(abs(_sl))
+            for _ in range(4):
+                x1 += _shift
+                _b = bar(0, x1, D, barw, align='top', cut1=mitre, wedges=_wedges, prof=_bp)
+                _xm = _rx(_b, _ym)
+                if _xm is None: break
+                _shift = (_xa + _sl * (_ym - _ya)) - _xm
+                if abs(_shift) < 0.1 or abs(_shift) > 40.0: break
+    return geom.ink([_b, diag])
+SEVEN_MITRE_TOL = 0.5
 
 # ============================== THE 8'S OPTIONS ==========================
 # TWO FAULTS, AND THE FIRST ONE IS A RULING, so it is offered and not shipped.
