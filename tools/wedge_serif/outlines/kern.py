@@ -610,6 +610,18 @@ _BENCH_PAIRS_ITA = ((('A','n'), 2), (('A','v'), 16), (('C','a'), -1), (('C','h')
 for _p, _d in (_BENCH_PAIRS_ITA if (_ALD is not None and _ALD.ON) else _BENCH_PAIRS_ROM):
     PAIRS[_p] = _shipped(*_p) + _d
 
+# ROUND 373 -- HOLD THE OWNER'S XI AND XY WHERE HE SET THEM, ROMAN ONLY. The
+# roman X's right bearing came in 18 units (build.ROM_CAP_ADJ, "adjust spacing
+# around x"), and his round-198 bench kerns XI -72 / XY -54 were set against
+# the old bearing: left alone they would have closed XI 0.033 -> 0.018 em and
+# XY 0.029 -> 0.011, under the 0.012 floor. +18 returns both to exactly the
+# gap he chose (measured 0.033 and 0.029 after). The italic X's bearing did not
+# move, so the italic keeps -72 / -54 untouched -- this table is shared by every
+# style, which is why the adjustment is gated here rather than written into it.
+if not (_ALD is not None and _ALD.ON):
+    for _p in (('X', 'I'), ('X', 'Y')):
+        PAIRS[_p] = PAIRS[_p] + 18
+
 # ROUND 348 -- THE ROMAN Q'S TAIL, KERNED RATHER THAN SHORTENED.
 # Owner 2026-09-21, choosing between a shorter tail and kern pairs: *"kern
 # Q"*. So the letter is untouched and these thirteen pairs carry the white

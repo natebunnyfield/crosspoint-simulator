@@ -561,8 +561,32 @@ def g_H(c):
 # SCOPE: this is `g_I`, so it moves the ROMAN I and -- through
 # `aldine.a_I` -> `_thin_stem(_CS.g_I, ...)` -- the Aldine italic's I as well.
 # Both are inert at the default.
-CAP_I_LSERIF = float(os.environ.get("ALBO_CAP_I_LSERIF", 1.0))
+CAP_I_LSERIF = float(os.environ.get("ALBO_CAP_I_LSERIF", 0.55))   # round 373, owner: 0.55
 CAP_I_LSERIF_DEPTH = float(os.environ.get("ALBO_CAP_I_LSERIF_DEPTH", -1.0))
+
+# ROUND 373 -- THE RULING, and the RIGHT serif gets a dial too. Owner
+# 2026-09-23, on round 370's ladder: *"for I: .55 on left, .45 on right."* So
+# the two top wedges are no longer 2.5x apart (1.0 / 0.4) but nearly matched
+# (0.55 / 0.45), the left still a shade the larger -- which round 370 measured
+# is what clears `VI` (touching at -0.0052 em in the shipped font, +0.0134 at
+# 0.55). The right serif was the primitive's hard-coded small wedge; it is
+# `stem(small_top=...)` now, and CAP_I_RSERIF is its length on the SAME scale
+# and the SAME coupling as the left dial -- so 0.4 is the old small wedge
+# exactly and the two dials describe one family of wedges, not two.
+CAP_I_RSERIF = float(os.environ.get("ALBO_CAP_I_RSERIF", 0.45))
+
+def _i_wedge_for(L, depth_override=-1.0):
+    """(len, depth, drop) for an I top wedge of length L on the family scale:
+    linear from the main wedge (1.0, 1.0, 1.0) at 1.0 to the small wedge
+    (0.4, 0.6, 0.4) at 0.4."""
+    t = (1.0 - L) / 0.6
+    depth = depth_override if depth_override >= 0 else 1.0 - 0.4 * t
+    return L, depth, 1.0 - 0.6 * t
+
+def _i_right_wedge():
+    if CAP_I_RSERIF == 0.4:
+        return (0.4, 0.6, 0.4)          # the primitive's own literals: bit-identical
+    return _i_wedge_for(CAP_I_RSERIF)
 
 def _i_left_wedge():
     """(top_len, top_depth, top_drop) for the I's LEFT top wedge, keyed on the
@@ -576,7 +600,8 @@ def _i_left_wedge():
 @glyph('I')
 def g_I(c):
     L_, D_, dr_ = _i_left_wedge()
-    return geom.ink([cstem(CS / 2, 0, c["cap"], top='left+', top_len=L_, top_depth=D_, top_drop=dr_)])
+    return geom.ink([cstem(CS / 2, 0, c["cap"], top='left+', top_len=L_, top_depth=D_, top_drop=dr_,
+                           small_top=_i_right_wedge())])
 
 J_DROP = float(os.environ.get("ALBO_J_DROP", 120.0))
 

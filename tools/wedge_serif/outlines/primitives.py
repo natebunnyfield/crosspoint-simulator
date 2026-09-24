@@ -177,7 +177,8 @@ def stem_width(w0, ent, t):
 
 def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=False,   # round 103: `cap` also gates the italic entry/exit
          top_len=1.0, top_depth=1.0, foot_len=FOOT, foot_depth=1.0, top_drop=1.0, foot_drop=0.6,
-         top_scale=1.0, cut_top=None, it_entry=None, it_exit=None, it_exit_len=1.0):   # round 106: None = the italic's default, False = never (an arch IS its second stem's entry)
+         top_scale=1.0, cut_top=None, it_entry=None, it_exit=None, it_exit_len=1.0,
+         small_top=(0.4, 0.6, 0.4)):   # round 373: the 'left+'/'right+' SMALL wedge's (len, depth, drop); the default is the family's hard-coded small wedge, byte for byte   # round 106: None = the italic's default, False = never (an arch IS its second stem's entry)
     """A vertical stem from y0 to y1 with entasis, its wedges as part of the
     same solid. w: mid width (default the pen's vertical, x1.137 for cap).
     top: None | 'left' | 'right' | 'both' | 'left+' | 'right+' ('+' adds the
@@ -211,7 +212,7 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
             sides = [sd for sd in sides if sd > 0]   # the entry replaces the LEFT top wedge, as the exit replaces the right foot
         for i, sd in enumerate(sides):
             small = (top in ("left+", "right+")) and i == 1
-            L_ = wl * (0.4 if small else top_len) * top_scale; D_ = wd * (0.6 if small else top_depth); dr = DROP * (0.4 if small else top_drop)
+            L_ = wl * (small_top[0] if small else top_len) * top_scale; D_ = wd * (small_top[1] if small else top_depth); dr = DROP * (small_top[2] if small else top_drop)
             A = (x + sd * wid(y1) / 2, y1)
             parts.append(wedge(A, (0, 1), (sd, 0), L_, D_, dr, edge_at=edge_fn(sd, True)))
     if foot:

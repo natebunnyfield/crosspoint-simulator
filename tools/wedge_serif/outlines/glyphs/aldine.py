@@ -4152,7 +4152,7 @@ if ON:
     # -- the declared table's own range is only 42..66, so the letter is nearly
     # monoline by construction and 0.61 would be needed. Shaping that contrast
     # is a different lever and a separate ask.
-    F_INK = d_dial("F_INK", 1.0)      # every declared width of the f, x this
+    F_INK = d_dial("F_INK", 0.88)     # every declared width of the f, x this -- round 373, owner: ".88 wins"
 
     @glyph('f')
     def a_f(c):

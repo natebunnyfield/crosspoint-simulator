@@ -247,7 +247,7 @@ CAP_NARROW = float(os.environ.get("ALBO_IT_CAP_NARROW", 0.953))
 # STYLE-AGNOSTIC ON PURPOSE: `solve_widths` is shared, so a non-default value
 # narrows the italic's and the bold's X too. Harmless while it is 1.0. If a
 # value is ever ruled for the ROMAN alone, this wants `and not pen.SHEAR`.
-CAP_X_WIDTH = float(os.environ.get("ALBO_CAP_X_WIDTH", 1.0))
+CAP_X_WIDTH = float(os.environ.get("ALBO_CAP_X_WIDTH", 0.89))   # round 373, owner: "X .89 wins"
 
 
 def solve_widths(passes=3):
@@ -491,6 +491,31 @@ ROUND_LC_RSB = 11
 # kept the old bearings: measured the same way it ran 11 tight on the left and
 # 16 on the right against the o. 'g' goes (-11,-19) -> (0,-3).
 BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, -1), 'f': (5, 25), 'g': (0, -3), 'h': (0, -2), 'i': (0, -1), 'j': (0, 14), 'k': (0, 18), 'l': (-3, 2), 'm': (0, -2), 'n': (4, 0), 'o': (0, -2), 'p': (-11, -1), 'q': (0, 37), 'r': (2, 13), 's': (17, 19), 't': (-11, 0), 'u': (-9, 3), 'v': (-1, -4), 'w': (6, 4), 'x': (42, 0), 'y': (0, 13), 'z': (0, -23), 'ﬀ': (0, 16)}
+# ROUND 373 -- THE ROMAN CAPITALS' OWN BEARING DELTAS, starting with the X.
+# Owner 2026-09-23: *"X .89 wins, adjust spacing around x."* Narrowing the X
+# did NOT move its gaps -- the solver narrows ink and advance together, so every
+# X pair's closest approach stayed within 0.002 em -- but measuring them is what
+# showed the X had always sat loose. Measure 4 (cmp_space_2d.py, 2-D closest
+# approach, shaped pairs, eight roman references) on the built 0.89 X, each X
+# pair's excess over the reference median taken AGAINST the matching H pair's
+# excess, so Albo's deliberate +0.03 em capital rhythm cancels out:
+#
+#   X's LEFT side  (HX OX AX EX TX NX IX YX VX vs the same partners before H):
+#       +.015 +.026 +.004 +.021 -.008 +.015 +.024 -.006 -.004   median +0.015 em
+#   X's RIGHT side (XH XO XA XE XT XN XV vs H before the same partners):
+#       +.023 +.028 +.018 +.026 +.001 +.031 -.013               median +0.023 em
+#
+# XI and XY are left out of the right-side median deliberately: both carry the
+# owner's own hand-set kerns from round 198's bench (XI -72, XY -54), and
+# those kerns ARE the spacing he chose for those pairs. The X's shape change
+# left their geometry where he set it (XI 0.035 -> 0.033, XY 0.028 -> 0.029),
+# so they stand. Applied as whole units: -15 left, -18 right (the right side's
+# median is 23; 18 keeps XT, already near-level, from going tight).
+#
+# Roman only -- the Aldine italic's capitals have their own owner-set table,
+# ALD.CAP_BEARING_ADJ, and the italic X takes (1, -16) from it already.
+ROM_CAP_ADJ = {'X': (-15, -18)}
+
 A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
 J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
 
@@ -739,6 +764,8 @@ def fit(ch, conts, c):
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
     if not (ALD is not None and ALD.ON) and ch in ROM_LC_ADJ:
         lsb += ROM_LC_ADJ[ch][0]; rsb += ROM_LC_ADJ[ch][1]      # round 308
+    if not (ALD is not None and ALD.ON) and ch in ROM_CAP_ADJ:
+        lsb += ROM_CAP_ADJ[ch][0]; rsb += ROM_CAP_ADJ[ch][1]    # round 373
     # ROUND 137: the owner's own capital spacing, set live on the bench and
     # applied as a delta on the rule above -- aldine italic only.
     if ALD is not None and ALD.ON and ch in getattr(ALD, 'CAP_BEARING_ADJ', {}):
