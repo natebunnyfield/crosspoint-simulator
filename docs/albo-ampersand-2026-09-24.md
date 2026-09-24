@@ -234,3 +234,120 @@ come with the regeneration.
   weights, beside all nine references at one x-height, and *"Smith & Sons,
   Black & White, rock & roll, bread & butter"* at 40 and 27 px and at 13 px
   ×5 nearest-neighbour.
+
+---
+
+## Round 381 — the thicks, because it read thin (2026-09-24)
+
+Owner, on round 377's letter: ***"italic ampersand is too thin."*** Taken at
+face value and measured the way he means it: how dark the `&` sits in a line
+against the lowercase beside it, at the size he reads.
+
+### The instrument
+
+`instruments/amp_colour.py` (new): each glyph set alone, FreeType antialiasing,
+averaged over four sub-pixel phases; its **colour** is its ink over its own
+advance, and the row is the `&`'s colour over the median of the lowercase in
+the proof line (*Smith Sons Black White rock roll bread butter*), at 13 px and
+at 60 px.
+
+| face | `&` ÷ lowercase, 13 px | 60 px |
+|---|---|---|
+| Georgia Italic | 1.26 | 1.25 |
+| Times New Roman Italic | 1.18 | 1.11 |
+| Flanker Griffo | 0.75 | 0.87 |
+| Pagella | 0.92 | 0.98 |
+| Poetica | 1.07 | 0.99 |
+| Coelacanth | 1.33 | 1.32 |
+| **Albo Italic, round 377** | **0.82** | **0.81** |
+| **Albo BoldItalic, round 377** | **0.90** | **0.89** |
+| Albo Italic, round 375 (`g`) | 0.96 | 1.00 |
+
+Six references set their `&` at 0.75–1.33 of their own lowercase, median about
+1.1; round 377's italic sat at 0.82, second-lightest on the shelf and lighter
+than the letter it replaced. The report was right.
+
+### What moved, and why not the uniform dial
+
+Round 377 had already shown that `ALBO_IT_AMP_H_WT` (a multiplier on every
+width) lands the weight but flattens the contrast below the band, because it
+scales the 0.30 S floor — which sets every thin — along with the thicks. So the
+pen's **thick** moves instead, and its thick:thin ratio with it so the nib's
+own thin stays under the floor: **`ALBO_IT_AMP_H_THICK` 0.86 → 1.12 S,
+`ALBO_IT_AMP_H_CON` 5 → 8** (thin 0.172 → 0.140 S, both below 0.30 S, so the
+floor still sets the thins). `ampersands.py` only; `marks.py` untouched.
+
+The ladder, Italic 400, CON held at 5 (stroke ÷ body, contrast ÷ body's,
+13 px colour ÷ lowercase):
+
+| THICK | stroke | contrast | colour |
+|---|---|---|---|
+| 0.86 (r377) | 0.78 | 0.78 | 0.82 |
+| 1.00 | 0.93 | 0.79 | 0.91 |
+| 1.04 | 0.94 | 0.74 | 0.94 |
+| 1.06 | 0.94 | 0.76 | 1.00 |
+| 1.10 | 1.02 | 0.76 | 0.97 |
+| 1.20 | 1.11 | 0.77 | 1.07 |
+| 1.30 | 1.17 | 0.79 | — |
+| **1.12 at CON 8 (ships)** | **0.96** | **0.82** | **0.96** |
+
+At CON 5 the thin and the thick rose together (absolute 10th / 90th percentile
+along the ridge, 1.06 against 0.86: 26.7 → 33.4 and 51.5 → 62.9 units — the
+intermediate directions of a broad pen rise with its thick). At CON 8 the thins
+rise less and the thicks more (32.4 / 65.8), which is the only arm that moved
+the contrast UP. The stroke median is coarse at this resolution — 1.04 and 1.06
+both read 0.94 — so the colour column is the one to read along the ladder.
+
+### Before and after, both italic weights
+
+| measure | refs band | Italic r377 → **r380** | BoldItalic r377 → **r380** |
+|---|---|---|---|
+| stroke ÷ body | 0.60 – 0.85 – 1.04 | 0.78 → **0.96** | 0.77 → **0.97** |
+| contrast ÷ body's | 0.73 – 0.92 – 1.19 | 0.78 → **0.82** (2.03 / 2.48) | 0.78 → **0.90** (2.15 / 2.38) |
+| 13 px colour ÷ lowercase | 0.75 – ~1.1 – 1.33 | 0.82 → **0.96** | 0.90 → **1.06** |
+| stroke, 10th / 50th / 90th pct, units | — | 26.7/40.0/51.5 → 32.4/49.6/65.8 | 44.8/63.9/82.9 → 49.6/80.1/106.8 |
+| advance ÷ `o` | 1.32 – 1.72 – 2.34 | 2.12 → 2.16 | 2.22 → 2.29 |
+| ink top × xh | 1.26 – 1.43 – 1.70 | 1.59 → 1.61 | 1.58 → 1.62 |
+| ink height ÷ cap | 0.89 – 1.03 – 1.16 | 1.10 → 1.12 | 1.15 → **1.18** |
+| sheared thirds L/M/R | 27.8–53.1 / 26.1–46.5 / 15.9–30.3 | 43.4/25.2/31.4 → 43.3/25.9/30.8 | 42.2/28.7/29.1 → 41.9/29.2/29.0 |
+| ink above middle, % | 35.5 – 50.4 | 51.6 → 51.4 | 51.4 → 50.7 |
+| contours | — | 1 → 1 | 1 → 1 |
+
+Weight, contrast and colour move to the reference middle in both weights, and
+contrast goes UP rather than down. The BoldItalic's ink height is now 1.18 of
+its cap, 0.02 above the tallest reference (Hoefler 1.16) — the thicker curl
+reaches further. The thirds and the vertical mass are no worse than round 377
+and remain the upright curl's (§3).
+
+**Seen in the renders and not measured by anything above:** the thick now lands
+visibly on the curl's rising stroke, which runs across the nib at phi 35; in
+the BoldItalic it reads as a heavy club at the top right. That stroke is where
+the pen puts weight, so it is the construction working — but it is the part of
+the letter the owner once called a distraction (round 318), and it is his eye
+that decides whether it is too much.
+
+### Gates, both builds, all four cuts, diffed
+
+- The per-font report (hairs full and `--letters`, `cmp_touch`, glitch `--all
+  --ttf`, dents at the 700s and the 400s, `approved.py`, contour census) is
+  **byte-identical** between round 377's values and round 381's. The ampersand
+  raises no hair in either italic, no glitch, no dent. Pre-existing and
+  unchanged: the BoldItalic `q'` touch, the Regular's one dent (the roman `&`),
+  the Bold's one `--letters` hair.
+- `amp_touch.py`: 0 of 146 `&` pairs below the floor in either italic, before
+  or after (closest Italic `o&` 0.100 em, unchanged; BoldItalic `q&` 0.048,
+  unchanged).
+- `./gates.sh`: **GATES UNCHANGED** against the baseline.
+- Scope, `cmp_outlines.py --advances`: Regular 0 of 530, Bold 0 of 530;
+  Italic and BoldItalic **1 of 530 each — `ampersand`**, outline and advance
+  (852 → 867, 894 → 924). No composite uses it; one contour before and after, so
+  no cut ripple.
+
+Re-verified on `160f67f` (main moved during the round): all four cuts rebuilt
+at both values, gate reports identical, `./gates.sh` unchanged, scope still
+`ampersand` alone in the two italics, and the new ampersand's outline and
+advance identical to the pre-rebase build.
+
+Renders (PNG, native pixels, the 13 px row ×5 nearest), session scratchpad
+`albo/amp380/`: `1_amp_large_before_after.png`, `2_amp_vs_references.png`,
+`3_text_Italic.png`, `3_text_BoldItalic.png`, `4_text_13px_x5_nearest.png`.

@@ -1730,8 +1730,22 @@ def alt051_nib(c):
 #      by the source's 9.2 about the baseline, so the built letter leans 13.
 ALT376_SRC_SLANT = float(os.environ.get("ALBO_IT_AMP_SRC_SLANT", 9.2))  # Poetica's measured slant
 ALT376_WT = float(os.environ.get("ALBO_IT_AMP_H_WT", 1.00))             # one dial on the colour
-ALT376_THICK = float(os.environ.get("ALBO_IT_AMP_H_THICK", 0.86))       # x S -- the e's
-ALT376_CON = float(os.environ.get("ALBO_IT_AMP_H_CON", 5.0))            # thick:thin -- ALD_CON
+# ROUND 381 -- THE THICKS, NOT THE WHOLE LETTER. Owner 2026-09-24, on round
+# 377's letter: *"italic ampersand is too thin."* Measured at 13 px, its colour
+# (ink per unit of advance) was 0.82 of the italic lowercase beside it, where
+# six reference italics set theirs at 0.75-1.33 of their own (median ~1.1),
+# and its stroke 0.78 of the body letters'. A uniform weight (ALBO_IT_AMP_H_WT
+# 1.08 / 1.16) was tried in round 377 and flattened the contrast below the
+# reference band, because it scales the 0.30 S floor with everything else.
+# So the pen's THICK goes up and the thin:thick ratio with it, holding the
+# nib's thin under the floor: 0.86 S at 5:1 -> 1.12 S at 8:1 (the thin is
+# 0.14 S either way below the 0.30 S floor, so the floor still sets every
+# thin). Measured, Italic / BoldItalic: stroke 0.78 -> 0.96 / 0.77 -> 0.97 of
+# the body; contrast 0.78 -> 0.82 / 0.78 -> 0.90 of the body's (band
+# 0.73-1.19); 13 px colour 0.82 -> 0.96 / 0.90 -> 1.06 of the lowercase.
+# The ladder and the arms not taken: docs/albo-ampersand-2026-09-24.md, round 381.
+ALT376_THICK = float(os.environ.get("ALBO_IT_AMP_H_THICK", 1.12))       # x S (round 377: 0.86, the e's)
+ALT376_CON = float(os.environ.get("ALBO_IT_AMP_H_CON", 8.0))            # thick:thin (round 377: 5.0, ALD_CON)
 ALT376_FLOOR = float(os.environ.get("ALBO_IT_AMP_H_FLOOR", 0.30))       # x S -- ET_FLOOR
 
 

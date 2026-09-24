@@ -24,6 +24,7 @@ quoting.
 | `contrast.py` | the chamfer-ridge weight measure used across the ampersand and g work |
 | `amp_measure.py` | the ampersand against its body letters and nine reference italics -- thirds, height, width, weight, contrast, fill, vertical mass; reproduces round 349's 30.3 / 57.1 / 12.6 on `ALBO_IT_AMP=a` (round 377) |
 | `amp_lean.py` | the ampersand's back lean with the face's slant removed; found the shipped `g` at 18.9 degrees against Poetica-upright's 10.5 (round 377) |
+| `amp_colour.py` | the `&`'s colour in running text (ink per unit advance) over the lowercase beside it at 13 and 60 px; round 377's italic read 0.82 against six references' 0.75-1.33 -- the owner's "too thin" (round 381) |
 | `amp_touch.py` | the `&` against every letter, figure and mark -- `cmp_touch.py` has no `&` in its charset (round 377) |
 | `counter-bench.html` | the bench the owner dialled the counter's 393 / 19 / 17 on (round 332) |
 
