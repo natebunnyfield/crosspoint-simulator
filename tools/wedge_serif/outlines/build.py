@@ -556,6 +556,18 @@ BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, 
 # ALD.CAP_BEARING_ADJ, and the italic X takes (1, -16) from it already.
 ROM_CAP_ADJ = {'X': (-15, -18)}
 
+# ROUND 376 -- THE ITALIC 1's LEFT SIDE. Round 374 widened the 1 and recorded
+# that the italic 1 "needs an O1 kern". Measured on the built italic (Measure 4,
+# cmp_space_2d, against eight reference italics) it is not one pair: EVERY pair
+# ending in the 1 sits short -- O1 0.016 em (refs 0.133), 01 0.058 (0.157),
+# 11 0.087 (0.148), 21 0.077 (0.125), 81 0.091 (0.143) -- while every pair
+# STARTING with it is in band (10 12 18 1a). Against the italic figures' own
+# rhythm (00 20 80 run ~+0.01 over the refs) the 1's left is ~0.06 em tight.
+# A bearing, then, not a kern: its slanted flag leans into whatever precedes
+# it. +45 on the left; O1 gets a kern on top (kern.py) because a round
+# capital's right curve meets the flag hardest. Italic only.
+ALD_FIG_ADJ = {'1': (45, 0)}
+
 A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
 J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
 
@@ -804,6 +816,8 @@ def fit(ch, conts, c):
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
     if not (ALD is not None and ALD.ON) and ch in ROM_LC_ADJ:
         lsb += ROM_LC_ADJ[ch][0]; rsb += ROM_LC_ADJ[ch][1]      # round 308
+    if ALD is not None and ALD.ON and ch in ALD_FIG_ADJ:
+        lsb += ALD_FIG_ADJ[ch][0]; rsb += ALD_FIG_ADJ[ch][1]    # round 376
     if not (ALD is not None and ALD.ON) and ch in ROM_CAP_ADJ:
         lsb += ROM_CAP_ADJ[ch][0]; rsb += ROM_CAP_ADJ[ch][1]    # round 373
     # ROUND 137: the owner's own capital spacing, set live on the bench and

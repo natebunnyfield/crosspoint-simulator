@@ -622,6 +622,12 @@ if not (_ALD is not None and _ALD.ON):
     for _p in (('X', 'I'), ('X', 'Y')):
         PAIRS[_p] = PAIRS[_p] + 18
 
+# ROUND 376 -- O1 IN THE ITALIC. After the italic 1's left bearing came out
+# (+45, build.ALD_FIG_ADJ) O1 is still the tightest 1-pair: a round capital's
+# right curve against the 1's slanted flag. +36, italic only.
+if _ALD is not None and _ALD.ON:
+    PAIRS[('O', 'one')] = PAIRS.get(('O', 'one'), 0) + 36
+
 # ROUND 348 -- THE ROMAN Q'S TAIL, KERNED RATHER THAN SHORTENED.
 # Owner 2026-09-21, choosing between a shorter tail and kern pairs: *"kern
 # Q"*. So the letter is untouched and these thirteen pairs carry the white

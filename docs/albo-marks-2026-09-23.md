@@ -220,3 +220,29 @@ upper dot top sits on the x-height; the comma stays in band after the sink
 (roman −183 bottom); the double quotes stay separated (spaced by white, round
 369); contour census unchanged (982); approved glyphs unchanged; gates
 unchanged; touch and hair sweeps on both Bolds identical to before the round.
+
+## Round 376 — 2026-09-24: "yes to all"
+
+- **Straight quotes match the curly ones.** 182 (roman) / 163 (italic) tall →
+  260 / 259, against the curly quotes' 262 and the references' 240–292.
+  `STRAIGHT_TALL` 1.44 roman / 1.66 italic; the body length is laid out in the
+  400's stem at every weight, as the comma's tail is (round 375), so the Bold's
+  come out 276 / 270 rather than 1.7x.
+- **The ? is narrower, same shape.** It stays the owner's 2026-09-13 mark and
+  stays at the ascender, but raising it scaled it uniformly, so it had grown
+  wider too: 0.973 of the x-height against references 0.63–0.80,
+  width/height 0.583 against 0.38–0.52. `Q8_W` 0.86 narrows the spine only
+  (stroke widths still from the pen): width/height 0.513. It is still wider
+  than the references against the x-height because it is taller than theirs,
+  by ruling.
+- **The italic 1's left side** (round 374 recorded "needs an O1 kern"). It was
+  not one pair: every pair ENDING in the 1 was short (O1 0.016 em vs refs
+  0.133, 01 0.058 vs 0.157, 11 0.087, 21 0.077, 81 0.091) while every pair
+  starting with it was in band — a bearing. `build.ALD_FIG_ADJ['1']` +45 left,
+  italic only, plus an O1 kern +36: O1 0.094, 01 0.103, 11 0.130, 21 0.119,
+  81 0.136.
+- **Checked and NOT changed: the italic f before a word space.** Seen on the
+  round-374 specimen ("the fishermen", "still feel") and measured: the 2-D
+  white from the previous word to the f is 0.83–0.87 of the white to an n,
+  where the references run Times 0.77–0.85, Flanker 0.77–0.92, Georgia
+  0.55–0.80. Ordinary italic-f behaviour; left alone.

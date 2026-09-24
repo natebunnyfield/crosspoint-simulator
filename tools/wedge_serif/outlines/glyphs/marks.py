@@ -301,7 +301,7 @@ def _q7(c):   # curled: the terminal turns in toward the counter, a teardrop
     C = CAP(c); w = 380; e = Q_DOT_CLEAR()
     return _q_common(c, [(w * 0.24, C * 0.72), (w * 0.10, C * 0.66), (w * 0.02, C * 0.82), (w * 0.34, C * 1.00), (w * 0.74, C * 0.92), (w * 0.62, C * 0.54), (w * 0.50, e)], [(0.0, 0.95), (0.12, 0.6), (0.34, 1.0), (0.62, 0.95), (1.0, 0.7)], tension=0.6)
 def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and larger
-    C = CAP(c); w = 380 * Q8_SCALE
+    C = CAP(c); w = 380 * Q8_SCALE * Q8_W
     # round 100: the descent STOPS at the family's dot-clearance rule rather
     # than at a fraction of the cap height. This hook's floor is a heavy
     # 0.78 S, so at the Bold its own half-width plus the dot's radius closed
@@ -356,6 +356,15 @@ def _smooth_wf(wf, n, passes=4):
     return lambda t: ws[min(n, int(round(t * n)))]
 Q8_SCALE = 1.15   # owner 2026-09-13: "make the question mark back into its original question mark shape and albertus heavy, larger to read correctly in a sentence"
 Q8_FLOOR = 0.78   # the hook never under 0.78 S: Albertus weight
+# ROUND 376 -- NARROWER, SAME SHAPE. The ? stays the owner's 2026-09-13 mark
+# (original shape, Albertus heavy, larger) and stays at the ascender (round
+# 369). But raising it scaled it UNIFORMLY, so it got wider as well as taller:
+# measured 0.973 of the x-height wide against six references' 0.63-0.80, and
+# 1.08 of an n's advance against 0.64-0.89; width/height 0.583 against
+# 0.38-0.52. Q8_W narrows the SPINE only -- every point is a fraction of w, and
+# the stroke widths still come from the pen -- to width/height ~0.50, the
+# references' upper half.
+Q8_W = float(os.environ.get("ALBO_Q8_W", 0.86))
 Q8_TAIL_K1, Q8_TAIL_K2 = 0.35, 0.45   # round 233: the descent cubic's handles, x its chord (swept 0.3-0.6 each; this pair had the largest minimum radius, 84)
 QUESTION_VARIANTS = [('original, Albertus heavy', _q8), ('round 77', _q0), ('bowl profile', _q1), ('garalde wide', _q2), ('tall narrow', _q3), ('beak terminal', _q4), ('Albertus heavy', _q5), ('curled terminal', _q7)]   # a stem-foot variant was built and dropped: its foot wedges read as a claw
 QUESTION_VARIANT = int(os.environ.get('FJORD_Q_VARIANT', 0))
@@ -427,15 +436,24 @@ DQ_GAP = 1.8   # round 94 (owner: "give more space for double quotes so they don
 # double quote's two marks rows 1 and 2, so the pair differs by a few units
 # in height and in how far the stroke leans, and every build is the same.
 QUOTE_OPT = os.environ.get("ALBO_QUOTE_OPT", "a" if pen.ITALIC else "b")
+# ROUND 376 -- THE STRAIGHT QUOTES MATCH THE CURLY ONES. Owner 2026-09-24,
+# "yes to all", on round 375's flag: the straight ' and " measured 182 (roman)
+# and 163 (italic) /1000 em tall against the curly quotes' 262 and the
+# references' straight quotes at 240-292 -- the two quote forms disagreed.
+# STRAIGHT_TALL lengthens the straight body to the curly quotes' height. The
+# body's LENGTH is laid out in the 400's stem at every weight (QUOTE_BODY_L),
+# for round 375's reason: a bold quote is a heavier quote, not a longer one.
+STRAIGHT_TALL = float(os.environ.get("ALBO_STRAIGHT_TALL", 1.66 if pen.ITALIC else 1.44))
+QUOTE_BODY_L = 2 * 0.62 * REF_S * QUOTE_SIZE * STRAIGHT_TALL
 QUOTE_B_TALL = float(os.environ.get("ALBO_QUOTE_B_TALL", 1.15))
 QUOTE_B_VAR = [(1.00, 1.00), (0.96, 1.12), (1.03, 0.90)]   # (body x, lean x): rows 0, 1, 2 -- about 5 units of height and 3 of lean between the marks of a pair
 def straight_quote(c, x, k=0):
     """One straight-quote mark at x, per QUOTE_OPT (see above); k is the
     mark's row in QUOTE_B_VAR (option b only)."""
-    C = CAP(c) - _qdrop(); top, bot = C, C - QUOTE_BODY; w = TH_V * 0.8 * QUOTE_W; opt = QUOTE_OPT
+    C = CAP(c) - _qdrop(); top, bot = C, C - QUOTE_BODY_L; w = TH_V * 0.8 * QUOTE_W; opt = QUOTE_OPT
     if opt == "b":
         bs, ls = QUOTE_B_VAR[k % len(QUOTE_B_VAR)]
-        body = QUOTE_BODY * QUOTE_B_TALL * bs; bot = top - body
+        body = QUOTE_BODY_L * QUOTE_B_TALL * bs; bot = top - body
         dx = S * 0.16 * ls
         p = cubic((x + dx * 0.5, top), (x + dx * 0.35, top - body * 0.45), (x - dx * 0.2, bot + body * 0.35), (x - dx * 0.6, bot))
         # round 362: option b is what the ROMAN ships and it never touched `w`
