@@ -151,7 +151,7 @@ Regular atilde 3
 Regular b 2
 Regular backslash 1
 Regular bar 1
-Regular beta 3
+Regular beta 2
 Regular braceleft 1
 Regular braceright 1
 Regular bracketleft 1
@@ -302,7 +302,7 @@ Regular percent 5
 Regular period 1
 Regular periodcentered 1
 Regular perthousand 9
-Regular phi 3
+Regular phi 2
 Regular pi 1
 Regular plus 1
 Regular plusminus 2
@@ -642,7 +642,7 @@ Italic atilde 3
 Italic b 2
 Italic backslash 1
 Italic bar 1
-Italic beta 3
+Italic beta 2
 Italic braceleft 1
 Italic braceright 1
 Italic bracketleft 1
@@ -793,7 +793,7 @@ Italic percent 5
 Italic period 1
 Italic periodcentered 1
 Italic perthousand 9
-Italic phi 3
+Italic phi 2
 Italic pi 1
 Italic plus 1
 Italic plusminus 2
