@@ -41,8 +41,10 @@ from PIL import Image, ImageDraw, ImageFont
 from fontTools.ttLib import TTFont
 from fontTools.pens.boundsPen import BoundsPen
 
-G_LC = "αβγδεθλμπρστφω"
-G_UC = "ΔΠΣΦΩ"
+# round 379: the whole basic alphabet (the omicron and fourteen capitals are
+# composites of the Latin letter; they are measured all the same)
+G_LC = "αβγδεζηθικλμνξοπρσςτυφχψω"
+G_UC = "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ"
 G = G_LC + G_UC
 
 SUP = "/System/Library/Fonts/Supplemental/"

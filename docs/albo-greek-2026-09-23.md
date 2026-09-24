@@ -286,3 +286,231 @@ PYTHON_GIL=0 python3 cmp_greek.py iou  <Albo-Regular.ttf> --style roman     # bo
 PYTHON_GIL=0 python3 cmp_greek.py box  <Albo-Regular.ttf>
 PYTHON_GIL=0 python3 cmp_greek.py runs <Albo-Regular.ttf> αβγ --refs Iowan,Georgia
 ```
+
+---
+
+# Round 379, 2026-09-24 — the whole Greek, a cursive italic, and spacing
+
+Owner, 2026-09-24, to the three open items of §7 (a, b, c): *"yes to all"*.
+Built on `c87068a` (round 375). Every number below was measured on the four
+shipping cuts built with `build_env.sh`'s environments (Regular 400, Italic
+400, Bold 700, BoldItalic 700) unless it says otherwise. Nothing here has
+been seen by the owner; it is a proposal until he rules on the pictures.
+
+## 9. What was added (item a)
+
+| | glyphs | how |
+|---|---|---|
+| drawn lowercase | ζ η ι κ ν ξ υ χ ψ ς | traced (§9.1), drawn in `symbols2.py` from Albo's own parts |
+| drawn capitals | Γ Θ Λ Ξ Ψ | from the Latin capitals' parts (F's stem and arm, the O, the A's legs, the T's bar, cap stems) |
+| composite copies | Α Β Ε Ζ Η Ι Κ Μ Ν Ο Ρ Τ Υ Χ and ο | `build.GREEK_COPY`: a TrueType composite of the Latin glyph, at its advance and bearings. In the italic the component is the italic's own capital |
+| tonos | ά έ ή ί ό ύ ώ | composites of the letter and Albo's acute (Unicode decomposes them to letter + U+0301); ό sits on the o |
+
+37 new glyphs per cut, all four cuts; the cmap now holds the whole basic
+Greek alphabet, both cases. Not added: the capitals with tonos (Ά Έ ...), the
+dialytika (ϊ ϋ ΐ ΰ), U+0384 tonos as a spacing mark, and the polytonic
+breathings, so John 1:1 was set monotonic (render b).
+
+**Glyph order.** The new drawn Greek is APPENDED to `CHARS`
+(`build.GREEK_APPEND`) instead of sorted in among the Greek, so cut.py's
+per-contour phase counter does not advance for any glyph that already ships.
+The composites draw no contours. Result, measured by outline hash with each
+glyph's own x-origin factored out (`scope.py` in the round scratchpad):
+**0 non-Greek glyphs changed shape, advance or side bearing, in all four
+cuts** — Latin, figures, punctuation, symbols, `∑ ∏` and `µ` included. The
+cut-0 control asked for was therefore not needed to separate a ripple: there
+is none. `contours-baseline.txt` changed only by the 37 new rows per style
+(74 rows, every one `None -> n`; no existing count moved), accepted.
+
+**One roman change that is spacing and not drawing.** The roman Δ Φ Ω α γ δ
+ε θ λ ρ σ φ ω hash as "changed" in the Regular and Bold. A control build with
+`ALBO_GREEK_SPACING=0` hashes all of them identical to round 375: the change
+is only the integer rounding of a re-fitted x offset (§11).
+
+### 9.1 The traced targets, new letters (Albo units, x from the left ink edge)
+
+Median of Iowan, Georgia, Times and Palatino through `cmp_greek.py runs`,
+mapped as in §1. After = the Regular as built.
+
+| | traced construction | after w, bottom..top | ref median w, bottom..top |
+|---|---|---|---|
+| ζ | cap stroke under the ascender (curl at (95,752), run at y 690); spine x 330 at 630, 205 at 500, 88 at 330, 45 at 200; round bottom at y 20; right side 0.76 o down to -90, hooked left to (245,-222) | 397, -255..762 | 403, -246..769 |
+| η | Albo's n (stem + wedge, arch, stem) with the right stem to -281; no feet (3 of 4 refs) | 445, -281..447 | 481, -281..446 |
+| ι | the i's stem and wedge, no dot, no foot, turning into the t's tail (end 147 u right, y 86) | 265, 3..430 | 262, -14..441 |
+| κ | the k's arm and leg at the x-height (arm from 0.40 xh to the k's end wedge, leg at the k's 56°) | 461, -22..460 | 527, -11..442 |
+| ν | the v's thick stroke, a thin stroke curving upright to the x-height in the c's finial | 439, -13..442 | 484, -13..440 |
+| ξ | ζ's cap stroke and bottom; upper lobe ending at a left waist (y 348) with a pen tongue to 0.71 o, as ε | 400, -255..762 | 428, -245..772 |
+| υ | the u's left stem, one round stroke turning on the baseline and up to the finial | 450, -10..455 | 492, -16..443 |
+| χ | down-right stroke heavy (the pen's broad side), down-left thin; both to the descender. Refs split 2/2 on which stroke is thick; the pen decided | 493, -283..454 | 515, -247..437 |
+| ψ | straight stem ascender to descender through a υ cup. Refs split 2/2 on the stem's top (Iowan, Palatino: ascender; Georgia, Times: x-height); the humanist two were followed | 570, -281..784 | 640, -281..584 |
+| ς | the c's top finial, round left side, ζ's bottom | 395, -255..457 | 383, -244..446 |
+| Γ | F without the middle arm | 549, -1..676 | 527, 0..674 |
+| Θ | Albo's O, bar at mid-cap from 0.31 to 0.69 with an upright tick (0.20 C tip to tip) at each end, floating clear of both walls as in all four refs | 703, -15..690 | 701, -15..689 |
+| Λ | the A without its bar, at the A's own solved width | 696, -15..689 | 726, 0..679 |
+| Ξ | T's top bar, bottom bar with rising wedges, middle bar 0.23..0.76 with the Θ's ticks | 608, -1..676 | 607, 0..674 |
+| Ψ | cap stem (both wedges, both feet) and two arms, cap stems from the cap line turning in on the O's round pen to meet it at 0.30 C | 767, -1..676 | 802, 0..674 |
+
+## 10. The cursive italic (item c)
+
+**What the italic references do**, measured unsheared by each face's own
+slant off `l` (`instruments/greek376_italic_widths.py`,
+`greek376_latin_analogue.py`, `greek376_italic_caps.py`):
+
+- A Greek lowercase keeps its proportion to its LATIN ANALOGUE across the
+  roman/italic change: η/n 0.87 italic vs 0.90 roman, μ/u 0.91 vs 0.95, κ/k
+  1.03 vs 1.01, σ/o 1.08 vs 1.12, ο/o 1.00 vs 1.00 (medians of 4). It does
+  NOT keep its width against the o: Iowan's italic o is 0.78 of its roman o
+  while its italic α is 0.96 of its roman α.
+- The italic Greek capitals are the roman ones ~4% narrower: median italic/
+  roman 0.965 over Γ..Ω (H 0.96, O 0.94, E 0.97 on the same faces).
+- The redraw is cursive: η is an italic n with a descender, μ an italic u
+  with one, ν the italic v's movement, ι a plain-topped stem with an exit, τ
+  and π a drooping bar over stems that leave in an exit, κ a stem with a
+  curved arm and a flicked leg.
+
+**Construction** (`outlines/glyphs/greek_italic.py`, live only under
+`ALBO_ITALIC=aldine`; nothing in `aldine.py` was edited):
+
+- **Built from the Aldine letters themselves**: η = `a_n`'s stem, head, arch,
+  right stem run to the descender; μ = `a_u` plus a descender stem; ν = `a_v`'s
+  frame, points and width table with the thin stroke carried upright to the
+  x-height into the finial; ι = the i's stem and `hm_exit` with no head and no
+  dot (a plain top keeps it from reading as ı); α = the italic o's ring, a
+  stroke rising 12 over the x-height, and `hm_exit(.., 'a')`; τ and π = a
+  drooping pen bar, `hm_stem` and `hm_exit` ('t' and 'n'); κ = `hm_stem` +
+  `hm_head`, a nib arm into the italic finial and a nib leg that flicks up; υ
+  and ψ = the u's down-round-up movement with the head, carried to the
+  x-height; σ and ρ = the italic ring with a thinning nib bar / an Aldine
+  stem.
+- **The traced roman skeleton re-drawn in the italic's hand** for the letters
+  with no Latin shape (β γ δ ε ζ θ λ ξ ς φ χ ω): `symbols2.hand()` installs an
+  `ItalicHand` for one draw, and the roman functions' five helpers route to
+  it — the skeleton unit scaled by (Albo's italic Latin analogue / roman),
+  measured LIVE from the two drawings (o 0.70, x 0.88, y 0.77, k 0.74 in the
+  shipping Italic); the ring = the Aldine o's (superellipse at `O_K`, 35°
+  nib re-spread to `CON_O`); round strokes on that nib; pen strokes on the
+  50° chancery nib sized so a vertical is the Aldine stem; stems = `hm_stem`
+  / `hm_head`; free ends = the italic finial at `fin_floor()`.
+- **Capitals**: all ten drawn Greek capitals take `symbols2._cw` — the Latin
+  capitals' measured `CAP_NARROW` 0.953 on POSITIONS, italic only, and never
+  for ∑ ∏ (which borrow Σ Π). The 14 copies are the italic's own Latin.
+
+**IoU against the four italic references** (`cmp_greek.py iou --style
+italic`, sheared glyphs compared as rendered; means over letters × refs):
+
+| | Italic 400 | BoldItalic 700 |
+|---|---|---|
+| 19 existing letters, round 375 (sheared) → 376 (cursive) | 0.428 → 0.420 | 0.376 → 0.463 |
+| 10 new lowercase | 0.357 | 0.416 |
+| 5 new capitals | 0.376 | 0.508 |
+| **calibration: Albo's own italic Latin** n u v o t k a p i H A O E | 0.430 (n 0.32, u 0.27, v 0.37, t 0.58) | 0.493 |
+
+Read honestly: at the BoldItalic the cursive moved the Greek toward the
+references by +0.087; at the Italic 400 it did NOT move the mean (−0.008).
+α 0.57→0.47, τ 0.50→0.25, γ 0.31→0.20, θ 0.47→0.38 fell; μ, λ, ρ, ω, Δ, Σ,
+Φ, Ω rose. Albo's own italic n and u score 0.32 and 0.27 on the same
+instrument — the Aldine lowercase is narrower than every reference italic
+(its o is 0.76 xh against their median ~0.86), and letters built from its
+parts inherit that. The italic τ (built from the t, 281 wide) and η (from the
+n) sit where the Latin they are made of sits. This is a number for the owner
+to weigh against the picture (render c), not a verdict.
+
+## 11. Spacing (item b)
+
+**Method.** `build.GREEK_SIDES` gives each Greek SIDE the final bearing of the
+Latin letter whose side it is (ο o/o, α o/t, η n/n, ρ o/o, σ o/r, ι i/t, υ
+u/o, Θ O/O, Π H/H, Σ Z/E ...), measured in the band and space that letter is
+fitted in (`fit_greek`: the Aldine lowercase unsheared as `fit_aldine`,
+everything else as `fit`). On top, `GREEK_SIDE_ADJ` carries the references'
+own Greek-minus-Latin offset where Albo fell outside their spread, fitted by
+`instruments/greek376_space.py --fit`: in EACH face, a Greek side's 2-D
+closest-approach white (`cmp_space_2d.Face.gap`, shaped pairs, partners
+`aeinorstu` / `HOEDN`) minus its analogue's; a side inside the four
+references' spread is left alone, one outside is moved to the nearer edge
+(clamped 30 units a pass, two passes, the third reproduces the table to ±2).
+Rows: `rom` (Regular), `bold` (Bold, against the bold references), `ald`
+(both italics; there is no bold-italic Greek reference set). The eta is the
+clearest case: its stems have no feet, so copying the n's bearing set it
+0.04 em TIGHTER than the references put it; +34 units on its right fixes it.
+**One row is hand-set, not fitted:** the italic Ψ (12, 14) — its arms'
+two-way wedges, sheared, touched in ΨΨ.
+
+| cut (refs) | mean abs(Albo − ref median), em: default → round 379 | sides inside the refs' spread |
+|---|---|---|
+| Regular (roman) | 0.0126 → 0.0083 | 42 → 63 of 68 |
+| Bold (bold) | 0.0130 → 0.0082 | 40 → 57 of 68 |
+| Italic (italic) | 0.0238 → 0.0109 | 33 → 59 of 68 |
+| BoldItalic (italic) | 0.0248 → 0.0117 | 37 → 56 of 68 |
+
+"Default" is the same drawings built with `ALBO_GREEK_SPACING=0` (every Greek
+glyph on the straight/straight rule). The bench (`bench_fit.py --check`) is
+untouched; no Latin bearing moved.
+
+## 12. Gates, four cuts, before (round 375) and after
+
+| gate | result |
+|---|---|
+| `cmp_contour_hairs` full + `--letters` | **no new finding** in any cut. Three were raised while drawing and fixed: Regular ξ 166° REVERSAL at a two-lobe hairpin (redrawn with an ε-style waist and tongue) and a 151° HAIR at its curl (curl eased); Italic ε 151° HAIR at the waist (`_close3`, a 3-unit mitre close); Italic ρ 165° REVERSAL where stem and ring edges grazed (stem moved 3 units outside the ring) |
+| `cmp_aldine_glitch --all --ttf` | no new finding. Θ (2 islands, the floating bar) and Ξ (3 bars) are declared in `MULTI` with the reason, the way `=` and `%` are |
+| `cmp_counter_dents` at 700 and 900 (ASCII letters, figures, `&@`, all Greek) | Bold 0, BoldItalic 0. The first italic build dented α and ρ at the 700 (the stroke on the italic ring); `_heavy` (convex counters above stem 84) fixed both. Italic 400 keeps round 373's open-waist β (15068/90.0, was 16520/90.0); the ruling covers the 700/900 |
+| `cmp_touch` (ASCII pairs) | identical counts all four cuts |
+| Greek pairs (`instruments/greek376_touch.py`, 4,949 pairs: Greek×Greek, Greek×Latin both ways) | **0 Greek-Greek pairs under 0.012 em** in any cut, once the italic Ψ was widened. Remaining findings are all mixed-script: descenders into the Latin j/f/q tails and y (ηj χj ηf χf ζf ξj ςj qβ qρ ...), f's hook over Π/Τ (0.0005, 0.0048 em Regular). Not fixed; see §14 |
+| `./gates.sh` | GATES UNCHANGED; both approved g's unchanged (`approved.py`); bench matches; contour census accepted (74 added rows only) |
+| `gen_state.py --check` | was already OUT OF DATE at `c87068a` (round 375 moved lines in `marks.py`); regenerated |
+
+## 13. Checked and found CLEAN
+
+- 0 non-Greek outline, advance or bearing change in any of the four cuts.
+- The roman's existing Greek drawings are byte-identical to round 375 when
+  the new spacing is switched off (`ALBO_GREEK_SPACING=0`).
+- ∑ ∏ unchanged in the italic although Σ Π narrowed (`_cw` keys on the
+  character being drawn).
+- Italic contour counts of the 19 redrawn letters equal round 375's (no
+  phase ripple: every glyph after them hashes identical).
+- The roman Greek IoU mean is unchanged (0.499 Regular, 0.560 Bold) for the
+  19 existing letters; the new roman letters score 0.43 (lowercase) and 0.48
+  (capitals) against the Latin copies' 0.41 on the same instrument.
+
+## 14. Negative results, and what is not done
+
+- **The first ξ ran both lobes to a common tip** at the right, as a pen
+  writes it; the hairpin is a 166° REVERSAL whatever the widths. The waist
+  had to be built like the ε's.
+- **The first italic Λ read the A's width through `W`**, which in the italic
+  solves the Aldine A — a different drawing — and made Λ 0.72 of the roman's,
+  a slash (IoU 0.07). It now takes the roman A's own solve (600 on the width
+  axis) narrowed by `_cw`: IoU 0.28 (A itself 0.31).
+- **The first italic υ and ψ used the u's own path**, whose low point sits in
+  the left third; both read as v. They now turn round in the middle and are
+  1.30 / 1.10 pitches wide.
+- **Fitting the spacing to the references' MEDIAN** asked to move nearly
+  every side of the roman, eight of them to the 30-unit clamp, while the
+  analogue transfer alone had barely moved the roman's mean (0.0126 → 0.0124):
+  four faces disagree by up to 0.07 em on one side. Fitting only what lies
+  OUTSIDE their spread, to its nearer edge, is what §11 ships.
+- The italic's horizontal is the 50° nib's THICKEST stroke, so the ζ/ξ cap
+  stroke first came out a heavy slab; it is drawn at 0.62 in the italic hand.
+
+**Not done:**
+- Greek **kerning**: no Greek glyph is in `kern.py`'s classes (the copies do
+  not inherit the A's or the T's pairs; ΤΑ, ΑΥ, ΛΑ are unkerned).
+- Capital tonos forms (Ά Έ Ή Ί Ό Ύ Ώ), dialytika, polytonic breathings.
+- Mixed-script collisions in §12 (Greek descenders against Latin j/f/q/y);
+  they are pairs no Greek or English text sets adjacently.
+- The italic Greek IoU at the 400 did not rise (§10); if the owner wants the
+  italic Greek WIDER than Albo's own italic Latin, the unit in
+  `greek_italic.analogue_ratio` is the one lever.
+- The tonos is centred on the letter's ink box (no optical table for Greek,
+  as round 369 made for a and e).
+- Nothing here is device-confirmed; renders only.
+
+**Renders** (round scratchpad `greek376/`): `a-alphabet-four-cuts.png`,
+`b1-greek-text-54px.png`, `b2-greek-text-13px-x5-nearest.png`,
+`c-italic-before-after-refs.png`.
+
+```bash
+cd tools/wedge_serif
+PYTHON_GIL=0 python3 instruments/greek376_space.py <default.ttf> <after.ttf> --style roman|bold|italic [--fit]
+PYTHON_GIL=0 python3 instruments/greek376_touch.py <Albo-Italic.ttf>
+cd instruments && PYTHON_GIL=0 python3 greek376_latin_analogue.py && PYTHON_GIL=0 python3 greek376_italic_caps.py
+```

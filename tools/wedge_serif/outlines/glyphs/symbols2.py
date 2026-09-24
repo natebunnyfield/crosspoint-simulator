@@ -124,15 +124,43 @@ def _bowl(cx, cy, rx, ry, ws=1.0):
     solid, *_ = ring(cx, cy, rx, ry, w_scale=ws, floor=HAIR)
     return solid
 
-def _u(c):
-    """This build's o width over the Regular's 465 -- the traced skeletons'
-    unit. Uses the ROMAN o's construction (`rounds.g_o`) in both styles: the
-    italic's Greek is the roman Greek sheared, as it always was."""
+def _u_roman(c):
+    """This build's ROMAN o width over the Regular's 465 (`rounds.g_o`'s
+    construction)."""
     return 2 * (O_RX * O_RX_ADJ * c['wf'] + TH_V / 2 * O_W_ADJ) / 465.0
+
+def _u(c):
+    """The traced skeletons' unit: this build's o width over the Regular's
+    465. With no hand installed that is the ROMAN o (`_u_roman`), in both
+    styles -- the sheared-roman italic Greek of rounds 373-375 used it. The
+    cursive italic's hand (round 379) supplies its own: the ITALIC's Latin
+    analogue over the roman's."""
+    if _HAND is not None: return _HAND.u(c)
+    return _u_roman(c)
+
+# ROUND 379 -- THE HAND. The italic's cursive Greek (`glyphs/greek_italic.py`)
+# draws the letters whose construction the italic references keep -- the
+# skeleton traced here -- in the ITALIC's own parts: the italic o's ring and
+# round pen, its stem, head and exit. It installs a hand object here for the
+# duration of one draw (`hand()`), and the five helpers below hand their work
+# to it. With no hand installed -- the roman, and every build before round 379
+# -- each helper runs exactly the code it always ran.
+_HAND = None
+
+class hand:
+    """`with hand(H): g = g_beta(c)` -- draw one letter in another hand."""
+    def __init__(self, h): self.h = h
+    def __enter__(self):
+        global _HAND
+        self.prev = _HAND; _HAND = self.h
+    def __exit__(self, *a):
+        global _HAND
+        _HAND = self.prev
 
 def _oring(cx, cy, rx, ry):
     """A closed bowl on the o's own weight (`rounds.g_o`: O_W_ADJ on the
     round pen, the hair floored at O_FLOOR_ADJ of the stem)."""
+    if _HAND is not None: return _HAND.oring(cx, cy, rx, ry)
     return ring(cx, cy, rx, ry, w_scale=O_W_ADJ, floor=S * O_FLOOR_ADJ)
 
 def _rw(center, prof=None):
@@ -146,6 +174,7 @@ def _path(pts):
 def _round(pts, prof=None, cut0=None, cut1=None, fin0=False, fin1=False):
     """A round stroke through traced points, on the o's pen; fin0/fin1 give
     that end the c's finial (its swell and its face)."""
+    if _HAND is not None: return _HAND.round(pts, prof, cut0, cut1, fin0, fin1)
     center = _path(pts); wf = _rw(center, prof)
     if fin0: wf = finial_widths(wf, True); cut0 = finial_cut(center, True)
     if fin1: wf = finial_widths(wf, False); cut1 = finial_cut(center, False)
@@ -154,6 +183,7 @@ def _round(pts, prof=None, cut0=None, cut1=None, fin0=False, fin1=False):
 def _pen(pts, prof=None, cut0=None, cut1=None, fin0=False, fin1=False, center=None):
     """A straight or diagonal stroke through traced points, on the pen (the
     26-degree nib the Latin stems, arches and diagonals are drawn with)."""
+    if _HAND is not None: return _HAND.pen(pts, prof, cut0, cut1, fin0, fin1, center)
     center = center or _path(pts); wf = pen_widths(center, prof)
     if fin0: wf = finial_widths(wf, True); cut0 = finial_cut(center, True)
     if fin1: wf = finial_widths(wf, False); cut1 = finial_cut(center, False)
@@ -169,6 +199,7 @@ def _lc_stem(x, y0, y1, top=None):
     """A lowercase Greek stem: the Latin stem, but with cap=True so the
     italic's calligraphic entry and exit (`primitives.stem`) are not added --
     the italic Greek is the roman Greek sheared."""
+    if _HAND is not None: return _HAND.lc_stem(x, y0, y1, top)
     return stem(x, y0, y1, w=TH_V, top=top, foot=None, cap=True, ent_span=(min(y0, 0.0), max(y1, XH)))
 
 def _close(g):
@@ -408,6 +439,221 @@ def g_omega(c):
     mid = _s(line((m, 150), (m, 318)), w=TH_V, cut0=None, cut1=CUT)
     return geom.ink([left, right, mid])
 
+# ROUND 379 -- THE REST OF THE GREEK LOWERCASE, so a Greek word can be set.
+# Owner 2026-09-24, "yes to all", to round 374's open item (a). Traced the
+# same way as round 373 (`cmp_greek.py runs`, the median of Iowan, Georgia,
+# Times and Palatino mapped into Albo's units against an o 465 wide, x from
+# the letter's left ink edge) and drawn from Albo's own parts: the o's round
+# pen for the curves, the pen for the straight and diagonal strokes, the c's
+# finial on free round ends, the Latin stem with its wedge, the n's arch, the
+# k's arm and leg, the t's tail. The traced targets are in
+# docs/albo-greek-2026-09-23.md, round 379.
+#
+# THESE ARE APPENDED TO THE GLYPH ORDER (build.GREEK_APPEND), not sorted in
+# among the Greek, so no glyph that already ships is re-cut by the decimation
+# phase (cut.py's per-contour counter). The omicron and the Latin-identical
+# capitals are not drawn at all: they are COMPOSITES of the Latin letter
+# (build.GREEK_COPY), which is what the reference Greek fonts do.
+
+def _top_hook(u, y=690):
+    """The zeta's and xi's cap stroke: a curl rising at the top left into a
+    stroke that runs right just under the ascender. On the pen, so the run is
+    as heavy as a horizontal is in this face; the curl takes the c's finial.
+    Traced: the curl's tip at (95, 752), the stroke at y 690 from 30 to 395."""
+    # a hand may lighten it: the italic's 50-degree nib makes a HORIZONTAL its
+    # thickest stroke, and the references' italic cap stroke is a light one
+    prof = (lambda t: _HAND.hbar) if _HAND is not None else None
+    return _pen([(98 * u, y + 62), (70 * u, y + 42), (74 * u, y + 16), (110 * u, y + 1), (180 * u, y - 2), (262 * u, y),
+                 (340 * u, y + 4), (398 * u, y + 10)], prof, fin0=True, cut1=CUT)
+
+def _hook_bottom(u, x0=0.0):
+    """The zeta's, xi's and final sigma's bottom: round on the baseline, down
+    the right side under it and hooked back to the LEFT into the c's finial.
+    Traced: the bottom run at y 20, the right side at 0.76 o down to -90, the
+    end at (245, -222)."""
+    return [(x0 + 170 * u, 25), (x0 + 250 * u, 18), (x0 + 318 * u, 8), (x0 + 352 * u, -30), (x0 + 356 * u, -86),
+            (x0 + 338 * u, -140), (x0 + 298 * u, -185), (x0 + 245 * u, -222)]
+
+@glyph('ζ')      # zeta
+def g_zeta(c):
+    """The cap stroke under the ascender (`_top_hook`), and one round stroke
+    hanging from its right part: down to the LEFT along a long diagonal, round
+    the bottom on the baseline and hooked under it (`_hook_bottom`). Traced:
+    0.87 of the o wide, from the ascender to 0.8 of the descender; the spine
+    at x 330 at y 630, 205 at 500, 88 at 330, 45 at 200."""
+    u = _u(c)
+    spine = _round([(352 * u, 694), (316 * u, 636), (270 * u, 578), (220 * u, 520), (174 * u, 462), (132 * u, 405),
+                    (98 * u, 348), (72 * u, 290), (54 * u, 230), (47 * u, 172), (54 * u, 120), (78 * u, 76),
+                    (116 * u, 44)] + _hook_bottom(u), widths([(0.0, 0.70), (0.08, 1.0)]), fin1=True)
+    return _close(geom.ink([_top_hook(u), spine]))
+
+@glyph('η')      # eta
+def g_eta(c):
+    """Albo's own n (`arches.g_n`: the left stem with its top wedge, the arch,
+    the right stem it lands on) with the right stem carried down to the
+    descender line and neither stem footed -- three of the four references
+    foot neither; the left stem ends square on the baseline and the right one
+    on the descender line, the way the mu's does. Traced: the stems 0.64 o
+    apart, the right one to -281."""
+    from .arches import arch
+    x0 = S / 2; x1 = x0 + pen.NW
+    left = _lc_stem(x0, 0, XH, top='left')
+    right = _lc_stem(x1, -DESC, 0.66 * XH)
+    a, cuts = arch(x0, x1, XH)
+    return geom.ink([left, right, a], cuts)
+
+@glyph('ι')      # iota
+def g_iota(c):
+    """The undotted stem, with the i's top wedge, turning at its foot into the
+    t's tail -- the references' iota is exactly that: no dot and no foot, the
+    stem running round into a short rising tail. Traced: the tail's end 147 u
+    right of the stem's centre, at y 85."""
+    u = _u(c); x = S / 2
+    st = _lc_stem(x, 180, XH, top='left')
+    tl = _pen(None, widths([(0.0, 1.0), (0.80, 1.0), (1.0, 1.25)]), cut1=CUT, center=_tail(x, 240, 150, 86, u))
+    return geom.ink([st, tl])
+
+K_ARM_W = 1.30     # the kappa's arm, x the pen at its angle (the k's own ladder value, round 92's 1.30 at 0.78)
+
+@glyph('κ')      # kappa
+def g_kappa(c):
+    """The k (`diagonals.g_k`) at the x-height: a stem with the top wedge and
+    no foot, the arm leaving it at 0.40 of the x-height and rising to the
+    x-height in the k's end wedge, the leg springing from the arm's lower edge
+    at the k's 56 degrees and landing in the diagonal's foot wedge. Traced:
+    1.10 of the o wide, the arm's top at 0.67 o right of the stem."""
+    from ..primitives import diagonal, end_wedge
+    from .diagonals import pw
+    u = _u(c); x = S / 2
+    st = _lc_stem(x, 0, XH, top='left')
+    A0, B0 = (x + 318 * u, XH * 0.96), (x + S * 0.2, XH * 0.40)
+    arm_w = pw(A0, B0, 0.78 * K_ARM_W)
+    arm = geom.union([diagonal(A0, B0, arm_w), end_wedge([B0, A0], arm_w, False, 1, scale=1.15)])
+    t = (130 * u - (B0[0] - x)) / (A0[0] - B0[0]); J = (B0[0] + (A0[0] - B0[0]) * t, B0[1] + (A0[1] - B0[1]) * t)
+    ad = (A0[0] - B0[0], A0[1] - B0[1]); aL = math.hypot(*ad); ad = (ad[0] / aL, ad[1] / aL)
+    an = (-ad[1], ad[0])
+    if an[0] < 0: an = (-an[0], -an[1])
+    J_edge = (J[0] + an[0] * arm_w / 2, J[1] + an[1] * arm_w / 2)
+    foot = (J[0] + J[1] / math.tan(math.radians(56)), 0)
+    d = (J[0] - foot[0], J[1] - foot[1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
+    lw = pw(foot, J) * 1.10
+    tip = (J_edge[0] + d[0] * S * 0.20, J_edge[1] + d[1] * S * 0.20)
+    leg = diagonal(foot, tip, widths([(0.0, lw), (0.55, lw), (1.0, lw * 0.35)]), serif0=1)
+    return geom.ink([st, arm, leg])
+
+@glyph('ν')      # nu
+def g_nu(c):
+    """The v's thick stroke (`diagonals.g_v`, its top wedge on the outside)
+    run down steeply to the vertex, and a thin stroke that leaves the vertex
+    and CURVES up to stand vertical at the x-height, ending in the c's finial
+    -- the one thing that makes a nu and not a v. Traced: the vertex at 0.54 o,
+    the thin stroke through (324, 120), (391, 240), (428, 360)."""
+    from ..primitives import diagonal
+    from .diagonals import pw
+    u = _u(c)
+    p0, p1 = (96 * u, XH), (252 * u, 0)
+    left = diagonal(p0, p1, pw(p0, p1), serif0=1)
+    right = _pen([(262 * u, 14), (300 * u, 70), (338 * u, 140), (378 * u, 222), (410 * u, 300), (426 * u, 360),
+                  (430 * u, 412)], widths([(0.0, 0.80), (0.20, 1.0)]), fin1=True)
+    return _close(geom.ink([left, right]))
+
+@glyph('ξ')      # xi
+def g_xi(c):
+    """The zeta's cap stroke and bottom, with a small upper lobe between,
+    built as the epsilon is: the upper lobe hangs from under the cap stroke,
+    rounds to the left and ENDS at the waist on the left; the lower lobe --
+    the zeta's bottom -- starts there; and a short tongue on the pen runs
+    RIGHT from the waist to 0.71 of the o, which is the references' waist
+    stroke. (Round 379's first cut ran the two lobes to a common tip on the
+    right, the way a pen writes it, and the hairpin raised a 166-degree
+    REVERSAL there.) Traced: the upper lobe's left side at 104 at y 470, the
+    waist at y 345, the lower lobe's left side at 44 at y 165."""
+    u = _u(c); w = (150 * u, 348)
+    up = _round([(292 * u, 690), (220 * u, 650), (156 * u, 600), (118 * u, 545), (104 * u, 482), (112 * u, 425),
+                 (126 * u, 382), w], widths([(0.0, 0.70), (0.10, 1.0), (0.86, 1.0), (1.0, 0.55)]))
+    lo = _round([w, (104 * u, 318), (70 * u, 270), (50 * u, 210), (44 * u, 150), (56 * u, 98),
+                 (92 * u, 56), (130 * u, 36)] + _hook_bottom(u), widths([(0.0, 0.55), (0.10, 1.0)]), fin1=True)
+    tongue = _pen([(w[0] - 16 * u, w[1]), (330 * u, w[1] - 4)], widths([(0.0, 1.0), (1.0, 0.85)]), cut1=CUT)
+    return _close(geom.ink([_top_hook(u), up, lo, tongue]))
+
+@glyph('υ')      # upsilon
+def g_upsilon(c):
+    """The u's left stem with its top wedge (`arches.g_u`), running into ONE
+    round stroke that turns on the baseline and climbs the right side, leaning
+    back in at the top into the c's finial -- the u without its right stem.
+    Traced: 1.06 o wide, the left stem at 133, the bottom at y 8, the right
+    side's widest at 455 at y 240, the end at (400, 415)."""
+    u = _u(c); x0 = S / 2
+    X = lambda px: x0 + (px - 133) * u
+    left = _lc_stem(x0, 0.40 * XH - 30, XH, top='left')
+    bowl_ = _round([(x0, 0.44 * XH), (X(136), 130), (X(152), 66), (X(200), 22), (X(268), 8), (X(338), 26), (X(396), 76),
+                    (X(434), 146), (X(454), 228), (X(452), 305), (X(432), 368), (X(400), 418)],
+                   widths([(0.0, 1.0), (0.90, 1.0)]), fin1=True)
+    return geom.ink([left, bowl_])
+
+@glyph('χ')      # chi
+def g_chi(c):
+    """Two strokes crossing a little under the middle of the x-height and both
+    running on to the descender: the down-RIGHT one heavy (it is on the pen's
+    broad side, as the x's is), starting in the gamma's curl at the top left
+    and ending in a turned-out finial; the down-LEFT one the pen's thin, from
+    a finial at the top right to one at the bottom left. Traced: 1.05 o wide,
+    the crossing at (262, 110), both ends at the descender line."""
+    u = _u(c)
+    thick = _pen([(14 * u, 404), (55 * u, 430), (100 * u, 408), (146 * u, 350), (196 * u, 276), (236 * u, 200),
+                  (272 * u, 118), (306 * u, 34), (340 * u, -52), (376 * u, -136), (412 * u, -200), (458 * u, -236),
+                  (500 * u, -232)], widths([(0.0, 1.0), (0.88, 1.0), (1.0, 0.85)]), fin0=True, fin1=True)
+    thin = _pen([(446 * u, 426), (410 * u, 354), (330 * u, 230), (262 * u, 110), (190 * u, -20), (130 * u, -140),
+                 (74 * u, -258)], fin0=True, fin1=True)
+    return _close(geom.ink([thick, thin]))
+
+@glyph('ψ')      # psi
+def g_psi(c):
+    """A straight stem from the ascender to the descender through a cup: the
+    upsilon's left stem and turn on the left, its mirror on the right ending
+    in the c's finial, the two meeting the stem just over the baseline. The
+    stem rises to the ascender as Iowan's and Palatino's do (Georgia and
+    Times stop it at the x-height; the humanist two are the closer kin).
+    Traced: 1.35 o wide, the stem at 340, the arms at 130 and 565, the cup's
+    bottom at y 20."""
+    u = _u(c); x0 = S / 2
+    X = lambda px: x0 + (px - 130) * u
+    xs = X(340)
+    stem_ = stem(xs, -DESC, ASC, w=TH_V, top=None, foot=None, cap=True, cut_top=CUT, ent_span=(-DESC, ASC))
+    left = _lc_stem(x0, 0.40 * XH - 30, XH, top='left')
+    ent = TH_V / (S * 1.0 * O_W_ADJ)
+    cupl = _round([(x0, 0.44 * XH), (X(134), 128), (X(160), 64), (X(220), 28), (X(290), 16), (xs, 16)],
+                  widths([(0.0, 1.0), (0.80, 1.0), (1.0, ent)]))
+    cupr = _round([(X(566), 418), (X(572), 350), (X(570), 260), (X(552), 170), (X(516), 94), (X(460), 42),
+                   (X(396), 18), (xs, 16)], widths([(0.0, 1.0), (0.80, 1.0), (1.0, ent)]), fin0=True)
+    return _heavy(geom.ink([stem_, left, cupl, cupr]))
+
+@glyph('ς')      # final sigma
+def g_finalsigma(c):
+    """The c's top (its finial dropping at the top right), round the left side
+    on the o's pen, and on through the zeta's bottom (`_hook_bottom`): hooked
+    under the baseline back to the left. Traced: 0.84 o wide, the top's finial
+    at (352, 348), the left side at 38 at y 220."""
+    u = _u(c)
+    return geom.ink([_round([(354 * u, 350), (338 * u, 402), (286 * u, 434), (204 * u, 436), (120 * u, 410),
+                             (64 * u, 348), (40 * u, 268), (38 * u, 190), (56 * u, 118), (96 * u, 64),
+                             (130 * u, 38)] + _hook_bottom(u), fin0=True, fin1=True)])
+
+def _cw(c):
+    """ROUND 379 -- the ITALIC's Greek capitals are ~4% narrower, as its Latin
+    ones are. Measured, unsheared by each face's slant off `l`, italic over
+    roman ink width, Iowan / Georgia / Times / Palatino: Gamma through Omega
+    median 0.965 (H 0.96, O 0.94, E 0.97 on the same faces). So they take the
+    Latin capitals' own measured factor, `build.CAP_NARROW` (0.953), applied to
+    POSITIONS -- the stems keep their weight, as the Latin ones do under the
+    width solver. 1.0 in the roman, byte for byte, and 1.0 for the two MATH
+    signs that borrow these drawings (the n-ary sum and product)."""
+    import os
+    ch = c.get("ch", "")
+    if pen.SHEAR and "\u0391" <= ch <= "\u03a9":
+        return float(os.environ.get("ALBO_IT_CAP_NARROW", 0.953))
+    return 1.0
+
 def _mitre(a, v, b, wa, wb):
     """Two straight strokes a->v->b joined in a MITRE at v -- the outer tip
     and the inner crotch are where the two strokes' edges cross, so the join
@@ -438,7 +684,7 @@ def g_Delta(c):
     the thick right leg meeting at the A's own apex, their feet cut level and
     run out to the base's ends. Traced: 0.90 of the O wide (it was 1.20)."""
     from .caps_straight import pw
-    C = c["cap"]; w = 633; s = CS
+    C = c["cap"]; w = 633 * _cw(c); s = CS
     p1 = (w / 2 - s * 0.06, C - s * 0.32); r1 = (w / 2 - s * 0.18, C)
     def foot_at(xb, top, mult, outer):
         # the leg's centre on the baseline that puts its OUTER corner at xb
@@ -461,10 +707,10 @@ def g_Pi(c):
     the full width, and two capital stems with both feet, set in under it.
     Traced: 1.05 of the O wide (it was 0.88), the stems at 0.18 and 0.82."""
     from .caps_straight import cstem
-    C = c["cap"]; w = 733; th = CAP_BAR
+    C = c["cap"]; k = _cw(c); w = 733 * k; th = CAP_BAR
     b = bar(0, w, C, th, align='top', wedges=[('left', -1), ('right', -1)])
-    return geom.ink([b, cstem(132, 0, C - th * 0.5, top=None, foot='both', ent_span=(0, C)),
-                     cstem(600, 0, C - th * 0.5, top=None, foot='both', ent_span=(0, C))])
+    return geom.ink([b, cstem(132 * k, 0, C - th * 0.5, top=None, foot='both', ent_span=(0, C)),
+                     cstem(600 * k, 0, C - th * 0.5, top=None, foot='both', ent_span=(0, C))])
 
 @glyph('Σ')      # Sigma
 def g_Sigma(c):
@@ -474,10 +720,10 @@ def g_Sigma(c):
     Traced: 0.85 of the O wide (it was 0.67), the vertex at 0.54 of the width
     on the cap height's middle."""
     from .caps_straight import pw
-    C = c["cap"]; w = 594; th = CAP_BAR
-    top = bar(18, 560, C, th, align='top', wedges=[('right', -1)])
-    bot = bar(0, 585, 0, th, align='bottom', wedges=[('right', 1)])
-    a = (92, C - th * 0.5); v = (318, C * 0.50); b_ = (80, th * 0.5)
+    C = c["cap"]; k = _cw(c); w = 594 * k; th = CAP_BAR
+    top = bar(18 * k, 560 * k, C, th, align='top', wedges=[('right', -1)])
+    bot = bar(0, 585 * k, 0, th, align='bottom', wedges=[('right', 1)])
+    a = (92 * k, C - th * 0.5); v = (318 * k, C * 0.50); b_ = (80 * k, th * 0.5)
     chev = _mitre(a, v, b_, pw(a, v), pw(v, b_))
     return geom.ink([top, bot, chev])
 
@@ -487,7 +733,7 @@ def g_Phi(c):
     ring that stands between 0.14 and 0.86 of the cap height. Traced: 1.01 of
     the O wide (it was 0.66)."""
     from .caps_straight import cstem
-    C = c["cap"]; rx = 353; ry = C * 0.36
+    C = c["cap"]; rx = 353 * _cw(c); ry = C * 0.36
     ring_, *_ = ring(rx, C / 2, rx, ry)
     return geom.ink([ring_, cstem(rx, 0, C, top='both', foot='both')])
 
@@ -499,15 +745,109 @@ def g_Omega(c):
     it on both sides, the outer ends rising in the E's bottom wedge. Traced:
     1.04 of the O wide, 1.02 of the cap height (it was 0.92 -- a short O on
     two feet), the legs landing at 0.29 and 0.69 of the width."""
-    C = c["cap"]; cx = 365; cy = 385; rx = 265; ry = C + OVER - cy - 16
+    C = c["cap"]; k = _cw(c); cx = 365 * k; cy = 385; rx = 265 * k; ry = C + OVER - cy - 16
     def at(deg):
         a = math.radians(deg); cs, sn = math.cos(a), math.sin(a)
         return (cx + rx * math.copysign(abs(cs) ** (2 / BOWL_K), cs), cy + ry * math.copysign(abs(sn) ** (2 / BOWL_K), sn))
-    pts = [(222, CAP_BAR * 0.45), (220, 40), (210, 95), (192, 150)] + [at(d) for d in range(220, -41, -10)] + [(538, 150), (520, 95), (510, 40), (508, CAP_BAR * 0.45)]   # the legs end INSIDE the feet: ended on the foot's top edge they grazed it (REVERSAL 169.5)
+    pts = [(222 * k, CAP_BAR * 0.45), (220 * k, 40), (210 * k, 95), (192 * k, 150)] + [at(d) for d in range(220, -41, -10)] + [(538 * k, 150), (520 * k, 95), (510 * k, 40), (508 * k, CAP_BAR * 0.45)]   # the legs end INSIDE the feet: ended on the foot's top edge they grazed it (REVERSAL 169.5)
     center = catmull(pts)
     body = stroke(center, bowl_widths(center))
-    return geom.ink([body, bar(8, 300, 0, CAP_BAR, align='bottom', wedges=[('left', 1)]),
-                     bar(430, 722, 0, CAP_BAR, align='bottom', wedges=[('right', 1)])])
+    return geom.ink([body, bar(8 * k, 300 * k, 0, CAP_BAR, align='bottom', wedges=[('left', 1)]),
+                     bar(430 * k, 722 * k, 0, CAP_BAR, align='bottom', wedges=[('right', 1)])])
+
+# ROUND 379 -- THE GREEK CAPITALS ALBO LACKED. Fourteen of them are the Latin
+# letter (A B E Z H I K M N O P T Y X): those are composites of Albo's own
+# capital, built in outlines/build.py (GREEK_COPY), so a later round on the
+# Latin letter reaches the Greek for free and the two can never disagree --
+# what the reference Greek fonts do. The five genuinely Greek ones are drawn
+# here from the Latin capitals' own parts.
+
+@glyph('Γ')      # Gamma
+def g_Gamma(c):
+    """The F without its middle arm (`caps_straight.g_F`): the capital stem
+    with its top-left wedge and both feet, and the F's top arm hanging its
+    wedge at the right. Traced: 0.75 of the O wide (the F's own solved width
+    is 0.60), the arm's wedge reaching down to 0.80 of the cap height."""
+    from .caps_straight import cstem
+    C = c["cap"]; x = CS / 2; w = 452 * _cw(c)
+    return geom.ink([cstem(x, 0, C, top='left', foot='both'),
+                     bar(x, x + w, C, CAP_BAR, align='top', wedges=[('right', -1)])])
+
+def _ticked_bar(x0, x1, y, th, C):
+    """A bar with a short upright TICK at each end, the Theta's and the Xi's
+    middle bar in all four references: 0.20 of the cap height tip to tip
+    (Iowan 0.20, Georgia 0.20, Times 0.20, Palatino 0.19) and a little over
+    half the bar's weight (the references' 32-45 units against their 50-60
+    bars). The ticks are cut level at both ends, as a stem is."""
+    tw = th * 0.62; h = C * 0.10
+    ticks = [stroke(line((x, y - h), (x, y + h)), tw) for x in (x0 + tw / 2, x1 - tw / 2)]
+    return geom.ink([bar(x0, x1, y, th)] + ticks)
+
+@glyph('Θ')      # Theta
+def g_Theta(c):
+    """Albo's O, crossed at the middle of the cap height by a bar whose ends
+    carry the bar-end wedge both ways -- the vertical ticks all four
+    references put there. Traced: the bar from 0.31 to 0.69 of the O's width,
+    the ticks 0.20 of the cap height from tip to tip."""
+    g = GLYPHS['O'](c); x0, _, x1, _ = g.bounds; C = c["cap"]; w = x1 - x0
+    return geom.ink([g, _ticked_bar(x0 + w * 0.31, x0 + w * 0.69, C / 2, CAP_BAR * 0.80, C)])
+
+@glyph('Λ')      # Lambda
+def g_Lambda(c):
+    """The A without its bar (`caps_straight.g_A`, round 232's): the thin left
+    leg on its flat foot and bracket, the thick right leg with the outer
+    wedge, the thin stroke ending inside the thick one under the apex. The
+    width is the A's own solved width. Traced: 1.03 of the O wide."""
+    from .caps_straight import pw, W_
+    from ..primitives import diagonal
+    # In the ITALIC the A is the Aldine module's redraw, whose solved width
+    # multiplier means a different drawing: read through W it made the italic
+    # Lambda 0.72 of the roman's, a slash (IoU 0.07 against the italic
+    # references). There the width is the roman A's own solve -- W ~ 1.00 at
+    # the 400s and the Bold, so 600 on the width axis -- narrowed as every
+    # italic Greek capital is (`_cw`).
+    C = c["cap"]; w = (600 * pen.WIDTH * _cw(c)) if pen.SHEAR else W_(c, 'A', 600); s = CS
+    p0, p1 = (s * 0.3, 0), (w / 2 - s * 0.06, C - s * 0.32)
+    tn = geom.tangents(line(p0, p1))[0]
+    lw = pw(p0, p1, 0.72)
+    left = stroke(line(p0, p1), lw, cut0=-math.atan2(tn[0], tn[1]))
+    Apt = (p0[0] - lw / 2 / tn[1], 0.0)
+    foot = wedge(Apt, (0, -1), (-1, 0), WL * 0.9, WD * 0.9, 0.0, edge_at=lambda d: (Apt[0] + tn[0] * d, tn[1] * d))
+    r0, r1 = (w - s * 0.3, 0), (w / 2 - s * 0.18, C)
+    right = diagonal(r0, r1, pw(r0, r1), serif0=1)
+    return geom.ink([left, foot, right])
+
+@glyph('Ξ')      # Xi
+def g_Xi(c):
+    """Three bars and no stem: the T's top bar (both ends hanging the bar-end
+    wedge), the bottom bar with the wedge rising at both ends, and a shorter
+    middle bar with the Theta's two-way ticks. Traced: 0.86 of the O wide,
+    the middle bar from 0.23 to 0.76 of it."""
+    C = c["cap"]; w = 605 * _cw(c); th = CAP_BAR
+    return geom.ink([bar(0, w, C, th, align='top', wedges=[('left', -1), ('right', -1)]),
+                     _ticked_bar(w * 0.23, w * 0.76, C * 0.5, th * 0.90, C),
+                     bar(0, w, 0, th, align='bottom', wedges=[('left', 1), ('right', 1)])])
+
+@glyph('Ψ')      # Psi
+def g_Psi(c):
+    """A capital stem, full height, wedged both ways at the top and footed on
+    both sides, through a cup: each arm a capital stem from the cap line with
+    the two-way top wedge, turning in on the O's round pen to meet the stem
+    at 0.30 of the cap height. Traced: 1.14 of the O wide, the arms at 0.14
+    and 0.86 of it, vertical down to 0.70 of the cap height."""
+    from .caps_straight import cstem
+    C = c["cap"]; k = _cw(c)
+    xl = CS / 2 + 30 * k; xs = xl + 288 * k; xr = xs + 288 * k
+    parts = [cstem(xs, 0, C, top='both', foot='both'),
+             cstem(xl, C * 0.58, C, top='both', foot=None, ent_span=(0, C)),
+             cstem(xr, C * 0.58, C, top='both', foot=None, ent_span=(0, C))]
+    for sx in (-1, 1):
+        xa = xs + sx * 288 * k
+        pts = [(xa, C * 0.66), (xa - sx * 3 * k, C * 0.54), (xa - sx * 22 * k, C * 0.44), (xa - sx * 70 * k, C * 0.35),
+               (xa - sx * 150 * k, C * 0.29), (xs, C * 0.27)]
+        center = catmull(pts)
+        parts.append(stroke(center, bowl_widths(center, widths([(0.0, 0.95), (0.35, 1.0), (1.0, 0.9)]))))
+    return geom.ink(parts)
 
 @glyph('∑')
 def g_summation(c): return g_Sigma(c)

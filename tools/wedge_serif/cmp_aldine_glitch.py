@@ -131,6 +131,10 @@ MULTI = {
     '♠': 2, '♤': 2,           # the spade's body and its foot
     '♕': 4, '♛': 4,           # the queen: body, two arms, one finial
     'Ω': 1,                        # NOT 3 -- see g_Omega, its feet were adrift
+    # round 379: the Theta's bar floats inside the O (all four reference
+    # Greeks draw it so -- traced, the bar's run at mid-height stands clear of
+    # both walls), and the Xi is three bars with no stem. Looked at at 180 px.
+    'Θ': 2, 'Ξ': 3,
 }
 
 

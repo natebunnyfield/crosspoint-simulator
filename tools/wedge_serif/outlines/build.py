@@ -85,6 +85,22 @@ for _ch, _b in [('\u010f','d'),('\u0165','t'),('\u013e','l')]:
 for _ch, _b in [('\u0219','s'),('\u021b','t'),('\u0218','S'),('\u021a','T')]:
     ACCENTED[_ch] = (_b, "\u0326", 'below')
 
+# ROUND 379 -- THE GREEK THAT IS THE LATIN LETTER. Owner 2026-09-24 ("yes to
+# all", round 374's item a): fourteen Greek capitals and the omicron ARE the
+# Latin letter, and the reference Greek fonts build them as the Latin glyph.
+# A 'copy' is a composite of the base alone, at the base's own advance and
+# side bearings, so a round on the A reaches the Alpha for free and the two can
+# never disagree. In the italic the component is the italic's own capital.
+GREEK_COPY = {'\u0391': 'A', '\u0392': 'B', '\u0395': 'E', '\u0396': 'Z', '\u0397': 'H', '\u0399': 'I', '\u039a': 'K', '\u039c': 'M',
+              '\u039d': 'N', '\u039f': 'O', '\u03a1': 'P', '\u03a4': 'T', '\u03a5': 'Y', '\u03a7': 'X', '\u03bf': 'o'}
+for _ch, _b in GREEK_COPY.items():
+    ACCENTED[_ch] = (_b, None, 'copy')
+# ... and the monotonic TONOS on the seven lowercase vowels, as composites of
+# the letter and the acute (Unicode decomposes U+03AC..U+03CE to the letter
+# plus U+0301, the acute). The omicron's is placed on the o it copies.
+for _ch, _b in [('\u03ac', '\u03b1'), ('\u03ad', '\u03b5'), ('\u03ae', '\u03b7'), ('\u03af', '\u03b9'), ('\u03cc', 'o'), ('\u03cd', '\u03c5'), ('\u03ce', '\u03c9')]:
+    ACCENTED[_ch] = (_b, "\u00b4", 'above')
+
 # The COMBINING marks (U+0300-0328): the same drawings at ZERO advance, so a
 # decomposed string -- which is what a badly-made epub hands the reader --
 # still sets in Albo rather than falling to Noto one mark at a time.
@@ -134,8 +150,15 @@ LIGS = list("\ufb00\ufb01\ufb02\ufb03\ufb04") if os.environ.get("ALBO_LIGS") == 
 # Every character any glyph module registers and the record does not already
 # name -- so a new module (round 99's symbols, the next round's chess) is in
 # the font by existing, with no second list to keep in step.
-EXTRA = sorted(set(GLYPHS) - set(round19.CHARS) - set(LIGS) - set(MARKS), key=ord)
-CHARS = round19.CHARS + LIGS + MARKS + EXTRA; gname = round19.gname
+# ROUND 379 -- THE GREEK THAT WAS ADDED IS APPENDED, NOT SORTED IN. cut.py's
+# decimation phase is one counter advanced per contour in CHARS order, so a
+# glyph inserted into the codepoint-sorted EXTRA re-cuts every glyph after it
+# (cmp_contours.py's header). Appended at the very end, the new Greek moves
+# nothing that already shipped. The glyph ORDER is not the cmap: nothing reads
+# a glyph's index for its meaning.
+GREEK_APPEND = [ch for ch in "ζηικνξυχψςΓΘΛΞΨ" if ch in GLYPHS]
+EXTRA = sorted(set(GLYPHS) - set(round19.CHARS) - set(LIGS) - set(MARKS) - set(GREEK_APPEND), key=ord)
+CHARS = round19.CHARS + LIGS + MARKS + EXTRA + GREEK_APPEND; gname = round19.gname
 ACC_CHARS = sorted(ACCENTED, key=ord)
 COMB_CHARS = sorted(COMBINING, key=ord)
 GLYPH_ORDER = ['.notdef', 'space'] + [gname(ch) for ch in CHARS] + [gname(ch) for ch in ACC_CHARS] + [gname(ch) for ch in COMB_CHARS]
@@ -708,6 +731,85 @@ def fit_aldine(ch, conts):
         lsb += _trk / 2.0; rsb += _trk / 2.0
     adv = lsb + (r - l) + rsb
     dx = lsb - l
+    _FITTED[ch] = (lsb, rsb, 'ald')    # round 379: the Greek's analogues read this
+    return adv, dx, min(x for pts, _ in conts for x, y in pts) + dx
+
+
+# ROUND 379 -- THE GREEK IS SPACED FROM ALBO'S OWN LATIN, SIDE BY SIDE.
+# Owner 2026-09-24 ("yes to all", round 374's item b). Every Greek glyph used to
+# fall through to SIDES' straight/straight default, so the round letters (alpha,
+# delta, theta, omicron, rho, sigma, phi, omega) sat as far from their
+# neighbours as an n's stem does. There is no owner bench for the Greek, so each
+# SIDE takes the shipped bearing of the Latin letter whose side it IS -- the
+# omicron's left is the o's left, the eta's two stems the n's, the rho's bowl
+# the o's -- measured in the same band and the same space that letter is fitted
+# in (the italic lowercase unsheared, like fit_aldine; everything else as fit()).
+# The analogue's bearing is its FINAL one, bench deltas and kerning-free, so a
+# later bench refit of the o moves the omicron's side with it. Verified against
+# the references' Greek with a closest-approach sweep (docs/albo-greek-2026-09-23.md,
+# round 379). The omicron and the Latin-identical capitals are composites and
+# take their letter's advance outright.
+GREEK_SIDES = {
+    'α': ('o', 't'), 'β': ('b', 'b'), 'γ': ('v', 'v'), 'δ': ('o', 'o'), 'ε': ('c', 'c'),
+    'ζ': ('c', 'c'), 'η': ('n', 'n'), 'θ': ('o', 'o'), 'ι': ('i', 't'), 'κ': ('k', 'k'),
+    'λ': ('x', 'x'), 'μ': ('u', 'u'), 'ν': ('v', 'v'), 'ξ': ('c', 'c'), 'π': ('t', 't'),
+    'ρ': ('o', 'o'), 'σ': ('o', 'r'), 'ς': ('c', 'c'), 'τ': ('t', 't'), 'υ': ('u', 'o'),
+    'φ': ('o', 'o'), 'χ': ('x', 'x'), 'ψ': ('u', 'o'), 'ω': ('o', 'o'),
+    'Γ': ('F', 'F'), 'Δ': ('A', 'A'), 'Θ': ('O', 'O'), 'Λ': ('A', 'A'), 'Ξ': ('Z', 'Z'),
+    'Π': ('H', 'H'), 'Σ': ('Z', 'E'), 'Φ': ('O', 'O'), 'Ψ': ('U', 'U'), 'Ω': ('O', 'O'),
+}
+# ... and the references' own Greek-minus-Latin offset on top, per side, in
+# units: where the reference Greek faces space a Greek side looser or tighter
+# than its Latin analogue (the eta's feet-less stems sit 0.04 em looser than
+# the n's in all four), that offset is carried over. FITTED by
+# instruments/greek376_space.py --fit against the four references' median,
+# one row per cut family ('rom' the Regular, 'bold' the Bold against the bold
+# references, 'ald' both italics -- there is no bold-italic Greek reference set),
+# clamped to 30 units a pass. Re-run it after redrawing any Greek letter:
+# like the bench tables, a row describes the drawing it was fitted on.
+# ONE ROW IS NOT THE FIT'S: the italic Psi's (12, 14). Its two sides sit inside
+# the references' spread, but sheared, its arms' two-way top wedges reach over
+# the next letter's and PsiPsi TOUCHED (-0.008 em Italic, -0.011 BoldItalic,
+# instruments/greek376_touch.py); xiPsi and zetaPsi sat under the 0.012 floor.
+# 12 + 14 units clears all three at both weights and keeps Psi's sides in band.
+GREEK_SIDE_ADJ = {
+    'rom': {'α': (0, 3), 'β': (4, 0), 'γ': (-7, 9), 'δ': (-2, 0), 'ε': (8, 0), 'η': (0, 34), 'θ': (7, 15), 'ι': (2, 0), 'λ': (0, -23), 'π': (0, 24), 'ρ': (9, 1), 'σ': (-4, 0), 'τ': (0, 9), 'Δ': (20, 12), 'Λ': (3, 0), 'Ξ': (27, 8), 'Π': (-13, 1), 'Σ': (18, 0), 'Φ': (3, 0), 'Ω': (0, -17)},
+    'ald': {'α': (0, -11), 'ε': (0, 7), 'ζ': (7, 0), 'η': (0, 37), 'θ': (0, 6), 'ι': (45, 0), 'κ': (-33, 23), 'μ': (4, 0), 'ξ': (5, 0), 'π': (0, -16), 'ρ': (32, 0), 'ς': (7, 7), 'υ': (0, 22), 'φ': (13, 21), 'χ': (0, 45), 'ψ': (0, 3), 'ω': (6, 20), 'Δ': (35, 0), 'Θ': (0, 1), 'Ξ': (0, 1), 'Π': (42, 2), 'Σ': (-9, 5), 'Φ': (19, 5), 'Ψ': (12, 14)},
+    'bold': {'α': (0, 3), 'β': (4, 0), 'γ': (-7, 9), 'δ': (-2, 0), 'ε': (8, -6), 'ζ': (0, -12), 'η': (0, 34), 'θ': (-4, 11), 'ι': (5, 0), 'λ': (0, -23), 'μ': (1, -3), 'ν': (0, 5), 'π': (-17, 24), 'ρ': (15, 1), 'σ': (-1, 0), 'ς': (1, 0), 'τ': (-13, 12), 'φ': (1, 0), 'ψ': (-3, 0), 'Δ': (20, 12), 'Ξ': (31, 22), 'Π': (-4, 1), 'Σ': (18, 0), 'Φ': (8, 0), 'Ψ': (-2, 0), 'Ω': (0, -17)},
+}
+GREEK_SPACING = os.environ.get("ALBO_GREEK_SPACING", "1") != "0"   # 0 = the straight/straight default, as before round 379
+_FITTED = {}    # ch -> (lsb, rsb, space) of every glyph fitted so far in this build
+
+
+def _band_extent(ch, conts, space):
+    """A glyph's ink extremes in the band its fitter reads: 'ald' is
+    fit_aldine's (unsheared, on the ROUNDED y), 'rom' is fit()'s (as drawn,
+    the x-height band or the cap band for a capital)."""
+    if space == 'ald':
+        sh = pen.SHEAR; lo, hi = -pen.OVER, pen.XH + pen.OVER
+        band = [x - sh * y for pts, _ in conts for x, y in pts if lo <= round(y) <= hi]
+        xs = [x - sh * y for pts, _ in conts for x, y in pts]
+    else:
+        top = C if ch.isupper() else pen.XH
+        band = [x for pts, _ in conts for x, y in pts if -pen.OVER <= y <= top + pen.OVER]
+        xs = [x for pts, _ in conts for x, y in pts]
+    return (min(band), max(band)) if band else (min(xs), max(xs))
+
+
+def fit_greek(ch, conts):
+    """The Greek letter's two sides from its Latin analogues (GREEK_SIDES), or
+    None when an analogue has not been fitted in this build."""
+    la, ra = GREEK_SIDES[ch]
+    if la not in _FITTED or ra not in _FITTED: return None
+    lsb, _, ls = _FITTED[la]; _, rsb, rs = _FITTED[ra]
+    _adj = GREEK_SIDE_ADJ['ald' if (ALD is not None and ALD.ON) else ('bold' if pen.S > 84.0 else 'rom')].get(ch)
+    if _adj: lsb += _adj[0]; rsb += _adj[1]
+    # both analogues of a letter are fitted in one space (a lowercase pair is
+    # both 'ald' in the aldine italic, everything else 'rom'); the glyph is read
+    # in the LEFT one's, which is where its origin sits.
+    l0, r0 = _band_extent(ch, conts, ls)
+    adv = lsb + (r0 - l0) + rsb
+    dx = lsb - l0
     return adv, dx, min(x for pts, _ in conts for x, y in pts) + dx
 
 
@@ -785,6 +887,9 @@ def fit(ch, conts, c):
     # ALBO_ITALIC=aldine -- falls straight through to the rule below.
     if ALD is not None and ALD.ON and ch in ALD.BEARINGS:
         return fit_aldine(ch, conts)
+    if GREEK_SPACING and ch in GREEK_SIDES:
+        _g = fit_greek(ch, conts)
+        if _g is not None: return _g
     isCap = ch.isupper() or isfig(ch); top = C if isCap else pen.XH
     xs_all = [x for pts, _ in conts for x, y in pts]
     band = [x for pts, _ in conts for x, y in pts if -pen.OVER <= y <= top + pen.OVER]
@@ -853,6 +958,7 @@ def fit(ch, conts, c):
     if ALD is not None and ALD.ON and ch in getattr(ALD, 'CAP_BEARING_ADJ', {}):
         lsb += ALD.CAP_BEARING_ADJ[ch][0]; rsb += ALD.CAP_BEARING_ADJ[ch][1]   # round 97: the lowercase solve
     adv = lsb + (r - l) + rsb; dx = lsb - l
+    _FITTED[ch] = (lsb, rsb, 'rom')    # round 379: the Greek's analogues read this
     return adv, dx, min(xs_all) + dx
 
 WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "Medium": 500, "SemiBold": 600, "Bold": 700,
@@ -937,6 +1043,10 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     # every e-acute with it, and the file pays for one outline instead of 161.
     for ch in ACC_CHARS:
         base, mark, kind = ACCENTED[ch]
+        if kind == 'copy' and base in ink and (only is None or ch in only):   # round 379: the Greek that is the Latin letter
+            cp = TTGlyphPen(glyphs); cp.addComponent(gname(base), (1, 0, 0, 1, 0, 0))
+            glyphs[gname(ch)] = cp.glyph()
+            metrics[gname(ch)] = (int(round(advances[base])), int(round(ink[base][0]))); continue
         if (only is not None and ch not in only) or base not in ink or mark not in ink:
             # round 101: still EMIT the glyph, empty. setupHorizontalMetrics
             # needs a row for every name in the glyph order, so a skipped
