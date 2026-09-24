@@ -911,6 +911,13 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         elif kind == 'below':
             dx = (bx0 + bx1) / 2 - (mx0 + mx1) / 2
             dy = -my1            # the mark's own top to the baseline (it is drawn hanging from 0)
+            # ROUND 375 -- THE COMMA BELOW STANDS FREE. It hung its top AT the
+            # baseline while every round letter dips through it (the s by 15),
+            # so s-comma and t-comma fused into one contour with their mark and
+            # read as the cedilla forms beside them -- which is the one thing a
+            # Romanian reader must be able to tell apart. The cedilla and the
+            # ogonek attach by design and are untouched.
+            if mark == "\u0326": dy -= pen.OVER + pen.S * 0.30
         else:                    # 'right': the Czech apostrophe-caron at the shoulder
             dx = bx1 + S_GAP_RIGHT - mx0; dy = pen.XH * 0.52 - my0
         cp = TTGlyphPen(glyphs)   # a composite pen needs the glyph set it references

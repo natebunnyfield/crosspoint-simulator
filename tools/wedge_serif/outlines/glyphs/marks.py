@@ -81,10 +81,43 @@ EXCL_NIB = int(os.environ.get("ALBO_EXCL_NIB", 0))       # 1 = the dot is a pres
 MARK_TALL = float(os.environ.get("ALBO_MARK_TALL", 1.0))   # round 369, owner: to the ASCENDER. 0 restores the cap line, which is where all six references cut both marks.
 EXCL_NIB_LEN = float(os.environ.get("ALBO_EXCL_NIB_LEN", 0.62))  # half the press's length along the nib's edge, x the dot radius
 EXCL_NIB_W = float(os.environ.get("ALBO_EXCL_NIB_W", 1.15))      # the press's thickness across the edge, x the dot radius
-MDOT = DOT_R * MARK_DOT
+# ROUND 375 -- THE BOLD'S MARKS. Every mark here is built from S, the stem --
+# DOT_R is 0.62 S and the comma's tail is laid out in multiples of S -- so the
+# Bold (S 116, 1.73x the 400's 66.9) grew every mark by 1.73x while its letters
+# did not. Measured, /1000 em: Albo Bold's period 214 wide, comma 510 tall,
+# curly quote 453 tall, against Georgia/Times/Palatino/Charter Bold at
+# 152-193, 304-356 and 288-343. Round 369 fitted the marks on the 400 only.
+# A bold's dot grows with its weight but slower than its stem does, and a
+# comma's REACH does not grow at all. So:
+#   WF  -- the dots' weight factor, (REF_S / S) ** 0.4: 1.0 exactly at the 400,
+#          0.80 at the 700, which lands the Bold period at the bold median.
+#   ST  -- the tail's LENGTH unit: REF_S at every weight (its WIDTH still comes
+#          from the pen, so a bold comma is a heavier comma, not a longer one).
+# At S = REF_S both are identities, so the Regular and Italic are byte-identical.
+REF_S = 66.9                       # the 400's stem, build_env.sh
+WF = (REF_S / S) ** float(os.environ.get("ALBO_MARK_WEIGHT_EXP", 0.4))
+ST = REF_S if os.environ.get("ALBO_MARK_TAIL_FIXED", "1") == "1" else S
+MDOT = DOT_R * MARK_DOT * WF
+# ROUND 375 -- THE DOTS SINK THROUGH THE BASELINE, AS THE o DOES. Owner
+# 2026-09-24, on the specimen: *"punctuation needs to rest on baseline
+# better."* Measured, lowest ink against the baseline in /1000 em, every mark
+# that stands on the line: Albo's period, colon, !, ? and ellipsis bottomed at
+# 0 to +3 -- ON or ABOVE the line -- while its own o dips to -15. Every one of
+# six references sinks its dots through the line with the same overshoot as
+# its round letters: Times -13 (o -13), Baskerville -16 (o -16), Charter -9
+# (o -9), Georgia -10 (o -15), Hoefler -17 (o -22), Palatino -5 (o -15) --
+# a median 0.88 of the o's own overshoot. A round mark that only touches the
+# line reads as floating above it, for the reason an o that only touched it
+# would. DOT_SINK is units below the line for the dot's lowest point: 13 on
+# the roman (o -15), 6 on the italic (its o dips 7). BY is the centre every
+# baseline dot now takes; the comma's dot moves with the period's so the two
+# still align. ALBO_DOT_SINK=0 restores the old seating exactly.
+_DS = os.environ.get("ALBO_DOT_SINK")
+DOT_SINK = float(_DS) if _DS is not None else (6.0 if pen.ITALIC else 13.0)
+BY = MDOT - DOT_SINK
 
 @glyph('.')
-def g_period(c): return dot(MDOT, MDOT, MDOT)
+def g_period(c): return dot(MDOT, BY, MDOT)
 # ROUND 362 -- THE COMMA'S REACH. Measured 0.38 of the x-height tall against
 # the references' 0.59-0.70, and 0.20 wide against their 0.33-0.35: it is the
 # most undersized mark after the quotes. COMMA_LEN scales how far the tail
@@ -105,15 +138,15 @@ def comma_tail(x, y, up=True, w0=0.9, w1=0.3, k=None):
     contour count 1 -> 2, which is a mark in two pieces. The gate caught it;
     no render of the comma itself could have."""
     _L, _W = (COMMA_LEN, COMMA_W) if k is None else (k, k)
-    if up: tail = cubic((x + S * 0.1, y - S * 0.35 * _L), (x + S * 0.1, y - S * 1.05 * _L), (x - S * 0.3 * _W, y - S * 1.45 * _L), (x - S * 0.6 * _W, y - S * 1.75 * _L))
+    if up: tail = cubic((x + ST * 0.1, y - ST * 0.35 * _L), (x + ST * 0.1, y - ST * 1.05 * _L), (x - ST * 0.3 * _W, y - ST * 1.45 * _L), (x - ST * 0.6 * _W, y - ST * 1.75 * _L))
     # mirrored in x only (round 51 flipped y too, sending the left quote's
     # tail UP past the cap height instead of down like a real turned comma --
     # the defect behind the misaligned "‘"/"“"): the tail still descends,
     # it just curls to the right instead of the left.
-    else:  tail = cubic((x - S * 0.1, y - S * 0.35 * _L), (x - S * 0.1, y - S * 1.05 * _L), (x + S * 0.3 * _W, y - S * 1.45 * _L), (x + S * 0.55 * _W, y - S * 1.75 * _L))
+    else:  tail = cubic((x - ST * 0.1, y - ST * 0.35 * _L), (x - ST * 0.1, y - ST * 1.05 * _L), (x + ST * 0.3 * _W, y - ST * 1.45 * _L), (x + ST * 0.55 * _W, y - ST * 1.75 * _L))
     return stroke(tail, pen_widths(tail, lambda t: w0 - (w0 - w1) * t))   # round 51: the pen x (0.9 - 0.6 t)
 @glyph(',')
-def g_comma(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT)])
+def g_comma(c): return geom.ink([dot(MDOT, BY, MDOT), comma_tail(MDOT, BY)])
 # ROUND 369 -- AND THE COLON CLOSES AS THE DOT OPENS. Both dots are anchored
 # INSIDE the x-height band -- the lower resting on the baseline, the upper
 # hung from the x-height line -- so every unit the dot gains, the white
@@ -126,9 +159,9 @@ def g_comma(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT)])
 COLON_SPAN = float(os.environ.get("ALBO_COLON_SPAN", 1.05))   # round 369: white 0.433 at MARK_DOT 1.50, against 0.386 with the pair held inside the band
 
 @glyph(':')
-def g_colon(c): return geom.ink([dot(MDOT, MDOT, MDOT), dot(MDOT, XH * COLON_SPAN - MDOT, MDOT)])
+def g_colon(c): return geom.ink([dot(MDOT, BY, MDOT), dot(MDOT, XH * COLON_SPAN - MDOT, MDOT)])
 @glyph(';')
-def g_semicolon(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT), dot(MDOT, XH * COLON_SPAN - MDOT, MDOT)])
+def g_semicolon(c): return geom.ink([dot(MDOT, BY, MDOT), comma_tail(MDOT, BY), dot(MDOT, XH * COLON_SPAN - MDOT, MDOT)])
 @glyph('!')
 def g_exclam(c):
     # ROUND 364 -- THE STEM THICKENED, THEN THE DOT BALANCED AGAINST IT.
@@ -175,6 +208,7 @@ def g_exclam(c):
     else:
         _dot = dot(x, _r, _r)
         y0 = 2 * _r + 0.8 * S
+    _dot = aff.translate(_dot, 0, -DOT_SINK); y0 -= DOT_SINK   # round 375: through the line, gap held
     _p = line((x, y0), (x, C))
     return geom.ink([_dot,
                      stroke(_p, pen_widths(_p, lambda t: EXCL_BOT + (EXCL_TOP - EXCL_BOT) * t), cut1=CUT)])
@@ -219,7 +253,11 @@ def Q_DOT_CLEAR(r=None, half=None):
     question mark uses it now too, so the two marks clear identically at
     every weight."""
     r = MDOT if r is None else r
-    return 2 * r + (half or 0) + 0.55 * S
+    # ROUND 375: measured from where the dot now IS (sunk, and MDOT-sized). The
+    # q8 hook had been cleared for DOT_R * 1.1 while its dot was drawn at
+    # MDOT * 1.1 after round 369 -- 1.65x the dot it was cleared for -- and the
+    # white between hook and dot measured 2 units.
+    return BY + r + (half or 0) + 0.55 * S
 
 def _q_common(c, pts, prof, tension=0.62, cut0=CUT, beak_start=False, floor=0.5, w=380):
     C = CAP(c)
@@ -269,7 +307,7 @@ def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and 
     # 0.78 S, so at the Bold its own half-width plus the dot's radius closed
     # the gap and the ? merged into one contour -- it lost its dot, in the
     # bold only, which no render of the Regular could show.
-    end_y = max(C * 0.22, Q_DOT_CLEAR(r=DOT_R * 1.1, half=S * Q8_FLOOR / 2))
+    end_y = max(C * 0.22, Q_DOT_CLEAR(r=MDOT, half=S * Q8_FLOOR / 2))
     # ROUND 233 -- TWO STRAY CORNERS AND A BULGE. Owner 2026-09-18 (R49): *"fix
     # stray corner in bottom right of stroke, fix bad bulge on left."* Measured
     # on the spine at 4 px/unit:
@@ -305,7 +343,7 @@ def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and 
     P = upper[-1]; tn = geom.tangents(upper)[-1]; E = (w * 0.5, end_y); L = math.dist(P, E)
     hook = geom.resample(upper + cubic(P, (P[0] + tn[0] * Q8_TAIL_K1 * L, P[1] + tn[1] * Q8_TAIL_K1 * L), (E[0], E[1] + Q8_TAIL_K2 * L), E)[1:])
     wf = _smooth_wf(PR.bowl_widths(hook, widths([(0.0, 0.7), (0.25, 0.7), (0.5, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR), len(hook) - 1)
-    return geom.ink([dot(w * 0.5, MDOT * 1.1, MDOT * 1.1),
+    return geom.ink([dot(w * 0.5, BY, MDOT),   # round 375: the period's dot (was 1.1x, 10% over every other)
                      _raise(stroke(hook, wf, cut0=CUT, cut1=CUT), c, w, end_y)])
 def _smooth_wf(wf, n, passes=4):
     """A width function sampled at the spine's n+1 points and smoothed by a
@@ -335,6 +373,7 @@ QUESTION_VARIANT = int(os.environ.get('FJORD_Q_VARIANT', 0))
 # per arm because a quote is one mark, not a height and a width.
 QUOTE_SIZE = float(os.environ.get("ALBO_QUOTE_SIZE", 1.75))   # round 369: apostrophe 0.358 x 0.645, against references 0.289-0.399 and 0.547-0.661
 QUOTE_W = float(os.environ.get("ALBO_QUOTE_W", 1.65))
+CURLY_SCALE = float(os.environ.get("ALBO_CURLY_SCALE", 0.86))   # round 375: curly quotes 305 -> 262, the references' median
 QUOTE_BODY = 2 * DOT_R * QUOTE_SIZE   # straight and curly quotes share this body height, top-aligned to CAP
 # ROUND 222 -- THE ITALIC'S QUOTES SIT LOWER. Owner 2026-09-18, on the round-221
 # proof: *"too much space between apostrophe and previous and next letters.
@@ -427,9 +466,15 @@ def quote(c, x, up):
     other mark), turned to hang from the top instead of sitting on the
     baseline -- top of the dot flush with CAP, matching the straight
     quotes' top and body height exactly."""
-    _r = DOT_R * QUOTE_SIZE          # round 362: the curly pair scales with the straight
+    _r = DOT_R * QUOTE_SIZE * WF     # round 362: the curly pair scales with the straight; round 375: WF
     C = CAP(c) - _qdrop(); y = C - _r
-    return geom.ink([dot(x, y, _r), comma_tail(x, y, up, 0.85, 0.3)])
+    g = geom.ink([dot(x, y, _r), comma_tail(x, y, up, 0.85, 0.3)])
+    # ROUND 375 -- TOO BIG. Owner 2026-09-24: *"quotes are too big."* Measured:
+    # 305 /1000 em tall against six references' 253-285 (median 262) -- round
+    # 369 grew them to the TOP of the band, where the comma dials that carry
+    # their tails put them. Scaled as a unit about their own top, so they
+    # still hang from the same line and keep the comma's shape.
+    return aff.scale(g, xfact=CURLY_SCALE, yfact=CURLY_SCALE, origin=(x, C)) if CURLY_SCALE != 1.0 else g
 @glyph('’')
 def g_quoteright(c): return quote(c, S * 0.7, True)
 @glyph('‘')
@@ -676,7 +721,11 @@ AT_STEM_BURY = 1.5     # round 233: the stem's left edge this far inside the cou
 @glyph('_')
 def g_underscore(c): return stroke(line((0, -DESC * 0.5), (500, -DESC * 0.5)), TH_H)
 @glyph('…')
-def g_ellipsis(c): return geom.ink([dot(DOT_R + i * S * 2.4, DOT_R, DOT_R) for i in range(3)])
+# ROUND 375: round 369 grew every dot 1.5x and missed this one -- it was built
+# on the raw DOT_R, so its dots measured 80 wide beside a period of 123. Now
+# the period's own dot, sunk as the period is, with the white between dots
+# held at one dot's width (its old proportion, 80 on 80).
+def g_ellipsis(c): return geom.ink([dot(MDOT + i * MDOT * 4.0, BY, MDOT) for i in range(3)])
 
 # ============ ROUND 258: THE DASH, LOW-QUOTE AND APOSTROPHE FAMILIES ==========
 # Owner 2026-09-19: *"continue autonomously on all commonly needed roman,
@@ -699,13 +748,13 @@ def g_figuredash(c): return dash(c, 0.45)
 @glyph('\u2015')   # HORIZONTAL BAR -- the quotation dash, the em dash's length
 def g_horizbar(c): return dash(c, 1.41)
 @glyph('\u201A')   # SINGLE LOW-9 QUOTATION MARK -- the comma, as the opening quote of German and Czech
-def g_quotesinglbase(c): return geom.ink([dot(MDOT, MDOT, MDOT), comma_tail(MDOT, MDOT)])
+def g_quotesinglbase(c): return geom.ink([dot(MDOT, BY, MDOT), comma_tail(MDOT, BY)])
 @glyph('\u201E')   # DOUBLE LOW-9 QUOTATION MARK
 def g_quotedblbase(c):
     # it was built on the RAW DOT_R while its tail took the punctuation
     # dials -- a small dot with a large mark's tail, which detached (2 -> 4
     # contours). Every other comma in the face is on MDOT.
-    return _dbl(lambda dx: geom.ink([dot(MDOT + dx, MDOT, MDOT), comma_tail(MDOT + dx, MDOT)]))
+    return _dbl(lambda dx: geom.ink([dot(MDOT + dx, BY, MDOT), comma_tail(MDOT + dx, BY)]))
 @glyph('\u02BC')   # MODIFIER LETTER APOSTROPHE -- the letter, not the punctuation: Ukrainian, Uzbek, many transliterations
 def g_modapostrophe(c): return quote(c, S * 0.7, True)
 @glyph('\u02BB')   # MODIFIER LETTER TURNED COMMA -- the Hawaiian okina

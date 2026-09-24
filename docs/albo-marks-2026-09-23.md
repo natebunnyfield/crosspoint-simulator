@@ -194,3 +194,29 @@ and says what it cost.
 - The middle dot's wedge — apex, tilt and aspect are dials; five arms rendered.
 - The `?` variant selection and the `1`'s fitting, both carried over from
   round 362 and still unruled.
+
+## Round 375 — 2026-09-24: seated, smaller, and the Bold
+
+Owner, on the round-374 specimen: *"quotes are too big. punctuation needs to
+rest on baseline better. take a pass at all of them to make sure recent
+changes work."* All numbers /1000 em, lowest ink against the baseline.
+
+| finding | measured | fix | after |
+|---|---|---|---|
+| dots float | Albo . : ! ? … bottom at 0 to +3, its o at −15; six references sink their dots a median **0.88 of their own o's overshoot** (Times −13/o −13, Baskerville −16/−16, Charter −9/−9, Georgia −10/−15, Hoefler −17/−22, Palatino −5/−15) | `DOT_SINK` 13 roman / 6 italic (the italic o dips 7); every baseline dot and the comma's dot take `BY` | roman −10 to −13, italic −3 to −6 |
+| curly quotes too big | 305 tall; references 253–285, median 262 | `CURLY_SCALE` 0.86, scaled as a unit about its own top | 262 |
+| **? dot nearly touching its hook** | **2 units** of white: the hook's clearance was computed for `DOT_R*1.1` while round 369 drew the dot at `MDOT*1.1`, 1.65x bigger | clearance from where the dot now is; dot = the period's (was 1.1x) | 49 units (the ! has 56) |
+| ellipsis never scaled | dots 80 wide beside a period of 123 — built on raw `DOT_R`, which round 369's scale-up missed | the period's dot, white held at one dot | 119 |
+| **the Bold's marks 1.7x too big** | every mark is built from S, so the Bold (S 116) grew them 1.73x: period 214, comma 510, quote 453 against Georgia/Times/Palatino/Charter Bold 152–193 / 304–356 / 288–343. Round 369 fitted the 400 only | dots scale by `WF = (66.9/S)^0.4`; the comma tail's LENGTH is laid out in the 400's stem at every weight (its width still comes from the pen) | 172 / 322 / 289, all in band; the 400s byte-identical |
+| **comma-below fused to its letter** | ș ț Ș Ț were one contour with their mark in every cut — the composite hung the mark's top at the baseline while the s dips 15 through it — so they read as the cedilla forms ş ţ beside them | U+0326 composites hang `OVER + 0.30 S` lower; cedilla and ogonek untouched | detached |
+
+**Found and deliberately NOT changed:** the STRAIGHT quotes `'` `"` are
+*short* — 182 tall against the references' 240–292 and against the curly
+quotes' 262 — so the two quote forms disagree. Growing them contradicts
+"quotes are too big", so they are left and flagged.
+
+**Checked CLEAN:** the ! dot equals the period in all four cuts; the colon's
+upper dot top sits on the x-height; the comma stays in band after the sink
+(roman −183 bottom); the double quotes stay separated (spaced by white, round
+369); contour census unchanged (982); approved glyphs unchanged; gates
+unchanged; touch and hair sweeps on both Bolds identical to before the round.
