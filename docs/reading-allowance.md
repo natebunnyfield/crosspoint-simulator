@@ -4,6 +4,7 @@
 
 - **RULED 2026-09-25 (owner, asked "per zen session or a daily total?"):** *"Daily, reset by zen start"*. The zen restart wins, so the goal behaves per session, exactly as build 211 shipped it. Nothing is stored across sessions. Do not re-ask.
 - **RULED 2026-09-25 (owner):** the dark decay gets the same treatment the light one did. Research how an overdriven tube actually fails, then take five render passes (*"Rework it"*).
+- **RULED 2026-09-25 (owner, on the build 212 proof page):** *"yes to all"*. The overdriven-tube dark decay and the smooth-cell light decay are accepted as shipped in build 212.
 - **One clock, whatever the book.** There is no per-book or per-day record any more; the ledger file (`reading-allowance.txt`) is no longer read or written. An old one left on a device is inert.
 - **Counted only in zen**, with a book page on the glass. The device must be awake and the app active.
 - **Zen starting restarts it.** Every off→on edge of zen restarts the clock, and so does a launch into zen. Leaving zen stops the count and shows the page clean at once.
