@@ -305,14 +305,13 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = off   1 = on
   "powerOffCollapse": 0,
 
-  // THE DAILY READING ALLOWANCE: minutes each book may be read per day. The
-  // page is untouched until the last minute, then decays to unreadable (the
-  // light page's ink starves, the dark page's tube overdrives) and stays that
-  // way until local midnight. Counted only while a book page is on screen.
-  // The phone ships 10; the desktop ships 0, because a headless capture run
-  // against the same book all day would otherwise start decaying its own
-  // screenshots once the runs added up to nine minutes.
-  //   0 = off   N = minutes per book per day
+  // THE ZEN READING GOAL: minutes of reading per zen session, whatever the
+  // book. Counted only in zen with a book page on screen, and restarted every
+  // time zen starts. The page is untouched until the last minute, then decays
+  // to unreadable (the light page's ink starves, the dark page's tube
+  // overdrives) until zen is left. The desktop has no zen of its own -- it
+  // takes CROSSPOINT_SIM_ZEN -- and ships this Off; the phone ships 5.
+  //   0 = off   N = minutes
   "readingAllowanceMinutes": 0,
 
   // --------------------------------------------------------- PHOSPHOR MIX ---

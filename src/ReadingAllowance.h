@@ -1,30 +1,34 @@
 #pragma once
 
-// THE DAILY READING ALLOWANCE -- a book that can only be read for so long a day.
+// THE ZEN READING GOAL -- five minutes of reading, then the page gives out.
 //
-// Owner 2026-09-24: *"I think I want a timer on the book that makes it harder
-// and harder to read as time passes, ultimately making it unreadable at the
-// end"*, then *"10 minutes every day"*, then *"make 10 minutes an ios app
-// setting. starting at last minute, do too much emission for dark and for
-// light, do too light of ink."* The design he ruled, one question at a time:
+// Owner 2026-09-24, in two rulings. First (the per-book allowance, since
+// replaced): *"I think I want a timer on the book that makes it harder and
+// harder to read as time passes, ultimately making it unreadable at the end"*,
+// then *"starting at last minute, do too much emission for dark and for light,
+// do too light of ink."* Then, the same day, the shape that ships: *"change
+// this to goal of read 5 minutes a day, no matter the book. it only applies in
+// zen mode and zen mode starting up again restarts it."* So:
 //
-//   * PER BOOK, READING TIME. Each book has its own allowance, and it runs only
-//     while that book's pages are on the glass -- not while a menu is up, not
-//     while the device sleeps, not while the app is in the background.
-//   * PER DAY. It refills at local midnight.
-//   * THE LAST MINUTE. The page is untouched until one minute of the allowance
-//     remains, then decays over that minute to unreadable -- the light page as
-//     ink pressed too lightly, the dark page as a tube emitting too much. Once
-//     spent, the book stays unreadable until the day turns.
+//   * ONE CLOCK, whatever the book. It runs only while a book page is on the
+//     glass IN ZEN -- not in a menu, not asleep, not in the background, not
+//     with zen off.
+//   * ZEN STARTING RESTARTS IT. Every off->on edge of zen, and a launch into
+//     zen (which is zen starting), gives a fresh clock. Nothing persists: a
+//     reader who wants another five minutes leaves zen and comes back.
+//   * THE LAST MINUTE. The page is untouched until one minute remains, then
+//     decays over that minute to unreadable -- the light page as ink pressed
+//     too lightly, the dark page as a tube emitting too much -- and stays so
+//     until zen is left. Leaving zen shows the page clean at once.
 //
 // WHY A PURE HEADER, like the rest of the family here: every way this can be
-// wrong is silent. A clock that also counts the Home screen, a day that never
-// turns, a book key that collides, a decay that starts at the wrong second --
-// all of them compile, render and log nothing. This file holds every one of
-// those decisions and nothing that touches SDL, so the test can drive them.
+// wrong is silent. A clock that also counts the Home screen, a restart that
+// never fires, a decay that starts at the wrong second -- all of them compile,
+// render and log nothing. This file holds every one of those decisions and
+// nothing that touches SDL, so the test can drive them.
 //
-// Rendering lives in src/HalDisplay.cpp; the setting is a Settings.app row on
-// the phone (CrossPointPrefs_readingAllowanceMinutes) and
+// Rendering lives in src/SurfaceAllowance.h; the setting is a Settings.app
+// row on the phone (CrossPointPrefs_readingAllowanceMinutes) and
 // CROSSPOINT_SIM_READING_ALLOWANCE on the desktop, through src/SimulatorDials.h.
 
 #include <algorithm>
@@ -32,8 +36,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <map>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -41,7 +43,7 @@
 
 namespace readingallowance {
 
-// How long the decay takes, counted back from the end of the allowance.
+// How long the decay takes, counted back from the end of the goal.
 inline constexpr double kDecaySeconds = 60.0;
 
 // The largest clock step one pass may add. The main loop runs many times a
@@ -53,7 +55,7 @@ inline constexpr double kMaxStepSeconds = 1.0;
 
 // The options the Settings row offers, in minutes. 0 is Off.
 inline constexpr int kOptions[] = {0, 5, 10, 15, 20, 30, 45, 60};
-inline constexpr int kDefaultMinutes = 10;
+inline constexpr int kDefaultMinutes = 5;
 inline constexpr int kMaxMinutes = 24 * 60;
 
 // How far into the decay `usedSeconds` of a `allowanceMinutes` allowance is:
@@ -69,85 +71,32 @@ inline double decayFraction(double usedSeconds, int allowanceMinutes) {
   return (usedSeconds - start) / window;
 }
 
-// A local calendar day as YYYYMMDD. The caller supplies the broken-down local
-// time so the test can pin a day without touching the clock.
-inline int dayKey(int year, int month, int day) {
-  return year * 10000 + month * 100 + day;
-}
-
-// WHAT HAS BEEN READ TODAY, per book. `day` is the day these seconds belong to;
-// a different day means a fresh, empty ledger -- the midnight refill.
-struct Ledger {
-  int day = 0;
-  std::map<uint64_t, double> seconds;
-
-  // Rolls over when the day has changed, then returns the seconds read today.
-  double used(int today, uint64_t book) {
-    rollTo(today);
-    const auto it = seconds.find(book);
-    return it == seconds.end() ? 0.0 : it->second;
-  }
-
-  // Adds reading time to `book` on `today`. Negative or absurd steps are
-  // clamped: a clock that went backwards is not reading, and a stall is capped.
-  void add(int today, uint64_t book, double stepSeconds) {
-    rollTo(today);
-    if (!(stepSeconds > 0.0)) return;
-    if (stepSeconds > kMaxStepSeconds) stepSeconds = kMaxStepSeconds;
-    seconds[book] += stepSeconds;
-  }
-
-  void rollTo(int today) {
-    if (today != day) {
-      day = today;
-      seconds.clear();
-    }
-  }
-
-  // One line for the day, then one line per book: `<hex key> <seconds>`. Plain
-  // text so the file can be read and edited by hand -- the owner can give a book
-  // its minutes back by deleting a line.
-  std::string serialize() const {
-    std::ostringstream out;
-    out << "day " << day << "\n";
-    for (const auto &kv : seconds) {
-      char key[32];
-      std::snprintf(key, sizeof key, "%016llx",
-                    static_cast<unsigned long long>(kv.first));
-      out << key << " " << kv.second << "\n";
-    }
-    return out.str();
-  }
-
-  // Tolerant: a line that does not parse is skipped, never fatal. A damaged
-  // file costs at most today's record, which is the right failure for a
-  // feature whose worst case is a book readable for longer than it should be.
-  static Ledger parse(const std::string &text) {
-    Ledger l;
-    std::istringstream in(text);
-    std::string line;
-    while (std::getline(in, line)) {
-      if (line.rfind("day ", 0) == 0) {
-        l.day = std::atoi(line.c_str() + 4);
-        continue;
-      }
-      unsigned long long key = 0;
-      double secs = 0.0;
-      if (std::sscanf(line.c_str(), "%llx %lf", &key, &secs) == 2 && secs >= 0.0)
-        l.seconds[static_cast<uint64_t>(key)] = secs;
-    }
-    return l;
+// ONE ZEN SESSION'S CLOCK. `step` is called on every main-loop pass with
+// whether zen is on and whether this moment is reading; an off->on edge of zen
+// (including the first pass that sees zen on, which is a launch into zen)
+// starts the clock again from zero.
+struct Session {
+  double seconds = 0.0;
+  bool lastZen = false;
+  // True when this step restarted the clock -- the caller's cue to re-seed a
+  // QA preset and to present the page clean.
+  bool step(bool zen, bool reading, double dt) {
+    const bool restarted = zen && !lastZen;
+    if (restarted) seconds = 0.0;
+    lastZen = zen;
+    if (reading && dt > 0.0) seconds += dt > kMaxStepSeconds ? kMaxStepSeconds : dt;
+    return restarted;
   }
 };
 
-// IS THIS READING? Every condition the owner's "while it is open on screen"
-// means, as one predicate so it cannot be half-applied. A book page must be
-// the sheet on glass (not Home, not Settings, not a chapter list), the device
-// must be awake (neither the sleep screen nor the sleep loop), and the app must
-// be in front.
-inline bool counts(bool readerPageOnGlass, bool asleep, bool sleepScreen,
-                   bool backgrounded) {
-  return readerPageOnGlass && !asleep && !sleepScreen && !backgrounded;
+// IS THIS READING? Every condition as one predicate so it cannot be
+// half-applied. Zen must be on (the goal "only applies in zen mode"), a book
+// page must be the sheet on glass (not Home, not Settings, not a chapter
+// list), the device must be awake (neither the sleep screen nor the sleep
+// loop), and the app must be in front and active.
+inline bool counts(bool zen, bool readerPageOnGlass, bool asleep,
+                   bool sleepScreen, bool inactive) {
+  return zen && readerPageOnGlass && !asleep && !sleepScreen && !inactive;
 }
 
 // The decay drives a picture that only changes when a present happens, and an

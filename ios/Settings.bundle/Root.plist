@@ -1884,19 +1884,19 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Each book can be read for this long a day, counted only while its pages are on screen. The page is untouched until the last minute, then the ink runs dry (or, on a dark page, the tube overdrives) until nothing can be read. The minutes come back at midnight.</string>
+			<string>In zen, reading time is counted whatever the book, and starts again every time zen starts. The page is untouched until the last minute, then the ink runs dry (or, on a dark page, the tube overdrives) until nothing can be read. Leave zen and come back for another session.</string>
 			<key>Title</key>
-			<string>Daily Reading</string>
+			<string>Zen Reading Goal</string>
 			<key>Type</key>
 			<string>PSGroupSpecifier</string>
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>10</integer>
+			<integer>5</integer>
 			<key>Key</key>
 			<string>readingAllowanceMinutes</string>
 			<key>Title</key>
-			<string>Minutes per Book</string>
+			<string>Minutes</string>
 			<key>Titles</key>
 			<array>
 				<string>Off</string>

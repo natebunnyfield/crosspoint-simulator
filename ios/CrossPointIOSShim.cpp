@@ -2202,14 +2202,18 @@ void pollDarkSurfaceItems() {
   SimulatorOverlay::setPowerOffCollapse(collapse != 0);
 }
 
-// THE DAILY READING ALLOWANCE, polled like the collapse: a Settings row the
-// owner can move while the app is foregrounded. Edge-triggered.
+// THE ZEN READING GOAL, polled like the collapse: a Settings row the owner
+// can move while the app is foregrounded. Edge-triggered. It also publishes
+// the live zen state every frame -- the goal counts only in zen and restarts
+// when zen starts, and `g_zen` has three writers (the launch seed, Settings,
+// the hold gesture), so reading it here once per frame catches all three.
 void pollReadingAllowance() {
+  SimulatorOverlay::setZenActive(g_zen);
   static int s_minutes = -1;
   const int minutes = CrossPointPrefs_readingAllowanceMinutes();
   if (minutes == s_minutes) return;
   s_minutes = minutes;
-  SDL_Log("[allowance] %d minutes per book per day%s", minutes,
+  SDL_Log("[allowance] zen reading goal %d minutes%s", minutes,
           minutes == 0 ? " (off)" : "");
   SimulatorOverlay::setReadingAllowance(minutes);
 }

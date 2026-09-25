@@ -287,11 +287,11 @@ inline constexpr Dial kDials[kDialCount] = {
   // OFF, so the shipped value and the desktop default agree.
   {PowerOffCollapseOn, "power-off collapse", "CROSSPOINT_SIM_POWEROFF_COLLAPSE",
    "powerOffCollapse", 0, 1, 0, 0, kNoPresent, PowerOffCollapseOn},
-  // THE DAILY READING ALLOWANCE, in minutes per book per day (owner
-  // 2026-09-24, "make 10 minutes an ios app setting"). A Settings ROW, like the
-  // collapse, and it ships at 10. The desktop default is 0 -- Off -- so the
-  // canary and every headless capture stay byte-identical; the decay is only
-  // ever drawn where someone asked for it. src/ReadingAllowance.h.
+  // THE ZEN READING GOAL, in minutes (owner 2026-09-24: "goal of read 5
+  // minutes a day, no matter the book. it only applies in zen mode and zen
+  // mode starting up again restarts it"). A Settings ROW, like the collapse,
+  // and it ships at 5. The desktop default is 0 -- Off -- so the canary and
+  // every headless capture stay byte-identical. src/ReadingAllowance.h.
   {ReadingAllowanceMinutes, "reading allowance",
    "CROSSPOINT_SIM_READING_ALLOWANCE", "readingAllowanceMinutes", 0,
    readingallowance::kMaxMinutes, 0, readingallowance::kDefaultMinutes, kPlain,

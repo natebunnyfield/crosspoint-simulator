@@ -692,10 +692,10 @@ run composition \
 run sheet_identity \
   c++ -std=c++17 -Isrc -o "$OUT/sheet_identity" tests/sheet_identity_test.cpp
 
-# THE DAILY READING ALLOWANCE (owner 2026-09-24): the last-minute decay window,
-# the per-book per-day ledger and its file round trip, the stall cap, and the
-# one predicate that says whether a moment is reading. Every failure is a book
-# that decays at the wrong time, or never, with nothing logged.
+# THE ZEN READING GOAL (owner 2026-09-24): the last-minute decay window, the
+# session that zen starting restarts, the stall cap, the one predicate that
+# says whether a moment is reading (zen only), and the picture math. Every
+# failure is a page that decays at the wrong time, or never, with nothing logged.
 run reading_allowance \
   c++ -std=c++17 -Isrc -o "$OUT/reading_allowance" tests/reading_allowance_test.cpp
 

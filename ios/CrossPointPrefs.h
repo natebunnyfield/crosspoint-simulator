@@ -289,8 +289,8 @@ int CrossPointPrefs_cornerDefocusPercent(void);
 // and why it ships off. Dark pages only.
 int CrossPointPrefs_powerOffCollapse(void);
 
-// THE DAILY READING ALLOWANCE: minutes each book may be read per day, 0 = Off,
-// registered default 10. A Settings row. src/ReadingAllowance.h.
+// THE ZEN READING GOAL: minutes per zen session, whatever the book; 0 = Off,
+// registered default 5. A Settings row. src/ReadingAllowance.h.
 int CrossPointPrefs_readingAllowanceMinutes(void);
 
 // CrossPointPrefs_zenBottomRatio was RETIRED 2026-08-22: the zen band
