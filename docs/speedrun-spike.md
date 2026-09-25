@@ -50,3 +50,7 @@ Read as a speedrunner's timer laid over reading, in LiveSplit's vocabulary:
 - **The HUD is one line, twice the size,** at the page's BOTTOM edge: `MM:SS ±run  pg MM:SS ±page  golds/splits*`.
   - The top margin was tried first and sat on the running head, because the reader's text block starts almost at the page's top edge.
   - A tie prints `+0.0`, never `−0.0`.
+
+## CORRECTION 2026-09-25 (owner)
+
+*"speedrun was supposed to be that one word speed read"*. What he asked for was RSVP speed reading (one word at a time, Spritz-style), not a speedrunner timer. RSVP is queued as its own spike (`docs/speed-read-rsvp-2026-09-25.md`, in progress). The timer stays in place until he rules on it.
