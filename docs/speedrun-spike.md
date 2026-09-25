@@ -39,3 +39,7 @@ Read as a speedrunner's timer laid over reading, in LiveSplit's vocabulary:
   - sum-of-best;
   - pace against a target reading speed;
   - a ghost run: the position you reached last time at this elapsed time, marked in the margin.
+
+## RULED 2026-09-25 (owner)
+
+*"Add a phone switch"*: the speedrun gets a Settings.app row (off by default), and the HUD moves into the top margin, drawn larger.
