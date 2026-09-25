@@ -29,6 +29,7 @@
 #include "ReadingArm.h"
 #include "ReadingLog.h"
 #include "SurfaceAllowance.h"
+#include "Speedrun.h"
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
@@ -134,6 +135,73 @@ static std::atomic<uint64_t> pageFadeStepDueMs{0};
 // The zen reading goal's decay, 0..1, as the last clock tick left it. Main
 // thread only. src/SurfaceAllowance.h.
 static double allowanceDecay = 0.0;
+
+// THE READING SPEEDRUN (spike, src/Speedrun.h): off unless
+// CROSSPOINT_SIM_SPEEDRUN=1. Main thread only, like the goal's clock.
+static bool speedrunOn() {
+  static const bool on = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_SPEEDRUN");
+    return e && e[0] == '1';
+  }();
+  return on;
+}
+static std::string speedrunFile() {
+  if (const char *p = std::getenv("CROSSPOINT_SIM_SPEEDRUN_FILE"))
+    if (p[0]) return p;
+  const std::string dir = readinglog::detail::defaultDir();
+  return dir.empty() ? std::string() : dir + "/speedrun-bests.txt";
+}
+static inline void requestDirtyPresent();  // defined with the glass generation below
+static speedrun::Run g_speedrun;
+static std::string g_speedrunHud[3];
+static uint64_t g_speedrunLastMs = 0;
+static void speedrunStep(bool onPage, const speedrun::PageKey &key,
+                         bool reading) {
+  static bool loaded = false;
+  if (!loaded) {
+    loaded = true;
+    const std::string path = speedrunFile();
+    if (FILE *f = path.empty() ? nullptr : std::fopen(path.c_str(), "rb")) {
+      std::string text; char buf[4096]; size_t n;
+      while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) text.append(buf, n);
+      std::fclose(f);
+      g_speedrun.parse(text);
+    }
+  }
+  const uint64_t now = SDL_GetTicks();
+  const double dt = g_speedrunLastMs ? (now - g_speedrunLastMs) / 1000.0 : 0.0;
+  g_speedrunLastMs = now;
+  g_speedrun.step(onPage, key, reading, dt);
+  if (g_speedrun.bestsChanged) {
+    g_speedrun.bestsChanged = false;
+    const std::string path = speedrunFile();
+    if (!path.empty()) {
+      readinglog::detail::makeDirs(path.substr(0, path.find_last_of('/')));
+      if (FILE *f = std::fopen((path + ".tmp").c_str(), "wb")) {
+        const std::string t = g_speedrun.serialize();
+        const bool ok = std::fwrite(t.data(), 1, t.size(), f) == t.size();
+        std::fclose(f);
+        if (ok) std::rename((path + ".tmp").c_str(), path.c_str());
+      }
+    }
+  }
+  std::string hud[3];
+  if (g_speedrun.active) {
+    char b[64];
+    std::snprintf(b, sizeof b, "RUN %s %6s", speedrun::clock(g_speedrun.runSecs).c_str(),
+                  g_speedrun.splits ? speedrun::delta(g_speedrun.runDelta).c_str() : "");
+    hud[0] = b;
+    std::snprintf(b, sizeof b, "PG  %s %6s", speedrun::clock(g_speedrun.pageSecs).c_str(),
+                  speedrun::delta(g_speedrun.pageDelta()).c_str());
+    hud[1] = b;
+    std::snprintf(b, sizeof b, "SPLITS %d  GOLD %d", g_speedrun.splits, g_speedrun.golds);
+    hud[2] = b;
+  }
+  bool changed = false;
+  for (int i = 0; i < 3; i++)
+    if (hud[i] != g_speedrunHud[i]) { g_speedrunHud[i] = hud[i]; changed = true; }
+  if (changed) requestDirtyPresent();
+}
 static std::atomic<uint64_t> lastInteractionMs{0};
 
 // HOW FAR it fades, as a percentage of that floor that is KEPT. 100 is the
@@ -2952,6 +3020,14 @@ void HalDisplay::presentIfNeeded() {
     // the page as it looked at its FIRST present -- nearly readable, found by
     // adversarial review.
     if (stepChanged) requestDirtyPresent();
+    if (speedrunOn()) {
+      uint64_t book = 0; int spine = 0, pg = 0;
+      const bool on = bookPage && SimulatorOverlay::readerPageIdentity(book, spine, pg);
+      speedrunStep(on, speedrun::PageKey{book, spine, pg},
+                   readingallowance::counts(true, on, displaySleeping.load(),
+                                            SimulatorOverlay::sleepScreenEntered(),
+                                            SimulatorOverlay::appInactive.load()));
+    }
   }
 
   if (!pendingPresent.exchange(false) && !screenshotDue)
@@ -3714,6 +3790,39 @@ void HalDisplay::presentIfNeeded() {
       SimulatorOverlay::overlayDraw(sdl_renderer, outW, outH);
       if (sweepChrome) SDL_SetRenderClipRect(sdl_renderer, nullptr);
     }
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  }
+
+  // THE SPEEDRUN HUD (spike): three lines of SDL's 8x8 debug font in the
+  // page's own ink on a plate of its paper, at the page's top-right corner,
+  // in OUTPUT pixels -- chrome, not page, so it sits with the overlay and
+  // under the whole-glass passes like the pad does.
+  if (speedrunOn() && !g_speedrunHud[0].empty() && sheetPanelW > 0) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    int outW = 0, outH = 0;
+    SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH);
+    const float sc = std::max(1.0f, std::round(static_cast<float>(outH) / 700.0f));
+    const PanelPalette pal = livePanelPalette(display.isInverted());
+    size_t cols = 0;
+    for (const auto &l : g_speedrunHud) cols = std::max(cols, l.size());
+    const float cw = SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE;
+    const float bw = (cols * cw + 8) * sc, bh = (3 * (cw + 3) + 5) * sc;
+    const float x0 = sheetPanelX + sheetPanelW - bw - 6 * sc, y0 = sheetPanelY + 6 * sc;
+    SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(sdl_renderer, pal.paper[0], pal.paper[1], pal.paper[2], 235);
+    const SDL_FRect plate{x0, y0, bw, bh};
+    SDL_RenderFillRect(sdl_renderer, &plate);
+    SDL_SetRenderDrawColor(sdl_renderer, pal.ink[0], pal.ink[1], pal.ink[2], 255);
+    SDL_RenderRect(sdl_renderer, &plate);
+    SDL_SetRenderScale(sdl_renderer, sc, sc);
+    for (int i = 0; i < 3; i++)
+      SDL_RenderDebugText(sdl_renderer, x0 / sc + 4, y0 / sc + 4 + i * (cw + 3),
+                          g_speedrunHud[i].c_str());
+    SDL_SetRenderScale(sdl_renderer, 1.0f, 1.0f);
     int logW = 0, logH = 0;
     getLogicalPresentationSize(orientation, &logW, &logH);
     SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
