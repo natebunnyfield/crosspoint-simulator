@@ -54,3 +54,7 @@ Read as a speedrunner's timer laid over reading, in LiveSplit's vocabulary:
 ## CORRECTION 2026-09-25 (owner)
 
 *"speedrun was supposed to be that one word speed read"*. What he asked for was RSVP speed reading (one word at a time, Spritz-style), not a speedrunner timer. RSVP is queued as its own spike (`docs/speed-read-rsvp-2026-09-25.md`, in progress). The timer stays in place until he rules on it.
+
+## RULED 2026-09-25 (owner)
+
+*"Keep it"*: the speedrun timer stays as its own optional toggle (Settings › Reading Speedrun, off by default), alongside speed read.
