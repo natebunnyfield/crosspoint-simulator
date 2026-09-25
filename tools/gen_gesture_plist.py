@@ -62,6 +62,9 @@ ACTION_TITLE = {
     # other action here: it only does anything in Manage Files, so it is
     # labelled as such rather than left to read like a global action.
     "OpenActionMenu": "Open Action Menu — Manage Files only",
+    # Appended 2026-09-25 (the e-ink mode spike). Host-side; does something
+    # only while Settings > E-Ink Mode is on, and says so.
+    "FullRefresh": "Full Refresh — E-Ink Mode only",
 }
 
 FOOTER = {

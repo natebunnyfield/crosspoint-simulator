@@ -2232,6 +2232,15 @@ void pollSpeedrun() {
   SimulatorOverlay::setSpeedrun(on != 0);
 }
 
+// E-INK MODE (spike 2026-09-25), a Settings row; edge-triggered.
+void pollEinkMode() {
+  static int s_on = -1;
+  const int on = CrossPointPrefs_einkMode();
+  if (on == s_on) return;
+  s_on = on;
+  SimulatorOverlay::setEinkMode(on != 0);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -4241,6 +4250,7 @@ void CrossPointHarness_perFrame() {
   pollDarkSurfaceItems();
   pollReadingAllowance();
   pollSpeedrun();
+  pollEinkMode();
   pollReaderInsets();
   pollZenMode();
   // AFTER pollZenMode, which may change g_zen from Settings this frame; the

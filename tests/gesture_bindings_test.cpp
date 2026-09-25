@@ -954,10 +954,24 @@ static void testStoredIntegers() {
   check(gesturebind::kGestureCount == 38,
         "38 rows: 21 gestures, 5 above the paper, 6 below it, 6 in the left "
         "margin");
-  check(gesturebind::kGlobalActionCount == 12,
-        "12 global actions: 7 buttons, Nothing, the zen toggle, the font "
-        "step, the font step back, open action menu");
-  check(gesturebind::kZoneActionCount == 13, "...and Inherit makes 13 in a zone");
+  check(gesturebind::kGlobalActionCount == 13,
+        "13 global actions: 7 buttons, Nothing, the zen toggle, the font "
+        "step, the font step back, open action menu, full refresh");
+  check(gesturebind::kZoneActionCount == 14, "...and Inherit makes 14 in a zone");
+  // FullRefresh (e-ink mode spike 2026-09-25): appended at 14, offered in
+  // both lists, and NO row defaults to it -- the shake in particular keeps
+  // ToggleZen, so an existing install's shake does what it did.
+  check(stored(Action::FullRefresh) == 14, "FullRefresh is 14");
+  check(gesturebind::isOffered(Gesture::Shake, stored(Action::FullRefresh)),
+        "the shake may be bound to full refresh");
+  check(gesturebind::isOffered(Gesture::TapAbove, stored(Action::FullRefresh)),
+        "a zone row may be bound to full refresh");
+  check(gesturebind::defaultAction(Gesture::Shake) == Action::ToggleZen,
+        "the shake's default is unchanged by the e-ink spike");
+  for (int i = 0; i < gesturebind::kGestureCount; ++i)
+    check(gesturebind::defaultAction(static_cast<Gesture>(i)) !=
+              Action::FullRefresh,
+          "nothing ships bound to full refresh");
   // FontFamilyStepBack is OFFERED (a gesture can be pointed at it) but ships
   // on no default -- the same shape as Power after the 2026-08-28 trim.
   bool fontBackOffered = false;
