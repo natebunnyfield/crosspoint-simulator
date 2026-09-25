@@ -28,6 +28,7 @@ quoting.
 | `amp_reach.py` | the `&`'s top-right terminal: its height (right of the bowl only), its reach past the bowl, and its rise over its own E, against the reference italics and Poetica's alt051; found round 381 at 1.60 xh tall against 0.88-1.46 (round 383) |
 | `amp_touch.py` | the `&` against every letter, figure and mark -- `cmp_touch.py` has no `&` in its charset (round 377) |
 | `counter-bench.html` | the bench the owner dialled the counter's 393 / 19 / 17 on (round 332) |
+| `r388_pair_white.py` | a pair's white as rsb + GPOS kern (HarfBuzz) + lsb; set round 388's six re-ask kerns against the bench-time fonts, and found the italic capitals' bearing-plus-kern double count |
 
 They import each other and `render.py` by bare name, so run them from this
 directory or put it on `PYTHONPATH`. They are working instruments, not library

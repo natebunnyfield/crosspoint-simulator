@@ -732,6 +732,34 @@ else:
     if _pen_4.S > 84.0:
         PAIRS[('Q', 'Q')] = PAIRS.get(('Q', 'Q'), 0) + 4
 
+# ROUND 388 -- SIX PAIRS FROM THE RE-ASK BENCH. Owner 2026-09-25, "set all
+# six": the pairs where his two answers (09-20/22 bench, 09-25 re-ask) agree
+# and the model misses by 33-53 units. The target is the WHITE he set -- the
+# pair's white in the bench's own fonts (bench/fonts-2026-09-20, the zero both
+# pages rendered) plus the MEAN of his two deltas -- and each value below is
+# that target minus the white the pair measured at round 387, ADDED to what it
+# carries. White = rsb + kern + lsb, kern read by HarfBuzz from the GPOS.
+# Arithmetic, all in units (docs/albo-round-388-2026-09-25.md):
+#   italic Fi   bench   30, mean -39  -> -9;   r387  -53  -> +44
+#   italic Fo   bench  -22, mean -37  -> -59;  r387 -104  -> +45
+#   italic Ye   bench -121, mean +46  -> -75;  r387  -35  -> -40
+#   italic Yo   bench -134, mean +55  -> -79;  r387  -32  -> -47
+#   roman  's   bench  117, mean -48  -> 69;   r387  112  -> -43
+#   roman  't   bench  115, mean -30  -> 85;   r387  126  -> -41
+# The italic four had drifted ~45 units from BOTH his answers since round 304:
+# the F's right bearing and the Y's left side moved after his kerns were added
+# on top, so the letter and the kern each paid the same correction. The bench
+# rendered the ASCII apostrophe (quotesingle); his books set U+2019
+# (`pair_census.py` folds it to ASCII, so the 5,782 `'s` are mostly quoteright)
+# and both glyphs measure the same white here, so both carry it.
+if _ALD is not None and _ALD.ON:
+    for _p, _d in ((('F', 'i'), 44), (('F', 'o'), 45), (('Y', 'e'), -40), (('Y', 'o'), -47)):
+        PAIRS[_p] = _shipped(*_p) + _d
+else:
+    for _q in ('quotesingle', 'quoteright'):
+        for _r, _d in (('s', -43), ('t', -41)):
+            PAIRS[(_q, _r)] = _shipped(_q, _r) + _d
+
 _apply_bench()
 
 
