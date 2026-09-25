@@ -41,6 +41,7 @@
 #include "PageFade.h"
 #include "PaperDefects.h"
 #include "PhosphorGrain.h"
+#include "ReadingAllowance.h"
 #include "Scanlines.h"
 #include "ShowThrough.h"
 
@@ -76,13 +77,14 @@ enum Id {
   ShowThroughPercent,
   CornerDefocusPercent,
   PowerOffCollapseOn,
+  ReadingAllowanceMinutes,
 };
 
 // NOT an enumerator: the appliers switch over Id with no `default:`, so that a
 // row added here without a setter call is a compiler warning rather than a
 // dial that silently does nothing. A count enumerator would have to be
 // handled in that switch, which is exactly the case a reader skips past.
-inline constexpr int kDialCount = PowerOffCollapseOn + 1;
+inline constexpr int kDialCount = ReadingAllowanceMinutes + 1;
 
 // THE THREE NON-UNIFORMITIES, as flags rather than as special cases scattered
 // through three call sites. Every one of them is a real difference in what the
@@ -285,6 +287,15 @@ inline constexpr Dial kDials[kDialCount] = {
   // OFF, so the shipped value and the desktop default agree.
   {PowerOffCollapseOn, "power-off collapse", "CROSSPOINT_SIM_POWEROFF_COLLAPSE",
    "powerOffCollapse", 0, 1, 0, 0, kNoPresent, PowerOffCollapseOn},
+  // THE DAILY READING ALLOWANCE, in minutes per book per day (owner
+  // 2026-09-24, "make 10 minutes an ios app setting"). A Settings ROW, like the
+  // collapse, and it ships at 10. The desktop default is 0 -- Off -- so the
+  // canary and every headless capture stay byte-identical; the decay is only
+  // ever drawn where someone asked for it. src/ReadingAllowance.h.
+  {ReadingAllowanceMinutes, "reading allowance",
+   "CROSSPOINT_SIM_READING_ALLOWANCE", "readingAllowanceMinutes", 0,
+   readingallowance::kMaxMinutes, 0, readingallowance::kDefaultMinutes, kPlain,
+   ReadingAllowanceMinutes},
 };
 // clang-format on
 

@@ -305,6 +305,16 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = off   1 = on
   "powerOffCollapse": 0,
 
+  // THE DAILY READING ALLOWANCE: minutes each book may be read per day. The
+  // page is untouched until the last minute, then decays to unreadable (the
+  // light page's ink starves, the dark page's tube overdrives) and stays that
+  // way until local midnight. Counted only while a book page is on screen.
+  // The phone ships 10; the desktop ships 0, because a headless capture run
+  // against the same book all day would otherwise start decaying its own
+  // screenshots once the runs added up to nine minutes.
+  //   0 = off   N = minutes per book per day
+  "readingAllowanceMinutes": 0,
+
   // --------------------------------------------------------- PHOSPHOR MIX ---
   // The same mixer the iOS page-color modal drives, through the same math. A
   // mix OWNS the page and its glow while active; panelPalettePreset is ignored.
