@@ -944,6 +944,12 @@ moves is a dial that never arrived** — in its fourth appearance in two days.
 
 ---
 
+### Held-out error and the re-ask bench (2026-09-25)
+
+The in-sample errors above flatter the fit: `bench_fit.py --cv` measures **11.66** held-out against 8.32 in-sample on the same 370 judgments, and a blind 40-row re-ask bench now measures the owner's own repeatability. See [albo-kerning-noise-floor-2026-09-25.md](albo-kerning-noise-floor-2026-09-25.md).
+
+---
+
 ## Round 358 — the WORD space, and the two measures that point opposite ways
 
 Owner 2026-09-21: *"need to adjust albo's word spacing based on research from

@@ -83,8 +83,13 @@ def joint_fit(J, lam=LAM):
 
 
 def fit_style(style, drop=("g",)):
-    J = judgments(style, drop)
-    lsb, rsb, ridge_err = joint_fit(J)
+    return fit_judgments(judgments(style, drop))
+
+
+def fit_judgments(J, lam=LAM):
+    """The whole method on one {pair: delta} table -- what `fit_style` ships,
+    and what `cross_validate` refits on every training fold."""
+    lsb, rsb, ridge_err = joint_fit(J, lam)
     pairs = sorted(J)
     nL = {c: sum(1 for p in pairs if p[1] == c) for c in lsb}
     nR = {c: sum(1 for p in pairs if p[0] == c) for c in rsb}
@@ -129,11 +134,107 @@ def fit_style(style, drop=("g",)):
         a = letters.get(l, (0, 0))[1] or marks.get(l, (0, 0))[1]
         b = letters.get(r, (0, 0))[0] or marks.get(r, (0, 0))[0]
         return a + b + kerns.get(p, 0)
+
+    def predict_ridge(p):
+        return rsb.get(p[0], 0.0) + lsb.get(p[1], 0.0)
     shipped_err = float(np.mean([abs(predict(p) - J[p]) for p in pairs]))
     nothing_err = float(np.mean([abs(J[p]) for p in pairs]))
     return dict(n=len(pairs), letters=letters, marks=marks, kerns=kerns,
                 ridge_err=ridge_err, shipped_err=shipped_err,
-                nothing_err=nothing_err, nL=nL, nR=nR, lsb=lsb, rsb=rsb)
+                nothing_err=nothing_err, nL=nL, nR=nR, lsb=lsb, rsb=rsb,
+                predict=predict, predict_ridge=predict_ridge)
+
+
+def pair_class(p):
+    """The bench's own three groups: capitals, marks, lowercase."""
+    if any(c in MARKS for c in p):
+        return "mark"
+    if p[0].isupper():
+        return "cap"
+    return "lower"
+
+
+CV_K, CV_REPEATS, CV_SEED = 10, 5, 20260925
+
+
+def cross_validate(J, k=CV_K, repeats=CV_REPEATS, seed=CV_SEED, lam=LAM):
+    """k-fold HELD-OUT error of the whole method, repeated over `repeats`
+    deterministic shuffles.
+
+    Every held-out pair is predicted by a fit that never saw it, through the
+    SAME pipeline that ships: the ridge, the 4-reading/4-unit letter floor,
+    the directly-solved marks and the capital kerns.  A capital pair's kern is
+    its own judgment minus a letter bearing, so a held-out capital gets no
+    kern at all -- which is the honest answer to "what would the model have
+    said about a pair he had not judged".
+
+    Returns {"shipped": [...], "ridge": [...]} as per-pair absolute errors
+    pooled over repeats (each pair appears once per repeat), plus the pairs
+    and the shipped-integer held-out predictions ("pred") in the same order,
+    so a caller can split by class or score a row against a NEW judgment.
+    """
+    pairs = sorted(J)
+    rng = np.random.default_rng(seed)
+    out = {"pairs": [], "shipped": [], "ridge": [], "per_repeat": []}
+    for _ in range(repeats):
+        order = rng.permutation(len(pairs))
+        folds = [order[i::k] for i in range(k)]
+        rep = []
+        for fold in folds:
+            held = {pairs[i] for i in fold}
+            train = {p: d for p, d in J.items() if p not in held}
+            r = fit_judgments(train, lam)
+            for p in sorted(held):
+                e_s = abs(r["predict"](p) - J[p])
+                out["pairs"].append(p)
+                out["shipped"].append(e_s)
+                out["ridge"].append(abs(r["predict_ridge"](p) - J[p]))
+                out.setdefault("pred", []).append(r["predict"](p))
+                rep.append(e_s)
+        out["per_repeat"].append(float(np.mean(rep)))
+    return out
+
+
+def report_cv(res, drop):
+    """The `--cv` report: in-sample beside held-out, per style, per class,
+    and the ridge's lambda re-chosen by held-out error rather than fixed."""
+    print(f"=== cross-validation: {CV_K}-fold x {CV_REPEATS} shuffles, seed {CV_SEED}"
+          f"{' (dropped: ' + ' '.join(drop) + ')' if drop else ''}")
+    pooled_in, pooled_cv, pooled_n = 0.0, 0.0, 0
+    for style in ("roman", "italic"):
+        J = judgments(style, drop)
+        r = res[style]
+        cv = cross_validate(J)
+        cs, cr = float(np.mean(cv["shipped"])), float(np.mean(cv["ridge"]))
+        lo, hi = min(cv["per_repeat"]), max(cv["per_repeat"])
+        print(f"--- {style}: {r['n']} judgments")
+        print(f"    do nothing {r['nothing_err']:.2f}")
+        print(f"    shipped integers: in-sample {r['shipped_err']:.2f}   HELD-OUT {cs:.2f}"
+              f"   (shuffle range {lo:.2f}..{hi:.2f})")
+        print(f"    continuous ridge: in-sample {r['ridge_err']:.2f}   HELD-OUT {cr:.2f}")
+        for cls in ("lower", "cap", "mark"):
+            idx = [i for i, p in enumerate(cv["pairs"]) if pair_class(p) == cls]
+            ins = [p for p in J if pair_class(p) == cls]
+            if not idx:
+                continue
+            e_in = np.mean([abs(r["predict"](p) - J[p]) for p in ins])
+            e_no = np.mean([abs(J[p]) for p in ins])
+            e_cv = np.mean([cv["shipped"][i] for i in idx])
+            print(f"      {cls:5s} n={len(ins):3d}  nothing {e_no:5.2f}  in-sample {e_in:5.2f}"
+                  f"  held-out {e_cv:5.2f}")
+        lams = []
+        for lam in (0.1, 0.3, 1.0, 3.0, 10.0):
+            c = cross_validate(J, repeats=2, lam=lam)
+            lams.append(f"{lam:g}: {np.mean(c['shipped']):.2f}")
+        print(f"    held-out by lambda (2 shuffles): " + "   ".join(lams))
+        pooled_in += r["shipped_err"] * r["n"]
+        pooled_cv += cs * r["n"]
+        pooled_n += r["n"]
+        print()
+    print(f"both styles, {pooled_n} judgments: shipped integers in-sample "
+          f"{pooled_in / pooled_n:.2f}  ->  HELD-OUT {pooled_cv / pooled_n:.2f}")
+    print("Compare the held-out number with his own repeatability "
+          "(bench_reask.py), never the in-sample one.")
 
 
 def _fmt_pairs(d):
@@ -157,10 +258,15 @@ def main():
                     help="glyphs whose pairs are excluded (default g, owner 2026-09-21)")
     ap.add_argument("--check", action="store_true",
                     help="compare the fit with what build.py ships; non-zero on a difference")
+    ap.add_argument("--cv", action="store_true",
+                    help=f"also report {CV_K}-fold held-out error beside the in-sample one")
     args = ap.parse_args()
     drop = tuple(args.drop) if args.drop else ()
 
     res = {s: fit_style(s, drop) for s in ("roman", "italic")}
+    if args.cv:
+        report_cv(res, drop)
+        return 0
     for style in ("roman", "italic"):
         r = res[style]
         print(f"--- {style}: {r['n']} judgments"

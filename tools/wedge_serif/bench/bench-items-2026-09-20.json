@@ -1,0 +1,3966 @@
+{
+"source": "claude.ai/artifact/VCbkYNuYmZgV2m5Udd6ruy, version 1789955513-a304, read 2026-09-25",
+"fonts": "fonts-2026-09-20/ (head.modified 2026-09-20 22:23; every stored answer is later)",
+"items": [
+{
+"id": "very",
+"word": "very",
+"i": 0,
+"pair": "v e",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 17682
+},
+{
+"id": "away",
+"word": "away",
+"i": 2,
+"pair": "a y",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 4554
+},
+{
+"id": "wander",
+"word": "wander",
+"i": 0,
+"pair": "w a",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 5576
+},
+{
+"id": "yellow",
+"word": "yellow",
+"i": 0,
+"pair": "y e",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 1807
+},
+{
+"id": "reading",
+"word": "reading",
+"i": 0,
+"pair": "r e",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 33724
+},
+{
+"id": "rough",
+"word": "rough",
+"i": 0,
+"pair": "r o",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 13399
+},
+{
+"id": "often",
+"word": "often",
+"i": 1,
+"pair": "f t",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 2048
+},
+{
+"id": "glass",
+"word": "glass",
+"i": 3,
+"pair": "s s",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 5816
+},
+{
+"id": "system",
+"word": "system",
+"i": 0,
+"pair": "s y",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 1222
+},
+{
+"id": "phase",
+"word": "phase",
+"i": 3,
+"pair": "s e",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 16347
+},
+{
+"id": "twice",
+"word": "twice",
+"i": 1,
+"pair": "w i",
+"kr": 0,
+"ki": 0,
+"g": "lower",
+"n": 6198
+},
+{
+"id": "Victory",
+"word": "Victory",
+"i": 0,
+"pair": "V i",
+"kr": -18,
+"ki": -18,
+"g": "cap",
+"n": 221
+},
+{
+"id": "Wayward",
+"word": "Wayward",
+"i": 0,
+"pair": "W a",
+"kr": -90,
+"ki": -90,
+"g": "cap",
+"n": 553
+},
+{
+"id": "Yesterday",
+"word": "Yesterday",
+"i": 0,
+"pair": "Y e",
+"kr": -108,
+"ki": -108,
+"g": "cap",
+"n": 139
+},
+{
+"id": "Tomorrow",
+"word": "Tomorrow",
+"i": 0,
+"pair": "T o",
+"kr": -126,
+"ki": -126,
+"g": "cap",
+"n": 455
+},
+{
+"id": "Quiet",
+"word": "Quiet",
+"i": 0,
+"pair": "Q u",
+"kr": 0,
+"ki": 0,
+"g": "cap",
+"n": 407
+},
+{
+"id": "Avenue",
+"word": "Avenue",
+"i": 0,
+"pair": "A v",
+"kr": -36,
+"ki": -36,
+"g": "cap",
+"n": 33
+},
+{
+"id": "day_night",
+"word": "day, night",
+"i": 2,
+"pair": "y ,",
+"kr": -72,
+"ki": -72,
+"g": "punct",
+"n": 1903
+},
+{
+"id": "storys",
+"word": "story's",
+"i": 4,
+"pair": "y '",
+"kr": 0,
+"ki": 0,
+"g": "punct",
+"n": 515
+},
+{
+"id": "p_7468",
+"word": "the",
+"i": 0,
+"pair": "t h",
+"g": "lower",
+"n": 52955,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6865",
+"word": "the",
+"i": 1,
+"pair": "h e",
+"g": "lower",
+"n": 51536,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_696e",
+"word": "into",
+"i": 0,
+"pair": "i n",
+"g": "lower",
+"n": 41701,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6572",
+"word": "her",
+"i": 1,
+"pair": "e r",
+"g": "lower",
+"n": 40741,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_616e",
+"word": "and",
+"i": 0,
+"pair": "a n",
+"g": "lower",
+"n": 35389,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f6e",
+"word": "one",
+"i": 0,
+"pair": "o n",
+"g": "lower",
+"n": 33047,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6573",
+"word": "does",
+"i": 2,
+"pair": "e s",
+"g": "lower",
+"n": 28060,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_656e",
+"word": "when",
+"i": 2,
+"pair": "e n",
+"g": "lower",
+"n": 26823,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6174",
+"word": "that",
+"i": 2,
+"pair": "a t",
+"g": "lower",
+"n": 24999,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e64",
+"word": "and",
+"i": 1,
+"pair": "n d",
+"g": "lower",
+"n": 24998,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7374",
+"word": "first",
+"i": 3,
+"pair": "s t",
+"g": "lower",
+"n": 23470,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f72",
+"word": "for",
+"i": 1,
+"pair": "o r",
+"g": "lower",
+"n": 22762,
+"kr": 36,
+"ki": 18
+},
+{
+"id": "p_6172",
+"word": "are",
+"i": 0,
+"pair": "a r",
+"g": "lower",
+"n": 22677,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7465",
+"word": "after",
+"i": 2,
+"pair": "t e",
+"g": "lower",
+"n": 22657,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6974",
+"word": "with",
+"i": 1,
+"pair": "i t",
+"g": "lower",
+"n": 22618,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6973",
+"word": "this",
+"i": 2,
+"pair": "i s",
+"g": "lower",
+"n": 22564,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e67",
+"word": "English",
+"i": 1,
+"pair": "n g",
+"g": "lower",
+"n": 22199,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7469",
+"word": "relationship",
+"i": 4,
+"pair": "t i",
+"g": "lower",
+"n": 21566,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6564",
+"word": "named",
+"i": 3,
+"pair": "e d",
+"g": "lower",
+"n": 18591,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6861",
+"word": "that",
+"i": 1,
+"pair": "h a",
+"g": "lower",
+"n": 18447,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e74",
+"word": "into",
+"i": 1,
+"pair": "n t",
+"g": "lower",
+"n": 17657,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d65",
+"word": "Ame",
+"i": 1,
+"pair": "m e",
+"g": "lower",
+"n": 16823,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_616c",
+"word": "all",
+"i": 0,
+"pair": "a l",
+"g": "lower",
+"n": 16786,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e65",
+"word": "one",
+"i": 1,
+"pair": "n e",
+"g": "lower",
+"n": 16648,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c65",
+"word": "people",
+"i": 4,
+"pair": "l e",
+"g": "lower",
+"n": 16467,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f75",
+"word": "you",
+"i": 1,
+"pair": "o u",
+"g": "lower",
+"n": 16228,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6465",
+"word": "under",
+"i": 2,
+"pair": "d e",
+"g": "lower",
+"n": 15164,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6561",
+"word": "real",
+"i": 1,
+"pair": "e a",
+"g": "lower",
+"n": 14456,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7261",
+"word": "rather",
+"i": 0,
+"pair": "r a",
+"g": "lower",
+"n": 14212,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_746f",
+"word": "into",
+"i": 2,
+"pair": "t o",
+"g": "lower",
+"n": 13957,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6173",
+"word": "was",
+"i": 1,
+"pair": "a s",
+"g": "lower",
+"n": 13922,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_636f",
+"word": "comes",
+"i": 0,
+"pair": "c o",
+"g": "lower",
+"n": 13559,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6869",
+"word": "this",
+"i": 1,
+"pair": "h i",
+"g": "lower",
+"n": 12926,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7269",
+"word": "right",
+"i": 0,
+"pair": "r i",
+"g": "lower",
+"n": 12859,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_696f",
+"word": "relationship",
+"i": 5,
+"pair": "i o",
+"g": "lower",
+"n": 11933,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e6f",
+"word": "not",
+"i": 0,
+"pair": "n o",
+"g": "lower",
+"n": 11573,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_656c",
+"word": "relationship",
+"i": 1,
+"pair": "e l",
+"g": "lower",
+"n": 11551,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6963",
+"word": "which",
+"i": 2,
+"pair": "i c",
+"g": "lower",
+"n": 11066,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6368",
+"word": "which",
+"i": 3,
+"pair": "c h",
+"g": "lower",
+"n": 10967,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c61",
+"word": "relationship",
+"i": 2,
+"pair": "l a",
+"g": "lower",
+"n": 10864,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f6d",
+"word": "from",
+"i": 2,
+"pair": "o m",
+"g": "lower",
+"n": 10750,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c69",
+"word": "English",
+"i": 3,
+"pair": "l i",
+"g": "lower",
+"n": 10654,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7572",
+"word": "your",
+"i": 2,
+"pair": "u r",
+"g": "lower",
+"n": 10504,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c6c",
+"word": "all",
+"i": 1,
+"pair": "l l",
+"g": "lower",
+"n": 10412,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7461",
+"word": "Citadel",
+"i": 2,
+"pair": "t a",
+"g": "lower",
+"n": 10397,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e73",
+"word": "relationship",
+"i": 7,
+"pair": "n s",
+"g": "lower",
+"n": 10353,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6361",
+"word": "can",
+"i": 0,
+"pair": "c a",
+"g": "lower",
+"n": 10185,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7273",
+"word": "first",
+"i": 2,
+"pair": "r s",
+"g": "lower",
+"n": 9877,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f74",
+"word": "not",
+"i": 1,
+"pair": "o t",
+"g": "lower",
+"n": 9548,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7065",
+"word": "people",
+"i": 0,
+"pair": "p e",
+"g": "lower",
+"n": 9481,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6563",
+"word": "because",
+"i": 1,
+"pair": "e c",
+"g": "lower",
+"n": 9356,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6365",
+"word": "Success:",
+"i": 3,
+"pair": "c e",
+"g": "lower",
+"n": 9161,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6469",
+"word": "did",
+"i": 0,
+"pair": "d i",
+"g": "lower",
+"n": 9117,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_686f",
+"word": "who",
+"i": 1,
+"pair": "h o",
+"g": "lower",
+"n": 8647,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7369",
+"word": "design",
+"i": 2,
+"pair": "s i",
+"g": "lower",
+"n": 8636,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5468",
+"word": "The",
+"i": 0,
+"pair": "T h",
+"g": "cap",
+"n": 8589,
+"kr": -18,
+"ki": -18
+},
+{
+"id": "p_6574",
+"word": "something",
+"i": 3,
+"pair": "e t",
+"g": "lower",
+"n": 8537,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6163",
+"word": "each",
+"i": 1,
+"pair": "a c",
+"g": "lower",
+"n": 8476,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d61",
+"word": "made",
+"i": 0,
+"pair": "m a",
+"g": "lower",
+"n": 8408,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6374",
+"word": "actually",
+"i": 1,
+"pair": "c t",
+"g": "lower",
+"n": 8305,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_616d",
+"word": "same",
+"i": 1,
+"pair": "a m",
+"g": "lower",
+"n": 8247,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6265",
+"word": "because",
+"i": 0,
+"pair": "b e",
+"g": "lower",
+"n": 8157,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f73",
+"word": "most",
+"i": 1,
+"pair": "o s",
+"g": "lower",
+"n": 8156,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f66",
+"word": "software",
+"i": 1,
+"pair": "o f",
+"g": "lower",
+"n": 8071,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c79",
+"word": "only",
+"i": 2,
+"pair": "l y",
+"g": "lower",
+"n": 8058,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7573",
+"word": "because",
+"i": 4,
+"pair": "u s",
+"g": "lower",
+"n": 7930,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6565",
+"word": "three",
+"i": 3,
+"pair": "e e",
+"g": "lower",
+"n": 7917,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_756e",
+"word": "under",
+"i": 0,
+"pair": "u n",
+"g": "lower",
+"n": 7912,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7472",
+"word": "true",
+"i": 0,
+"pair": "t r",
+"g": "lower",
+"n": 7879,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d6f",
+"word": "most",
+"i": 0,
+"pair": "m o",
+"g": "lower",
+"n": 7838,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_696c",
+"word": "will",
+"i": 1,
+"pair": "i l",
+"g": "lower",
+"n": 7762,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_666f",
+"word": "for",
+"i": 0,
+"pair": "f o",
+"g": "lower",
+"n": 7634,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c6f",
+"word": "Eursulon",
+"i": 5,
+"pair": "l o",
+"g": "lower",
+"n": 7410,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7768",
+"word": "what",
+"i": 0,
+"pair": "w h",
+"g": "lower",
+"n": 7340,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6965",
+"word": "carries",
+"i": 4,
+"pair": "i e",
+"g": "lower",
+"n": 7249,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6164",
+"word": "had",
+"i": 1,
+"pair": "a d",
+"g": "lower",
+"n": 7044,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7473",
+"word": "its",
+"i": 1,
+"pair": "t s",
+"g": "lower",
+"n": 7024,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6765",
+"word": "gets",
+"i": 0,
+"pair": "g e",
+"g": "lower",
+"n": 6972,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7061",
+"word": "past",
+"i": 0,
+"pair": "p a",
+"g": "lower",
+"n": 6923,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7574",
+"word": "about",
+"i": 3,
+"pair": "u t",
+"g": "lower",
+"n": 6869,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f6c",
+"word": "whole",
+"i": 2,
+"pair": "o l",
+"g": "lower",
+"n": 6826,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7274",
+"word": "partner",
+"i": 2,
+"pair": "r t",
+"g": "lower",
+"n": 6771,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f77",
+"word": "own",
+"i": 0,
+"pair": "o w",
+"g": "lower",
+"n": 6567,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7072",
+"word": "present",
+"i": 0,
+"pair": "p r",
+"g": "lower",
+"n": 6528,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_656d",
+"word": "them",
+"i": 2,
+"pair": "e m",
+"g": "lower",
+"n": 6410,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_736f",
+"word": "person",
+"i": 3,
+"pair": "s o",
+"g": "lower",
+"n": 6388,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7368",
+"word": "she",
+"i": 0,
+"pair": "s h",
+"g": "lower",
+"n": 6357,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7279",
+"word": "every",
+"i": 3,
+"pair": "r y",
+"g": "lower",
+"n": 6169,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6162",
+"word": "about",
+"i": 0,
+"pair": "a b",
+"g": "lower",
+"n": 6073,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_756c",
+"word": "would",
+"i": 2,
+"pair": "u l",
+"g": "lower",
+"n": 6069,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6972",
+"word": "first",
+"i": 1,
+"pair": "i r",
+"g": "lower",
+"n": 6041,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e61",
+"word": "name",
+"i": 0,
+"pair": "n a",
+"g": "lower",
+"n": 6026,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_646f",
+"word": "does",
+"i": 0,
+"pair": "d o",
+"g": "lower",
+"n": 5983,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6169",
+"word": "against",
+"i": 2,
+"pair": "a i",
+"g": "lower",
+"n": 5955,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e69",
+"word": "Spanish",
+"i": 3,
+"pair": "n i",
+"g": "lower",
+"n": 5829,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_2773",
+"word": "Suvi's",
+"i": 4,
+"pair": "' s",
+"g": "punct",
+"n": 5782,
+"kr": -18,
+"ki": -18
+},
+{
+"id": "p_6576",
+"word": "every",
+"i": 0,
+"pair": "e v",
+"g": "lower",
+"n": 5523,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e63",
+"word": "evidence",
+"i": 5,
+"pair": "n c",
+"g": "lower",
+"n": 5501,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d69",
+"word": "Shortcoming:",
+"i": 7,
+"pair": "m i",
+"g": "lower",
+"n": 5472,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_776f",
+"word": "two",
+"i": 1,
+"pair": "w o",
+"g": "lower",
+"n": 5472,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7565",
+"word": "que",
+"i": 1,
+"pair": "u e",
+"g": "lower",
+"n": 5457,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6669",
+"word": "first",
+"i": 0,
+"pair": "f i",
+"g": "lower",
+"n": 5408,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6976",
+"word": "five",
+"i": 1,
+"pair": "i v",
+"g": "lower",
+"n": 5390,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_706c",
+"word": "people",
+"i": 3,
+"pair": "p l",
+"g": "lower",
+"n": 5350,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6964",
+"word": "did",
+"i": 1,
+"pair": "i d",
+"g": "lower",
+"n": 5305,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6b65",
+"word": "like",
+"i": 2,
+"pair": "k e",
+"g": "lower",
+"n": 5139,
+"kr": -54,
+"ki": -54
+},
+{
+"id": "p_706f",
+"word": "poly",
+"i": 0,
+"pair": "p o",
+"g": "lower",
+"n": 5094,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7669",
+"word": "Suvi",
+"i": 2,
+"pair": "v i",
+"g": "lower",
+"n": 5067,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_732c",
+"word": "years,",
+"i": 4,
+"pair": "s ,",
+"g": "punct",
+"n": 5049,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6167",
+"word": "against",
+"i": 0,
+"pair": "a g",
+"g": "lower",
+"n": 5043,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_696d",
+"word": "times",
+"i": 1,
+"pair": "i m",
+"g": "lower",
+"n": 4917,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_652e",
+"word": "one.",
+"i": 2,
+"pair": "e .",
+"g": "punct",
+"n": 4794,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7475",
+"word": "actually",
+"i": 2,
+"pair": "t u",
+"g": "lower",
+"n": 4699,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f70",
+"word": "people",
+"i": 2,
+"pair": "o p",
+"g": "lower",
+"n": 4676,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_626f",
+"word": "about",
+"i": 1,
+"pair": "b o",
+"g": "lower",
+"n": 4582,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_796f",
+"word": "you",
+"i": 0,
+"pair": "y o",
+"g": "lower",
+"n": 4529,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6967",
+"word": "design",
+"i": 3,
+"pair": "i g",
+"g": "lower",
+"n": 4528,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_626c",
+"word": "problem",
+"i": 3,
+"pair": "b l",
+"g": "lower",
+"n": 4492,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6170",
+"word": "Chapter",
+"i": 2,
+"pair": "a p",
+"g": "lower",
+"n": 4486,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7375",
+"word": "Eursulon",
+"i": 3,
+"pair": "s u",
+"g": "lower",
+"n": 4467,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7175",
+"word": "que",
+"i": 0,
+"pair": "q u",
+"g": "lower",
+"n": 4465,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7765",
+"word": "were",
+"i": 0,
+"pair": "w e",
+"g": "lower",
+"n": 4451,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_652c",
+"word": "time,",
+"i": 3,
+"pair": "e ,",
+"g": "punct",
+"n": 4445,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7361",
+"word": "same",
+"i": 0,
+"pair": "s a",
+"g": "lower",
+"n": 4406,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7264",
+"word": "word",
+"i": 2,
+"pair": "r d",
+"g": "lower",
+"n": 4380,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f6f",
+"word": "book",
+"i": 1,
+"pair": "o o",
+"g": "lower",
+"n": 4317,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f64",
+"word": "model",
+"i": 1,
+"pair": "o d",
+"g": "lower",
+"n": 4211,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6369",
+"word": "specific",
+"i": 3,
+"pair": "c i",
+"g": "lower",
+"n": 4164,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c64",
+"word": "would",
+"i": 3,
+"pair": "l d",
+"g": "lower",
+"n": 4122,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_732e",
+"word": "answers.",
+"i": 6,
+"pair": "s .",
+"g": "punct",
+"n": 4065,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d70",
+"word": "amp;",
+"i": 1,
+"pair": "m p",
+"g": "lower",
+"n": 3961,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6570",
+"word": "kept,",
+"i": 1,
+"pair": "e p",
+"g": "lower",
+"n": 3942,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6961",
+"word": "imperial",
+"i": 5,
+"pair": "i a",
+"g": "lower",
+"n": 3884,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6461",
+"word": "day",
+"i": 0,
+"pair": "d a",
+"g": "lower",
+"n": 3667,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6761",
+"word": "against",
+"i": 1,
+"pair": "g a",
+"g": "lower",
+"n": 3639,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6672",
+"word": "from",
+"i": 0,
+"pair": "f r",
+"g": "lower",
+"n": 3617,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6578",
+"word": "exactly",
+"i": 0,
+"pair": "e x",
+"g": "lower",
+"n": 3593,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6665",
+"word": "different",
+"i": 3,
+"pair": "f e",
+"g": "lower",
+"n": 3554,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7272",
+"word": "carries",
+"i": 2,
+"pair": "r r",
+"g": "lower",
+"n": 3485,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6768",
+"word": "through",
+"i": 5,
+"pair": "g h",
+"g": "lower",
+"n": 3445,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7275",
+"word": "rule",
+"i": 0,
+"pair": "r u",
+"g": "lower",
+"n": 3440,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f76",
+"word": "over",
+"i": 0,
+"pair": "o v",
+"g": "lower",
+"n": 3378,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7479",
+"word": "community",
+"i": 7,
+"pair": "t y",
+"g": "lower",
+"n": 3308,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7370",
+"word": "specific",
+"i": 0,
+"pair": "s p",
+"g": "lower",
+"n": 3229,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_742e",
+"word": "it.",
+"i": 1,
+"pair": "t .",
+"g": "punct",
+"n": 3226,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6661",
+"word": "family",
+"i": 0,
+"pair": "f a",
+"g": "lower",
+"n": 3121,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6176",
+"word": "have",
+"i": 1,
+"pair": "a v",
+"g": "lower",
+"n": 3118,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6966",
+"word": "different",
+"i": 1,
+"pair": "i f",
+"g": "lower",
+"n": 3047,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6566",
+"word": "before",
+"i": 1,
+"pair": "e f",
+"g": "lower",
+"n": 2996,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_726e",
+"word": "turns",
+"i": 2,
+"pair": "r n",
+"g": "lower",
+"n": 2995,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_726d",
+"word": "form",
+"i": 2,
+"pair": "r m",
+"g": "lower",
+"n": 2986,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6473",
+"word": "words",
+"i": 3,
+"pair": "d s",
+"g": "lower",
+"n": 2980,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_742c",
+"word": "it,",
+"i": 1,
+"pair": "t ,",
+"g": "punct",
+"n": 2939,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7569",
+"word": "built",
+"i": 1,
+"pair": "u i",
+"g": "lower",
+"n": 2938,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_636b",
+"word": "back",
+"i": 2,
+"pair": "c k",
+"g": "lower",
+"n": 2931,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7474",
+"word": "written",
+"i": 3,
+"pair": "t t",
+"g": "lower",
+"n": 2896,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_676f",
+"word": "goes",
+"i": 0,
+"pair": "g o",
+"g": "lower",
+"n": 2879,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6261",
+"word": "back",
+"i": 0,
+"pair": "b a",
+"g": "lower",
+"n": 2763,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6772",
+"word": "agreement",
+"i": 1,
+"pair": "g r",
+"g": "lower",
+"n": 2746,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6375",
+"word": "cult:",
+"i": 0,
+"pair": "c u",
+"g": "lower",
+"n": 2729,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6275",
+"word": "but",
+"i": 0,
+"pair": "b u",
+"g": "lower",
+"n": 2725,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6970",
+"word": "relationship",
+"i": 10,
+"pair": "i p",
+"g": "lower",
+"n": 2713,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7363",
+"word": "scale",
+"i": 0,
+"pair": "s c",
+"g": "lower",
+"n": 2699,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7561",
+"word": "actually",
+"i": 3,
+"pair": "u a",
+"g": "lower",
+"n": 2688,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7074",
+"word": "Chapter",
+"i": 3,
+"pair": "p t",
+"g": "lower",
+"n": 2677,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c73",
+"word": "also",
+"i": 1,
+"pair": "l s",
+"g": "lower",
+"n": 2603,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7069",
+"word": "spirit",
+"i": 1,
+"pair": "p i",
+"g": "lower",
+"n": 2592,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6b69",
+"word": "kink",
+"i": 0,
+"pair": "k i",
+"g": "lower",
+"n": 2564,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c75",
+"word": "values:",
+"i": 2,
+"pair": "l u",
+"g": "lower",
+"n": 2559,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6775",
+"word": "argument",
+"i": 2,
+"pair": "g u",
+"g": "lower",
+"n": 2523,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7563",
+"word": "Success:",
+"i": 1,
+"pair": "u c",
+"g": "lower",
+"n": 2508,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_616b",
+"word": "takes",
+"i": 1,
+"pair": "a k",
+"g": "lower",
+"n": 2502,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6372",
+"word": "across",
+"i": 1,
+"pair": "c r",
+"g": "lower",
+"n": 2463,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c74",
+"word": "built",
+"i": 3,
+"pair": "l t",
+"g": "lower",
+"n": 2463,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_766f",
+"word": "vos",
+"i": 0,
+"pair": "v o",
+"g": "lower",
+"n": 2451,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7661",
+"word": "values:",
+"i": 0,
+"pair": "v a",
+"g": "lower",
+"n": 2442,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6175",
+"word": "because",
+"i": 3,
+"pair": "a u",
+"g": "lower",
+"n": 2440,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e2c",
+"word": "person,",
+"i": 5,
+"pair": "n ,",
+"g": "punct",
+"n": 2437,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_636c",
+"word": "claim",
+"i": 0,
+"pair": "c l",
+"g": "lower",
+"n": 2426,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_756d",
+"word": "number",
+"i": 1,
+"pair": "u m",
+"g": "lower",
+"n": 2365,
+"kr": 30,
+"ki": 30
+},
+{
+"id": "p_6769",
+"word": "engineering",
+"i": 2,
+"pair": "g i",
+"g": "lower",
+"n": 2318,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_656f",
+"word": "people",
+"i": 1,
+"pair": "e o",
+"g": "lower",
+"n": 2305,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6872",
+"word": "three",
+"i": 1,
+"pair": "h r",
+"g": "lower",
+"n": 2304,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7263",
+"word": "research",
+"i": 5,
+"pair": "r c",
+"g": "lower",
+"n": 2293,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7477",
+"word": "two",
+"i": 0,
+"pair": "t w",
+"g": "lower",
+"n": 2273,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6569",
+"word": "their",
+"i": 2,
+"pair": "e i",
+"g": "lower",
+"n": 2272,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6567",
+"word": "legal",
+"i": 1,
+"pair": "e g",
+"g": "lower",
+"n": 2243,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f63",
+"word": "vocabulary",
+"i": 1,
+"pair": "o c",
+"g": "lower",
+"n": 2239,
+"kr": 36,
+"ki": 18
+},
+{
+"id": "p_6874",
+"word": "right",
+"i": 3,
+"pair": "h t",
+"g": "lower",
+"n": 2213,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_746c",
+"word": "exactly",
+"i": 4,
+"pair": "t l",
+"g": "lower",
+"n": 2211,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_776e",
+"word": "own",
+"i": 1,
+"pair": "w n",
+"g": "lower",
+"n": 2201,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7973",
+"word": "says",
+"i": 2,
+"pair": "y s",
+"g": "lower",
+"n": 2190,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6579",
+"word": "they",
+"i": 2,
+"pair": "e y",
+"g": "lower",
+"n": 2153,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5768",
+"word": "What",
+"i": 0,
+"pair": "W h",
+"g": "cap",
+"n": 2147,
+"kr": -18,
+"ki": -18
+},
+{
+"id": "p_722c",
+"word": "her,",
+"i": 2,
+"pair": "r ,",
+"g": "punct",
+"n": 2098,
+"kr": -72,
+"ki": -72
+},
+{
+"id": "p_6f67",
+"word": "monogamous",
+"i": 3,
+"pair": "o g",
+"g": "lower",
+"n": 2089,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e2e",
+"word": "question.",
+"i": 7,
+"pair": "n .",
+"g": "punct",
+"n": 2009,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_642e",
+"word": "instead.",
+"i": 6,
+"pair": "d .",
+"g": "punct",
+"n": 1999,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_722e",
+"word": "answer.",
+"i": 5,
+"pair": "r .",
+"g": "punct",
+"n": 1986,
+"kr": -72,
+"ki": -72
+},
+{
+"id": "p_6269",
+"word": "hubiera",
+"i": 2,
+"pair": "b i",
+"g": "lower",
+"n": 1978,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_642c",
+"word": "word,",
+"i": 3,
+"pair": "d ,",
+"g": "punct",
+"n": 1969,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6279",
+"word": "goodbye",
+"i": 4,
+"pair": "b y",
+"g": "lower",
+"n": 1960,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6472",
+"word": "drop",
+"i": 0,
+"pair": "d r",
+"g": "lower",
+"n": 1927,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f62",
+"word": "nobody",
+"i": 1,
+"pair": "o b",
+"g": "lower",
+"n": 1916,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7070",
+"word": "appears",
+"i": 1,
+"pair": "p p",
+"g": "lower",
+"n": 1913,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d75",
+"word": "much",
+"i": 0,
+"pair": "m u",
+"g": "lower",
+"n": 1912,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_436f",
+"word": "Costa",
+"i": 0,
+"pair": "C o",
+"g": "cap",
+"n": 1874,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_726b",
+"word": "work",
+"i": 2,
+"pair": "r k",
+"g": "lower",
+"n": 1851,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7267",
+"word": "argument",
+"i": 1,
+"pair": "r g",
+"g": "lower",
+"n": 1832,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6666",
+"word": "different",
+"i": 2,
+"pair": "f f",
+"g": "lower",
+"n": 1822,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6272",
+"word": "habr",
+"i": 2,
+"pair": "b r",
+"g": "lower",
+"n": 1793,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d6d",
+"word": "community",
+"i": 2,
+"pair": "m m",
+"g": "lower",
+"n": 1778,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7567",
+"word": "through",
+"i": 4,
+"pair": "u g",
+"g": "lower",
+"n": 1768,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_726c",
+"word": "Underlying",
+"i": 4,
+"pair": "r l",
+"g": "lower",
+"n": 1726,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7562",
+"word": "subjunctive",
+"i": 1,
+"pair": "u b",
+"g": "lower",
+"n": 1718,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_697a",
+"word": "Quiz",
+"i": 2,
+"pair": "i z",
+"g": "lower",
+"n": 1702,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6675",
+"word": "future",
+"i": 0,
+"pair": "f u",
+"g": "lower",
+"n": 1685,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_792e",
+"word": "wrongly.",
+"i": 6,
+"pair": "y .",
+"g": "punct",
+"n": 1665,
+"kr": -72,
+"ki": -72
+},
+{
+"id": "p_7075",
+"word": "put",
+"i": 0,
+"pair": "p u",
+"g": "lower",
+"n": 1655,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6b73",
+"word": "asks",
+"i": 2,
+"pair": "k s",
+"g": "lower",
+"n": 1632,
+"kr": 18,
+"ki": 18
+},
+{
+"id": "p_733a",
+"word": "Success:",
+"i": 6,
+"pair": "s :",
+"g": "punct",
+"n": 1624,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f6b",
+"word": "book",
+"i": 2,
+"pair": "o k",
+"g": "lower",
+"n": 1613,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7570",
+"word": "couple",
+"i": 2,
+"pair": "u p",
+"g": "lower",
+"n": 1597,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_676e",
+"word": "design",
+"i": 4,
+"pair": "g n",
+"g": "lower",
+"n": 1593,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7377",
+"word": "answer",
+"i": 2,
+"pair": "s w",
+"g": "lower",
+"n": 1570,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6962",
+"word": "describes",
+"i": 5,
+"pair": "i b",
+"g": "lower",
+"n": 1568,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7073",
+"word": "relationships",
+"i": 11,
+"pair": "p s",
+"g": "lower",
+"n": 1564,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6475",
+"word": "produces",
+"i": 3,
+"pair": "d u",
+"g": "lower",
+"n": 1555,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e79",
+"word": "any",
+"i": 1,
+"pair": "n y",
+"g": "lower",
+"n": 1550,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e6e",
+"word": "cannot",
+"i": 2,
+"pair": "n n",
+"g": "lower",
+"n": 1520,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6577",
+"word": "new",
+"i": 1,
+"pair": "e w",
+"g": "lower",
+"n": 1512,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e27",
+"word": "don't",
+"i": 2,
+"pair": "n '",
+"g": "punct",
+"n": 1507,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7463",
+"word": "Shortcoming:",
+"i": 4,
+"pair": "t c",
+"g": "lower",
+"n": 1502,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7564",
+"word": "judgment",
+"i": 1,
+"pair": "u d",
+"g": "lower",
+"n": 1493,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f69",
+"word": "going",
+"i": 1,
+"pair": "o i",
+"g": "lower",
+"n": 1482,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_676c",
+"word": "English",
+"i": 2,
+"pair": "g l",
+"g": "lower",
+"n": 1430,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_736b",
+"word": "asks",
+"i": 1,
+"pair": "s k",
+"g": "lower",
+"n": 1414,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c66",
+"word": "half",
+"i": 2,
+"pair": "l f",
+"g": "lower",
+"n": 1380,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f65",
+"word": "does",
+"i": 1,
+"pair": "o e",
+"g": "lower",
+"n": 1377,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6479",
+"word": "already",
+"i": 5,
+"pair": "d y",
+"g": "lower",
+"n": 1367,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e75",
+"word": "genuinely",
+"i": 2,
+"pair": "n u",
+"g": "lower",
+"n": 1350,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e6b",
+"word": "kink",
+"i": 2,
+"pair": "n k",
+"g": "lower",
+"n": 1332,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d73",
+"word": "systems",
+"i": 5,
+"pair": "m s",
+"g": "lower",
+"n": 1310,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d62",
+"word": "number",
+"i": 2,
+"pair": "m b",
+"g": "lower",
+"n": 1300,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7068",
+"word": "phrase",
+"i": 0,
+"pair": "p h",
+"g": "lower",
+"n": 1284,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e66",
+"word": "information",
+"i": 1,
+"pair": "n f",
+"g": "lower",
+"n": 1280,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5375",
+"word": "Suvi",
+"i": 0,
+"pair": "S u",
+"g": "cap",
+"n": 1270,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6166",
+"word": "after",
+"i": 0,
+"pair": "a f",
+"g": "lower",
+"n": 1266,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5374",
+"word": "Steel",
+"i": 0,
+"pair": "S t",
+"g": "cap",
+"n": 1237,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6875",
+"word": "human",
+"i": 0,
+"pair": "h u",
+"g": "lower",
+"n": 1232,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6363",
+"word": "Success:",
+"i": 2,
+"pair": "c c",
+"g": "lower",
+"n": 1211,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f2e",
+"word": "do.",
+"i": 1,
+"pair": "o .",
+"g": "punct",
+"n": 1190,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_672e",
+"word": "wrong.",
+"i": 4,
+"pair": "g .",
+"g": "punct",
+"n": 1148,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_416d",
+"word": "Ame",
+"i": 0,
+"pair": "A m",
+"g": "cap",
+"n": 1132,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_672c",
+"word": "wrong,",
+"i": 4,
+"pair": "g ,",
+"g": "punct",
+"n": 1097,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6527",
+"word": "Ame's",
+"i": 2,
+"pair": "e '",
+"g": "punct",
+"n": 1087,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_653a",
+"word": "use:",
+"i": 2,
+"pair": "e :",
+"g": "punct",
+"n": 1057,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_743a",
+"word": "cult:",
+"i": 3,
+"pair": "t :",
+"g": "punct",
+"n": 1022,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_612e",
+"word": "ana.",
+"i": 2,
+"pair": "a .",
+"g": "punct",
+"n": 995,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_612c",
+"word": "Rica,",
+"i": 3,
+"pair": "a ,",
+"g": "punct",
+"n": 949,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_416e",
+"word": "And",
+"i": 0,
+"pair": "A n",
+"g": "cap",
+"n": 924,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c2c",
+"word": "all,",
+"i": 2,
+"pair": "l ,",
+"g": "punct",
+"n": 915,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6f2c",
+"word": "to,",
+"i": 1,
+"pair": "o ,",
+"g": "punct",
+"n": 909,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4368",
+"word": "Chapter",
+"i": 0,
+"pair": "C h",
+"g": "cap",
+"n": 908,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5265",
+"word": "Return",
+"i": 0,
+"pair": "R e",
+"g": "cap",
+"n": 906,
+"kr": -18,
+"ki": -18
+},
+{
+"id": "p_733b",
+"word": "years;",
+"i": 4,
+"pair": "s ;",
+"g": "punct",
+"n": 825,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d2e",
+"word": "them.",
+"i": 3,
+"pair": "m .",
+"g": "punct",
+"n": 820,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5365",
+"word": "See",
+"i": 0,
+"pair": "S e",
+"g": "cap",
+"n": 815,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_653b",
+"word": "people;",
+"i": 5,
+"pair": "e ;",
+"g": "punct",
+"n": 794,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5061",
+"word": "Part",
+"i": 0,
+"pair": "P a",
+"g": "cap",
+"n": 794,
+"kr": -36,
+"ki": -36
+},
+{
+"id": "p_536f",
+"word": "Some",
+"i": 0,
+"pair": "S o",
+"g": "cap",
+"n": 793,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4772",
+"word": "Great",
+"i": 0,
+"pair": "G r",
+"g": "cap",
+"n": 789,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_723a",
+"word": "owner:",
+"i": 4,
+"pair": "r :",
+"g": "punct",
+"n": 787,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6c2e",
+"word": "all.",
+"i": 2,
+"pair": "l .",
+"g": "punct",
+"n": 774,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5368",
+"word": "Shortcoming:",
+"i": 0,
+"pair": "S h",
+"g": "cap",
+"n": 761,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6d2c",
+"word": "them,",
+"i": 3,
+"pair": "m ,",
+"g": "punct",
+"n": 737,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5370",
+"word": "Spanish",
+"i": 0,
+"pair": "S p",
+"g": "cap",
+"n": 725,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4361",
+"word": "Caesar",
+"i": 0,
+"pair": "C a",
+"g": "cap",
+"n": 722,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7227",
+"word": "partner's",
+"i": 6,
+"pair": "r '",
+"g": "punct",
+"n": 702,
+"kr": -18,
+"ki": -18
+},
+{
+"id": "p_7427",
+"word": "It's",
+"i": 1,
+"pair": "t '",
+"g": "punct",
+"n": 665,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_2774",
+"word": "don't",
+"i": 3,
+"pair": "' t",
+"g": "punct",
+"n": 663,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_596f",
+"word": "You",
+"i": 0,
+"pair": "Y o",
+"g": "cap",
+"n": 656,
+"kr": -108,
+"ki": -108
+},
+{
+"id": "p_5361",
+"word": "Same",
+"i": 0,
+"pair": "S a",
+"g": "cap",
+"n": 652,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_466f",
+"word": "For",
+"i": 0,
+"pair": "F o",
+"g": "cap",
+"n": 651,
+"kr": -36,
+"ki": -36
+},
+{
+"id": "p_4669",
+"word": "First",
+"i": 0,
+"pair": "F i",
+"g": "cap",
+"n": 631,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_743b",
+"word": "it;",
+"i": 1,
+"pair": "t ;",
+"g": "punct",
+"n": 615,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5769",
+"word": "Witch",
+"i": 0,
+"pair": "W i",
+"g": "cap",
+"n": 594,
+"kr": -18,
+"ki": -18
+},
+{
+"id": "p_5072",
+"word": "Present",
+"i": 0,
+"pair": "P r",
+"g": "cap",
+"n": 587,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_506f",
+"word": "Port",
+"i": 0,
+"pair": "P o",
+"g": "cap",
+"n": 577,
+"kr": -36,
+"ki": -36
+},
+{
+"id": "p_6e3a",
+"word": "section:",
+"i": 6,
+"pair": "n :",
+"g": "punct",
+"n": 571,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f6e",
+"word": "One",
+"i": 0,
+"pair": "O n",
+"g": "cap",
+"n": 549,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4369",
+"word": "Citadel",
+"i": 0,
+"pair": "C i",
+"g": "cap",
+"n": 527,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5369",
+"word": "Silver",
+"i": 0,
+"pair": "S i",
+"g": "cap",
+"n": 526,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5477",
+"word": "Two",
+"i": 0,
+"pair": "T w",
+"g": "cap",
+"n": 508,
+"kr": -90,
+"ki": -90
+},
+{
+"id": "p_4172",
+"word": "Are",
+"i": 0,
+"pair": "A r",
+"g": "cap",
+"n": 505,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4c61",
+"word": "Latin",
+"i": 0,
+"pair": "L a",
+"g": "cap",
+"n": 501,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5465",
+"word": "Test",
+"i": 0,
+"pair": "T e",
+"g": "cap",
+"n": 484,
+"kr": -126,
+"ki": -126
+},
+{
+"id": "p_673a",
+"word": "Shortcoming:",
+"i": 10,
+"pair": "g :",
+"g": "punct",
+"n": 480,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_682c",
+"word": "both,",
+"i": 3,
+"pair": "h ,",
+"g": "punct",
+"n": 478,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_7327",
+"word": "atlas's",
+"i": 4,
+"pair": "s '",
+"g": "punct",
+"n": 476,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_576f",
+"word": "World",
+"i": 0,
+"pair": "W o",
+"g": "cap",
+"n": 475,
+"kr": -90,
+"ki": -90
+},
+{
+"id": "p_4c69",
+"word": "Literature",
+"i": 0,
+"pair": "L i",
+"g": "cap",
+"n": 470,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_416c",
+"word": "Also",
+"i": 0,
+"pair": "A l",
+"g": "cap",
+"n": 466,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_6e3b",
+"word": "design;",
+"i": 5,
+"pair": "n ;",
+"g": "punct",
+"n": 465,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_643a",
+"word": "uuid:",
+"i": 3,
+"pair": "d :",
+"g": "punct",
+"n": 459,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5269",
+"word": "Rican",
+"i": 0,
+"pair": "R i",
+"g": "cap",
+"n": 450,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_682e",
+"word": "both.",
+"i": 3,
+"pair": "h .",
+"g": "punct",
+"n": 443,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_526f",
+"word": "Roman",
+"i": 0,
+"pair": "R o",
+"g": "cap",
+"n": 434,
+"kr": -18,
+"ki": -18
+},
+{
+"id": "p_6b2c",
+"word": "work,",
+"i": 3,
+"pair": "k ,",
+"g": "punct",
+"n": 427,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4c65",
+"word": "League",
+"i": 0,
+"pair": "L e",
+"g": "cap",
+"n": 426,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4672",
+"word": "From",
+"i": 0,
+"pair": "F r",
+"g": "cap",
+"n": 419,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_653f",
+"word": "here?",
+"i": 3,
+"pair": "e ?",
+"g": "punct",
+"n": 413,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5065",
+"word": "People",
+"i": 0,
+"pair": "P e",
+"g": "cap",
+"n": 410,
+"kr": -36,
+"ki": -36
+},
+{
+"id": "p_5765",
+"word": "Western",
+"i": 0,
+"pair": "W e",
+"g": "cap",
+"n": 397,
+"kr": -90,
+"ki": -90
+},
+{
+"id": "p_4761",
+"word": "Gaothmai",
+"i": 0,
+"pair": "G a",
+"g": "cap",
+"n": 390,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4a61",
+"word": "Japanese",
+"i": 0,
+"pair": "J a",
+"g": "cap",
+"n": 370,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5461",
+"word": "Talon",
+"i": 0,
+"pair": "T a",
+"g": "cap",
+"n": 345,
+"kr": -126,
+"ki": -126
+},
+{
+"id": "p_4c6f",
+"word": "London",
+"i": 0,
+"pair": "L o",
+"g": "cap",
+"n": 343,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4765",
+"word": "George",
+"i": 0,
+"pair": "G e",
+"g": "cap",
+"n": 336,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5472",
+"word": "Treating",
+"i": 0,
+"pair": "T r",
+"g": "cap",
+"n": 335,
+"kr": -90,
+"ki": -90
+},
+{
+"id": "p_5772",
+"word": "Wren",
+"i": 0,
+"pair": "W r",
+"g": "cap",
+"n": 331,
+"kr": -54,
+"ki": -54
+},
+{
+"id": "p_5469",
+"word": "Tico",
+"i": 0,
+"pair": "T i",
+"g": "cap",
+"n": 319,
+"kr": -36,
+"ki": -36
+},
+{
+"id": "p_4175",
+"word": "August",
+"i": 0,
+"pair": "A u",
+"g": "cap",
+"n": 307,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_476f",
+"word": "Good",
+"i": 0,
+"pair": "G o",
+"g": "cap",
+"n": 307,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5363",
+"word": "Scott",
+"i": 0,
+"pair": "S c",
+"g": "cap",
+"n": 305,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4a75",
+"word": "Judgment",
+"i": 0,
+"pair": "J u",
+"g": "cap",
+"n": 274,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4a6f",
+"word": "John",
+"i": 0,
+"pair": "J o",
+"g": "cap",
+"n": 264,
+"kr": 36,
+"ki": 36
+},
+{
+"id": "p_436c",
+"word": "Claude",
+"i": 0,
+"pair": "C l",
+"g": "cap",
+"n": 249,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4a65",
+"word": "Jealousy",
+"i": 0,
+"pair": "J e",
+"g": "cap",
+"n": 246,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5665",
+"word": "Verification",
+"i": 0,
+"pair": "V e",
+"g": "cap",
+"n": 239,
+"kr": -90,
+"ki": -90
+},
+{
+"id": "p_5261",
+"word": "Ramus",
+"i": 0,
+"pair": "R a",
+"g": "cap",
+"n": 238,
+"kr": -18,
+"ki": -18
+},
+{
+"id": "p_4661",
+"word": "Fact",
+"i": 0,
+"pair": "F a",
+"g": "cap",
+"n": 237,
+"kr": -36,
+"ki": -36
+},
+{
+"id": "p_5661",
+"word": "Van",
+"i": 0,
+"pair": "V a",
+"g": "cap",
+"n": 214,
+"kr": -126,
+"ki": -126
+},
+{
+"id": "p_4174",
+"word": "Athens",
+"i": 0,
+"pair": "A t",
+"g": "cap",
+"n": 207,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5069",
+"word": "Picture",
+"i": 0,
+"pair": "P i",
+"g": "cap",
+"n": 205,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5275",
+"word": "Rules",
+"i": 0,
+"pair": "R u",
+"g": "cap",
+"n": 204,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4775",
+"word": "Guess,",
+"i": 0,
+"pair": "G u",
+"g": "cap",
+"n": 204,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4375",
+"word": "Cuando",
+"i": 0,
+"pair": "C u",
+"g": "cap",
+"n": 202,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4665",
+"word": "February",
+"i": 0,
+"pair": "F e",
+"g": "cap",
+"n": 196,
+"kr": -36,
+"ki": -36
+},
+{
+"id": "p_506c",
+"word": "Platform",
+"i": 0,
+"pair": "P l",
+"g": "cap",
+"n": 190,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f72",
+"word": "Orima",
+"i": 0,
+"pair": "O r",
+"g": "cap",
+"n": 189,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f70",
+"word": "Open",
+"i": 0,
+"pair": "O p",
+"g": "cap",
+"n": 180,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4166",
+"word": "After",
+"i": 0,
+"pair": "A f",
+"g": "cap",
+"n": 177,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_466c",
+"word": "Fluid",
+"i": 0,
+"pair": "F l",
+"g": "cap",
+"n": 174,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_566f",
+"word": "Vos",
+"i": 0,
+"pair": "V o",
+"g": "cap",
+"n": 171,
+"kr": -90,
+"ki": -90
+},
+{
+"id": "p_4162",
+"word": "About",
+"i": 0,
+"pair": "A b",
+"g": "cap",
+"n": 170,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4170",
+"word": "April",
+"i": 0,
+"pair": "A p",
+"g": "cap",
+"n": 168,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4173",
+"word": "Ask",
+"i": 0,
+"pair": "A s",
+"g": "cap",
+"n": 164,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4372",
+"word": "Crime",
+"i": 0,
+"pair": "C r",
+"g": "cap",
+"n": 160,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5075",
+"word": "Public",
+"i": 0,
+"pair": "P u",
+"g": "cap",
+"n": 148,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4163",
+"word": "Acadator",
+"i": 0,
+"pair": "A c",
+"g": "cap",
+"n": 147,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4164",
+"word": "Adams",
+"i": 0,
+"pair": "A d",
+"g": "cap",
+"n": 136,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5377",
+"word": "Sword",
+"i": 0,
+"pair": "S w",
+"g": "cap",
+"n": 125,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4167",
+"word": "Agile",
+"i": 0,
+"pair": "A g",
+"g": "cap",
+"n": 123,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5961",
+"word": "Yasgur's",
+"i": 0,
+"pair": "Y a",
+"g": "cap",
+"n": 118,
+"kr": -108,
+"ki": -108
+},
+{
+"id": "p_4c75",
+"word": "Luhmann's",
+"i": 0,
+"pair": "L u",
+"g": "cap",
+"n": 118,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_476c",
+"word": "Glass",
+"i": 0,
+"pair": "G l",
+"g": "cap",
+"n": 111,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_536c",
+"word": "Sly",
+"i": 0,
+"pair": "S l",
+"g": "cap",
+"n": 105,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f63",
+"word": "October",
+"i": 0,
+"pair": "O c",
+"g": "cap",
+"n": 100,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5068",
+"word": "Photo",
+"i": 0,
+"pair": "P h",
+"g": "cap",
+"n": 98,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5475",
+"word": "Turkey",
+"i": 0,
+"pair": "T u",
+"g": "cap",
+"n": 92,
+"kr": -90,
+"ki": -90
+},
+{
+"id": "p_4f73",
+"word": "Ostrom's",
+"i": 0,
+"pair": "O s",
+"g": "cap",
+"n": 89,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4769",
+"word": "Girl",
+"i": 0,
+"pair": "G i",
+"g": "cap",
+"n": 87,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f66",
+"word": "Often",
+"i": 0,
+"pair": "O f",
+"g": "cap",
+"n": 85,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f6c",
+"word": "Old",
+"i": 0,
+"pair": "O l",
+"g": "cap",
+"n": 84,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4675",
+"word": "Full",
+"i": 0,
+"pair": "F u",
+"g": "cap",
+"n": 82,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4c6c",
+"word": "Llull's",
+"i": 0,
+"pair": "L l",
+"g": "cap",
+"n": 78,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_536b",
+"word": "Sky",
+"i": 0,
+"pair": "S k",
+"g": "cap",
+"n": 77,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_5268",
+"word": "Rhuv",
+"i": 0,
+"pair": "R h",
+"g": "cap",
+"n": 76,
+"kr": 54,
+"ki": 54
+},
+{
+"id": "p_5379",
+"word": "System",
+"i": 0,
+"pair": "S y",
+"g": "cap",
+"n": 75,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f64",
+"word": "Odyssey",
+"i": 0,
+"pair": "O d",
+"g": "cap",
+"n": 66,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4379",
+"word": "Cyril",
+"i": 0,
+"pair": "C y",
+"g": "cap",
+"n": 65,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f75",
+"word": "Oulipo",
+"i": 0,
+"pair": "O u",
+"g": "cap",
+"n": 61,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4f74",
+"word": "Otto",
+"i": 0,
+"pair": "O t",
+"g": "cap",
+"n": 59,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4365",
+"word": "Central",
+"i": 0,
+"pair": "C e",
+"g": "cap",
+"n": 57,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_4768",
+"word": "Ghost",
+"i": 0,
+"pair": "G h",
+"g": "cap",
+"n": 57,
+"kr": 0,
+"ki": 0
+},
+{
+"id": "p_536d",
+"word": "Small",
+"i": 0,
+"pair": "S m",
+"g": "cap",
+"n": 54,
+"kr": 0,
+"ki": 0
+}
+]
+}
