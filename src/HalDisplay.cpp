@@ -4871,7 +4871,15 @@ void HalDisplay::displayWindow(uint16_t x, uint16_t y, uint16_t w,
 bool HalDisplay::supportsWindowedRefresh() const { return true; }
 
 bool HalDisplay::supportsAbsoluteGrayscale() const {
-#if FREEINK_DEVICE_X3
+  // X3: the Uc8253X3Driver accepts the absolute-grayscale flag with no bank
+  // behind it, so the honest answer is NO (CLAUDE.md, "a stub may say no").
+  // Keyed on the BUILD FLAG, BoardConfig.h's own condition for
+  // FREEINK_DEVICE_X3 -- that macro itself is NOT visible here (BoardConfig.h
+  // is not included), so `#if FREEINK_DEVICE_X3` read 0 and every X3 build
+  // answered YES, hiding the device's silent bilevel fallback. Found by the
+  // e-ink spike, fixed 2026-09-25 (owner: "Verify, then fix"); the gate
+  // tests/freeink_macro_include_test.py now refuses the pattern.
+#if defined(SIMULATOR_DEVICE_X3)
   return false;
 #else
   return true;

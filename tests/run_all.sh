@@ -180,6 +180,12 @@ run sleep_touch \
 run_direct tap_dispatch_source \
   python3 tests/tap_dispatch_source_test.py
 
+# A FREEINK_* MACRO WHERE BoardConfig.h IS NOT INCLUDED READS 0, silently, on
+# every device: supportsAbsoluteGrayscale answered YES on every X3 build that
+# way until 2026-09-25. Fails on any source that tests one without including it.
+run_direct freeink_macro_include \
+  python3 tests/freeink_macro_include_test.py
+
 # THE TWO TOUCH/MOUSE HINTS, which point opposite ways and are one word apart.
 # TOUCH_MOUSE must stay "0" or a real finger is delivered twice -- once to
 # padWatch, once to HalGPIO's mouse branch (the X4 Pro digitizer). MOUSE_TOUCH
