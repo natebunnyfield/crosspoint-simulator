@@ -486,10 +486,45 @@ STRAIGHT_TALL = float(os.environ.get("ALBO_STRAIGHT_TALL", 1.66 if pen.ITALIC el
 QUOTE_BODY_L = 2 * 0.62 * REF_S * QUOTE_SIZE * STRAIGHT_TALL
 QUOTE_B_TALL = float(os.environ.get("ALBO_QUOTE_B_TALL", 1.15))
 QUOTE_B_VAR = [(1.00, 1.00), (0.96, 1.12), (1.03, 0.90)]   # (body x, lean x): rows 0, 1, 2 -- about 5 units of height and 3 of lean between the marks of a pair
+# 2026-09-24 -- OPTIONS: THE QUOTES MORE SYMMETRICAL. Owner: *"give me options
+# for making the single quote and double quote characters slightly more and
+# very symmetrical."* ALBO_QUOTE_SYM is a LADDER over every asymmetry the marks
+# carry; `a` is today's drawing, byte for byte, and is the default. s is how far
+# along the ladder: b 1/3 ("slightly more"), c 2/3, d 1 ("very": each mark
+# mirror-symmetric about its own vertical axis). What s scales:
+#   straight ' "  the roman's written tick's LEAN, its top PEN CUT, and round
+#                 251's per-mark table (height and lean differences between the
+#                 two marks of a "); the italic's foot PEN CUT. At s = 1 each
+#                 mark is a straight tapered (roman) or parallel (italic) stroke
+#                 with square ends, and the two marks of a " are identical.
+#   curly ‘ ’ “ ” the comma tail's SIDEWAYS SWING and its bend; at s = 1 the
+#                 tail hangs straight down from the dot, a teardrop, and the
+#                 dot is the plain round punch (no filed flat). From b on, ‘ is
+#                 the exact mirror image of ’ (it ended 0.55 W across where ’
+#                 ends 0.60 W, and the filed flat did not mirror).
+#   e             the OTHER reading of "symmetrical" for a curly quote: the same
+#                 symmetric teardrop as d, its axis TILTED by ALBO_QUOTE_SYM_TILT
+#                 (20 degrees -- the comma's own lean, tip to dot) so it still
+#                 points like a 9 / 6. The straight quotes take d's drawing.
+# Read at CALL time: build.py re-draws `a` to hold the cut phase.
+def quote_sym():
+    o = os.environ.get("ALBO_QUOTE_SYM", "a")
+    return {"a": 0.0, "b": 1 / 3, "c": 2 / 3, "d": 1.0, "e": 1.0}.get(o, 0.0), o
 def straight_quote(c, x, k=0):
     """One straight-quote mark at x, per QUOTE_OPT (see above); k is the
     mark's row in QUOTE_B_VAR (option b only)."""
     C = CAP(c) - _qdrop(); top, bot = C, C - QUOTE_BODY_L; w = TH_V * 0.8 * QUOTE_W; opt = QUOTE_OPT
+    s, _ = quote_sym()
+    if s > 0 and opt in ("a", "b"):
+        a = 1.0 - s
+        if opt == "a":
+            return stroke(line((x, bot), (x, top)), w, cut0=CUT * a)
+        bs, ls = QUOTE_B_VAR[k % len(QUOTE_B_VAR)]
+        bs, ls = 1 + (bs - 1) * a, 1 + (ls - 1) * a
+        body = QUOTE_BODY_L * QUOTE_B_TALL * bs; bot = top - body
+        dx = S * 0.16 * ls * a
+        p = cubic((x + dx * 0.5, top), (x + dx * 0.35, top - body * 0.45), (x - dx * 0.2, bot + body * 0.35), (x - dx * 0.6, bot))
+        return stroke(p, pen_widths(p, widths([(0.0, 0.85), (0.5, 0.8), (1.0, 0.5)]), scale=TH_V * QUOTE_W / pen.PEN.th((0.0, 1.0))), cut0=CUT * a)
     if opt == "b":
         bs, ls = QUOTE_B_VAR[k % len(QUOTE_B_VAR)]
         body = QUOTE_BODY_L * QUOTE_B_TALL * bs; bot = top - body
@@ -525,6 +560,25 @@ def quote(c, x, up):
     quotes' top and body height exactly."""
     _r = DOT_R * QUOTE_SIZE * WF * IT_QUOTE     # round 380: IT_QUOTE; round 362: the curly pair scales with the straight; round 375: WF
     C = CAP(c) - _qdrop(); y = C - _r
+    s, o = quote_sym()
+    if s > 0:
+        # the ladder (see quote_sym): ’ with its swing scaled by 1 - s, and ‘ its mirror
+        # The tail also FILLS toward a teardrop: its width is blended, by s,
+        # from the pen's comma taper to a straight cone from the dot's full
+        # diameter at its centre to the comma's own tip width. A tail straightened
+        # at the pen's width alone reads as a pin stuck in a ball (tried first).
+        a = 1.0 - s; L, Wd = COMMA_LEN, COMMA_W
+        tail = cubic((x + ST * 0.1 * a, y - ST * 0.35 * L * a), (x + ST * 0.1 * a, y - ST * 1.05 * L),
+                     (x - ST * 0.3 * Wd * a, y - ST * 1.45 * L), (x - ST * 0.6 * Wd * a, y - ST * 1.75 * L))
+        pw = pen_widths(tail, lambda t: 0.85 - 0.55 * t); tip = pw(1.0)
+        head = dot(x, y, _r) if s < 1 else PR._punch_dot(x, y, _r, "a")
+        g = geom.ink([head, stroke(tail, lambda t: a * pw(t) + s * (2 * _r * 0.98 * (1 - t) + tip * t))])
+        if s >= 1: g = g.convex_hull   # the drop's flanks run tangent into the round, no step at the join
+        if o == "e":
+            g = aff.rotate(g, -float(os.environ.get("ALBO_QUOTE_SYM_TILT", 20.0)), origin=(x, y))
+        if not up:
+            g = aff.scale(g, xfact=-1.0, yfact=1.0, origin=(x, y))
+        return aff.scale(g, xfact=CURLY_SCALE, yfact=CURLY_SCALE, origin=(x, C)) if CURLY_SCALE != 1.0 else g
     g = geom.ink([dot(x, y, _r), comma_tail(x, y, up, 0.85, 0.3)])
     # ROUND 375 -- TOO BIG. Owner 2026-09-24: *"quotes are too big."* Measured:
     # 305 /1000 em tall against six references' 253-285 (median 262) -- round
