@@ -17,11 +17,14 @@
 #include "LightInkPalette.h"
 #include "PaperDefects.h"
 #include "PhosphorGrain.h"
+#include "RakingLight.h"
 #include "ShowThrough.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
 
 #include <atomic>
+#include <cmath>
+#include <cstring>
 #include <cstdint>
 #include <cstdlib>
 #include <mutex>
@@ -213,6 +216,55 @@ static uint32_t letterTexKey = 0;
 // ratio first painted at some unrelated page turn.
 static int letterTexRing = -1, letterTexDeboss = -1, letterTexPress = -1;
 
+// --- RAKING LIGHT (spike 2026-09-25) ----------------------------------------
+//
+// The deboss lit from a live direction (src/RakingLight.h). `rakingOn` is the
+// Settings switch; `rakingPacked` the quantized light the next field should be
+// lit from (rakinglight::pack, never 0). The field remembers which light it
+// was built for in `letterTexRaking` -- 0 means "built by the legacy fixed
+// light", which is what every build with the switch off produces, byte for
+// byte the pre-spike field.
+//
+// THE PAGE IS BUILT ONCE AND RE-LIT MANY TIMES. `rakeField` keeps the flat
+// pixels baked and the edge pixels' terms, so a tilt that moves the quantized
+// light re-lights only the edges and re-uploads -- no inkness pass, no Sobel,
+// no noise. A content change (a new seq, a dial, the palette) still rebuilds
+// the whole thing, exactly as the fixed light does.
+static std::atomic<bool> rakingOn{false};
+static std::atomic<int> rakingPacked{rakinglight::pack(rakinglight::Quantized{})};
+static int letterTexRaking = -1;
+static rakinglight::EdgeField rakeField;
+static bool rakeFieldValid = false;
+// The gravity path's state. MAIN THREAD only (CoreMotion is sampled from the
+// harness's per-frame hook), so none of it is atomic.
+static rakinglight::Vec3 rakeNeutral, rakeSmoothed;
+static bool rakeHaveNeutral = false, rakeHaveSmoothed = false;
+static uint64_t rakeLastMs = 0;
+
+static void resetRakeGravityState() {
+  rakeHaveNeutral = rakeHaveSmoothed = false;
+  rakeLastMs = 0;
+}
+
+// The iOS reboot is a longjmp: statics survive it, and a neutral captured
+// before sleep would light the woken page from a pose the reader has long left.
+const simreset::Registrar gRakeReset{[] {
+  resetRakeGravityState();
+  rakingPacked.store(rakinglight::pack(rakinglight::Quantized{}));
+}};
+
+// Move the light; ask for a present only when the quantized light moved, which
+// is the whole point of quantizing.
+static void publishRakingLight(const rakinglight::Quantized &q) {
+  const int packed = rakinglight::pack(q);
+  if (rakingPacked.exchange(packed) == packed) return;
+  if (std::getenv("CROSSPOINT_SIM_LOG_RAKING"))
+    SDL_Log("[raking] light -> dir %d (%+.1f deg), rake %d/%d", q.dir,
+            static_cast<double>(q.dir * rakinglight::kStepDeg), q.rake,
+            rakinglight::kRakeLevels);
+  SimulatorOverlay::requestPresent();
+}
+
 static void destroyLetterpressTexture() {
   if (!letterpressTexture) return;
   SDL_DestroyTexture(letterpressTexture);
@@ -222,6 +274,9 @@ static void destroyLetterpressTexture() {
   letterTexStrength = -1;
   letterTexKey = 0;
   letterTexRing = letterTexDeboss = letterTexPress = -1;
+  letterTexRaking = -1;
+  rakeField = rakinglight::EdgeField{};
+  rakeFieldValid = false;
 }
 
 static bool ensureLetterpressTexture() {
@@ -246,6 +301,9 @@ static bool ensureLetterpressTexture() {
   const int ringPct = SimulatorOverlay::pressRingPct.load();
   const int debossPct = SimulatorOverlay::pressDebossPct.load();
   const int pressPct = SimulatorOverlay::pressPressurePct.load();
+  // 0 = the fixed legacy light; otherwise the packed raking light to use.
+  const int rakePacked = rakingOn.load() ? rakingPacked.load() : 0;
+  bool relightOnly = false;
   // Read the frame and its seq together, under the lock, so the key can never
   // describe pixels from a different frame than the ones read.
   std::vector<uint8_t> inkness;
@@ -275,14 +333,49 @@ static bool ensureLetterpressTexture() {
     // change, a dial move or a resize during text entry rebuilds normally.
     const bool holdForTextEntry =
         letterpressTexture && SimulatorOverlay::textEntryOpen();
-    if (letterpressTexture && letterTexW == w && letterTexH == h &&
+    const bool contentSame =
+        letterpressTexture && letterTexW == w && letterTexH == h &&
         (letterTexSeq == seq || holdForTextEntry) &&
         letterTexStrength == strength && letterTexKey == palKey &&
         letterTexRing == ringPct && letterTexDeboss == debossPct &&
-        letterTexPress == pressPct) {
+        letterTexPress == pressPct;
+    if (contentSame && letterTexRaking == rakePacked) {
       if (timingLogWanted()) timingFrame.letterpress.served = true;
       return true;
     }
+    // Same page, new light: re-light the edges of the field already built.
+    relightOnly = contentSame && rakePacked != 0 && rakeFieldValid &&
+                  rakeField.w == w && rakeField.h == h;
+  }
+  if (relightOnly) {
+    const uint64_t t0 = SDL_GetTicksNS();
+    rakeField.relight(
+        rakinglight::shadowFor(rakinglight::unpack(rakePacked)));
+    const uint64_t tLit = SDL_GetTicksNS();
+    if (!SDL_UpdateTexture(letterpressTexture, nullptr, rakeField.field.data(),
+                           static_cast<int>(w * sizeof(uint32_t)))) {
+      LOG_ERR("DISP", "letterpress: could not upload the relit field (%s)",
+              SDL_GetError());
+      destroyLetterpressTexture();
+      return false;
+    }
+    letterTexRaking = rakePacked;
+    const double ms = static_cast<double>(SDL_GetTicksNS() - t0) / 1.0e6;
+    if (timingLogWanted()) {
+      timingFrame.letterpress.built = true;
+      timingFrame.letterpress.ms = ms;
+    }
+    if (std::getenv("CROSSPOINT_SIM_LOG_RAKING"))
+      SDL_Log("[raking] relit %zu edge px of %dx%d in %.2f ms "
+              "(relight %.2f, upload %.2f)",
+              rakeField.edges.size(), w, h, ms,
+              static_cast<double>(tLit - t0) / 1.0e6,
+              static_cast<double>(SDL_GetTicksNS() - tLit) / 1.0e6);
+    return true;
+  }
+  {
+    const std::lock_guard<std::mutex> lock(pixelBufMutex);
+    seq = pixelBufSeq;
     // INKNESS: where each pixel sits on the ink->paper segment, 255 = ink.
     // Projection in byte space, because pixelBuf's grays are integer-lerped
     // between exactly these two tones.
@@ -348,7 +441,7 @@ static bool ensureLetterpressTexture() {
   params.debossScale = static_cast<float>(debossPct) / 100.0f;
   params.pressScale = static_cast<float>(pressPct) / 100.0f;
   const uint64_t letterT0 = SDL_GetTicksNS();
-  std::vector<uint32_t> field(static_cast<size_t>(w) * h);
+  std::vector<uint32_t> field;
   auto tAt = [&](int x, int y) {
     if (x < 0) x = 0;
     if (y < 0) y = 0;
@@ -356,20 +449,43 @@ static bool ensureLetterpressTexture() {
     if (y >= h) y = h - 1;
     return static_cast<float>(inkness[static_cast<size_t>(y) * w + x]) / 255.0f;
   };
-  for (int y = 0; y < h; ++y) {
-    uint32_t *row = field.data() + static_cast<size_t>(y) * w;
-    for (int x = 0; x < w; ++x) {
+  const uint32_t *upload = nullptr;
+  if (rakePacked != 0) {
+    // RAKING LIGHT: the same terms, kept per edge so the next tilt re-lights
+    // without this pass (src/RakingLight.h EdgeField).
+    rakeField.build(w, h, [&](int x, int y) {
       float win[3][3];
       for (int dy = -1; dy <= 1; ++dy)
         for (int dx = -1; dx <= 1; ++dx)
           win[dy + 1][dx + 1] = tAt(x + dx, y + dy);
-      const uint32_t m = letterpress::multiplierAt(params, win, x, y, w, h);
-      // Achromatic, like the grain: pressed ink is MORE of its own pigment and
-      // a deboss shadow is LESS of the paper's light, not a different colour.
-      row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
+      return letterpress::termsAt(params, win, x, y, w, h);
+    });
+    rakeField.relight(rakinglight::shadowFor(rakinglight::unpack(rakePacked)));
+    rakeFieldValid = true;
+    upload = rakeField.field.data();
+  } else {
+    if (rakeFieldValid) {
+      rakeField = rakinglight::EdgeField{};
+      rakeFieldValid = false;
     }
+    field.resize(static_cast<size_t>(w) * h);
+    for (int y = 0; y < h; ++y) {
+      uint32_t *row = field.data() + static_cast<size_t>(y) * w;
+      for (int x = 0; x < w; ++x) {
+        float win[3][3];
+        for (int dy = -1; dy <= 1; ++dy)
+          for (int dx = -1; dx <= 1; ++dx)
+            win[dy + 1][dx + 1] = tAt(x + dx, y + dy);
+        const uint32_t m = letterpress::multiplierAt(params, win, x, y, w, h);
+        // Achromatic, like the grain: pressed ink is MORE of its own pigment
+        // and a deboss shadow is LESS of the paper's light, not a different
+        // colour.
+        row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
+      }
+    }
+    upload = field.data();
   }
-  if (!SDL_UpdateTexture(letterpressTexture, nullptr, field.data(),
+  if (!SDL_UpdateTexture(letterpressTexture, nullptr, upload,
                          static_cast<int>(w * sizeof(uint32_t)))) {
     LOG_ERR("DISP", "letterpress: could not upload the field (%s)",
             SDL_GetError());
@@ -385,6 +501,7 @@ static bool ensureLetterpressTexture() {
   letterTexRing = ringPct;
   letterTexDeboss = debossPct;
   letterTexPress = pressPct;
+  letterTexRaking = rakePacked;
   if (timingLogWanted()) {
     timingFrame.letterpress.built = true;
     timingFrame.letterpress.ms =
@@ -809,6 +926,45 @@ bool ensureLetterpressField() { return ensureLetterpressTexture(); }
 SDL_Texture *letterpressField() { return letterpressTexture; }
 void destroyLetterpressField() { destroyLetterpressTexture(); }
 
+// THE DESKTOP'S HATCH for the raking light: the Mac has no tilt. Latched once
+// (an env var cannot change under a running process), then applied every pass:
+// a fixed azimuth is re-applied cheaply (publish is a no-op when unchanged),
+// and a sweep walks the light once round the page per period, starting from
+// today's direction so its first frame is today's page.
+void stepRakingLight(uint64_t nowMs) {
+  static bool latched = false;
+  static bool haveAz = false, haveSweep = false;
+  static float az = 0.0f, rake = 1.0f, sweepSec = 0.0f;
+  static uint64_t sweepT0 = 0;
+  if (!latched) {
+    latched = true;
+    if (const char *e = std::getenv("CROSSPOINT_SIM_RAKING_LIGHT_AZIMUTH")) {
+      if (e[0]) {
+        haveAz = true;
+        az = static_cast<float>(std::atof(e));
+        if (const char *comma = std::strchr(e, ','))
+          rake = static_cast<float>(std::atof(comma + 1));
+      }
+    }
+    if (const char *e = std::getenv("CROSSPOINT_SIM_RAKING_LIGHT_SWEEP")) {
+      sweepSec = static_cast<float>(std::atof(e));
+      haveSweep = sweepSec > 0.0f;
+    }
+  }
+  if (!rakingOn.load() || (!haveAz && !haveSweep)) return;
+  const float ref = rakinglight::referenceScreenAzimuthDeg(sheetPanelOrientation);
+  rakinglight::Continuous c;
+  c.rake = rake;
+  if (haveSweep) {
+    if (sweepT0 == 0) sweepT0 = nowMs ? nowMs : 1;
+    const float turns = static_cast<float>(nowMs - sweepT0) / 1000.0f / sweepSec;
+    c.deltaDeg = rakinglight::wrapDeg(360.0f * (turns - std::floor(turns)));
+  } else {
+    c.deltaDeg = rakinglight::wrapDeg(az - ref);
+  }
+  publishRakingLight(rakinglight::quantize(c, nullptr));
+}
+
 bool ensureSheetField(int w, int h, float outPxPerSourcePx) {
   return ensureSheetToothTexture(w, h, outPxPerSourcePx);
 }
@@ -816,3 +972,64 @@ SDL_Texture *sheetField() { return sheetToothTexture; }
 void destroySheetField() { destroySheetToothTexture(); }
 
 }  // namespace simsheet
+
+// --- THE RAKING LIGHT'S PUBLIC HALF -----------------------------------------
+// Declared in SimulatorOverlay.h. Here rather than in HalDisplay.cpp because
+// every piece of state it touches is the sheet's.
+namespace SimulatorOverlay {
+
+void setRakingLight(bool enabled) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_RAKING_LIGHT"))
+    if (env[0]) enabled = env[0] == '1';
+  // The desktop hatch implies the switch: an azimuth or a sweep asked for on
+  // the command line is asking for the feature.
+  if (std::getenv("CROSSPOINT_SIM_RAKING_LIGHT_AZIMUTH") ||
+      std::getenv("CROSSPOINT_SIM_RAKING_LIGHT_SWEEP"))
+    enabled = true;
+  if (rakingOn.exchange(enabled) == enabled) return;
+  // Either way the light starts from today's: switching on must not move the
+  // shadow until the phone does, and the neutral pose is re-captured.
+  resetRakeGravityState();
+  rakingPacked.store(rakinglight::pack(rakinglight::Quantized{}));
+  SDL_Log("[raking] light %s", enabled ? "ON" : "off");
+  requestPresent();
+}
+
+bool rakingLightWanted() {
+  return rakingOn.load() && !display.isInverted() &&
+         letterpressStrength.load() > 0;
+}
+
+// A new neutral is a new pose lit as today's, so the light goes back to
+// today's with it -- otherwise a stream restarted after a dark page would hold
+// the last tilt's light until the hand crossed a hysteresis boundary.
+void resetRakingLightNeutral() {
+  resetRakeGravityState();
+  publishRakingLight(rakinglight::Quantized{});
+}
+
+void setRakingLightGravity(float gx, float gy, float gz, uint64_t nowMs) {
+  if (!rakingOn.load()) return;
+  const rakinglight::Vec3 g{gx, gy, gz};
+  const float dt = rakeHaveSmoothed && nowMs > rakeLastMs
+                       ? static_cast<float>(nowMs - rakeLastMs) / 1000.0f
+                       : 0.0f;
+  rakeSmoothed = rakinglight::smooth(rakeSmoothed, g, dt, rakeHaveSmoothed);
+  rakeHaveSmoothed = true;
+  rakeLastMs = nowMs;
+  if (!rakeHaveNeutral) {
+    rakeNeutral = rakeSmoothed;
+    rakeHaveNeutral = true;
+    SDL_Log("[raking] neutral captured at (%.2f, %.2f, %.2f)",
+            static_cast<double>(gx), static_cast<double>(gy),
+            static_cast<double>(gz));
+    return;
+  }
+  const rakinglight::Continuous c = rakinglight::lightFromGravity(
+      rakeNeutral, rakeSmoothed,
+      rakinglight::referenceScreenAzimuthDeg(sheetPanelOrientation));
+  const rakinglight::Quantized prev = rakinglight::unpack(rakingPacked.load());
+  publishRakingLight(rakinglight::quantize(c, &prev));
+}
+
+}  // namespace SimulatorOverlay

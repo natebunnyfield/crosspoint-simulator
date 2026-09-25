@@ -440,6 +440,25 @@ void setPressRing(int percentOfStandard);
 void setPressDeboss(int percentOfStandard);
 void setPressPressure(int percentOfStandard);
 
+// RAKING LIGHT (spike 2026-09-25): the deboss lit from a direction the phone's
+// tilt sets, instead of the fixed framebuffer top-left. Off by default and
+// bit-exact off. Model: src/RakingLight.h (host-tested); all four live in
+// src/SurfaceSheet.cpp; docs/raking-light-spike-2026-09-25.md.
+// CROSSPOINT_SIM_RAKING_LIGHT overrides the switch; the desktop's QA hatch is
+// CROSSPOINT_SIM_RAKING_LIGHT_AZIMUTH=<deg>[,<rake 0..1>] (screen degrees the
+// light comes FROM, clockwise from the top) or _SWEEP=<seconds per turn>.
+void setRakingLight(bool enabled);
+// True while a motion stream is worth its battery: the switch is on, the page
+// is light and the letterpress is on. The iOS adapter starts and stops
+// CoreMotion on this.
+bool rakingLightWanted();
+// One CoreMotion gravity sample, device axes, MAIN THREAD. The first sample
+// after the switch turns on (or after resetRakingLightNeutral) is the neutral
+// pose, which is lit exactly as today. Asks for a present when the quantized
+// light moves.
+void setRakingLightGravity(float gx, float gy, float gz, uint64_t nowMs);
+void resetRakingLightNeutral();
+
 // SCANLINES: the DARK page's screen texture, replacing the mottled grain
 // (supersedes the 2026-08-18 "no scanlines" ruling -- owner order 2026-08-22).
 // Percent of standard: 0 off (bit-exact), 50 subtle (the iOS dark default),
