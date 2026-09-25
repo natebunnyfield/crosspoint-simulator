@@ -699,6 +699,12 @@ run sheet_identity \
 run reading_allowance \
   c++ -std=c++17 -Isrc -o "$OUT/reading_allowance" tests/reading_allowance_test.cpp
 
+# THE READING SPEEDRUN (spike, 2026-09-24): splits, gold splits, the run
+# delta, flip-throughs that must not set a best, a menu that pauses rather
+# than ends, a new book that is a new run. docs/speedrun-spike.md.
+run speedrun \
+  c++ -std=c++17 -Isrc -o "$OUT/speedrun" tests/speedrun_test.cpp
+
 # WHEN THE GLASS IS RE-READ -- the decision behind every trail and sweep. It
 # was gated on the page's sequence number alone, so two presents of one page
 # with a different composition (the overlay laying the pad out, a keyboard, a
