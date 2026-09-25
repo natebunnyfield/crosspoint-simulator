@@ -119,6 +119,38 @@ int main() {
     check(noneLeft, "light: t = 1 leaves no ink anywhere");
     check(mono, "light: ink only ever leaves");
     check(veilAlpha(0.0f, 0.5f, 1.0f) == 0.0f, "light: a paper pixel is never veiled");
+    // THE STARVED PRESS: clean at t = 0, gone at t = 1, only ever losing ink,
+    // and a stroke's EDGE goes before its interior at the same kiss.
+    bool clean0 = true, gone1 = true, monoS = true, edgeFirst = true;
+    for (int y = 0; y < 120; y++)
+      for (int x = 0; x < 120; x++) {
+        const float k = kissAt(x, y, 120, 120, 0xC0FFEEu);
+        if (k < 0.0f || k > 1.0f) clean0 = false;
+        for (float in : {0.0f, 0.5f, 1.0f}) {
+          if (starvedRetained(k, in, 0.0f) != 1.0f) clean0 = false;
+          if (starvedRetained(k, in, 1.0f) != 0.0f) gone1 = false;
+          float prev = 2.0f;
+          for (int s = 0; s <= 120; s++) {
+            const float r = starvedRetained(k, in, s / 120.0f);
+            if (r > prev + 1e-6f) monoS = false;
+            prev = r;
+          }
+        }
+        for (int s = 1; s < 120; s++)
+          if (starvedRetained(k, 0.2f, s / 120.0f) > starvedRetained(k, 1.0f, s / 120.0f) + 1e-6f)
+            edgeFirst = false;
+      }
+    check(clean0, "starved press: t = 0 keeps all ink (kiss in [0,1])");
+    check(gone1, "starved press: t = 1 leaves none");
+    check(monoS, "starved press: ink only ever leaves");
+    check(edgeFirst, "starved press: a stroke's edge goes before its interior");
+    check(pressLeft(0.0f) == 1.0f && pressLeft(1.0f) == 0.0f && pressLeft(0.5f) < 1.0f,
+          "starved press: the impression recedes to nothing");
+    // The kiss is the PAGE's paper: a different sheet seed is a different
+    // break-up, the same seed the same one.
+    check(kissAt(10, 10, 100, 100, 1u) == kissAt(10, 10, 100, 100, 1u) &&
+          kissAt(10, 10, 100, 100, 1u) != kissAt(10, 10, 100, 100, 2u),
+          "starved press: the break-up belongs to the page's sheet");
     // inkness reads a pixel against the page's own palette.
     const panelpalette::Palette pal{{0x5C, 0x33, 0x2B}, {0xF9, 0xF3, 0xE9}};
     check(inkness(0xFF5C332Bu, pal) == 1.0f, "inkness: the ink is full ink");

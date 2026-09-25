@@ -15,6 +15,35 @@
   - With `CROSSPOINT_SIM_ZEN=1` the page decays.
   - Without it, the frame is **byte-identical** to the un-preset page (md5 `87a81473…` both arms).
 
+## The light decay, redone on the page's own simulation (2026-09-24, third ruling)
+
+The owner: *"redo the decay in light mode to take full advantage of the letterpress and ink and paper simulation, it seems lacking currently."*
+
+The first light decay starved the ink against a private noise field. The break-up therefore had nothing to do with the paper the page is drawn on or the plate that printed it. The model is now `picture::kissAt` / `starvedRetained` / `pressLeft` in `src/ReadingAllowance.h`, and it reads the letterpress model's own lanes, seeded by the page's sheet identity (`pageSheetSeed()`):
+
+- **The paper's tooth** (`'TOOT'`, per panel pixel, weight 0.60): a starved plate kisses the high spots first.
+- **The sheet's formation** (`'FORM'`, 3 cells, 0.15): the cloudy, thicker regions of the sheet print longer.
+- **The plate pressure** (`'PLTE'`, 4 cells, 0.25): ink survives longest where the press bears down heaviest.
+- **The stroke's interior** (the page's ink box-blurred one device pixel): edges go before cores.
+- **The film thins by 40%** over the minute, in the ink's own hue.
+- **The impression recedes.** The letterpress field is re-composited at `pressLeft(t) = (1-t)^1.5` through a render target, so the squeeze rim and the deboss go with the ink (`simallowance::drawFadedField`).
+
+The measurements that shaped it (`CROSSPOINT_SIM_ZEN=1`, 5 min, X3 1x, as shipped):
+
+1. **The veil left a ghost.** Weighting the veil by the pixel's own ink fraction left `ink*(1-ink)` of every antialiased edge pixel, and the spent page read p5 214 against paper 241. The veil now removes `1 - retained` of whatever is there, masked to the ink plus one device pixel. Spent: p5 223, paper 241, blank.
+2. **The first ramp read as a cut.** It had slope 5 and a threshold running −0.3→1.3: nearly clean at 4:24, blank by 4:50. It is now slope 2.5, −0.4→1.4.
+3. **The 55% film fade swallowed the break-up.** The surviving ink went uniformly faint. It is now 40%, so the fragments stay dark.
+
+The frames: 4:12 and 4:22 are slightly thinned. At 4:30 the ink is paler. At 4:38 the strokes are speckled by the tooth, with their cores holding. At 4:46 the text is a broken ghost, and at 5:00 it is blank. `tests/reading_allowance_test.cpp` pins all of these:
+
+- clean at t=0 and gone at t=1;
+- ink only ever leaves;
+- a stroke's edge goes before its interior;
+- the impression recedes to nothing;
+- the break-up belongs to the page's sheet seed.
+
+The dark decay is unchanged.
+
 Everything below is the record of the first shape (per book, per day, 10 minutes, persisted). The pictures, the review findings and the measurements still apply; the counting rules do not.
 
 ---

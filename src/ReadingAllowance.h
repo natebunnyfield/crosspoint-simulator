@@ -40,6 +40,7 @@
 #include <vector>
 
 #include "PanelPalette.h"
+#include "PhosphorGrain.h"
 
 namespace readingallowance {
 
@@ -173,6 +174,65 @@ inline float inkness(uint32_t argb, const panelpalette::Palette &pal) {
 // The LIGHT veil's alpha at one pixel: the ink this pixel loses.
 inline float veilAlpha(float ink, float tooth, float t) {
   return ink * (1.0f - inkRetained(tooth, t));
+}
+
+// ---- THE STARVED PRESS (owner 2026-09-24: "redo the decay in light mode to
+// take full advantage of the letterpress and ink and paper simulation, it
+// seems lacking currently"). The first light decay starved the ink against a
+// private noise field of its own, so the break-up had nothing to do with the
+// paper the page is drawn on or the plate that printed it. This one reads the
+// SAME lanes the letterpress model reads (src/Letterpress.h), seeded by the
+// page's own sheet identity:
+//
+//   the paper's TOOTH ('TOOT', per panel pixel) -- a starved plate kisses the
+//     high spots of the sheet first and misses the valleys;
+//   the sheet's FORMATION ('FORM', 3 cells) -- the cloudy, thicker regions of
+//     the sheet take the kiss better than the thin ones;
+//   the PLATE PRESSURE ('PLTE', 4 cells) -- where the press bears down
+//     heaviest, ink survives longest;
+//
+// and the STROKE'S INTERIOR (the page's own inkness, blurred one device pixel):
+// a light impression drops the edges of a stroke first, so the letters thin
+// before they break. What survives is a thinner film, so it pales toward the
+// paper -- in the ink's own hue, because the veil is the paper's color over
+// the ink. The IMPRESSION recedes with the pressure (pressLeft below), so the
+// squeeze rim and the deboss go with the ink instead of printing a ghost of
+// every letter on a spent page.
+
+// How well a starved plate still prints at panel pixel (x, y), 0..1.
+inline float kissAt(int x, int y, int w, int h, uint32_t seed) {
+  const float u = phosphorgrain::unitFromHash(phosphorgrain::hash3(
+      static_cast<uint32_t>(x), static_cast<uint32_t>(y), seed ^ 0x544F4F54u));
+  const float nx = (static_cast<float>(x) + 0.5f) / static_cast<float>(w > 0 ? w : 1);
+  const float ny = (static_cast<float>(y) + 0.5f) / static_cast<float>(h > 0 ? h : 1);
+  const float form = phosphorgrain::valueNoise(nx * 3.0f, ny * 3.0f, seed ^ 0x464F524Du);
+  const float plate = phosphorgrain::valueNoise(nx * 4.0f, ny * 4.0f, seed ^ 0x504C5445u);
+  return 0.60f * u + 0.15f * form + 0.25f * plate;
+}
+
+// The fraction of a pixel's ink that survives at decay t, from the press's
+// kiss there and how deep inside its stroke it sits (0 at the edge, 1 deep).
+// Exactly 1 at t = 0 and exactly 0 at t = 1 for every input.
+inline float starvedRetained(float kiss, float interior, float t) {
+  if (t <= 0.0f) return 1.0f;
+  if (t >= 1.0f) return 0.0f;
+  const float score = 0.65f * kiss + 0.35f * interior;
+  // A soft, wide ramp (slope 2.5, threshold -0.4 -> 1.4): the first cut
+  // (slope 5, -0.3 -> 1.3) held the page nearly clean to 4:24 and blank by
+  // 4:50, so the starvation read as a cut rather than as a minute.
+  const float threshold = -0.40f + 1.80f * t;
+  const float kept = std::clamp((score - threshold) * 2.5f + 1.0f, 0.0f, 1.0f);
+  // A thinner film pales what is left -- but only by 40%: starved letterpress
+  // reads as dark fragments on the sheet's high spots, not as uniformly faint
+  // type, and at 55% the break-up disappeared into the fade.
+  return kept * (1.0f - 0.40f * t);
+}
+
+// How much of the letterpress impression (rim, deboss, pressure) remains.
+inline float pressLeft(float t) {
+  if (t <= 0.0f) return 1.0f;
+  if (t >= 1.0f) return 0.0f;
+  return std::pow(1.0f - t, 1.5f);
 }
 
 // Box-downsample the page's excess light over `ground` by `factor`, then blur
