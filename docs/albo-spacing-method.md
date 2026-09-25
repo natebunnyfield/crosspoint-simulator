@@ -948,6 +948,8 @@ moves is a dial that never arrived** — in its fourth appearance in two days.
 
 The in-sample errors above flatter the fit: `bench_fit.py --cv` measures **11.66** held-out against 8.32 in-sample on the same 370 judgments, and a blind 40-row re-ask bench now measures the owner's own repeatability. See [albo-kerning-noise-floor-2026-09-25.md](albo-kerning-noise-floor-2026-09-25.md).
 
+Round 389 (same day) kerns word pairs only where his bench residual and a reference measure agree, or where the residual is at least 20 on its own, and builds a ranked outlier bench for the rest. Its rule, its instruments, and one swapped-table instrument mistake are in [albo-round-389-2026-09-25.md](albo-round-389-2026-09-25.md).
+
 ---
 
 ## Round 358 — the WORD space, and the two measures that point opposite ways
