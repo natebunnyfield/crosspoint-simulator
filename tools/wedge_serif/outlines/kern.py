@@ -768,19 +768,21 @@ else:
 # the white measured at round 388, ADDED to what the pair carries. White =
 # rsb + kern + lsb, kern by HarfBuzz (instruments/r389_bench_residuals.py).
 #
-# A word pair moves only where his bench residual (>= 12, past his 10.8
-# repeatability) AGREES IN SIGN with at least one reference measure -- the
-# pair's 2-D interaction (Measure 4) or its clamped band white (Measure 5),
-# each taken against the letter's own pairs and against the references'
-# same pair (instruments/r389_pair_evidence.py, docs/albo-round-389-...md).
-#   roman  or  his -14 (mean of -26/-2)  now +20 loose   M4 +20  M5  +6  -> -20
-#   roman  rt  his +25                   now -14 tight   M4 -18  M5 -11  -> +14
-#   roman  st  his  -3                   now +14 loose   M4 +21  M5  -4  -> -14
-#   italic or  his  -6                   now +16 loose   M4 +30  M5 +32  -> -16
-#   italic es  his  +8                   now -22 tight   M4  -9  M5 -12  -> +22
-#   italic te  his  +7                   now -18 tight   M4 -14  M5  +2  -> +18
-# Nothing in `rhythm` passes in either style (every pair within noise on all
-# three readings); those pairs go to the outlier bench instead.
+# A word pair moves where his bench residual is >= 12 units (past his 10.8
+# repeatability) AND at least one reference measure agrees in sign, OR where
+# the residual is >= 20 on its own -- twice his repeatability, and the re-ask
+# showed that on large-residual rows he repeats himself (14.0) while the model
+# misses (31.9). The measures are the pair's 2-D interaction (Measure 4) and
+# clamped band white (Measure 5, clamp 1.5), each against the letter's own
+# pairs and against the references' same pair (docs/albo-round-389-...md).
+#   roman  or  his -14 (mean of -26/-2)  now +20 loose   M4 +30  M5 +32  -> -20
+#   roman  rd  his +28                   now -20 tight   M4 +10  M5  +2  -> +20 (his eye alone)
+#   italic or  his  -6                   now +16 loose   M4 +20  M5  +6  -> -16
+#   italic es  his  +8                   now -22 tight   M4  +9  M5 +12  -> +22 (his eye alone)
+# Measured and NOT moved, because his residual and the measures disagree or
+# are inside noise: roman rt (-14 / +25 / -2), st (+14 / 0 / -3), te, da, es;
+# italic te (-18 / +8 / +2), er, rt. Nothing in `rhythm` passes in either
+# style; those pairs lead the outlier bench instead.
 #
 # The italic capitals are round 388's section-3 finding, the same double
 # count at smaller size: the P's, W's and A's bearings moved after his round
@@ -792,10 +794,10 @@ if _ALD is not None and _ALD.ON:
     for _p, _d in ((('P', 'a'), 28), (('P', 'o'), 33), (('P', 'r'), 27),
                    (('W', 'a'), -11), (('W', 'h'), -12), (('W', 'i'), -12),
                    (('A', 'm'), -6), (('A', 'n'), -6), (('A', 'v'), -6),
-                   (('o', 'r'), -16), (('e', 's'), 22), (('t', 'e'), 18)):
+                   (('o', 'r'), -16), (('e', 's'), 22)):
         PAIRS[_p] = _shipped(*_p) + _d
 else:
-    for _p, _d in ((('o', 'r'), -20), (('r', 't'), 14), (('s', 't'), -14)):
+    for _p, _d in ((('o', 'r'), -20), (('r', 'd'), 20)):
         PAIRS[_p] = _shipped(*_p) + _d
 
 _apply_bench()
