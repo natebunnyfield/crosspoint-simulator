@@ -418,6 +418,10 @@ int CrossPointPrefs_gestureBinding(int gesture);
 // roads lead to the same action, which is the point.
 int CrossPointPrefs_gestureBindingIsExplicit(int gesture);
 
+// RAKING LIGHT (spike 2026-09-25): 1 while the Settings row is on. Ships OFF.
+// Polled by ios/CrossPointRakingLight.mm. src/RakingLight.h.
+int CrossPointPrefs_rakingLight(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -431,6 +431,10 @@ int main(int argc, char **argv) {
              "Settings.bundle/Root.plist");
   pinShipped(simdials::SpeedrunOn, plistToggleDefault(plist, "speedrunDemo"),
              "Settings.bundle/Root.plist");
+  // THE RAKING LIGHT (spike 2026-09-25) is a toggle row that ships OFF; its
+  // getter reads absence as off through -boolForKey:, which agrees.
+  pinShipped(simdials::RakingLightOn, plistToggleDefault(plist, "rakingLight"),
+             "Settings.bundle/Root.plist");
   pinShipped(simdials::ReadingAllowanceMinutes,
              static_cast<int>(literalAfter(
                  prefs, "objectForKey:kReadingAllowanceMinutes] == nil) return")),

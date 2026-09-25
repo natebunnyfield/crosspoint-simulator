@@ -82,6 +82,8 @@
 extern "C" void CrossPointTiltGestures_begin(void);
 extern "C" void CrossPointTiltGestures_perFrame(void);
 extern "C" void CrossPointTiltGestures_appWillResignActive(void);
+extern "C" void CrossPointRakingLight_perFrame(void);
+extern "C" void CrossPointRakingLight_appWillResignActive(void);
 
 // Ask the firmware to RE-RENDER the current activity. Declared rather than
 // included: ActivityManager.h holds unique_ptr<Activity> and would drag the
@@ -3632,6 +3634,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // Re-arms itself from perFrame once the app is active again.
       CrossPointVolumeButtons_appWillResignActive();
       CrossPointTiltGestures_appWillResignActive();
+      CrossPointRakingLight_appWillResignActive();
       // The present suppression used to be here and has moved to
       // presentationWatch, onto SDL_EVENT_DID_ENTER_BACKGROUND. This event is
       // sceneWillResignActive, which is NOT backgrounding -- see the comment
@@ -4247,4 +4250,5 @@ void CrossPointHarness_perFrame() {
   // the rocker's re-take has already happened by the time this drains.
   CrossPointVolumeButtons_perFrame();
   CrossPointTiltGestures_perFrame();
+  CrossPointRakingLight_perFrame();
 }

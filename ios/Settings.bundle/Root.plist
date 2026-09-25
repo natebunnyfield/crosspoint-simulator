@@ -1884,6 +1884,24 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>On a light page, tilt the phone and the lamp stays where it is: the shadows in the pressed letters move round them as they would on a real sheet. Experimental.</string>
+			<key>Title</key>
+			<string>Raking Light</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>rakingLight</string>
+			<key>Title</key>
+			<string>Raking Light (Experimental)</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>In zen, reading time is counted whatever the book, and starts again every time zen starts. The page is untouched until the last minute, then the ink runs dry (or, on a dark page, the tube overdrives) until nothing can be read. Leave zen and come back for another session.</string>
 			<key>Title</key>
 			<string>Zen Reading Goal</string>

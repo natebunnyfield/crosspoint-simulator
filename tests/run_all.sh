@@ -591,6 +591,18 @@ run md5 \
 run letterpress \
   c++ -std=c++17 -Isrc -o "$OUT/letterpress" tests/letterpress_test.cpp
 
+# Raking light (2026-09-25 spike, src/RakingLight.h): the letterpress deboss
+# lit from a direction the phone's tilt sets. Pins that splitting
+# letterpress::multiplierAt into termsAt + a combiner moved no code value
+# (against a frozen copy of the pre-split body, a million windows); that the
+# reference light maps to framebuffer top-left in every orientation; that the
+# light turns the physical way for a roll and is EXACTLY today's at neutral;
+# that flat pixels are untouched and no pixel goes darker than the fixed
+# light's worst case under any of the 16x9 lights; that the edge-only relight
+# equals a full per-pixel lighting; and the quantizer's hysteresis.
+run raking_light \
+  c++ -std=c++17 -Isrc -Itests -o "$OUT/raking_light" tests/raking_light_test.cpp
+
 run scanlines \
   c++ -std=c++17 -Isrc -o "$OUT/scanlines" tests/scanlines_test.cpp
 

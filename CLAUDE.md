@@ -57,6 +57,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | What width should Albo's capitals be, against Trajan, humanist and Helvetica | [docs/albo-capital-widths.md](docs/albo-capital-widths.md) — the separator is the ROUND-to-SQUARE ratio, not overall width; `tools/wedge_serif/cmp_capwidths.py` re-runs the measurement |
 | Which of Albo's serifs and counters are exact copies of one another, and the ranked fixes for variety | [docs/albo-variety-audit-2026-09-13.md](docs/albo-variety-audit-2026-09-13.md) — 129 of 144 serifs have a byte-identical twin on the designed outline; `outlines/cmp/variety.py` re-runs it |
 | The type's own corners and weight (ink rounding, ink spread) — prototype, desktop-only, awaiting a ruling | [docs/ink-rounding.md](docs/ink-rounding.md) — measured ladder, the five negative results, the cost still to cut |
+| RAKING LIGHT — tilt the phone and the letterpress deboss is lit from a moving lamp; the model, the edge-only relight and its measured cost, and why the fixed light was always screen top-RIGHT on the phone | [docs/raking-light-spike-2026-09-25.md](docs/raking-light-spike-2026-09-25.md) — spike, device feel UNCONFIRMED |
 | One surface effect | [letterpress-and-scanlines](docs/letterpress-and-scanlines.md) · [phosphor-grain](docs/phosphor-grain.md) · [show-through](docs/show-through.md) · [corner-defocus](docs/corner-defocus.md) |
 | The button pad's tones | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
 | Zen mode's GESTURES (the 17-gesture set, what the 2026-08-28 trim removed and why, the hold ruling), its geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
@@ -927,7 +928,7 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now twenty groups and 56 rows** (the twentieth is **Reading Speedrun**, 2026-09-25 -- one toggle, `src/Speedrun.h`; the nineteenth is **Zen Reading Goal**, 2026-09-24 -- one multi-value row, `src/ReadingAllowance.h`; the eighteenth group is **The Left Margin**, 2026-09-21 -- six gesture rows, generated like the rest of the gesture half; it took the count from seventeen/48. Before it: the six Ink sliders arrived 2026-09-11 as one group and became six titled groups on 2026-09-12, because iOS draws a `PSSliderSpecifier` with NO title and the owner's screenshot showed six anonymous sliders -- a group header is the only label a slider can have; the count before it was already 42, not the 37 this sentence claimed -- the 2026-09-05/06 rocker and tilt rows had not been added to it) — count them out of
+**Settings.app is now twenty-one groups and 57 rows** (the twenty-first is **Raking Light**, 2026-09-25 -- one toggle, ships off, `src/RakingLight.h`; the twentieth is **Reading Speedrun**, 2026-09-25 -- one toggle, `src/Speedrun.h`; the nineteenth is **Zen Reading Goal**, 2026-09-24 -- one multi-value row, `src/ReadingAllowance.h`; the eighteenth group is **The Left Margin**, 2026-09-21 -- six gesture rows, generated like the rest of the gesture half; it took the count from seventeen/48. Before it: the six Ink sliders arrived 2026-09-11 as one group and became six titled groups on 2026-09-12, because iOS draws a `PSSliderSpecifier` with NO title and the owner's screenshot showed six anonymous sliders -- a group header is the only label a slider can have; the count before it was already 42, not the 37 this sentence claimed -- the 2026-09-05/06 rocker and tilt rows had not been added to it) — count them out of
 `ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
 is how this paragraph was wrong four times. It said "seven groups and 29 rows"
 while the file held nine and 36, because the gesture groups were added to the
@@ -956,6 +957,7 @@ print(len(g),'groups,',len(s)-len(g),'rows')"
 | Read Aloud | Read Aloud (Experimental) · Speaking Rate |
 | Library | GitHub Token |
 | Ink: Corner Rounding · Ink: Spread · Ink: Impression · Ink: Squeeze · Ink: Deboss Shadow · Ink: Plate Pressure | one `PSSliderSpecifier` each, 0..200, the only sliders in the bundle; six groups because a slider has no title of its own. Ship 27 / 106 / 68 / 93 / 99 / 125 (owner 2026-09-12, his own slider positions) |
+| Raking Light | Raking Light (Experimental) — toggle, ships OFF; tilt moves the lamp lighting the letterpress deboss (spike 2026-09-25, `docs/raking-light-spike-2026-09-25.md`) |
 | Zen Reading Goal | Minutes — Off/5/10/15/20/30/45/60, ships 5; counted only in zen, restarted when zen starts (2026-09-24) |
 | Reading Speedrun | Speedrun Timer — off by default (2026-09-25) |
 | Sleep | Power-Off Collapse · Diagnostics Log |

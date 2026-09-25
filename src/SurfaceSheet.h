@@ -112,6 +112,11 @@ bool ensureLetterpressField();
 SDL_Texture *letterpressField();
 void destroyLetterpressField();
 
+// The raking light's desktop QA hatch (a fixed azimuth or a slow sweep from the
+// env), stepped once per main-loop pass because a sweep has to move while the
+// page sits still. A no-op when the switch is off or no hatch is set.
+void stepRakingLight(uint64_t nowMs);
+
 // The sheet: a MOD field at OUTPUT size, drawn 1:1 over the whole app surface.
 // `outPxPerSourcePx` is the presentation scale with the render scale divided
 // out -- the same number the scanlines' base pitch comes from.

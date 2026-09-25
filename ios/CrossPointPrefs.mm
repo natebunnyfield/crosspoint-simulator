@@ -947,3 +947,16 @@ int CrossPointPrefs_gestureBindingIsExplicit(int gesture) {
                                static_cast<gesturebind::Gesture>(gesture))];
   return written[key] != nil ? 1 : 0;
 }
+
+// RAKING LIGHT (spike 2026-09-25): tilt the phone and the letterpress deboss is
+// lit from a moving direction. A Settings row, and it ships OFF. Missing-key
+// failure mode is benign -- NO is off, the shipped default -- so like
+// kPowerOffCollapse it needs no entry in the Root.plist-unreadable fallback.
+// src/RakingLight.h, docs/raking-light-spike-2026-09-25.md.
+static NSString *const kRakingLight = @"rakingLight";
+
+int CrossPointPrefs_rakingLight(void) {
+  ensureDefaults();
+  checkKnown(kRakingLight);
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kRakingLight] ? 1 : 0;
+}
