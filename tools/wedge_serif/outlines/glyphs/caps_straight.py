@@ -628,7 +628,24 @@ def g_J(c):
     tail = cubic((x, r * 0.25 - _j), (x, -desc * 0.42 - _j),
                  (x - r * 0.55, -desc * 0.55 - _j), (x - r * 1.1, -desc * 0.1 - _j))
     base = pen_widths(tail)
-    blend = lambda t: (CW if t < 0.1 else (base(t) if t > 0.45 else CW + (base(t) - CW) * (3 * ((t - 0.1) / 0.35) ** 2 - 2 * ((t - 0.1) / 0.35) ** 3)))
+    # ROUND 387 -- THE HOOK STARTS AT THE STEM'S OWN WIDTH, not at CW. Owner
+    # 2026-09-25, *"Yes, all four"* (the fractures round 385 reported and
+    # left): at the Bold the stem arrives at its foot 12 units wider than CW
+    # -- its entasis, carried down by `ent_span` -- and the hook began at CW
+    # 20 units below, so both edges of the J stepped in where stem met hook:
+    # 7.0 units on the right and 5.0 on the left (`cmp_jogs.py`), and in the
+    # Regular 2.0. The width the hook takes over from is now read off the
+    # stem itself, 1 unit above its foot, and the hook centers on it.
+    import shapely.geometry as sg
+    _yj = r * 0.25 - 20 - J_DROP + 1.0
+    _row = st.intersection(sg.box(x - CS * 2, _yj - 0.25, x + CS * 2, _yj + 0.25))
+    _w0 = (_row.bounds[2] - _row.bounds[0]) if not _row.is_empty else CW
+    _xc = ((_row.bounds[2] + _row.bounds[0]) / 2) if not _row.is_empty else x
+    if abs(_xc - x) > 1e-6:
+        tail = cubic((_xc, r * 0.25 - _j), (_xc, -desc * 0.42 - _j),
+                     (x - r * 0.55, -desc * 0.55 - _j), (x - r * 1.1, -desc * 0.1 - _j))
+        base = pen_widths(tail)
+    blend = lambda t: (_w0 if t < 0.1 else (base(t) if t > 0.45 else _w0 + (base(t) - _w0) * (3 * ((t - 0.1) / 0.35) ** 2 - 2 * ((t - 0.1) / 0.35) ** 3)))
     # ROUND 275 -- THE HOOK'S END IS THE c's TOP FINIAL. Owner 2026-09-19:
     # "change out round finials (like c top serif)." The hook flared 1.3 over
     # its last 35% into the 20-degree cut -- 84.8 wide at the 400, a teardrop
@@ -640,7 +657,17 @@ def g_J(c):
     # has round finials that needs to replaced along with others") -- its
     # branch kept the 1.3 flare into the cut for one round (86.7 wide at the
     # Italic 400, the last teardrop in the family) and is gone.
-    return geom.ink([st, stroke(tail, PR.finial_widths(blend, False), cut1=PR.finial_cut(tail, False))])
+    g = geom.ink([st, stroke(tail, PR.finial_widths(blend, False), cut1=PR.finial_cut(tail, False))])
+    # ...and the 1-2 units the stem's own foot still leaves against the hook
+    # are eased to a slope (`geom.ease_step`, round 385's tool for the same
+    # class) over a band a quarter of a stem either side of the foot and only
+    # 8 units wider than the stem. It was a whole stem wider at first, and at
+    # the Bold Italic -- where `_thin_stem` and the shear bring the hook's tip
+    # up within 54 units of the stem -- that hull reached the tip and sealed
+    # the slit between tip and stem into a hole (`cmp_aldine_glitch` CRACK,
+    # 750 units^2). The narrow box cannot reach it.
+    _yf = r * 0.25 - 20 - J_DROP
+    return geom.ease_step(g, _xc - _w0 / 2 - 8.0, _xc + _w0 / 2 + 8.0, _yf - CS * 0.25, _yf + CS * 0.25)
 
 # owner, verbatim: "the kick on K and R needs to taper (give me options to
 # choose from)." Both kicks are drawn FOOT-FIRST, so the pair reads

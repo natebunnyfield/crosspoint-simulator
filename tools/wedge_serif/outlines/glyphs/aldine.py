@@ -7536,7 +7536,21 @@ if ON:
                        widths([(0.0, CS * 0.52), (1.0, CS * 0.86)]))
         bar = stroke([(cx + rx * 0.96, by), (cx + rx * G_BAR_IN, by + C * 0.012)],
                      widths([(0.0, TH_H * 1.30), (1.0, TH_H * 0.70)]), cut1=CUT)
-        return geom.ink([arc, lip, stem_, bar])
+        g = geom.ink([arc, lip, stem_, bar])
+        # ROUND 387 -- THE SPUR'S FOOT NO LONGER STANDS OUT OF THE ARC. Owner
+        # 2026-09-25, *"Yes, all four"* (round 385's fracture list). The spur
+        # starts square across its own direction at the arc's end, and the arc
+        # ends on the pen cut at a different width, so at the 700 the spur's
+        # lower right corner stood 9.6 units proud of the arc's outer edge
+        # (`cmp_jogs.py`, BoldItalic (504, 75)) -- a ledge on the outside of
+        # the bowl where the stroke should turn up in one line. The ledge is
+        # eased to a slope over a box on the OUTER side of the join only: the
+        # counter's crotch on the inner side is left exactly as drawn, and
+        # neither the arc, the spur, the bar nor the terminal moves. Above the
+        # Medium only: the 400 reads 2.7 there, under what any size shows.
+        if S > 84.0:
+            g = geom.ease_step(g, ex - CS * 0.10, ex + CS * 0.80, ey - CS * 0.45, ey + CS * 0.35)
+        return g
 
     # ROUND 135: THE Q IS THE ONE THAT GOES TO PAGELLA. The owner's first list
     # put it with the Poetica eight and his second message the same day
@@ -8359,8 +8373,41 @@ if ON:
                                      scale=CAP_R_HAND), x0, C)
         lp, lw = _R_traced(_R_kick_sunk(_hand_rows(CAP_R_LEG, CAP_R_LEG_HAND,
                                                    scale=CAP_R_HAND)), x0, C)
-        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
-                         stroke(bp, bw), stroke(lp, lw, cut1=CUT)])
+        g = geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
+                      stroke(bp, bw), stroke(lp, lw, cut1=CUT)])
+        # ROUND 387 -- THREE FRACTURES EASED, THE DRAWING KEPT. Owner
+        # 2026-09-25, *"Yes, all four"*: round 385's sweep (`cmp_jogs.py`)
+        # found this R's joins stepping and left them because the capital is
+        # ruled. Nothing traced moves -- the bowl, the leg, the stem and their
+        # widths are the round-135 Poetica trace -- only the ink AT each join
+        # is replaced by its own convex hull (`geom.ease_step`), which turns a
+        # step into a short slope and adds nothing outside its box:
+        #   1. THE TOP. The stem's flat top stands at the cap line and the
+        #      bowl's top stroke, centred at 0.966 C, a few units under it: a
+        #      6.0-unit square step on the cap line (Italic (286, 670)). The box
+        #      is the band above the counter's top, right of the stem's middle.
+        #   2. THE KNOT where the bowl's lower arm meets the leg's root: a V cut
+        #      into the counter's floor and a lip under the arm, 4.2 units
+        #      (Italic (304, 327)). The box sits on the leg's first point.
+        #   3. THE LEG'S BEND, where the swash turns from steep to flat: its
+        #      upper edge (the inside of that turn) kinked, 5.1 units (Italic
+        #      (475, 79)). The box is on the inside of the turn only, so the
+        #      outer edge of the swash is untouched.
+        # Both italics: the 700 carries the same knot, and the three boxes are
+        # sized in CS so they scale with the stem.
+        g = geom.ease_step(g, x0 + CS * 0.2, x0 + CS * 1.6, C - 18.0, C + 8.0)
+        # (the box reaches half a stem under the leg's root at the 400 and is
+        # held at 46 units above it: at the 700's 0.5 stem, 66 units, the hull
+        # ran from the arm's underside clear down the leg's left edge and
+        # turned the crotch into a heavy bracket; 0.20 left the lip standing)
+        kx, ky = lp[0]
+        g = geom.ease_step(g, kx - CS * 0.75, kx + CS * 0.10, ky - min(CS * 0.50, 46.0), ky + CS * 0.35)
+        _tn = geom.tangents(lp)
+        _turn = lambda i: abs(math.atan2(_tn[i + 3][1], _tn[i + 3][0]) - math.atan2(_tn[i - 3][1], _tn[i - 3][0]))
+        bi = max(range(len(lp) // 2, len(lp) - 4), key=_turn)
+        bx, by_ = lp[bi]
+        g = geom.ease_step(g, bx - CS * 0.5, bx + CS * 0.8, by_, by_ + CS * 0.8)
+        return g
 
     # ---------------------------------------------------------------- P
     # POETICA'S P HAS A DEEP BOWL THAT DOES NOT CLOSE. Measured at a 300 px cap:
@@ -9884,15 +9931,41 @@ if ON:
     # hairline": nearly twice the roman's, on a letter whose arm and spine
     # genuinely meet rather than lie alongside each other.
     Y_GAP = float(os.environ.get("ALBO_ALD_Y_GAP", 0.016))
+    # ROUND 387 -- AND AT THE 700 THE ROOT MOVES FURTHER, so the gap stays a
+    # gap. Owner 2026-09-25, *"Open it to match"*: the BoldItalic's spine and
+    # arm are carried up by ALD_WF_UP (1.38 at stem 116), both of them widen
+    # toward each other, and the 0.016 that leaves 13.0 units of white at the
+    # 400 left 1.3 at the 700 -- one contour in the raster, invisible at any
+    # size, while round 386's BoldItalic yen carries a 14-unit channel that
+    # "echoes" it. Laddered at the 700, nearest approach arm-to-spine:
+    # 0.030 -> 8.7, 0.038 -> 12.6, 0.040 -> 13.5, 0.046 -> 16.0, 0.054 -> 19.9.
+    # 0.040 is the rung that matches the 400's 13.0, and its narrowest
+    # horizontal white (17.6 at 0.43 cap, against the 400's 15.6 at 0.42)
+    # sits at the same height. The P's gap is a fixed-width CUT, not a
+    # passing root, and already reads 6.8 / 6.6 at the 400 / 700 -- it does
+    # not share this mechanism and is not touched. The 400 is not touched.
+    #
+    # THE YEN KEEPS THE 400's ROOT. `g_yen` draws `GLYPHS['Y']` and then trims
+    # the arm's root to its own designed channel (round 386, option b, 16.8
+    # drawing units in every cut); with the Y's root moved a further 0.024 cap
+    # the trimmed root landed in the channel between the bars and left a
+    # wedge of white there. So the yen asks for the Y with `yen=True` and
+    # gets the root it was ruled on, and the ¥ is byte-identical to round 386.
+    Y_GAP_400 = Y_GAP
+    if pen.S > 84.0: Y_GAP = float(os.environ.get("ALBO_ALD_Y_GAP_BOLD", 0.040))
     _Y_ARM_YS = (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)
-    def _y_gap_at(i, _n=len(_Y_ARM_YS)):
-        if not Y_GAP or i >= 4: return 0.0
+    def _y_gap_at(i, _n=len(_Y_ARM_YS), gap=None):
+        gap = Y_GAP if gap is None else gap
+        if not gap or i >= 4: return 0.0
         u = i / 4.0                       # 1 at the root, 0 by the fourth point
-        return Y_GAP * (1.0 - u) ** 2
-    Y_ARM = [(round(0.4850 + _y_gap_at(i)
-                    + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4),
-              y + (Y_TOP_LIFT if y > 0.9 else 0.0))
-             for i, y in enumerate(_Y_ARM_YS)]
+        return gap * (1.0 - u) ** 2
+    def _y_arm(gap):
+        return [(round(0.4850 + _y_gap_at(i, gap=gap)
+                       + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4),
+                 y + (Y_TOP_LIFT if y > 0.9 else 0.0))
+                for i, y in enumerate(_Y_ARM_YS)]
+    Y_ARM = _y_arm(Y_GAP)
+    Y_ARM_YEN = _y_arm(Y_GAP_400)
     Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
                (0.78, 0.0684), (1.00, 0.0714)]
     # THE WEIGHT IS ALBO'S, THE DISTRIBUTION IS PAGELLA'S -- round 131c's rule,
@@ -9982,7 +10055,7 @@ if ON:
         parts = [solid]
         parts += _stem_serifs(Lz, Rz, 'both', False)
         parts.append(_end_wedge(p_, wf(1.0), False, 1))
-        ap = [pt(fx, fy) for fx, fy in Y_ARM]
+        ap = [pt(fx, fy) for fx, fy in (Y_ARM_YEN if c.get('yen') else Y_ARM)]
         q_ = catmull(ap, tension=0.5)
         af = widths([(t, C * v * Y_INK * Y_ARM_INK * ALD_WF_UP) for t, v in Y_ARM_W])
         parts.append(stroke(q_, af))

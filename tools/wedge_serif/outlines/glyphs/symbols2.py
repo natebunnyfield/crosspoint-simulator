@@ -880,7 +880,20 @@ def g_Psi(c):
                (xa - sx * 150 * k, C * 0.29), (xs, C * 0.27)]
         center = catmull(pts)
         parts.append(stroke(center, bowl_widths(center, widths([(0.0, 0.95), (0.35, 1.0), (1.0, 0.9)]))))
-    return geom.ink(parts)
+    g = geom.ink(parts)
+    # ROUND 387 -- each arm's capital stem stops flat at 0.58 of the cap and
+    # the curve that carries it in to the stem starts at a different width
+    # (the stem's entasis against the O's round pen), so both edges of each
+    # arm STEPPED there: 3.8 units in the Regular, 6.0 in the Bold, 5.7 in the
+    # Bold Italic (`cmp_jogs.py`; round 385 reported it and left it). Owner
+    # 2026-09-25, *"Yes, all four"*. Eased to a slope over a band a stem wide
+    # and 0.3 of a stem tall at each join: the cup's white is 288 units in
+    # from the arm and the band is a stem either side of it, so nothing the
+    # letter must keep lies inside.
+    for sx in (-1, 1):
+        xa = xs + sx * 288 * k
+        g = geom.ease_step(g, xa - CS, xa + CS, C * 0.58 - CS * 0.3, C * 0.58 + CS * 0.3)
+    return g
 
 @glyph('∑')
 def g_summation(c): return g_Sigma(c)
@@ -971,18 +984,50 @@ glyph('ŧ')(lambda c: _barred(c, 't', y=XH * 0.34, x_pad=0.16))
 glyph('Ŧ')(lambda c: _barred(c, 'T', y=CAP * 0.40, x_pad=-0.18))
 
 def _crossed_eth(c):
-    """The eth: the o, with a back that LEAVES the bowl's top-left and rises
-    to the ascender as one stroke, crossed near its top. The first cut
-    started the back inside the bowl and read as an o with a curl."""
-    g = GLYPHS['o'](c); x0, y0, x1, y1 = g.bounds
-    top = ASC * 0.82
-    back = cubic((x0 + (x1 - x0) * 0.16, y1 - (y1 - y0) * 0.30),
-                 (x0 + (x1 - x0) * 0.30, y1 + (top - y1) * 0.46),
-                 (x0 + (x1 - x0) * 0.66, y1 + (top - y1) * 0.72),
-                 (x1 * 0.96, top))
-    bar_y = y1 + (top - y1) * 0.58
-    return geom.ink([g, _s(back, widths([(0.0, 0.92), (1.0, 0.58)]), cut0=None),
-                     bar(x0 + (x1 - x0) * 0.20, x1 * 1.02, bar_y, MATH * 0.95)])
+    """The eth: a round bowl whose right side goes on up as ONE stroke,
+    leaning back over the bowl to a fine end above its left side, and a
+    crossing stroke through that back.
+
+    ROUND 387 -- REDRAWN. Owner 2026-09-25, of the italic: it reads like a
+    Cyrillic be (б), *"redraw blind pick"*. It did, in every cut and not only
+    the italic: the back LEFT the bowl's top-left and swept RIGHT to a flag
+    over the bowl, with a flat bar on top -- which is exactly how a be is
+    built, and nothing like an eth. Every reference measured (Flanker Griffo
+    Italic and Bold Italic, Pagella Italic, Poetica, Coelacanth Italic, and
+    Georgia and Times as romans; docs/albo-round-387-2026-09-25.md) builds it
+    the other way round: the bowl's RIGHT wall rises out of the bowl's widest
+    point and leans back LEFT, so the tip ends over the bowl's left third,
+    and the cross is a short stroke through the back a little above halfway.
+    Unsheared at x-height 429, Flanker's back sits at 0.62-0.77 of the width
+    at 1.15 x-height and its tip at 0.18-0.33 at 1.53; this one is drawn to
+    that, 0.89 of the ascender tall.
+
+    How it is joined: the ring's upper right, OUTSIDE the back's centerline,
+    is cut away and the back starts at the ring's widest point on the wall's
+    own width with a vertical tangent, so the wall and the back are one
+    contour edge with no step (a back laid over the whole o swelled the right
+    side to two walls wide, and one rooted inside the bowl ran through the
+    counter -- both tried, the negatives are in the doc)."""
+    from ..primitives import stroke as _stroke
+    o = GLYPHS['o'](c); x0, y0, x1, y1 = o.bounds
+    w = x1 - x0
+    ring = max(getattr(o, 'geoms', [o]), key=lambda q: q.area)
+    ym = max(ring.exterior.coords, key=lambda p: p[0])[1]      # the bowl's widest point
+    row = o.intersection(sg.box(x0 - 1, ym - 0.5, x1 + 1, ym + 0.5))
+    rb = max(getattr(row, 'geoms', [row]), key=lambda q: q.bounds[2]).bounds
+    ww = rb[2] - rb[0]                                          # the right wall's width there
+    top = ASC * 0.89
+    cx = x1 - ww / 2
+    back = cubic((cx, ym),
+                 (cx, y1 - (top - y1) * 0.45),
+                 (x0 + w * 0.18, top + (top - y1) * 0.04),
+                 (x0 - w * 0.06, top - (top - y1) * 0.14))
+    back_s = _stroke(back, widths([(0.0, ww), (0.45, ww * 0.85), (1.0, ww * 0.30)]))
+    near = [p for p in back if p[1] <= y1 + OVER * 2]
+    bowl = o.difference(sg.Polygon(near + [(x1 + 400, near[-1][1]), (x1 + 400, ym)]).buffer(0))
+    by = y1 + (top - y1) * 0.42; d = (top - y1) * 0.10
+    cross = _s(line((x0 + w * 0.06, by - d), (x0 + w * 0.86, by + d)), w=MATH * 0.95)
+    return geom.ink([bowl, back_s, cross])
 
 def _sloped_bar(c, ch, frac=0.42):
     """The Polish l: a bar across the stem at a slope."""

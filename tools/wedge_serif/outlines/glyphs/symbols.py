@@ -656,7 +656,10 @@ def g_sterling(c):
 @glyph('¥')      # yen
 def g_yen(c):
     from . import GLYPHS
-    g = GLYPHS['Y'](c); x0, y0, x1, y1 = g.bounds
+    # ROUND 387: `yen=True` -- the Y's arm root as round 386 ruled the yen on;
+    # at the 700 the Y's own root now stands further off its spine
+    # (aldine.py, Y_GAP_BOLD). Ignored by every other Y.
+    g = GLYPHS['Y'](dict(c, yen=True)); x0, y0, x1, y1 = g.bounds
     opt = yen_gap_opt()
     if opt != 'a':
         return _yen_gapped(g, opt)
