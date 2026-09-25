@@ -320,6 +320,13 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = off   1 = on
   "speedrunDemo": 0,
 
+  // SPEED READ (RSVP): the book one word at a time in one fixed spot, each
+  // word cut from the page itself and aligned on its recognition point; the
+  // page turns itself at the end. Words per minute: 100..1000.
+  //   0 = off   1 = on
+  "speedRead": 0,
+  "speedReadWpm": 300,
+
   // RAKING LIGHT: tilt moves the lamp lighting the letterpress impression.
   // The Mac has no tilt; CROSSPOINT_SIM_RAKING_LIGHT sets an azimuth.
   //   0 = off   1 = on

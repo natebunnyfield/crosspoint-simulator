@@ -81,13 +81,15 @@ enum Id {
   SpeedrunOn,
   RakingLightOn,
   EinkModeOn,
+  SpeedReadOn,
+  SpeedReadWpm,
 };
 
 // NOT an enumerator: the appliers switch over Id with no `default:`, so that a
 // row added here without a setter call is a compiler warning rather than a
 // dial that silently does nothing. A count enumerator would have to be
 // handled in that switch, which is exactly the case a reader skips past.
-inline constexpr int kDialCount = EinkModeOn + 1;
+inline constexpr int kDialCount = SpeedReadWpm + 1;
 
 // THE THREE NON-UNIFORMITIES, as flags rather than as special cases scattered
 // through three call sites. Every one of them is a real difference in what the
@@ -316,6 +318,15 @@ inline constexpr Dial kDials[kDialCount] = {
   // docs/eink-mode-spike-2026-09-25.md.
   {EinkModeOn, "e-ink mode", "CROSSPOINT_SIM_EINK_MODE", "einkMode", 0, 1, 0,
    0, kPlain, EinkModeOn},
+  // SPEED READ (spike 2026-09-25, owner: "speedrun was supposed to be that one
+  // word speed read"): RSVP, one word at a time cut from the page itself. A
+  // Settings ROW that ships OFF, off on the desktop too, and its words-per-
+  // minute row (100..1000, speedread::kMinWpm/kMaxWpm, ships 300).
+  // src/SpeedRead.h, docs/speed-read-rsvp-2026-09-25.md.
+  {SpeedReadOn, "speed read", "CROSSPOINT_SIM_SPEED_READ", "speedRead", 0, 1,
+   0, 0, kPlain, SpeedReadOn},
+  {SpeedReadWpm, "speed read wpm", "CROSSPOINT_SIM_SPEED_READ_WPM",
+   "speedReadWpm", 100, 1000, 300, 300, kPlain, SpeedReadWpm},
 };
 // clang-format on
 

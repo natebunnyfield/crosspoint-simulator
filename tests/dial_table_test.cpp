@@ -439,6 +439,16 @@ int main(int argc, char **argv) {
   // -boolForKey:, whose absent-key answer (NO) agrees.
   pinShipped(simdials::EinkModeOn, plistToggleDefault(plist, "einkMode"),
              "Settings.bundle/Root.plist");
+  // SPEED READ (spike 2026-09-25): a toggle that ships OFF, and a WPM row whose
+  // registered default and the getter's absent-key fallback must both be 300.
+  pinShipped(simdials::SpeedReadOn, plistToggleDefault(plist, "speedRead"),
+             "Settings.bundle/Root.plist");
+  pinShipped(simdials::SpeedReadWpm, plistNumberDefault(plist, "speedReadWpm"),
+             "Settings.bundle/Root.plist");
+  pinShipped(simdials::SpeedReadWpm,
+             static_cast<int>(literalAfter(
+                 prefs, "objectForKey:kSpeedReadWpm] == nil) return")),
+             "CrossPointPrefs.mm absent-key fallback");
   pinShipped(simdials::ReadingAllowanceMinutes,
              static_cast<int>(literalAfter(
                  prefs, "objectForKey:kReadingAllowanceMinutes] == nil) return")),

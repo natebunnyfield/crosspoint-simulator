@@ -34,21 +34,35 @@ struct ReadAloudPage {
   std::vector<ReadAloudWordRect> rects; // empty until the firmware ships FW-B
   uint32_t generation = 0;              // bumps on every publish, incl. clear
   bool cleared = false;                 // publish(nullptr) => reader exited
+  uint64_t publishedAtMs = 0;           // host clock at publish (0 = unknown)
 };
 
 // Publisher is the firmware (page render); consumer is the host's main
 // thread. The mutex is the entire thread story. Exactly ONE consumer may
-// drain per build — the env-gated desktop logger or the iOS adapter.
+// DRAIN per build — the env-gated desktop logger or the iOS adapter.
+//
+// FAN-OUT (2026-09-25, speed read): any number of further readers may PEEK.
+// peek() never clears hasNew_, so it cannot steal a page from the draining
+// consumer; each peeker keeps its own last-seen generation and is handed the
+// latest page once per generation. Only the latest page is kept, which is all
+// either kind of consumer ever used (both drain to the last). A peeker that
+// needs capture asks for it with setPeekerWanted(), which is OR'd with -- never
+// written over -- the draining consumer's setWanted().
 class ReadAloudChannel {
 public:
   void setWanted(bool w) { wanted_.store(w); }
-  bool wanted() const { return wanted_.load(); }
+  bool wanted() const { return wanted_.load() || peekerWanted_.load(); }
+  // The draining consumer's own flag, without the peekers'.
+  bool drainerWanted() const { return wanted_.load(); }
+  void setPeekerWanted(bool w) { peekerWanted_.store(w); }
+  bool peekerWanted() const { return peekerWanted_.load(); }
 
   // utf8 == nullptr publishes the "no page" clear. Rects are optional and
   // only meaningful alongside text.
   void publish(const char *utf8, size_t utf8Len, const ReadAloudWordRect *rects,
-               size_t rectCount) {
+               size_t rectCount, uint64_t nowMs = 0) {
     std::lock_guard<std::mutex> lock(mutex_);
+    page_.publishedAtMs = nowMs;
     page_.cleared = utf8 == nullptr;
     if (utf8 && utf8Len > 0)
       page_.utf8.assign(utf8, utf8Len);
@@ -84,8 +98,20 @@ public:
     return true;
   }
 
+  // Non-destructive: true when the channel holds a page newer than
+  // `lastSeenGeneration`, which is then advanced. Never disturbs consume().
+  bool peek(uint32_t &lastSeenGeneration, ReadAloudPage &out) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (page_.generation == 0 || page_.generation == lastSeenGeneration)
+      return false;
+    out = page_;
+    lastSeenGeneration = page_.generation;
+    return true;
+  }
+
 private:
   std::atomic<bool> wanted_{false};
+  std::atomic<bool> peekerWanted_{false};
   std::mutex mutex_;
   ReadAloudPage page_;
   bool hasNew_ = false;
