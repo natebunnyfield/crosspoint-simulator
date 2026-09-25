@@ -508,16 +508,21 @@ void setCornerDefocus(int percentOfStandard);
 // CROSSPOINT_SIM_POWEROFF_COLLAPSE overrides.
 void setPowerOffCollapse(bool enabled);
 
-// THE DAILY READING ALLOWANCE, minutes per book per day (0 = Off). The page is
-// untouched until the last minute, then decays to unreadable and stays so
-// until local midnight. Model: src/ReadingAllowance.h (host-tested); drawing:
-// src/SurfaceAllowance.h. CROSSPOINT_SIM_READING_ALLOWANCE overrides.
+// THE ZEN READING GOAL, in minutes (0 = Off): one clock for every book, run
+// only in zen and restarted whenever zen starts. The page is untouched until
+// the last minute, then decays to unreadable until zen is left. Model:
+// src/ReadingAllowance.h (host-tested); drawing: src/SurfaceAllowance.h.
+// CROSSPOINT_SIM_READING_ALLOWANCE overrides.
 void setReadingAllowance(int minutes);
 // The host scene is foreground-INACTIVE (iOS resign-active: Control Center or
 // Notification Center pulled down, an incoming call). The allowance's clock
 // stops while it is set; nothing else reads it -- presents deliberately keep
 // running there (S-041). Cleared by either forward lifecycle edge.
 void setAppInactive(bool inactive);
+// Zen is on (the iOS harness's live `g_zen`, published every frame). The zen
+// reading goal counts only while it is set and restarts on its off->on edge.
+// Desktop default: CROSSPOINT_SIM_ZEN.
+void setZenActive(bool on);
 
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying

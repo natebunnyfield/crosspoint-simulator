@@ -1,8 +1,8 @@
 #pragma once
 
-// THE READING ALLOWANCE'S CLOCK AND ITS PICTURE -- the SDL half of
+// THE ZEN READING GOAL'S CLOCK AND ITS PICTURE -- the SDL half of
 // src/ReadingAllowance.h. Read that file first: it holds every decision about
-// WHEN (the last minute, per book, per day, what counts as reading), and this
+// WHEN (the last minute, the zen restart, what counts as reading), and this
 // one only keeps the clock running and draws what the model says.
 //
 // HEADER-ONLY, included by src/HalDisplay.cpp alone, for the reason
@@ -35,15 +35,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
-#include <ctime>
-#include <string>
 #include <vector>
 
 #include "PanelPalette.h"
 #include "ReadingAllowance.h"
-#include "ReadingLog.h"
 
 namespace simallowance {
 
@@ -52,19 +48,14 @@ namespace simallowance {
 using namespace readingallowance::picture;
 
 // ---------------------------------------------------------------------------
-// THE CLOCK -- main thread only (presentIfNeeded), so no locks.
+// THE CLOCK -- main thread only (presentIfNeeded), so no locks. One session,
+// restarted whenever zen starts; nothing persists (owner 2026-09-24).
 // ---------------------------------------------------------------------------
 
 struct Clock {
-  readingallowance::Ledger ledger;
-  bool loaded = false;
-  bool noSave = false;       // a QA preset never writes the owner's file
+  readingallowance::Session session;
   uint64_t lastTickMs = 0;
-  double unsaved = 0.0;      // counted seconds not yet on disk
-  bool wasCounting = false;
   int lastStep = -1;         // quantized decay the glass last showed
-  uint64_t lastBook = 0;
-  std::vector<uint64_t> presetBooks;  // books the QA preset has seeded
 };
 
 inline Clock &clock() {
@@ -72,110 +63,38 @@ inline Clock &clock() {
   return c;
 }
 
-inline int today() {
-  const std::time_t now = std::time(nullptr);
-  std::tm lt{};
-  localtime_r(&now, &lt);
-  return readingallowance::dayKey(lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday);
-}
-
-inline std::string ledgerPath() {
-  if (const char *p = std::getenv("CROSSPOINT_SIM_READING_ALLOWANCE_FILE"))
-    if (p[0]) return p;
-  const std::string dir = readinglog::detail::defaultDir();
-  if (dir.empty()) return {};
-  return dir + "/reading-allowance.txt";
-}
-
-inline void load(Clock &c) {
-  c.loaded = true;
-  const std::string path = ledgerPath();
-  if (path.empty()) return;
-  if (FILE *f = std::fopen(path.c_str(), "rb")) {
-    std::string text;
-    char buf[4096];
-    size_t n;
-    while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) text.append(buf, n);
-    std::fclose(f);
-    c.ledger = readingallowance::Ledger::parse(text);
-  }
-}
-
-inline void save(Clock &c) {
-  c.unsaved = 0.0;
-  if (c.noSave) return;
-  const std::string path = ledgerPath();
-  if (path.empty()) return;
-  const size_t slash = path.find_last_of('/');
-  if (slash != std::string::npos && slash > 0)
-    readinglog::detail::makeDirs(path.substr(0, slash));
-  // Write-then-rename, so a kill mid-write leaves the previous record rather
-  // than half of one.
-  const std::string tmp = path + ".tmp";
-  if (FILE *f = std::fopen(tmp.c_str(), "wb")) {
-    const std::string text = c.ledger.serialize();
-    const bool ok = std::fwrite(text.data(), 1, text.size(), f) == text.size();
-    std::fclose(f);
-    if (ok) std::rename(tmp.c_str(), path.c_str());
-  }
-}
-
-// CROSSPOINT_SIM_READING_ALLOWANCE_USED=<seconds>: every book opened this run
-// starts at that much of today's reading, at least. The headless way to render
-// the decay at a chosen instant without waiting nine minutes; it suppresses
-// saving, so a QA run cannot spend the owner's allowance.
-inline void applyQaPreset(Clock &c, int day, uint64_t book) {
+// CROSSPOINT_SIM_READING_ALLOWANCE_USED=<seconds>: every zen start begins that
+// far into the session. The headless way to render the decay at a chosen
+// instant without waiting four minutes.
+inline double qaPresetSeconds() {
   static const char *env = std::getenv("CROSSPOINT_SIM_READING_ALLOWANCE_USED");
-  if (!env || !env[0]) return;
-  c.noSave = true;
-  for (uint64_t b : c.presetBooks)
-    if (b == book) return;
-  c.presetBooks.push_back(book);
-  const double want = std::atof(env);
-  const double have = c.ledger.used(day, book);
-  if (want > have) c.ledger.seconds[book] = want;
+  return env && env[0] ? std::atof(env) : 0.0;
 }
 
-// One pass of the main loop. Steps the clock when this moment is reading, and
-// returns the decay the glass should show for the book on it (0 when no book
-// page is up). `stepChanged` is set when that decay has moved a quantum since
-// the glass last showed it -- the caller's cue to present.
-inline double tick(bool reading, bool bookKnown, uint64_t book, int minutes,
+// One pass of the main loop. Steps the session and returns the decay the
+// glass should show (0 whenever zen is off or no book page is up). `stepChanged`
+// is set when that decay has moved a quantum since the glass last showed it --
+// the caller's cue to present.
+inline double tick(bool zen, bool reading, bool bookPage, int minutes,
                    uint64_t nowMs, bool &stepChanged) {
   Clock &c = clock();
   stepChanged = false;
-  if (!c.loaded) load(c);
   const double dt =
       c.lastTickMs == 0 ? 0.0 : static_cast<double>(nowMs - c.lastTickMs) / 1000.0;
   c.lastTickMs = nowMs;
-  if (!bookKnown || minutes <= 0) {
-    if (c.wasCounting && c.unsaved > 0) save(c);
-    c.wasCounting = false;
-    const int step = 0;
-    if (step != c.lastStep) {
-      stepChanged = c.lastStep > 0;
-      c.lastStep = step;
-    }
-    return 0.0;
+  if (c.session.step(zen, reading && minutes > 0, dt)) {
+    const double preset = qaPresetSeconds();
+    if (preset > 0.0) c.session.seconds = preset;
   }
-  const int day = today();
-  applyQaPreset(c, day, book);
-  if (reading) {
-    const double before = c.ledger.used(day, book);
-    c.ledger.add(day, book, dt);
-    c.unsaved += c.ledger.used(day, book) - before;
-    if (c.unsaved >= 5.0) save(c);
-  } else if (c.wasCounting && c.unsaved > 0) {
-    save(c);
-  }
-  c.wasCounting = reading;
-  const double f =
-      readingallowance::decayFraction(c.ledger.used(day, book), minutes);
+  const double f = (zen && bookPage && minutes > 0)
+                       ? readingallowance::decayFraction(c.session.seconds, minutes)
+                       : 0.0;
   const int step = readingallowance::quantize(f);
-  if (step != c.lastStep || book != c.lastBook) {
-    stepChanged = true;
+  if (step != c.lastStep) {
+    // A move between two clean states (the first pass's -1 -> 0) needs no
+    // present; any move that has decay on either side does.
+    stepChanged = step > 0 || c.lastStep > 0;
     c.lastStep = step;
-    c.lastBook = book;
   }
   return f;
 }

@@ -1,7 +1,7 @@
-// THE DAILY READING ALLOWANCE -- src/ReadingAllowance.h.
+// THE ZEN READING GOAL -- src/ReadingAllowance.h.
 //
-// Every failure here is silent: a clock that counts a menu, a decay that starts
-// a minute early, a day that never turns, a ledger that loses a book on reload.
+// Every failure here is silent: a clock that counts a menu or counts outside
+// zen, a decay that starts a minute early, a zen start that does not restart.
 // Each case below names the wrong implementation it exists to catch.
 
 #include "ReadingAllowance.h"
@@ -46,52 +46,48 @@ int main() {
   check(near(decayFraction(0, 1), 0), "1 min: clean at 0");
   check(near(decayFraction(30, 1), 0.5), "1 min: decays over the whole minute");
 
-  // THE LEDGER: per book, per day, clamped steps.
-  Ledger l;
-  const int d1 = dayKey(2026, 9, 24), d2 = dayKey(2026, 9, 25);
-  check(d1 == 20260924, "dayKey is YYYYMMDD");
-  l.add(d1, 0xAAAAu, 0.5);
-  l.add(d1, 0xAAAAu, 0.5);
-  l.add(d1, 0xBBBBu, 0.25);
-  check(near(l.used(d1, 0xAAAAu), 1.0), "book A accumulates");
-  check(near(l.used(d1, 0xBBBBu), 0.25), "book B is its own clock");
-  check(near(l.used(d1, 0xCCCCu), 0.0), "an unread book has used nothing");
-  // A stall (the process suspended without the background edge) is capped.
-  l.add(d1, 0xAAAAu, 3600.0);
-  check(near(l.used(d1, 0xAAAAu), 1.0 + kMaxStepSeconds), "a stall is capped at one step");
-  // A clock that went backwards, or NaN, adds nothing.
-  l.add(d1, 0xAAAAu, -5.0);
-  l.add(d1, 0xAAAAu, std::nan(""));
-  check(near(l.used(d1, 0xAAAAu), 1.0 + kMaxStepSeconds), "negative and NaN steps add nothing");
+  // THE SESSION: zen starting restarts it, reading accumulates, a stall is
+  // capped. Owner 2026-09-24: "no matter the book ... zen mode starting up
+  // again restarts it".
+  {
+    Session z;
+    check(z.step(true, true, 0.5), "the first pass in zen is a start (a launch into zen)");
+    z.step(true, true, 0.5);
+    check(near(z.seconds, 1.0), "reading in zen accumulates");
+    z.step(true, false, 0.5);
+    check(near(z.seconds, 1.0), "a menu in zen adds nothing");
+    z.step(true, true, 3600.0);
+    check(near(z.seconds, 1.0 + kMaxStepSeconds), "a stall is capped at one step");
+    z.step(true, true, -5.0);
+    z.step(true, true, std::nan(""));
+    check(near(z.seconds, 1.0 + kMaxStepSeconds), "negative and NaN steps add nothing");
+    // Leaving zen does not reset; the time just stops being counted by the
+    // caller (counts() is false outside zen). Coming BACK is what restarts.
+    check(!z.step(false, false, 0.5), "leaving zen is not a restart");
+    check(near(z.seconds, 1.0 + kMaxStepSeconds), "leaving zen keeps the clock");
+    check(z.step(true, true, 0.25), "re-entering zen is a restart");
+    check(near(z.seconds, 0.25), "re-entering zen starts from zero");
+    check(!z.step(true, true, 0.25), "staying in zen is not a restart");
+  }
+  // THE BOOK DOES NOT MATTER: there is no key to switch on. A spent session
+  // stays spent across a book change, which is the point of the ruling.
+  {
+    Session z;
+    z.step(true, true, 0.0);
+    for (int i = 0; i < 300; i++) z.step(true, true, 1.0);
+    check(near(decayFraction(z.seconds, 5), 1.0), "five minutes in zen spends the goal");
+    check(near(decayFraction(240.0, 5), 0.0), "4:00 of 5 is still clean");
+    check(near(decayFraction(270.0, 5), 0.5), "4:30 of 5 is half");
+  }
+  check(kDefaultMinutes == 5, "the goal ships at five minutes");
 
-  // Round trip: a relaunch must not hand a book its minutes back.
-  const Ledger r = Ledger::parse(l.serialize());
-  Ledger r2 = r;
-  check(r.day == d1, "round trip keeps the day");
-  check(near(r2.used(d1, 0xAAAAu), l.used(d1, 0xAAAAu)), "round trip keeps book A");
-  check(near(r2.used(d1, 0xBBBBu), 0.25), "round trip keeps book B");
-  // A 64-bit key survives with its top bit set.
-  Ledger big;
-  big.add(d1, 0xF123456789ABCDEFull, 1.0);
-  Ledger big2 = Ledger::parse(big.serialize());
-  check(near(big2.used(d1, 0xF123456789ABCDEFull), 1.0), "a top-bit key round-trips");
-  // Garbage lines are skipped, not fatal.
-  Ledger g = Ledger::parse("day 20260924\nnonsense\n00000000000000aa 12.5\n\n");
-  check(near(g.used(d1, 0xAAu), 12.5), "garbage lines are skipped");
-
-  // MIDNIGHT: the next day starts empty, for every book.
-  check(near(l.used(d2, 0xAAAAu), 0.0), "a new day refills book A");
-  check(near(l.used(d2, 0xBBBBu), 0.0), "a new day refills book B");
-  // A ledger loaded on a later day is stale as a whole.
-  Ledger stale = Ledger::parse("day 20260901\n00000000000000aa 999\n");
-  check(near(stale.used(d1, 0xAAu), 0.0), "a stale file refills");
-
-  // IS THIS READING? Only a book page, awake, in front.
-  check(counts(true, false, false, false), "a book page in front counts");
-  check(!counts(false, false, false, false), "a menu does not count");
-  check(!counts(true, true, false, false), "asleep does not count");
-  check(!counts(true, false, true, false), "the sleep screen does not count");
-  check(!counts(true, false, false, true), "the background does not count");
+  // IS THIS READING? Only zen, a book page, awake, in front.
+  check(counts(true, true, false, false, false), "zen, a book page, in front counts");
+  check(!counts(false, true, false, false, false), "a book page OUTSIDE zen does not count");
+  check(!counts(true, false, false, false, false), "a menu does not count");
+  check(!counts(true, true, true, false, false), "asleep does not count");
+  check(!counts(true, true, false, true, false), "the sleep screen does not count");
+  check(!counts(true, true, false, false, true), "inactive does not count");
 
   // QUANTIZE: 0 exactly when clean, 120 exactly when spent, so the renderer's
   // "t > 0" test and "fully gone" test are both exact.

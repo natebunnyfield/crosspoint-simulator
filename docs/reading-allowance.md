@@ -1,4 +1,25 @@
-# The daily reading allowance
+# The zen reading goal (was: the daily reading allowance)
+
+**CURRENT SHAPE, owner 2026-09-24 (second ruling of the day):** *"change this to goal of read 5 minutes a day, no matter the book. it only applies in zen mode and zen mode starting up again restarts it."*
+
+- **One clock, whatever the book.** There is no per-book or per-day record any more; the ledger file (`reading-allowance.txt`) is no longer read or written. An old one left on a device is inert.
+- **Counted only in zen**, with a book page on the glass. The device must be awake and the app active.
+- **Zen starting restarts it.** Every off→on edge of zen restarts the clock, and so does a launch into zen. Leaving zen stops the count and shows the page clean at once.
+- **5 minutes, the last one decaying.** The Settings row is **Zen Reading Goal › Minutes**: Off, 5, 10, 15, 20, 30, 45 or 60, default **5**. The pictures are unchanged: on the light page the ink runs dry (G); on the dark page the tube overdrives (I).
+- **Where zen comes from.**
+  - The iOS harness publishes its live `g_zen` every frame (`pollReadingAllowance` → `SimulatorOverlay::setZenActive`). That catches all three of its writers: the launch seed, Settings, and the hold gesture.
+  - The desktop has no zen of its own and takes `CROSSPOINT_SIM_ZEN`.
+- **Model:** `readingallowance::Session`, where `step(zen, reading, dt)` returns true on a restart. `counts(zen, …)` is false outside zen. Both are pinned in `tests/reading_allowance_test.cpp`.
+- **QA hatch:** `CROSSPOINT_SIM_READING_ALLOWANCE_USED=<s>` now seeds every zen start.
+- **Verified headless** (X3 at 1x, as shipped, light page, preset 285 s of 5 min):
+  - With `CROSSPOINT_SIM_ZEN=1` the page decays.
+  - Without it, the frame is **byte-identical** to the un-preset page (md5 `87a81473…` both arms).
+
+Everything below is the record of the first shape (per book, per day, 10 minutes, persisted). The pictures, the review findings and the measurements still apply; the counting rules do not.
+
+---
+
+# (history) The daily reading allowance
 
 A book that can only be read for so long a day. The owner designed it on
 2026-09-24, one question at a time:

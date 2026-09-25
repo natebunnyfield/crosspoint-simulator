@@ -131,8 +131,8 @@ static std::atomic<float> pageFadeMs{0.0f};
 // drawing hundreds of identical frames between the ones that differ. It parks
 // the due time here instead and presentIfNeeded's gate wakes on it.
 static std::atomic<uint64_t> pageFadeStepDueMs{0};
-// The reading allowance's decay for the book on the glass, 0..1, as the last
-// clock tick left it. Main thread only. src/SurfaceAllowance.h.
+// The zen reading goal's decay, 0..1, as the last clock tick left it. Main
+// thread only. src/SurfaceAllowance.h.
 static double allowanceDecay = 0.0;
 static std::atomic<uint64_t> lastInteractionMs{0};
 
@@ -1402,6 +1402,12 @@ static std::atomic<int> readingAllowanceMinutes{0};
 // Foreground-inactive: the allowance's clock stops. See setAppInactive.
 static std::atomic<bool> appInactive{false};
 void setAppInactive(bool inactive) { appInactive.store(inactive); }
+// Zen is on. The reading goal runs only in zen and restarts when zen starts.
+// The iOS harness publishes its live zen state every frame; the desktop has no
+// zen, so it takes CROSSPOINT_SIM_ZEN, the same headless hook the harness
+// reads, and a desktop run without it never shows the goal.
+static std::atomic<bool> zenActive{std::getenv("CROSSPOINT_SIM_ZEN") != nullptr};
+void setZenActive(bool on) { zenActive.store(on); }
 
 void setPresentFlash(bool wanted) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH"))
@@ -2923,25 +2929,22 @@ void HalDisplay::presentIfNeeded() {
     }
   }
 
-  // THE READING ALLOWANCE'S CLOCK, stepped on every main-loop pass rather than
+  // THE ZEN READING GOAL'S CLOCK, stepped on every main-loop pass rather than
   // only on presents -- an e-ink firmware presents once per page, and the
   // minute has to run while the reader sits on one. It sits past the
   // backgrounded return above, so the background never counts, and the sleep
   // loop never calls this at all. When the decay moves a step the glass is
   // owed a present, exactly like the fade's wake above.
   {
-    uint64_t book = 0;
-    int spine = 0, pageInSpine = 0;
-    const bool bookKnown =
-        SimulatorOverlay::sheetIsReaderPage() &&
-        SimulatorOverlay::readerPageIdentity(book, spine, pageInSpine);
+    const bool zen = SimulatorOverlay::zenActive.load();
+    const bool bookPage = SimulatorOverlay::sheetIsReaderPage();
     const bool reading = readingallowance::counts(
-        bookKnown, displaySleeping.load(),
+        zen, bookPage, displaySleeping.load(),
         SimulatorOverlay::sleepScreenEntered(),
         SimulatorOverlay::appInactive.load());
     bool stepChanged = false;
     allowanceDecay = simallowance::tick(
-        reading, bookKnown, book,
+        zen, reading, bookPage,
         SimulatorOverlay::readingAllowanceMinutes.load(), SDL_GetTicks(),
         stepChanged);
     // DIRTY, not a bare present: each step changes what the glass shows, so
@@ -3623,11 +3626,12 @@ void HalDisplay::presentIfNeeded() {
     simsheet::destroyLetterpressField();
   }
 
-  // THE READING ALLOWANCE'S DECAY -- over the panel, inside the beam's clip,
+  // THE ZEN READING GOAL'S DECAY -- over the panel, inside the beam's clip,
   // after the letterpress, so the new page sweeps in already decayed and the
-  // ink the press put down is what starves. Reader pages only: the allowance
-  // is the book's, and a menu is never decayed. src/SurfaceAllowance.h.
-  if (allowanceDecay > 0.0 && SimulatorOverlay::sheetIsReaderPage()) {
+  // ink the press put down is what starves. Book pages in zen only: the tick
+  // returns 0 anywhere else, so a menu is never decayed and leaving zen shows
+  // the page clean. src/SurfaceAllowance.h.
+  if (allowanceDecay > 0.0) {
     const bool dark = display.isInverted();
     const PanelPalette pal = livePanelPalette(dark);
     // A COPY per page, taken under the lock and worked on outside it: the veil
