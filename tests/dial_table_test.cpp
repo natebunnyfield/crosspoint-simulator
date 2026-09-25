@@ -422,6 +422,18 @@ int main(int argc, char **argv) {
              plistToggleDefault(plist, "powerOffCollapse"),
              "Settings.bundle/Root.plist");
 
+  // THE READING ALLOWANCE is a row too (owner 2026-09-24), a multi-value one:
+  // its registered default is what an untouched install reads, and the getter's
+  // own absent-key fallback has to agree with it or a lost store changes the
+  // allowance.
+  pinShipped(simdials::ReadingAllowanceMinutes,
+             plistNumberDefault(plist, "readingAllowanceMinutes"),
+             "Settings.bundle/Root.plist");
+  pinShipped(simdials::ReadingAllowanceMinutes,
+             static_cast<int>(literalAfter(
+                 prefs, "objectForKey:kReadingAllowanceMinutes] == nil) return")),
+             "CrossPointPrefs.mm absent-key fallback");
+
   // THE PAGE-TURN FLASH used to be the second of those rows and is not any
   // more: the 2026-08-22 sweep took it with the rest of the group and it has
   // had no writer since, so its getter was frozen on 2026-08-23 like the seven

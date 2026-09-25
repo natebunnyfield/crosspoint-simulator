@@ -136,6 +136,11 @@ static NSString *const kPanelPalettePreset = @"panelPalettePreset";
 // THE POWER-OFF COLLAPSING DOT. A Settings.app row, and the only surface dial
 // that is one -- see its getter for the argument.
 static NSString *const kPowerOffCollapse = @"powerOffCollapse";
+// THE DAILY READING ALLOWANCE, minutes per book per day. Missing-key failure
+// mode is NOT benign: -integerForKey: returns 0, which is Off, and the row
+// ships 10 -- so it is in the Root.plist-unreadable registration below and the
+// getter reads absence as the shipped 10 rather than as Off.
+static NSString *const kReadingAllowanceMinutes = @"readingAllowanceMinutes";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -320,6 +325,7 @@ static void ensureDefaults(void) {
         kPressRingPercent : @(93),
         kPressDebossPercent : @(99),
         kPressPressurePercent : @(125),
+        kReadingAllowanceMinutes : @(10),
       }];
     }
 
@@ -675,6 +681,21 @@ int CrossPointPrefs_powerOffCollapse(void) {
   checkKnown(kPowerOffCollapse);
   return [[NSUserDefaults standardUserDefaults] boolForKey:kPowerOffCollapse] ? 1
                                                                               : 0;
+}
+
+// THE DAILY READING ALLOWANCE (owner 2026-09-24, "make 10 minutes an ios app
+// setting"). Minutes each book may be read per day; 0 is Off. The page is
+// untouched until the last minute, then decays to unreadable until midnight.
+// src/ReadingAllowance.h holds every decision about when.
+int CrossPointPrefs_readingAllowanceMinutes(void) {
+  ensureDefaults();
+  checkKnown(kReadingAllowanceMinutes);
+  NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
+  if ([ud objectForKey:kReadingAllowanceMinutes] == nil) return 10;
+  NSInteger m = [ud integerForKey:kReadingAllowanceMinutes];
+  if (m < 0) m = 0;
+  if (m > 24 * 60) m = 24 * 60;
+  return static_cast<int>(m);
 }
 
 // FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are

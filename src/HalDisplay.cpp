@@ -28,6 +28,7 @@
 #include "ShowThrough.h"
 #include "ReadingArm.h"
 #include "ReadingLog.h"
+#include "SurfaceAllowance.h"
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
@@ -130,6 +131,9 @@ static std::atomic<float> pageFadeMs{0.0f};
 // drawing hundreds of identical frames between the ones that differ. It parks
 // the due time here instead and presentIfNeeded's gate wakes on it.
 static std::atomic<uint64_t> pageFadeStepDueMs{0};
+// The reading allowance's decay for the book on the glass, 0..1, as the last
+// clock tick left it. Main thread only. src/SurfaceAllowance.h.
+static double allowanceDecay = 0.0;
 static std::atomic<uint64_t> lastInteractionMs{0};
 
 // HOW FAR it fades, as a percentage of that floor that is KEPT. 100 is the
@@ -1393,6 +1397,8 @@ static std::atomic<int> scanlineBloom{scanlines::kBloomStandard};
 static std::atomic<int> showThroughStrength{showthrough::kStrengthOff};
 static std::atomic<int> cornerDefocusStrength{cornerdefocus::kStrengthOff};
 static std::atomic<bool> powerOffCollapse{false};
+// Minutes per book per day; 0 is Off. src/ReadingAllowance.h.
+static std::atomic<int> readingAllowanceMinutes{0};
 
 void setPresentFlash(bool wanted) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH"))
@@ -1594,6 +1600,16 @@ void setPowerOffCollapse(bool enabled) {
   powerOffCollapse.store(enabled);
 }
 
+void setReadingAllowance(int minutes) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_READING_ALLOWANCE"))
+    if (env[0]) minutes = std::atoi(env);
+  minutes = std::clamp(minutes, 0, readingallowance::kMaxMinutes);
+  if (readingAllowanceMinutes.exchange(minutes) == minutes) return;
+  // A present, because a book already past its new allowance must decay NOW
+  // rather than at its next page turn, and one given more time must clear.
+  requestDirtyPresent();
+}
+
 // --- THE DIAL TABLE'S APPLIERS ---------------------------------------------
 //
 // The one place a simdials::Id becomes a setter call. Everything above this
@@ -1689,6 +1705,9 @@ void applyDialGroup(simdials::Id group, const simdials::Values &v) {
     // a live page changes, and this is read only once the firmware is asleep.
     case PowerOffCollapseOn:
       setPowerOffCollapse(v[PowerOffCollapseOn] != 0);
+      break;
+    case ReadingAllowanceMinutes:
+      setReadingAllowance(v[ReadingAllowanceMinutes]);
       break;
   }
 }
@@ -2901,6 +2920,33 @@ void HalDisplay::presentIfNeeded() {
     }
   }
 
+  // THE READING ALLOWANCE'S CLOCK, stepped on every main-loop pass rather than
+  // only on presents -- an e-ink firmware presents once per page, and the
+  // minute has to run while the reader sits on one. It sits past the
+  // backgrounded return above, so the background never counts, and the sleep
+  // loop never calls this at all. When the decay moves a step the glass is
+  // owed a present, exactly like the fade's wake above.
+  {
+    uint64_t book = 0;
+    int spine = 0, pageInSpine = 0;
+    const bool bookKnown =
+        SimulatorOverlay::sheetIsReaderPage() &&
+        SimulatorOverlay::readerPageIdentity(book, spine, pageInSpine);
+    const bool reading = readingallowance::counts(
+        bookKnown, displaySleeping.load(),
+        SimulatorOverlay::sleepScreenEntered(), false);
+    bool stepChanged = false;
+    allowanceDecay = simallowance::tick(
+        reading, bookKnown, book,
+        SimulatorOverlay::readingAllowanceMinutes.load(), SDL_GetTicks(),
+        stepChanged);
+    // DIRTY, not a bare present: each step changes what the glass shows, so
+    // the glass capture must re-read it, or the next page turn sweeps in over
+    // the page as it looked at its FIRST present -- nearly readable, found by
+    // adversarial review.
+    if (stepChanged) requestDirtyPresent();
+  }
+
   if (!pendingPresent.exchange(false) && !screenshotDue)
     return;
 
@@ -3571,6 +3617,41 @@ void HalDisplay::presentIfNeeded() {
     }
   } else if (simsheet::letterpressField()) {
     simsheet::destroyLetterpressField();
+  }
+
+  // THE READING ALLOWANCE'S DECAY -- over the panel, inside the beam's clip,
+  // after the letterpress, so the new page sweeps in already decayed and the
+  // ink the press put down is what starves. Reader pages only: the allowance
+  // is the book's, and a menu is never decayed. src/SurfaceAllowance.h.
+  if (allowanceDecay > 0.0 && SimulatorOverlay::sheetIsReaderPage()) {
+    const bool dark = display.isInverted();
+    const PanelPalette pal = livePanelPalette(dark);
+    // A COPY per page, taken under the lock and worked on outside it: the veil
+    // and the glows cost tens of milliseconds at 2x, and holding pixelBufMutex
+    // that long blocks the render task from writing the next page.
+    static std::vector<uint32_t> pageCopy;
+    static uint64_t pageCopySeq = ~0ull;
+    const int w = activeWidth(), h = activeHeight();
+    {
+      const std::lock_guard<std::mutex> lock(pixelBufMutex);
+      if (pageCopySeq != pixelBufSeq ||
+          pageCopy.size() != static_cast<size_t>(w) * h) {
+        pageCopy.assign(pixelBuf, pixelBuf + static_cast<size_t>(w) * h);
+        pageCopySeq = pixelBufSeq;
+      }
+    }
+    if (dark) {
+      simallowance::drawDark(sdl_renderer, pageCopy.data(), w, h, pageCopySeq,
+                             allowanceDecay, pal, drawPanel);
+    } else {
+      SDL_ScaleMode panelMode = kPanelScaleMode;
+      SDL_GetTextureScaleMode(texture, &panelMode);
+      simallowance::drawLight(sdl_renderer, pageCopy.data(), w, h,
+                              cp::renderScale(), pageCopySeq, allowanceDecay,
+                              pal, panelMode, drawPanel);
+    }
+  } else if (allowanceDecay <= 0.0) {
+    simallowance::destroyAll();
   }
 
   if (beamSweeping) {

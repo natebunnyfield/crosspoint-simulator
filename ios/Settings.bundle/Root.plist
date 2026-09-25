@@ -1884,6 +1884,46 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>Each book can be read for this long a day, counted only while its pages are on screen. The page is untouched until the last minute, then the ink runs dry (or, on a dark page, the tube overdrives) until nothing can be read. The minutes come back at midnight.</string>
+			<key>Title</key>
+			<string>Daily Reading</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>10</integer>
+			<key>Key</key>
+			<string>readingAllowanceMinutes</string>
+			<key>Title</key>
+			<string>Minutes per Book</string>
+			<key>Titles</key>
+			<array>
+				<string>Off</string>
+				<string>5 minutes</string>
+				<string>10 minutes</string>
+				<string>15 minutes</string>
+				<string>20 minutes</string>
+				<string>30 minutes</string>
+				<string>45 minutes</string>
+				<string>60 minutes</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>5</integer>
+				<integer>10</integer>
+				<integer>15</integer>
+				<integer>20</integer>
+				<integer>30</integer>
+				<integer>45</integer>
+				<integer>60</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>On a dark page, switching off looks like switching off a tube: the picture collapses to a bright line, the line closes to a dot, and the dot fades. The screen then stays dark until you wake it — you will not see the sleep screen.</string>
 			<key>Title</key>
 			<string>Sleep</string>

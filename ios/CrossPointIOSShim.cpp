@@ -2196,6 +2196,18 @@ void pollDarkSurfaceItems() {
   SimulatorOverlay::setPowerOffCollapse(collapse != 0);
 }
 
+// THE DAILY READING ALLOWANCE, polled like the collapse: a Settings row the
+// owner can move while the app is foregrounded. Edge-triggered.
+void pollReadingAllowance() {
+  static int s_minutes = -1;
+  const int minutes = CrossPointPrefs_readingAllowanceMinutes();
+  if (minutes == s_minutes) return;
+  s_minutes = minutes;
+  SDL_Log("[allowance] %d minutes per book per day%s", minutes,
+          minutes == 0 ? " (off)" : "");
+  SimulatorOverlay::setReadingAllowance(minutes);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -4202,6 +4214,7 @@ void CrossPointHarness_perFrame() {
   pollPaperTooth();
   pollScanlines();
   pollDarkSurfaceItems();
+  pollReadingAllowance();
   pollReaderInsets();
   pollZenMode();
   pollPadContrast();

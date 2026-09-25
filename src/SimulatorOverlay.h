@@ -508,6 +508,12 @@ void setCornerDefocus(int percentOfStandard);
 // CROSSPOINT_SIM_POWEROFF_COLLAPSE overrides.
 void setPowerOffCollapse(bool enabled);
 
+// THE DAILY READING ALLOWANCE, minutes per book per day (0 = Off). The page is
+// untouched until the last minute, then decays to unreadable and stays so
+// until local midnight. Model: src/ReadingAllowance.h (host-tested); drawing:
+// src/SurfaceAllowance.h. CROSSPOINT_SIM_READING_ALLOWANCE overrides.
+void setReadingAllowance(int minutes);
+
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying
 // sleep: the firmware has already handed over, the wake checks run before this

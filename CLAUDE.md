@@ -70,6 +70,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | What does a present cost, and what is a phosphor trail spending it on? | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) — including why the scanline readback is NOT the answer, why an instant-by-instant md5 gate over a trail is invalid, and the ranked list of what is left |
 | What are the brush strokes under a letter, and why is my stroke the wrong weight? | [docs/italic-g-strokes.md](docs/italic-g-strokes.md) — Coelacanth's g measured: skeleton, thickness by direction, the pen's angle, and the rule that a stroke's width follows its direction |
 | Is this italic an italic, or an oblique? | [docs/italic-vs-oblique.md](docs/italic-vs-oblique.md) — the shear test, the three real families' numbers, and why a proportion is not a construction |
+| The daily READING ALLOWANCE — a book that decays to unreadable in the last minute of its daily minutes; what counts, where the record lives, why the desktop ships it off | [docs/reading-allowance.md](docs/reading-allowance.md) — model `src/ReadingAllowance.h` (host-tested), pictures `src/SurfaceAllowance.h` |
 | Which font/size/spacing actually got the most reading done? | [docs/reading-experiments.md](docs/reading-experiments.md) — the ledger, the outcome definitions, and the power estimate that says which questions it can and cannot answer |
 | Could this run on an Apple Watch, and what would it cost? | [docs/watchos-feasibility.md](docs/watchos-feasibility.md) — not at 1x (no watch fits 528x792), SDL3 has no watchOS backend, ranked limits and what to measure first |
 | Why Update Library could not work on a phone, and where the token lives now | [docs/library-sync-on-ios.md](docs/library-sync-on-ios.md) — the two blockers, the measured 401 that proves the credential path end to end, why TestFlight's curl restriction does NOT apply on iOS, and the one thing found and deliberately not fixed |
@@ -926,7 +927,7 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now eighteen groups and 54 rows** (the eighteenth group is **The Left Margin**, 2026-09-21 -- six gesture rows, generated like the rest of the gesture half; it took the count from seventeen/48. Before it: the six Ink sliders arrived 2026-09-11 as one group and became six titled groups on 2026-09-12, because iOS draws a `PSSliderSpecifier` with NO title and the owner's screenshot showed six anonymous sliders -- a group header is the only label a slider can have; the count before it was already 42, not the 37 this sentence claimed -- the 2026-09-05/06 rocker and tilt rows had not been added to it) — count them out of
+**Settings.app is now nineteen groups and 55 rows** (the nineteenth is **Daily Reading**, 2026-09-24 -- one multi-value row, the reading allowance, `src/ReadingAllowance.h`; the eighteenth group is **The Left Margin**, 2026-09-21 -- six gesture rows, generated like the rest of the gesture half; it took the count from seventeen/48. Before it: the six Ink sliders arrived 2026-09-11 as one group and became six titled groups on 2026-09-12, because iOS draws a `PSSliderSpecifier` with NO title and the owner's screenshot showed six anonymous sliders -- a group header is the only label a slider can have; the count before it was already 42, not the 37 this sentence claimed -- the 2026-09-05/06 rocker and tilt rows had not been added to it) — count them out of
 `ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
 is how this paragraph was wrong four times. It said "seven groups and 29 rows"
 while the file held nine and 36, because the gesture groups were added to the
@@ -955,6 +956,7 @@ print(len(g),'groups,',len(s)-len(g),'rows')"
 | Read Aloud | Read Aloud (Experimental) · Speaking Rate |
 | Library | GitHub Token |
 | Ink: Corner Rounding · Ink: Spread · Ink: Impression · Ink: Squeeze · Ink: Deboss Shadow · Ink: Plate Pressure | one `PSSliderSpecifier` each, 0..200, the only sliders in the bundle; six groups because a slider has no title of its own. Ship 27 / 106 / 68 / 93 / 99 / 125 (owner 2026-09-12, his own slider positions) |
+| Daily Reading | Minutes per Book — Off/5/10/15/20/30/45/60, ships 10 (2026-09-24) |
 | Sleep | Power-Off Collapse · Diagnostics Log |
 | Reading Experiments | Reading Experiments (Experimental) |
 
