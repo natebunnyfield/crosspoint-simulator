@@ -314,11 +314,16 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = off   N = minutes
   "readingAllowanceMinutes": 0,
 
-  // THE READING SPEEDRUN: a one-line HUD in the page's top margin -- the
+  // THE READING SPEEDRUN: a one-line HUD at the page's bottom edge -- the
   // run's time and delta against your best, this page's time and delta, and
   // gold splits. Each page is a split timed against your best on that page.
   //   0 = off   1 = on
   "speedrunDemo": 0,
+
+  // RAKING LIGHT: tilt moves the lamp lighting the letterpress impression.
+  // The Mac has no tilt; CROSSPOINT_SIM_RAKING_LIGHT sets an azimuth.
+  //   0 = off   1 = on
+  "rakingLight": 0,
 
   // --------------------------------------------------------- PHOSPHOR MIX ---
   // The same mixer the iOS page-color modal drives, through the same math. A

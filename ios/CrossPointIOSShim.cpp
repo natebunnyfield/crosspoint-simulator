@@ -84,6 +84,7 @@ extern "C" void CrossPointTiltGestures_perFrame(void);
 extern "C" void CrossPointTiltGestures_appWillResignActive(void);
 extern "C" void CrossPointRakingLight_perFrame(void);
 extern "C" void CrossPointRakingLight_appWillResignActive(void);
+extern "C" void CrossPointRakingLight_appDidBecomeActive(void);
 
 // Ask the firmware to RE-RENDER the current activity. Declared rather than
 // included: ActivityManager.h holds unique_ptr<Activity> and would drag the
@@ -1649,6 +1650,7 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
     g_appBackgrounded = false;
     HalDisplay::setBackgrounded(false);
     SimulatorOverlay::setAppInactive(false);
+    CrossPointRakingLight_appDidBecomeActive();
     // SDL HAS THE SAME BUG ONE LAYER DOWN, and without this the early resume
     // above is a no-op at the GPU. SDL_OnApplicationWillEnterBackground -- i.e.
     // RESIGN-ACTIVE, the same wrong edge -- sends SDL_EVENT_WINDOW_MINIMIZED

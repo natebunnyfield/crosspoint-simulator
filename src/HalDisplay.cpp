@@ -152,6 +152,7 @@ static std::string speedrunFile() {
   return dir.empty() ? std::string() : dir + "/speedrun-bests.txt";
 }
 static inline void requestDirtyPresent();  // defined with the glass generation below
+static inline void requestPlainPresent();  // defined beside pendingPresent below
 static speedrun::Run g_speedrun;
 static std::string g_speedrunHud[3];
 static uint64_t g_speedrunLastMs = 0;
@@ -201,7 +202,11 @@ static void speedrunStep(bool onPage, const speedrun::PageKey &key,
   bool changed = false;
   for (int i = 0; i < 3; i++)
     if (hud[i] != g_speedrunHud[i]) { g_speedrunHud[i] = hud[i]; changed = true; }
-  if (changed) requestDirtyPresent();
+  // A PLAIN present, not a dirty one: the HUD's clock changes every second,
+  // and a dirty present re-reads the glass and deposits a new picture into the
+  // phosphor trail -- on a dark page that kept the app presenting and the
+  // trail animating continuously (adversarial review before build 212).
+  if (changed) requestPlainPresent();
 }
 static std::atomic<uint64_t> lastInteractionMs{0};
 
@@ -314,6 +319,7 @@ static uint64_t pixelBufSeq = 0;
 // is withheld, because there is no new picture to sweep IN.
 static uint64_t reconvertSeq = 0;
 static std::atomic<bool> pendingPresent{false};
+static inline void requestPlainPresent() { pendingPresent.store(true); }
 // THE GLASS'S SECOND INPUT (src/GlassCapture.h). Bumped by every present
 // request that is not one of the two self-driving loops (the sweep and the
 // trail re-arm pendingPresent directly, below, and change nothing the capture
@@ -3831,12 +3837,18 @@ void HalDisplay::presentIfNeeded() {
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
     int outW = 0, outH = 0;
     SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH);
-    // ONE LINE, at the page's edge, twice the old size (owner 2026-09-25:
-    // "Add a phone switch", which named the HUD moved and drawn larger).
-    const float sc = std::max(2.0f, std::round(static_cast<float>(outH) / 400.0f));
+    // ONE LINE, at the page's edge, as large as fits 90% of the page's
+    // WIDTH (owner 2026-09-25: "Add a phone switch", which named the HUD moved
+    // and drawn larger). Sized from the width, not the height: from the
+    // height, an iPhone Air's 2736 px gave scale 7 and a 1,834 px line on a
+    // 1,260 px page, running the run clock off the left edge of the glass
+    // (adversarial review before build 212).
     const PanelPalette pal = livePanelPalette(display.isInverted());
     const std::string line = g_speedrunHud[0] + "  " + g_speedrunHud[1];
     const float cw = SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE;
+    const float sc = std::clamp(std::floor(0.9f * static_cast<float>(sheetPanelW) /
+                                           ((line.size() * cw + 6.0f))),
+                                1.0f, 5.0f);
     const float bw = (line.size() * cw + 6) * sc, bh = (cw + 4) * sc;
     // The BOTTOM edge of the page, not the top: this reader's text block
     // starts almost at the page's top, so a top-margin HUD sat on the running
