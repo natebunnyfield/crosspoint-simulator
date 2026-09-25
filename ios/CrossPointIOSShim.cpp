@@ -2203,12 +2203,10 @@ void pollDarkSurfaceItems() {
 }
 
 // THE ZEN READING GOAL, polled like the collapse: a Settings row the owner
-// can move while the app is foregrounded. Edge-triggered. It also publishes
-// the live zen state every frame -- the goal counts only in zen and restarts
-// when zen starts, and `g_zen` has three writers (the launch seed, Settings,
-// the hold gesture), so reading it here once per frame catches all three.
+// can move while the app is foregrounded. Edge-triggered. The live zen state
+// is published separately, every frame, right after pollZenMode -- `g_zen` has
+// three writers (the launch seed, Settings, the hold gesture).
 void pollReadingAllowance() {
-  SimulatorOverlay::setZenActive(g_zen);
   static int s_minutes = -1;
   const int minutes = CrossPointPrefs_readingAllowanceMinutes();
   if (minutes == s_minutes) return;
@@ -4227,6 +4225,10 @@ void CrossPointHarness_perFrame() {
   pollReadingAllowance();
   pollReaderInsets();
   pollZenMode();
+  // AFTER pollZenMode, which may change g_zen from Settings this frame; the
+  // goal's clock reads it in this same frame's present (adversarial review:
+  // publishing before it drew one frame of the old zen state).
+  SimulatorOverlay::setZenActive(g_zen);
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

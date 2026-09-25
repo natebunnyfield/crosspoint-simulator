@@ -180,47 +180,71 @@ struct PressSample {
   float skip = 0.0f;  // word-sized patches of the form the roller skipped, 0..1 ('SKIP')
 };
 
-// The fraction of a pixel's ink that prints at decay t. 1 at t = 0, 0 at t = 1.
-inline float printedFraction(const PressSample &p, float t) {
+// The per-pixel terms the per-STEP pass needs, precomputed per page: how much
+// the roller was robbed here (`robbed`, the incidental terms' weighted sum),
+// the paper's `contact`, and the split field `blob`. Three numbers, so the
+// renderer can keep them as bytes (the review measured 53 MB of 32-byte
+// samples at 2x).
+inline float robbedOf(const PressSample &p) {
+  const float skip = std::max(0.0f, (p.skip - 0.55f) * 2.2f);
+  return 0.55f * p.band + 0.60f * p.depletion + 0.60f * skip;
+}
+inline float contactOf(const PressSample &p) {
+  return 0.40f * p.tooth + 0.15f * p.form + 0.25f * p.plate + 0.20f * (1.0f - p.interior);
+}
+
+// The fraction of a pixel's ink that prints at decay t, from its three
+// terms; `supplyBase` is (1 - t)^1.25, computed once per step. 1 at t = 0,
+// 0 at t = 1.
+inline float printedRaw(float robbed, float contact, float blob, float t,
+                        float supplyBase) {
   if (t <= 0.0f) return 1.0f;
   if (t >= 1.0f) return 0.0f;
-  // Pass 3: the incidental terms doubled (the page read uniformly salty at
-  // 4:38), a SKIP-OUT field of word-sized patches that fail early, and the
-  // supply eased to ^1.25 so the whole minute is used.
-  const float skip = std::max(0.0f, (p.skip - 0.55f) * 2.2f);
-  float supply = std::pow(1.0f - t, 1.25f) *
-                 (1.0f - t * (0.55f * p.band + 0.60f * p.depletion + 0.60f * skip));
+  float supply = supplyBase * (1.0f - t * robbed);
   if (supply < 0.0f) supply = 0.0f;
-  const float contact = 0.40f * p.tooth + 0.15f * p.form + 0.25f * p.plate +
-                        0.20f * (1.0f - p.interior);
-  // Walker-Fetsko coverage, NORMALIZED to the full film's so the page is
-  // exactly clean at t = 0. k = 4 (pass 2): at k = 14 coverage stayed near 1
-  // until the film was almost gone, and the page held clean to 4:50 and then
-  // vanished -- the same "cut, not a minute" the first model had.
+  // Walker-Fetsko coverage, normalized to the full film's so t = 0 is clean.
   const float kk = 4.0f * (0.35f + contact);
   const float cover = (1.0f - std::exp(-kk * supply)) / (1.0f - std::exp(-kk));
-  // Pass 4: SHARP -- a viscous paste prints or it does not. At slope 12 the
-  // late fragments went pale grey (partially veiled), which is exactly the
-  // faintness the owner ruled out; at 28 they stay dark and dwindle in NUMBER.
-  const float kept = std::clamp((cover - 0.92f * p.blob) * 28.0f + 0.5f, 0.0f, 1.0f);
+  // SLOPE 5 AGAINST A SMOOTH FIELD (owner 2026-09-24: "improve the jagged
+  // pixelated look of light ink effect"). Pass 4's slope 28 against a field
+  // with a per-pixel hash in it made every decision a hard per-pixel one:
+  // single-pixel salt with stair-stepped edges. The field is smooth now
+  // (blobAt), so 5 gives a transition about half a pixel wide -- the cells
+  // print solid and their edges are antialiased, which is not faint. The
+  // blob's range (0.06..0.80) keeps t -> 0 exactly clean and t -> 1 exactly
+  // empty with no offset term.
+  const float kept = std::clamp((cover - 0.92f * blob) * 5.0f, 0.0f, 1.0f);
   const float body = 0.90f + 0.10f * std::min(1.0f, supply * 3.0f);
   return kept * body;
 }
 
-// The clustered split field at panel pixel (x, y): cells about 2.2 device
-// pixels across with a fine hash in them, so a starved stroke breaks into
-// blobs and threads rather than into single-pixel salt.
+// The fraction of a pixel's ink that prints at decay t. 1 at t = 0, 0 at t = 1.
+inline float printedFraction(const PressSample &p, float t) {
+  return printedRaw(robbedOf(p), contactOf(p), p.blob, t,
+                    t > 0.0f && t < 1.0f ? std::pow(1.0f - t, 1.25f) : 0.0f);
+}
+
+// The clustered split field at panel pixel (x, y): two octaves of SMOOTH value
+// noise, 2.2 and 1.1 device px cells, no per-pixel hash -- a hash made the
+// break-up a per-pixel coin toss and the edges jagged (see printedRaw).
 inline float blobAt(int x, int y, int scale, uint32_t seed) {
-  // Pass 5: 2.2 device px cells, 80/20 coherent/fine (was 1.5 and 65/35):
-  // at 1.5 the salt was close to single-pixel noise; viscous ink splits into
-  // cells and threads a couple of pixels across.
   const float c = 2.2f * static_cast<float>(scale > 0 ? scale : 1);
-  const float v = phosphorgrain::valueNoise(static_cast<float>(x) / c,
-                                            static_cast<float>(y) / c,
-                                            seed ^ 0x56495343u);
-  const float h = phosphorgrain::unitFromHash(phosphorgrain::hash3(
-      static_cast<uint32_t>(x), static_cast<uint32_t>(y), seed ^ 0x53504C54u));
-  return 0.06f + 0.94f * (0.80f * v + 0.20f * h);
+  const float v1 = phosphorgrain::valueNoise(static_cast<float>(x) / c,
+                                             static_cast<float>(y) / c,
+                                             seed ^ 0x56495343u);
+  const float v2 = phosphorgrain::valueNoise(static_cast<float>(x) * 2.0f / c,
+                                             static_cast<float>(y) * 2.0f / c,
+                                             seed ^ 0x53504C54u);
+  return 0.06f + 0.74f * (0.70f * v1 + 0.30f * v2);
+}
+
+// The paper's tooth as the starved plate FEELS it: the 'TOOT' lane smoothed
+// to ~1.3 device px cells, so the kiss follows grains of paper rather than
+// single pixels.
+inline float smoothToothAt(int x, int y, int scale, uint32_t seed) {
+  const float c = 1.3f * static_cast<float>(scale > 0 ? scale : 1);
+  return phosphorgrain::valueNoise(static_cast<float>(x) / c,
+                                   static_cast<float>(y) / c, seed ^ 0x544F4F54u);
 }
 
 // Box-downsample the page's excess light over `ground` by `factor`, then blur

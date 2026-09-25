@@ -112,10 +112,8 @@ struct Textures {
   uint64_t veilSeq = ~0ull;
   int veilStep = -1;
   std::vector<uint32_t> veilPixels;
-  std::vector<float> tooth;  // the press's kiss per panel pixel
-  std::vector<float> inkRow, inkDil;  // the page's ink, and blur scratch
-  std::vector<float> interior;        // ink blurred one device pixel
-  std::vector<readingallowance::picture::PressSample> samples;
+  // Per-page byte planes (mask, robbed, contact, blob): 4 bytes a pixel.
+  std::vector<uint8_t> qMask, qRobbed, qContact, qBlob;
   uint32_t veilSeed = 0;
   int scale = 1;
   SDL_Texture *pressTarget = nullptr;  // the faded letterpress field
@@ -125,6 +123,7 @@ struct Textures {
 
   SDL_Texture *glow[3] = {nullptr, nullptr, nullptr};
   uint64_t glowSeq = ~0ull;
+  int glowW = 0, glowH = 0;
   SDL_Texture *lift = nullptr;
 };
 
@@ -174,91 +173,93 @@ inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
     const size_t n = static_cast<size_t>(w) * h;
     if (newPage) {
       // Per PAGE: the ink, the stroke interior (ink box-blurred one device
-      // pixel), each press sample's lanes, and what the roller spent on the
-      // rows above (ghosting). Per STEP only the alpha below is recomputed.
-      std::vector<float> &ink = t.inkRow;
-      std::vector<float> &tmp = t.inkDil;
-      ink.resize(n);
-      tmp.resize(n);
-      t.interior.resize(n);
-      t.samples.resize(n);
+      // pixel), what the roller spent on the rows above (ghosting), and each
+      // inked pixel's three terms -- kept as BYTES, with the float scratch
+      // freed at the end. The adversarial review of 2026-09-24 measured the
+      // first version at ~95 MB and hundreds of ms per page turn at 2x; the
+      // noise is now evaluated only where there is ink (~15% of a page).
+      std::vector<float> ink(n), tmp(n), interior(n), colSum(n);
       for (size_t i = 0; i < n; i++) ink[i] = inkness(pixels[i], pal);
-      const int rad = std::max(1, scale);
-      for (int y = 0; y < h; y++)
+      const int sc = std::max(1, scale);
+      const int rad = sc;
+      for (int y = 0; y < h; y++) {
+        const float *row = &ink[static_cast<size_t>(y) * w];
         for (int x = 0; x < w; x++) {
           float sum = 0; int c = 0;
-          for (int k = std::max(0, x - rad); k <= std::min(w - 1, x + rad); k++, c++)
-            sum += ink[static_cast<size_t>(y) * w + k];
+          for (int k = std::max(0, x - rad); k <= std::min(w - 1, x + rad); k++, c++) sum += row[k];
           tmp[static_cast<size_t>(y) * w + x] = sum / c;
         }
+      }
       for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) {
           float sum = 0; int c = 0;
           for (int k = std::max(0, y - rad); k <= std::min(h - 1, y + rad); k++, c++)
             sum += tmp[static_cast<size_t>(k) * w + x];
-          t.interior[static_cast<size_t>(y) * w + x] = sum / c;
+          interior[static_cast<size_t>(y) * w + x] = sum / c;
         }
-      // DEPLETION: the mean ink in a band of rows just above each pixel and
-      // a little to either side -- the roller met those first. In the PAGE's
-      // reading orientation the roller runs down the page, which on this
-      // landscape framebuffer (the reader is Portrait, rotated 90 CCW) is
-      // along +x; the band is the WIN framebuffer columns before this one.
-      const int win = 28 * std::max(1, scale);
-      const int half = 6 * std::max(1, scale);
-      std::vector<float> colSum(static_cast<size_t>(w) * h);
-      // prefix sums along x per row of a vertically box-blurred ink
+      // DEPLETION: the mean ink in the WIN framebuffer columns before this
+      // one (the roller runs down the page = +x on the landscape framebuffer),
+      // over a band of rows. Prefix sums along x of the row-band mean.
+      const int win = 28 * sc, half = 6 * sc;
       for (int y = 0; y < h; y++) {
         float run = 0;
+        const int y0 = std::max(0, y - half), y1 = std::min(h - 1, y + half);
         for (int x = 0; x < w; x++) {
           float v = 0; int c = 0;
-          for (int k = std::max(0, y - half); k <= std::min(h - 1, y + half); k += std::max(1, scale), c++)
-            v += ink[static_cast<size_t>(k) * w + x];
+          for (int k = y0; k <= y1; k += sc, c++) v += ink[static_cast<size_t>(k) * w + x];
           run += v / c;
           colSum[static_cast<size_t>(y) * w + x] = run;
         }
       }
       const uint32_t phase = phosphorgrain::hash3(sheetSeed, 0x524F4Cu, 7u);
       const float ph = static_cast<float>(phase & 0xFFFF) / 65535.0f;
+      t.qMask.assign(n, 0);
+      t.qRobbed.assign(n, 0);
+      t.qContact.assign(n, 0);
+      t.qBlob.assign(n, 0);
       for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) {
           const size_t i = static_cast<size_t>(y) * w + x;
+          // Masked to the ink and one device pixel around it, so bare paper
+          // is never veiled. The veil takes away (1 - printed) of WHATEVER ink
+          // is there (an ink-weighted veil left a ghost).
+          const float mask = std::min(1.0f, 6.0f * std::max(ink[i], interior[i]));
+          if (mask <= 0.0f) continue;
+          t.qMask[i] = static_cast<uint8_t>(mask * 255.0f + 0.5f);
           const int x0 = std::max(0, x - win), x1 = std::max(0, x - 1 - rad);
           float dep = 0.0f;
           if (x1 > x0) dep = (colSum[static_cast<size_t>(y) * w + x1] -
                               colSum[static_cast<size_t>(y) * w + x0]) / (x1 - x0);
-          PressSample &ps = t.samples[i];
-          ps.interior = t.interior[i];
-          ps.tooth = phosphorgrain::unitFromHash(phosphorgrain::hash3(
-              static_cast<uint32_t>(x), static_cast<uint32_t>(y), sheetSeed ^ 0x544F4F54u));
+          PressSample ps;
+          ps.interior = interior[i];
+          ps.tooth = smoothToothAt(x, y, sc, sheetSeed);
           const float nx = (x + 0.5f) / w, ny = (y + 0.5f) / h;
           ps.form = phosphorgrain::valueNoise(nx * 3.0f, ny * 3.0f, sheetSeed ^ 0x464F524Du);
           ps.plate = phosphorgrain::valueNoise(nx * 4.0f, ny * 4.0f, sheetSeed ^ 0x504C5445u);
-          ps.blob = blobAt(x, y, scale, sheetSeed);
-          // text covers ~15% of a band of rows, so x4 makes a full line
-          // above read as a heavily robbed roller
           ps.depletion = std::min(1.0f, dep * 4.0f);
-          // word-sized skip-out patches (~40 device px cells)
-          ps.skip = phosphorgrain::valueNoise(x / (40.0f * std::max(1, scale)),
-                                              y / (40.0f * std::max(1, scale)),
-                                              sheetSeed ^ 0x534B4950u);
-          // the roller's circumference: ~0.37 of the page's height per turn,
-          // along the roller's travel (+x here)
           ps.band = 0.5f + 0.5f * std::sin(6.2831853f * (nx * 2.7f + ph));
+          ps.skip = phosphorgrain::valueNoise(x / (40.0f * sc), y / (40.0f * sc),
+                                              sheetSeed ^ 0x534B4950u);
+          t.qRobbed[i] = static_cast<uint8_t>(std::min(1.0f, robbedOf(ps) / 1.75f) * 255.0f + 0.5f);
+          t.qContact[i] = static_cast<uint8_t>(std::min(1.0f, contactOf(ps)) * 255.0f + 0.5f);
+          t.qBlob[i] = static_cast<uint8_t>(blobAt(x, y, sc, sheetSeed) * 255.0f + 0.5f);
         }
     }
     t.veilSeq = seq;
     t.veilSeed = sheetSeed;
     t.veilStep = step;
     const float tf = static_cast<float>(step) / 120.0f;
+    const float supplyBase = tf > 0.0f && tf < 1.0f ? std::pow(1.0f - tf, 1.25f) : 0.0f;
     t.veilPixels.resize(n);
     const uint32_t rgb = (static_cast<uint32_t>(pal.paper[0]) << 16) |
                          (static_cast<uint32_t>(pal.paper[1]) << 8) | pal.paper[2];
     for (size_t i = 0; i < n; i++) {
-      // The veil takes away (1 - printed) of WHATEVER ink is there, masked to
-      // the ink and one device pixel around it, so bare paper is never veiled
-      // (an ink-weighted veil left ink*(1-ink) of every edge pixel: a ghost).
-      const float mask = std::min(1.0f, 6.0f * std::max(t.inkRow[i], t.interior[i]));
-      const float a = mask * (1.0f - printedFraction(t.samples[i], tf));
+      const uint8_t m = t.qMask[i];
+      if (m == 0) { t.veilPixels[i] = rgb; continue; }   // bare paper: alpha 0
+      const float printed = printedRaw(t.qRobbed[i] * (1.75f / 255.0f),
+                                       t.qContact[i] * (1.0f / 255.0f),
+                                       t.qBlob[i] * (1.0f / 255.0f), tf, supplyBase);
+      const float a = (m * (1.0f / 255.0f)) * (1.0f - printed);
       t.veilPixels[i] = (static_cast<uint32_t>(a * 255.0f + 0.5f) << 24) | rgb;
     }
     SDL_UpdateTexture(t.veil, nullptr, t.veilPixels.data(), w * 4);
@@ -287,8 +288,11 @@ inline bool drawFadedField(SDL_Renderer *r, SDL_Texture *field, int w, int h,
   }
   SDL_Texture *prev = SDL_GetRenderTarget(r);
   if (!SDL_SetRenderTarget(r, t.pressTarget)) return false;
+  Uint8 dr = 0, dg = 0, db = 0, da = 255;
+  SDL_GetRenderDrawColor(r, &dr, &dg, &db, &da);
   SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
   SDL_RenderClear(r);
+  SDL_SetRenderDrawColor(r, dr, dg, db, da);
   SDL_BlendMode fieldBlend = SDL_BLENDMODE_MOD;
   SDL_GetTextureBlendMode(field, &fieldBlend);
   Uint8 fieldAlpha = 255;
@@ -349,8 +353,10 @@ inline void drawDark(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
     SDL_SetTextureAlphaMod(
         t.lift, static_cast<Uint8>(kLiftAtEnd * tf * tf * 255.0f + 0.5f));
   }
-  if (t.glowSeq != seq) {
+  if (t.glowSeq != seq || t.glowW != w || t.glowH != h) {
     t.glowSeq = seq;
+    t.glowW = w;
+    t.glowH = h;
     std::vector<uint32_t> out;
     {
       int ow = 0, oh = 0;

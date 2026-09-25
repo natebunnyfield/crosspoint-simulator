@@ -135,6 +135,9 @@ static std::atomic<uint64_t> pageFadeStepDueMs{0};
 // The zen reading goal's decay, 0..1, as the last clock tick left it. Main
 // thread only. src/SurfaceAllowance.h.
 static double allowanceDecay = 0.0;
+// The page the decay passes read, copied once per page under the pixel lock.
+static std::vector<uint32_t> allowancePageCopy;
+static uint64_t allowancePageCopySeq = ~0ull;
 
 // THE READING SPEEDRUN (spike, src/Speedrun.h): off unless
 // CROSSPOINT_SIM_SPEEDRUN=1. Main thread only, like the goal's clock.
@@ -3724,8 +3727,8 @@ void HalDisplay::presentIfNeeded() {
     // A COPY per page, taken under the lock and worked on outside it: the veil
     // and the glows cost tens of milliseconds at 2x, and holding pixelBufMutex
     // that long blocks the render task from writing the next page.
-    static std::vector<uint32_t> pageCopy;
-    static uint64_t pageCopySeq = ~0ull;
+    std::vector<uint32_t> &pageCopy = allowancePageCopy;
+    uint64_t &pageCopySeq = allowancePageCopySeq;
     const int w = activeWidth(), h = activeHeight();
     {
       const std::lock_guard<std::mutex> lock(pixelBufMutex);
@@ -3745,8 +3748,14 @@ void HalDisplay::presentIfNeeded() {
                               cp::renderScale(), pageCopySeq, pageSheetSeed(),
                               allowanceDecay, pal, panelMode, drawPanel);
     }
-  } else if (allowanceDecay <= 0.0) {
+  } else {
+    // Clean page: release everything, the page copy included (6.7 MB at 2x
+    // that used to live for the rest of the process -- adversarial review).
     simallowance::destroyAll();
+    if (!allowancePageCopy.empty()) {
+      std::vector<uint32_t>().swap(allowancePageCopy);
+      allowancePageCopySeq = ~0ull;
+    }
   }
 
   if (beamSweeping) {
