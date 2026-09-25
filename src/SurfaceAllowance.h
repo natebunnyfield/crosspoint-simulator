@@ -125,6 +125,9 @@ struct Textures {
   uint64_t glowSeq = ~0ull;
   int glowW = 0, glowH = 0;
   SDL_Texture *lift = nullptr;
+  SDL_Texture *halo = nullptr;
+  SDL_Texture *retrace = nullptr;
+  int retraceW = 0, retraceH = 0;
 };
 
 inline Textures &textures() {
@@ -134,7 +137,7 @@ inline Textures &textures() {
 
 inline void destroyAll() {
   Textures &t = textures();
-  if (!t.veil && !t.lift && !t.defocus && !t.pressTarget && !t.glow[0] &&
+  if (!t.veil && !t.lift && !t.defocus && !t.pressTarget && !t.halo && !t.retrace && !t.glow[0] &&
       !t.glow[1] && !t.glow[2])
     return;
   if (t.pressTarget) SDL_DestroyTexture(t.pressTarget);
@@ -143,6 +146,8 @@ inline void destroyAll() {
     if (g) SDL_DestroyTexture(g), g = nullptr;
   if (t.lift) SDL_DestroyTexture(t.lift);
   if (t.defocus) SDL_DestroyTexture(t.defocus);
+  if (t.halo) SDL_DestroyTexture(t.halo);
+  if (t.retrace) SDL_DestroyTexture(t.retrace);
   t = Textures{};
 }
 
@@ -309,111 +314,197 @@ inline bool drawFadedField(SDL_Renderer *r, SDL_Texture *field, int w, int h,
   return true;
 }
 
-// The three glows: (downsample factor, blur radius). The first is the swell --
-// a glyph's own light spreading a device pixel or two, which fills the
-// counters -- and the other two the halation.
-struct GlowLevel {
-  int factor, radius;
-};
-inline constexpr GlowLevel kGlow[3] = {{2, 1}, {4, 2}, {12, 2}};
-// Each glow's gain over the minute. The swell PEAKS mid-minute and gives way:
-// it is built from the sharp page, so held at full to the end it reprinted
-// crisp letter shapes over the defocus and the spent page still read (measured
-// on the first render with the defocus in). The wide halation only grows.
-inline float glowGain(int level, float t) {
-  switch (level) {
-    case 0: return 2.2f * 4.0f * t * (1.0f - t);
-    case 1: return 1.6f * t * (1.0f - 0.6f * t);
-    default: return 1.4f * t;
-  }
+// ---- DARK: THE OVERDRIVEN TUBE. picture::darkSchedule says how much of each
+// failure is on; this builds the layers once per page and only moves alphas
+// per step. Everything is at a reduced resolution and drawn LINEAR through
+// drawPanel, which is what a fat, defocused beam looks like anyway.
+
+// A plane of `coverage` (0..1) at w x h, box-downsampled by `f` from the
+// page's excess light over `ground`, normalized by the ink's own excess.
+inline void excessCoverage(const uint32_t *src, int w, int h, int f,
+                           const uint8_t ground[3], const uint8_t ink[3],
+                           std::vector<float> &out, int &ow, int &oh) {
+  ow = std::max(1, w / f); oh = std::max(1, h / f);
+  out.assign(static_cast<size_t>(ow) * oh, 0.0f);
+  int span = 1;
+  for (int c = 0; c < 3; c++) span = std::max(span, static_cast<int>(ink[c]) - ground[c]);
+  const float inv = 1.0f / static_cast<float>(f * f * span);
+  for (int y = 0; y < oh * f; y++)
+    for (int x = 0; x < ow * f; x++) {
+      const uint32_t px = src[static_cast<size_t>(y) * w + x];
+      int best = 0;
+      for (int c = 0; c < 3; c++)
+        best = std::max(best, static_cast<int>((px >> (16 - 8 * c)) & 0xFFu) - ground[c]);
+      if (best > 0) out[static_cast<size_t>(y / f) * ow + x / f] += best * inv;
+    }
 }
-// How far the ground lifts toward the ink at t = 1.
-inline constexpr float kLiftAtEnd = 0.80f;
-// THE SPOT GROWS. An overdriven beam defocuses: the whole picture is replaced,
-// by t = 1, with itself blurred past reading. Without this the swell and the
-// glows only brightened the page -- the first render still read cleanly at
-// 10:00, white type on a lifted ground. (downsample, radius, passes)
-inline constexpr int kDefocusFactor = 6, kDefocusRadius = 2, kDefocusPasses = 3;
+// Separable max (dilation) then box blur, radius in plane pixels.
+inline void dilateBlur(std::vector<float> &p, int w, int h, int dil, int blur, int passes) {
+  std::vector<float> tmp(p.size());
+  auto pass = [&](bool isMax, int r) {
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        float acc = 0; int c = 0;
+        for (int k = std::max(0, x - r); k <= std::min(w - 1, x + r); k++, c++) {
+          const float v = p[static_cast<size_t>(y) * w + k];
+          acc = isMax ? std::max(acc, v) : acc + v;
+        }
+        tmp[static_cast<size_t>(y) * w + x] = isMax ? acc : acc / c;
+      }
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        float acc = 0; int c = 0;
+        for (int k = std::max(0, y - r); k <= std::min(h - 1, y + r); k++, c++) {
+          const float v = tmp[static_cast<size_t>(k) * w + x];
+          acc = isMax ? std::max(acc, v) : acc + v;
+        }
+        p[static_cast<size_t>(y) * w + x] = isMax ? acc : acc / c;
+      }
+  };
+  if (dil > 0) pass(true, dil);
+  for (int i = 0; i < passes && blur > 0; i++) pass(false, blur);
+}
+inline SDL_Texture *uploadPlane(SDL_Renderer *r, SDL_Texture *tex, const std::vector<float> &p,
+                                int w, int h, const uint8_t rgb[3], bool alphaFromPlane,
+                                SDL_BlendMode mode) {
+  if (tex) {
+    float tw = 0, th = 0; SDL_GetTextureSize(tex, &tw, &th);
+    if (static_cast<int>(tw) != w || static_cast<int>(th) != h) { SDL_DestroyTexture(tex); tex = nullptr; }
+  }
+  if (!tex) {
+    tex = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h);
+    if (!tex) return nullptr;
+    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
+  }
+  SDL_SetTextureBlendMode(tex, mode);
+  std::vector<uint32_t> px(p.size());
+  for (size_t i = 0; i < p.size(); i++) {
+    const float v = std::clamp(p[i], 0.0f, 1.0f);
+    if (alphaFromPlane) {
+      px[i] = (static_cast<uint32_t>(v * 255.0f + 0.5f) << 24) |
+              (static_cast<uint32_t>(rgb[0]) << 16) | (static_cast<uint32_t>(rgb[1]) << 8) | rgb[2];
+    } else {
+      px[i] = 0xFF000000u | (static_cast<uint32_t>(rgb[0] * v + 0.5f) << 16) |
+              (static_cast<uint32_t>(rgb[1] * v + 0.5f) << 8) | static_cast<uint32_t>(rgb[2] * v + 0.5f);
+    }
+  }
+  SDL_UpdateTexture(tex, nullptr, px.data(), w * 4);
+  return tex;
+}
+
+// Fat-beam radii, in 1/2-resolution pixels at render scale 1 (so a soften,
+// then 2 and 4 device pixels): the three levels darkSchedule blends through.
+inline constexpr int kSwellDil[3] = {0, 1, 2};
 
 template <typename DrawPanel>
 inline void drawDark(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
-                     uint64_t seq, double f, const panelpalette::Palette &pal,
+                     int scale, uint64_t seq, double f, const panelpalette::Palette &pal,
                      DrawPanel &&drawPanel) {
   Textures &t = textures();
   const float tf = static_cast<float>(f);
+  const DarkSchedule d = darkSchedule(tf);
+  const int sc = std::max(1, scale);
+  // PASS 5 -- PHOSPHOR SATURATION GROWS WITH THE OVERDRIVE. The swell layers
+  // are baked WHITE and tinted per step: from the phosphor's own color toward
+  // white, 15% early to 70% at the end (pass 1-4 used a fixed 45%, so the
+  // first swell was already bleached and the last one not hot enough).
+  const float sat = 0.15f + 0.55f * tf;
+  uint8_t hot[3];
+  for (int c = 0; c < 3; c++) hot[c] = static_cast<uint8_t>(pal.ink[c] + (255 - pal.ink[c]) * sat);
+  const uint8_t white[3] = {255, 255, 255};
   if (!t.lift) {
-    t.lift = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888,
-                               SDL_TEXTUREACCESS_STATIC, 1, 1);
+    t.lift = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 1, 1);
     if (t.lift) SDL_SetTextureBlendMode(t.lift, SDL_BLENDMODE_BLEND);
   }
   if (t.lift) {
     const uint32_t px = 0xFF000000u | (static_cast<uint32_t>(pal.ink[0]) << 16) |
                         (static_cast<uint32_t>(pal.ink[1]) << 8) | pal.ink[2];
     SDL_UpdateTexture(t.lift, nullptr, &px, 4);
-    SDL_SetTextureAlphaMod(
-        t.lift, static_cast<Uint8>(kLiftAtEnd * tf * tf * 255.0f + 0.5f));
   }
   if (t.glowSeq != seq || t.glowW != w || t.glowH != h) {
-    t.glowSeq = seq;
-    t.glowW = w;
-    t.glowH = h;
-    std::vector<uint32_t> out;
+    t.glowSeq = seq; t.glowW = w; t.glowH = h;
+    // HV-sag defocus: the whole picture, blurred (unchanged from v1)
     {
-      int ow = 0, oh = 0;
+      std::vector<uint32_t> out; int ow = 0, oh = 0;
       const uint8_t zero[3] = {0, 0, 0};
-      excessGlow(pixels, w, h, kDefocusFactor, kDefocusRadius, kDefocusPasses,
-                 zero, out, ow, oh);
+      excessGlow(pixels, w, h, 6 * sc, 2, 3, zero, out, ow, oh);
       if (t.defocus) SDL_DestroyTexture(t.defocus);
-      t.defocus = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888,
-                                    SDL_TEXTUREACCESS_STATIC, ow, oh);
+      t.defocus = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, ow, oh);
       if (t.defocus) {
         SDL_SetTextureBlendMode(t.defocus, SDL_BLENDMODE_BLEND);
         SDL_SetTextureScaleMode(t.defocus, SDL_SCALEMODE_LINEAR);
         SDL_UpdateTexture(t.defocus, nullptr, out.data(), ow * 4);
       }
     }
+    // FAT BEAM: the strokes' coverage at 1/2 resolution, dilated to three
+    // radii and softened, drawn as solid swollen strokes in the hot phosphor
+    std::vector<float> cov; int cw = 0, ch = 0;
+    excessCoverage(pixels, w, h, 2 * sc, pal.paper, pal.ink, cov, cw, ch);
     for (int i = 0; i < 3; i++) {
-      int ow = 0, oh = 0;
-      excessGlow(pixels, w, h, kGlow[i].factor, kGlow[i].radius, 2, pal.paper,
-                 out, ow, oh);
-      if (t.glow[i]) {
-        float gw = 0, gh = 0;
-        SDL_GetTextureSize(t.glow[i], &gw, &gh);
-        if (static_cast<int>(gw) != ow || static_cast<int>(gh) != oh) {
-          SDL_DestroyTexture(t.glow[i]);
-          t.glow[i] = nullptr;
+      std::vector<float> lvl = cov;
+      dilateBlur(lvl, cw, ch, kSwellDil[i], 1, i == 2 ? 2 : 1);
+      // PASS 3 -- VIDEO-AMP SMEAR. An overloaded video amplifier cannot fall
+      // as fast as it rose, so bright content trails along the scan line.
+      // The scan runs across the PRESENTED page (+/-y on this landscape
+      // framebuffer); a one-sided exponential trail, longer at the heavier
+      // levels.
+      if (i > 0) {
+        const float keep = i == 1 ? 0.55f : 0.72f;
+        for (int x = 0; x < cw; x++) {
+          float run = 0.0f;
+          for (int y = ch - 1; y >= 0; y--) {
+            float &v = lvl[static_cast<size_t>(y) * cw + x];
+            run = std::max(v, run * keep);
+            v = run;
+          }
         }
       }
-      if (!t.glow[i]) {
-        t.glow[i] = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888,
-                                      SDL_TEXTUREACCESS_STATIC, ow, oh);
-        if (!t.glow[i]) continue;
-        SDL_SetTextureBlendMode(t.glow[i], SDL_BLENDMODE_ADD);
-        SDL_SetTextureScaleMode(t.glow[i], SDL_SCALEMODE_LINEAR);
+      for (float &v : lvl) v = std::min(1.0f, v * 1.3f);
+      t.glow[i] = uploadPlane(r, t.glow[i], lvl, cw, ch, white, true, SDL_BLENDMODE_BLEND);
+    }
+    // HALATION: a ring -- wide blur minus a narrower one -- at 1/8
+    {
+      std::vector<float> c8; int w8 = 0, h8 = 0;
+      excessCoverage(pixels, w, h, 8 * sc, pal.paper, pal.ink, c8, w8, h8);
+      std::vector<float> wide = c8, narrow = c8;
+      dilateBlur(wide, w8, h8, 0, 3, 2);
+      dilateBlur(narrow, w8, h8, 0, 1, 1);
+      for (size_t i = 0; i < wide.size(); i++) wide[i] = std::max(0.0f, wide[i] - 0.7f * narrow[i]) * 3.0f;
+      t.halo = uploadPlane(r, t.halo, wide, w8, h8, pal.ink, false, SDL_BLENDMODE_ADD);
+    }
+  }
+  // RETRACE LINES: fixed per size -- faint diagonals the blanking no longer hides
+  if (!t.retrace || t.retraceW != w || t.retraceH != h) {
+    const int rw = std::max(1, w / (4 * sc)), rh = std::max(1, h / (4 * sc));
+    std::vector<float> p(static_cast<size_t>(rw) * rh, 0.0f);
+    const int lines = 12;
+    for (int y = 0; y < rh; y++)
+      for (int x = 0; x < rw; x++) {
+        // a family of parallel diagonals, antialiased over one plane pixel
+        const float u = (x + 0.35f * y) / static_cast<float>(rw) * lines;
+        const float fr = u - std::floor(u);
+        const float dist = std::min(fr, 1.0f - fr) * (static_cast<float>(rw) / lines);
+        p[static_cast<size_t>(y) * rw + x] = std::max(0.0f, 1.0f - 1.6f * dist) * 0.5f;
       }
-      SDL_UpdateTexture(t.glow[i], nullptr, out.data(), ow * 4);
+    t.retrace = uploadPlane(r, t.retrace, p, rw, rh, pal.ink, false, SDL_BLENDMODE_ADD);
+    t.retraceW = w; t.retraceH = h;
+  }
+  auto draw = [&](SDL_Texture *tex, float a) {
+    if (!tex || a <= 0.0f) return;
+    while (a > 0.0f) {
+      SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(std::min(a, 1.0f) * 255.0f + 0.5f));
+      drawPanel(tex);
+      a -= 1.0f;
     }
-  }
-  // The defocused picture over the sharp one, then the lift over both, so
-  // the ground the glows land on is the lifted one.
-  if (t.defocus) {
-    const float a = std::clamp(tf * tf * (3.0f - 2.0f * tf), 0.0f, 1.0f);
-    SDL_SetTextureAlphaMod(t.defocus, static_cast<Uint8>(a * 255.0f + 0.5f));
-    drawPanel(t.defocus);
-  }
-  if (t.lift) drawPanel(t.lift);
+  };
+  draw(t.defocus, d.defocus);
+  draw(t.lift, d.lift);
+  draw(t.retrace, d.retrace);
   for (int i = 0; i < 3; i++) {
-    if (!t.glow[i]) continue;
-    // A gain above one is drawn as whole passes plus a remainder: alpha mod
-    // cannot exceed 255, and ADD is linear in the number of passes.
-    float g = glowGain(i, tf);
-    while (g > 0.0f) {
-      const float a = std::min(g, 1.0f);
-      SDL_SetTextureAlphaMod(t.glow[i], static_cast<Uint8>(a * 255.0f + 0.5f));
-      drawPanel(t.glow[i]);
-      g -= 1.0f;
-    }
+    if (t.glow[i]) SDL_SetTextureColorMod(t.glow[i], hot[0], hot[1], hot[2]);
+    draw(t.glow[i], d.swell[i]);
   }
+  draw(t.halo, d.halo);
 }
 
 }  // namespace simallowance

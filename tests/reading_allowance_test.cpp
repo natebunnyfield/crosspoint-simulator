@@ -138,6 +138,26 @@ int main() {
           "viscous press: the impression holds until late, then goes");
     check(blobAt(10, 10, 1, 1u) == blobAt(10, 10, 1, 1u) && blobAt(10, 10, 1, 1u) != blobAt(10, 10, 1, 2u),
           "viscous press: the split field belongs to the page's sheet");
+    // THE OVERDRIVEN TUBE's schedule: nothing at t = 0; every failure only
+    // grows; the fat beam comes first and the HV-sag defocus last; everything
+    // is fully on at t = 1.
+    {
+      const DarkSchedule z = darkSchedule(0.0f), e = darkSchedule(1.0f);
+      check(z.swell[0] == 0 && z.halo == 0 && z.defocus == 0 && z.lift == 0 && z.retrace == 0,
+            "dark: nothing at t = 0");
+      check(e.swell[2] == 1.0f && e.defocus == 1.0f && e.lift > 0.5f, "dark: fully overdriven at t = 1");
+      bool monoD = true;
+      DarkSchedule prev = z;
+      for (int k = 1; k <= 120; k++) {
+        const DarkSchedule c = darkSchedule(k / 120.0f);
+        for (int i = 0; i < 3; i++) if (c.swell[i] < prev.swell[i]) monoD = false;
+        if (c.halo < prev.halo || c.defocus < prev.defocus || c.lift < prev.lift || c.retrace < prev.retrace) monoD = false;
+        prev = c;
+      }
+      check(monoD, "dark: every failure only grows");
+      const DarkSchedule q = darkSchedule(0.3f);
+      check(q.swell[0] > 0.5f && q.defocus == 0.0f, "dark: the fat beam comes before the defocus");
+    }
     // inkness reads a pixel against the page's own palette.
     const panelpalette::Palette pal{{0x5C, 0x33, 0x2B}, {0xF9, 0xF3, 0xE9}};
     check(inkness(0xFF5C332Bu, pal) == 1.0f, "inkness: the ink is full ink");

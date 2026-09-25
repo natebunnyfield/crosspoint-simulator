@@ -247,6 +247,53 @@ inline float smoothToothAt(int x, int y, int scale, uint32_t seed) {
                                    static_cast<float>(y) / c, seed ^ 0x544F4F54u);
 }
 
+// ---- THE OVERDRIVEN TUBE (owner 2026-09-25: rework the dark decay as the
+// light one was -- research the physics, take passes). What an overdriven CRT
+// actually does, from the service literature (repairfaq's TV FAQ, "blooming or
+// breathing"; beam-current-limiter patents):
+//
+//  * FAT BEAM. Beam current rises with brightness and a high-current beam is a
+//    wider, harder-to-focus spot, so BRIGHT strokes swell -- the letters grow
+//    heavy and fill their counters before anything else goes.
+//  * PHOSPHOR SATURATION. The swollen core clips toward white.
+//  * HALATION. Light scattered inside the faceplate returns as a ring around
+//    bright areas.
+//  * HIGH-VOLTAGE SAG. Under the load the anode voltage drops, the beam loses
+//    stiffness and focus -- the whole picture softens, late.
+//  * BRIGHTNESS PAST CUTOFF. The black level lifts toward grey and the
+//    retrace lines, normally blanked, show as faint diagonals.
+//
+// DarkSchedule says how much of each is on at decay t. Pure, so the test can
+// pin the ordering: the swell first, then halation and lift, the defocus last.
+struct DarkSchedule {
+  float swell[3];   // blend weights of the three dilation radii, 0..1
+  float halo;       // ring halo gain
+  float defocus;    // whole-picture defocus, 0..1
+  float lift;       // black level toward the phosphor, 0..1
+  float retrace;    // retrace-line visibility, 0..1
+};
+inline float smoothstepf(float a, float b, float x) {
+  const float u = std::clamp((x - a) / (b - a), 0.0f, 1.0f);
+  return u * u * (3.0f - 2.0f * u);
+}
+inline DarkSchedule darkSchedule(float t) {
+  DarkSchedule d{};
+  if (t <= 0.0f) return d;
+  t = std::min(t, 1.0f);
+  // Pass 2: the first schedule had the page swollen past reading at 4:22
+  // (t = 0.37) and the retrace lines loud by 4:30. A fat beam grows with the
+  // overdrive, so the swell now spreads over the whole minute, and retrace is
+  // a late, faint ghost.
+  d.swell[0] = smoothstepf(0.05f, 0.45f, t);
+  d.swell[1] = smoothstepf(0.35f, 0.75f, t);
+  d.swell[2] = smoothstepf(0.60f, 0.95f, t);
+  d.halo = 1.0f * smoothstepf(0.15f, 0.80f, t);
+  d.defocus = smoothstepf(0.60f, 1.00f, t);
+  d.lift = 0.60f * std::pow(t, 1.5f);
+  d.retrace = 0.45f * smoothstepf(0.50f, 1.00f, t);
+  return d;
+}
+
 // Box-downsample the page's excess light over `ground` by `factor`, then blur
 // it with `passes` separable box passes of radius `radius`. Output is
 // premultiplied-style RGB in [0,255] per texel, alpha 255. `src` is w*h ARGB.
