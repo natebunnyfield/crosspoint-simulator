@@ -70,7 +70,7 @@ It found no correctness bug. Four findings, three fixed before commit:
 
 It checked and found clean:
 
-- **What counts as reading.** Menus, the sleep screen, the sleep loop and the background are all excluded, and coming back from a menu re-publishes the page. One edge remains: foreground-inactive time (Control Center, a banner) counts.
+- **What counts as reading.** Menus, the sleep screen, the sleep loop and the background are all excluded, and coming back from a menu re-publishes the page. The reviewer flagged one edge: foreground-inactive time counted. It was closed the same day (see below).
 - **Dial at 0.** Nothing is drawn, written or presented.
 - **Threading.**
 - **The iOS longjmp reboot.** The renderer and the static textures survive it.
@@ -78,6 +78,15 @@ It checked and found clean:
 - **Decay math and presents.** The decay only increases, presents stop at step 120, midnight refills, and a polarity switch rebuilds the glows.
 - **iOS absent vs Off.**
 - **Privacy.** The record holds book-path hashes and seconds, in Application Support, which file transfer cannot reach.
+
+## Foreground-inactive time does not count (2026-09-24, after the owner's note)
+
+The owner, on the review's edge: *"notification banners should not be possible in app"*.
+
+- The clock now also stops while the scene is foreground-INACTIVE. The shim sets `SimulatorOverlay::setAppInactive(true)` at `SDL_EVENT_WILL_ENTER_BACKGROUND` (resign-active). Either forward edge clears it, the same edges that resume presents.
+- So whatever resigns active cannot run the clock: Control Center or Notification Center pulled down, an incoming call, or a banner if one ever did.
+- Presents still run while inactive, as S-041 requires. Only the clock pauses.
+- Not measured on a device: which of those actually resigns active on current iOS.
 
 ## Not measured
 
