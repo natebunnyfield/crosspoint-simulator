@@ -2,6 +2,7 @@
 
 The owner asked: *"take three passes at all albo fonts, find any issues and fix them present me before and after proof"*.
 
+- **Proof page** (before/after, every cut): https://claude.ai/artifact/2NdNHhn8xVHkzzBjJGw8Kk
 - **Surveyed:** HEAD `f1c8093`. All four cuts were built with `albo_build_all`: Regular, Italic, Bold and BoldItalic.
 - **Why the bolds had never been swept:** `gates.sh` covers only Regular and Italic.
 - **Instruments, on every cut:**
