@@ -545,6 +545,13 @@ void setZenActive(bool on);
 // THE READING SPEEDRUN's HUD on or off (src/Speedrun.h). A Settings row on
 // the phone; CROSSPOINT_SIM_SPEEDRUN overrides.
 void setSpeedrun(bool on);
+// SPEED READ (RSVP, src/SpeedRead.h): on/off and words per minute. Settings
+// rows on the phone; CROSSPOINT_SIM_SPEED_READ / _WPM override.
+void setSpeedRead(bool on);
+void setSpeedReadWpm(int wpm);
+// A tap on the glass while a speed-read word is up: taken as pause/resume and
+// true returned, so the caller does nothing else with it. False otherwise.
+bool speedReadTakeTap();
 
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying

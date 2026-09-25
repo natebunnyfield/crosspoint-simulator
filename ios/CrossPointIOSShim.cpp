@@ -2222,6 +2222,20 @@ void pollReadingAllowance() {
   SimulatorOverlay::setReadingAllowance(minutes);
 }
 
+// SPEED READ (RSVP), two Settings rows; edge-triggered. src/SpeedRead.h.
+void pollSpeedRead() {
+  static int s_on = -1, s_wpm = -1;
+  const int on = CrossPointPrefs_speedRead();
+  const int wpm = CrossPointPrefs_speedReadWpm();
+  if (wpm != s_wpm) {
+    s_wpm = wpm;
+    SimulatorOverlay::setSpeedReadWpm(wpm);
+  }
+  if (on == s_on) return;
+  s_on = on;
+  SimulatorOverlay::setSpeedRead(on != 0);
+}
+
 // THE READING SPEEDRUN, a Settings row; edge-triggered.
 void pollSpeedrun() {
   static int s_on = -1;
@@ -3494,6 +3508,13 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // shows one `[kbchip]` line). Spoil anyway: the guarantee belongs
           // here, beside the toggle, not forty lines up in another case.
           g_tapCand.spoil();
+        } else if (zenBefore && verb == zenverbs::Verb::Down &&
+                   SimulatorOverlay::speedReadTakeTap()) {
+          // SPEED READ owns the tap while a word is up: pause/resume, and
+          // nothing else (src/SurfaceSpeedRead.h takeTap).
+          SDL_Log("[speedread] tap (zen) -> pause/resume");
+          applyActions(g_core.fingerUp(e->tfinger.fingerID));
+          break;
         } else if (zenBefore && verb == zenverbs::Verb::Down) {
           // THE DELIBERATE TAP, the one verb left on this path. Every gesture
           // that moves, and every multi-finger tap, is a native recognizer in
@@ -3594,6 +3615,9 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
             // own crash investigation started in.
             SDL_Log("[kbchip] tap -> keyboard %s", want ? "up" : "down");
             SimulatorOverlay::requestPresent();
+          } else if (SimulatorOverlay::speedReadTakeTap()) {
+            // SPEED READ: an off-pad tap while a word is up pauses/resumes.
+            SDL_Log("[speedread] tap -> pause/resume");
           } else
             CrossPointReadAloud_tapAtScreen(candX, candY);
         }
@@ -4241,6 +4265,7 @@ void CrossPointHarness_perFrame() {
   pollDarkSurfaceItems();
   pollReadingAllowance();
   pollSpeedrun();
+  pollSpeedRead();
   pollReaderInsets();
   pollZenMode();
   // AFTER pollZenMode, which may change g_zen from Settings this frame; the

@@ -717,6 +717,14 @@ run reading_allowance \
 run speedrun \
   c++ -std=c++17 -Isrc -o "$OUT/speedrun" tests/speedrun_test.cpp
 
+# SPEED READ (RSVP, spike 2026-09-25): the ORP table against its cited source
+# (OpenSpritz), the duration multipliers, words and paragraph ends from a
+# capture, the pivot from column ink, the reader's clock/turn/pause/back -- and
+# the read-aloud channel's FAN-OUT, whose failure is silent: a peeker that
+# drained the channel would take pages from read-aloud. docs/speed-read-rsvp-2026-09-25.md.
+run speed_read \
+  c++ -std=c++17 -Isrc -o "$OUT/speed_read" tests/speed_read_test.cpp
+
 # WHEN THE GLASS IS RE-READ -- the decision behind every trail and sweep. It
 # was gated on the page's sequence number alone, so two presents of one page
 # with a different composition (the overlay laying the pad out, a keyboard, a

@@ -1447,7 +1447,10 @@ bool HalGPIO::readAloudCaptureWanted() const {
 void HalGPIO::publishReadAloudPage(const char *utf8, size_t utf8Len,
                                    const ReadAloudWordRect *rects,
                                    size_t rectCount) {
-  readAloudChannel.publish(utf8, utf8Len, rects, rectCount);
+  // Stamped with the host clock so a peeker can tell when the page's PIXELS
+  // have landed: the reader publishes before it paints (speed read waits for
+  // a pixel write after this instant).
+  readAloudChannel.publish(utf8, utf8Len, rects, rectCount, SDL_GetTicks());
   if (!readAloudDumpEnabled())
     return;
   if (utf8 == nullptr) {
@@ -1473,6 +1476,15 @@ void HalGPIO::setReadAloudCaptureWanted(bool wanted) {
 
 bool HalGPIO::consumeReadAloudPage(ReadAloudPage &out) {
   return readAloudChannel.consume(out);
+}
+
+void HalGPIO::setReadAloudPeekerWanted(bool wanted) {
+  readAloudChannel.setPeekerWanted(wanted);
+}
+
+bool HalGPIO::peekReadAloudPage(uint32_t &lastSeenGeneration,
+                                ReadAloudPage &out) {
+  return readAloudChannel.peek(lastSeenGeneration, out);
 }
 
 // --- Font-family step channel ------------------------------------------------

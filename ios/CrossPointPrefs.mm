@@ -143,6 +143,12 @@ static NSString *const kPowerOffCollapse = @"powerOffCollapse";
 static NSString *const kReadingAllowanceMinutes = @"readingAllowanceMinutes";
 // The speedrun HUD. Missing key is benign: NO is Off, the shipped default.
 static NSString *const kSpeedrunDemo = @"speedrunDemo";
+// SPEED READ (RSVP, spike 2026-09-25). The toggle's missing key is benign (NO
+// is off, the shipped default); the WPM's is not -- 0 would be a word per
+// forever -- so absence reads as the registered 300, in the getter AND in the
+// Root.plist-unreadable registration. src/SpeedRead.h.
+static NSString *const kSpeedRead = @"speedRead";
+static NSString *const kSpeedReadWpm = @"speedReadWpm";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -328,6 +334,7 @@ static void ensureDefaults(void) {
         kPressDebossPercent : @(99),
         kPressPressurePercent : @(125),
         kReadingAllowanceMinutes : @(5),
+        kSpeedReadWpm : @(300),
       }];
     }
 
@@ -689,6 +696,23 @@ int CrossPointPrefs_powerOffCollapse(void) {
 // matter the book. it only applies in zen mode and zen mode starting up again
 // restarts it"). Minutes per zen session; 0 is Off. src/ReadingAllowance.h
 // holds every decision about when.
+int CrossPointPrefs_speedRead(void) {
+  ensureDefaults();
+  checkKnown(kSpeedRead);
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kSpeedRead] ? 1 : 0;
+}
+
+int CrossPointPrefs_speedReadWpm(void) {
+  ensureDefaults();
+  checkKnown(kSpeedReadWpm);
+  NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
+  if ([ud objectForKey:kSpeedReadWpm] == nil) return 300;
+  NSInteger w = [ud integerForKey:kSpeedReadWpm];
+  if (w < 100) w = 100;
+  if (w > 1000) w = 1000;
+  return static_cast<int>(w);
+}
+
 int CrossPointPrefs_speedrun(void) {
   ensureDefaults();
   checkKnown(kSpeedrunDemo);
