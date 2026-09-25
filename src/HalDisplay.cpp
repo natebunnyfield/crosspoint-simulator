@@ -3739,8 +3739,9 @@ void HalDisplay::presentIfNeeded() {
       }
     }
     if (dark) {
-      simallowance::drawDark(sdl_renderer, pageCopy.data(), w, h, pageCopySeq,
-                             allowanceDecay, pal, drawPanel);
+      simallowance::drawDark(sdl_renderer, pageCopy.data(), w, h,
+                             cp::renderScale(), pageCopySeq, allowanceDecay,
+                             pal, drawPanel);
     } else {
       SDL_ScaleMode panelMode = kPanelScaleMode;
       SDL_GetTextureScaleMode(texture, &panelMode);

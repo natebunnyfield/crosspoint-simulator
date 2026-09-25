@@ -17,6 +17,44 @@
   - With `CROSSPOINT_SIM_ZEN=1` the page decays.
   - Without it, the frame is **byte-identical** to the un-preset page (md5 `87a81473…` both arms).
 
+## The dark decay, v2: the overdriven tube (2026-09-25 — five passes)
+
+The owner ruled: *"Rework it"*, the way the light decay was reworked.
+
+### The research
+
+- **Blooming.** Beam current rises with brightness, and a high-current beam is a wider, harder-to-focus spot (repairfaq.org TV FAQ, "blooming or breathing").
+- **Breathing.** The anode voltage sags under load: the beam loses stiffness and focus, and the raster expands on bright content.
+- **Brightness past cutoff.** The black level lifts to grey and the retrace lines show.
+- **Phosphor saturation.** Highlights clip toward white.
+- **Faceplate halation.** Light scattered inside the glass returns as a ring around bright areas.
+- **An overloaded video amplifier** smears bright content along the scan line.
+
+### The model
+
+`picture::darkSchedule` in `src/ReadingAllowance.h` says how much of each failure is on at t. Its ordering is pinned by the test:
+
+- nothing at t = 0;
+- every failure only grows;
+- the fat beam comes before the defocus.
+
+`simallowance::drawDark` builds, once per page:
+
+- **Fat beam:** the strokes' coverage at ½ resolution, at three dilation radii (0 / 1 / 2 half-px × scale), each softened. The two heavier levels carry a one-sided video-amp trail along the presented scan line.
+- **Halation:** a ring (wide blur − 0.7 × narrow) at ⅛ resolution.
+- **HV-sag defocus:** the v1 layer.
+- **Retrace lines:** twelve faint diagonals.
+
+Per step only alphas and a color mod move. The swell layers are baked white and tinted from the phosphor toward white by `0.15 + 0.55t`.
+
+### The passes
+
+1. **The first schedule was far too early.** The page was swollen past reading at 4:22, and the retrace lines were loud and thick.
+2. **The swell spread over the minute,** smaller radii, retrace a late faint ghost (0.45 max, after t = 0.5). The frames now read: glow, then halation and lift, then thickening, then heavy, then blobs, then unreadable.
+3. **Video-amp smear.** A diff against pass 2 shows it lands on the right edges of strokes, the scan direction.
+4. **Checked at the phone's 2x:** the radii scale correctly and the look matches 1x. The present costs 75–90 ms, most of it the existing phosphor trail accumulator.
+5. **Phosphor saturation grows with the overdrive.** It was a fixed 45%, so the first swell was already bleached.
+
 ## Pass 6 and the pre-ship review (2026-09-24)
 
 **The owner:** *"take a pass at improving the jagged pixelated look of light ink effect."*
