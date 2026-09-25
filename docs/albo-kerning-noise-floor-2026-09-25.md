@@ -195,3 +195,8 @@ error of 11 units is about a third of an X3 pixel.
 - **Checked and found clean:** the bench page's 396 rows map one to one to
   pairs (no duplicate pair keys). Every stored answer matches a row (no
   orphans). The fonts served by the bench predate every answer.
+
+## RULED 2026-09-25 (owner)
+
+- **The 73 answers `bench_values.json` is missing** (2026-09-21 evening, after round 344) wait for the re-ask. If the re-ask shows the held-out error beats his own repeatability, they are folded in as a spacing round with before/after proof. If not, pair fitting stops.
+- **A bench answer of 0 ("the shipped spacing is right") COUNTS as a judgment** when the fit next runs. `judgments()` stops discarding it. This is applied together with the 73, not before.
