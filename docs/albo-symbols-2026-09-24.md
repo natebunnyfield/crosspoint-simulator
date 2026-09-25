@@ -217,3 +217,7 @@ All twelve pieces are upright in the italics (`symbols._upright`).
 - **The first hull box on ﬃ** reached the first f's hook and sealed the same pocket (contours 2 → 3). It was narrowed to 0.75 stem left of the second stem and 0.35 stem above its top.
 - **Straight-sided "mitered chevron" arrowheads** read as a lumpy lozenge at the 700. They were replaced by curved barbs.
 - **A strongly bowed barb** left the shafts poking out past the head's outer curve.
+
+## RULED 2026-09-25 (owner)
+
+The letter fixes from this pass (proofs 10–12: ß, ſ, the f-ligatures, υ ψ φ β ρ, the italic Þ) are all **kept**, as shipped in build 211.
