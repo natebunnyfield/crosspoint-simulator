@@ -681,7 +681,9 @@ def g_yen(c):
 # roman Y has no gap to echo. ALBO_YEN_GAP_ROMAN=1 applies them upright too,
 # for comparison. Read at CALL time: build.py re-draws `a` to hold the cut phase.
 def yen_gap_opt():
-    opt = os.environ.get("ALBO_YEN_GAP", "a")
+    # RULED 2026-09-24 (owner): *"for yen, b for italics only"* -- the italics
+    # ship the channel (option b); the romans, whose Y has no gap, stay a.
+    opt = os.environ.get("ALBO_YEN_GAP", "b" if pen.ITALIC else "a")
     if opt != 'a' and not pen.ITALIC and os.environ.get("ALBO_YEN_GAP_ROMAN", "0") != "1":
         return 'a'
     return opt

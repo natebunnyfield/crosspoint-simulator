@@ -1047,7 +1047,7 @@ Italic y 1
 Italic yacute 2
 Italic ycircumflex 2
 Italic ydieresis 3
-Italic yen 1
+Italic yen 2
 Italic z 1
 Italic zacute 2
 Italic zcaron 2

@@ -239,3 +239,13 @@ Rendered from the four TTFs of each option build via PIL (RAQM):
    with 'single' and "double" quotes and an apostrophe, at 20 px, 2× nearest.
 
 `instruments/yenq_proofs.py` regenerates all of them.
+
+## RULED 2026-09-24 (owner)
+
+*"for yen, b for italics only; c for straight quotes, leave curly alone"*
+
+- **¥, Italic and BoldItalic:** option **b**, the channel, as the code default (`"b" if pen.ITALIC else "a"` in `g_yen`). The romans stay **a**.
+- **Straight quotes `'` `"`, all four cuts:** option **c**, as the code default (`QUOTE_SYM_DEFAULT` in `marks.py`). Curly quotes stay **a**. Each kind has its own switch (`ALBO_QUOTE_SYM_STRAIGHT` / `_CURLY`); `ALBO_QUOTE_SYM` still overrides both.
+- **Phase containment:** `build._option_phase_k` now ALWAYS counts the `a` drawing for these glyphs, because a shipped default adds islands as surely as an env var does.
+- **Proof of scope:** `cmp_outlines.py` against the pre-ruling build moves only `quotesingle` and `quotedbl` in every cut, plus `yen` in the two italics.
+- **Gates:** the contour census records the italic ¥ at 1 → 2, accepted. Hairs, touch and glitch are clean in all four cuts.

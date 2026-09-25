@@ -507,14 +507,21 @@ QUOTE_B_VAR = [(1.00, 1.00), (0.96, 1.12), (1.03, 0.90)]   # (body x, lean x): r
 #                 (20 degrees -- the comma's own lean, tip to dot) so it still
 #                 points like a 9 / 6. The straight quotes take d's drawing.
 # Read at CALL time: build.py re-draws `a` to hold the cut phase.
-def quote_sym():
-    o = os.environ.get("ALBO_QUOTE_SYM", "a")
+# RULED 2026-09-24 (owner, from the options page): *"c for straight quotes,
+# leave curly alone"* -- so the STRAIGHT quotes ship option c (two thirds of
+# the lean, cut and curl removed) and the curly ones stay a. The two kinds
+# have their own switches now; ALBO_QUOTE_SYM, when set, still overrides both
+# (it is what build.py forces to `a` to hold the cut phase).
+QUOTE_SYM_DEFAULT = {"straight": "c", "curly": "a"}
+def quote_sym(kind="curly"):
+    o = os.environ.get("ALBO_QUOTE_SYM") or os.environ.get(
+        "ALBO_QUOTE_SYM_" + kind.upper(), QUOTE_SYM_DEFAULT[kind])
     return {"a": 0.0, "b": 1 / 3, "c": 2 / 3, "d": 1.0, "e": 1.0}.get(o, 0.0), o
 def straight_quote(c, x, k=0):
     """One straight-quote mark at x, per QUOTE_OPT (see above); k is the
     mark's row in QUOTE_B_VAR (option b only)."""
     C = CAP(c) - _qdrop(); top, bot = C, C - QUOTE_BODY_L; w = TH_V * 0.8 * QUOTE_W; opt = QUOTE_OPT
-    s, _ = quote_sym()
+    s, _ = quote_sym("straight")
     if s > 0 and opt in ("a", "b"):
         a = 1.0 - s
         if opt == "a":

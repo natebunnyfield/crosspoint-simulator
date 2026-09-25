@@ -1021,11 +1021,17 @@ PHASE_LEGACY.update({'\u2654': 2, '\u2655': 10, '\u2656': 2, '\u2657': 4, '\u265
 # every option unset this returns None and nothing here runs.
 OPTION_PHASE = {'ALBO_YEN_GAP': '\u00a5', 'ALBO_QUOTE_SYM': '\'"\u2018\u2019\u201c\u201d\u02bc\u02bb'}
 def _option_phase_k(ch, W):
+    # ALWAYS count the `a` drawing, not only when an env var picks another:
+    # two options now SHIP as code defaults (the italic yen's b, the straight
+    # quotes' c, owner 2026-09-24), and a default is as able to add islands as
+    # an env var is.
     for var, chars in OPTION_PHASE.items():
-        if ch in chars and os.environ.get(var, 'a') != 'a':
-            saved = os.environ[var]; os.environ[var] = 'a'
+        if ch in chars:
+            saved = os.environ.get(var); os.environ[var] = 'a'
             try: return len(geom.contours(draw(ch, W)))
-            finally: os.environ[var] = saved
+            finally:
+                if saved is None: del os.environ[var]
+                else: os.environ[var] = saved
     return None
 
 SPUR_ARM = 8.0
