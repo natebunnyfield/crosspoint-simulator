@@ -15,6 +15,36 @@
   - With `CROSSPOINT_SIM_ZEN=1` the page decays.
   - Without it, the frame is **byte-identical** to the un-preset page (md5 `87a81473…` both arms).
 
+## Pass 6 and the pre-ship review (2026-09-24)
+
+**The owner:** *"take a pass at improving the jagged pixelated look of light ink effect."*
+
+The cause was the print/no-print decision:
+- It was made pixel by pixel against white-noise hashes: the split field had a 20% per-pixel hash, and the tooth lane was a raw per-pixel hash.
+- The threshold was hard (slope 28).
+- The result was single-pixel salt with stair-stepped edges.
+
+The fix:
+- **The split field** is two octaves of smooth value noise (2.2 and 1.1 device px).
+- **The tooth the plate feels** is the `'TOOT'` lane smoothed to 1.3 device px (`smoothToothAt`).
+- **The threshold is slope 5**, with no offset term. The blob's range is 0.06–0.80, so t → 0 stays exactly clean and t → 1 exactly empty.
+- **Where ink prints, it prints solid,** with edges about half a pixel wide. Judged at the phone's 2x (`CROSSPOINT_RENDER_SCALE=2` build, `CROSSPOINT_SIM_WINDOW_SCALE=2` capture): the strokes break into soft-edged ink cells.
+
+The pre-ship adversarial review found no ship-blockers. Its should-fixes:
+
+- **Memory and CPU at 2x.** The first version kept 32-byte samples, 53 MB of them, and evaluated noise on every pixel. Now:
+  - it keeps four byte planes (mask, robbed, contact, blob), 4 bytes a pixel;
+  - it evaluates noise only near ink;
+  - the per-step pass skips bare paper and computes `pow` once per step;
+  - the float scratch is freed after each page, and the page copy is freed when the decay ends.
+  - `printedRaw` / `robbedOf` / `contactOf` in the model.
+- **Zen was published a frame late** from Settings. `setZenActive` is now called right after `pollZenMode`.
+- **Nits fixed:** the render target restores the draw color, the glows rebuild on a size change, and the dead branch is gone.
+- **Left as is, and recorded:**
+  - A scene that resigns active and never returns (S-041) keeps the clock paused. It fails toward a clean page.
+  - Up to 1 s is counted after a background or sleep return (the step cap).
+  - For one present at a navigation, the decay can land on the wrong screen.
+
 ## The light decay, v2: viscous, incidental, physical (2026-09-24, fourth ruling — five passes)
 
 The owner: *"incorporate more physical ink and paper and plate simulation. it shouldn't be this faint, it should be incidental and viscous. research how and take five passes at getting this right."*
