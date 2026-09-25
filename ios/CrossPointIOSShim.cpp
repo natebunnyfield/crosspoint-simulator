@@ -1646,6 +1646,7 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
                 : "didBecomeActive");
     g_appBackgrounded = false;
     HalDisplay::setBackgrounded(false);
+    SimulatorOverlay::setAppInactive(false);
     // SDL HAS THE SAME BUG ONE LAYER DOWN, and without this the early resume
     // above is a no-op at the GPU. SDL_OnApplicationWillEnterBackground -- i.e.
     // RESIGN-ACTIVE, the same wrong edge -- sends SDL_EVENT_WINDOW_MINIMIZED
@@ -1691,7 +1692,12 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
       HalDisplay::setBackgrounded(true);
       break;
     }
-    SDL_Log("[lifecycle] willResignActive -- presents left RUNNING");
+    SDL_Log("[lifecycle] willResignActive -- presents left RUNNING, "
+            "reading clock paused");
+    // Presents keep running (above), but the reading allowance's clock does
+    // not: time with Control Center or Notification Center over the page is
+    // not reading. Cleared on either forward edge below.
+    SimulatorOverlay::setAppInactive(true);
     break;
   default:
     break;

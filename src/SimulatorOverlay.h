@@ -513,6 +513,11 @@ void setPowerOffCollapse(bool enabled);
 // until local midnight. Model: src/ReadingAllowance.h (host-tested); drawing:
 // src/SurfaceAllowance.h. CROSSPOINT_SIM_READING_ALLOWANCE overrides.
 void setReadingAllowance(int minutes);
+// The host scene is foreground-INACTIVE (iOS resign-active: Control Center or
+// Notification Center pulled down, an incoming call). The allowance's clock
+// stops while it is set; nothing else reads it -- presents deliberately keep
+// running there (S-041). Cleared by either forward lifecycle edge.
+void setAppInactive(bool inactive);
 
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying

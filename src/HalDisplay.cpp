@@ -1399,6 +1399,9 @@ static std::atomic<int> cornerDefocusStrength{cornerdefocus::kStrengthOff};
 static std::atomic<bool> powerOffCollapse{false};
 // Minutes per book per day; 0 is Off. src/ReadingAllowance.h.
 static std::atomic<int> readingAllowanceMinutes{0};
+// Foreground-inactive: the allowance's clock stops. See setAppInactive.
+static std::atomic<bool> appInactive{false};
+void setAppInactive(bool inactive) { appInactive.store(inactive); }
 
 void setPresentFlash(bool wanted) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH"))
@@ -2934,7 +2937,8 @@ void HalDisplay::presentIfNeeded() {
         SimulatorOverlay::readerPageIdentity(book, spine, pageInSpine);
     const bool reading = readingallowance::counts(
         bookKnown, displaySleeping.load(),
-        SimulatorOverlay::sleepScreenEntered(), false);
+        SimulatorOverlay::sleepScreenEntered(),
+        SimulatorOverlay::appInactive.load());
     bool stepChanged = false;
     allowanceDecay = simallowance::tick(
         reading, bookKnown, book,
