@@ -235,6 +235,13 @@ public:
                             const ReadAloudWordRect *rects, size_t rectCount);
   void setReadAloudCaptureWanted(bool wanted);
   bool consumeReadAloudPage(ReadAloudPage &out);
+  // FAN-OUT, simulator-only (speed read, 2026-09-25): a second reader of the
+  // same channel that never drains it, so it cannot take a page from the one
+  // consumer above. peek hands over the latest page once per generation
+  // (`lastSeenGeneration` is the caller's own cursor); the wanted flag is OR'd
+  // with the consumer's, never written over it. src/ReadAloudChannel.h.
+  void setReadAloudPeekerWanted(bool wanted);
+  bool peekReadAloudPage(uint32_t &lastSeenGeneration, ReadAloudPage &out);
 
   // --- Font-family step channel (shake -> next reading font) --------------
   //

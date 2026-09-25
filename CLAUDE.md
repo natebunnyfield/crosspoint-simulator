@@ -58,6 +58,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | Which of Albo's serifs and counters are exact copies of one another, and the ranked fixes for variety | [docs/albo-variety-audit-2026-09-13.md](docs/albo-variety-audit-2026-09-13.md) — 129 of 144 serifs have a byte-identical twin on the designed outline; `outlines/cmp/variety.py` re-runs it |
 | The type's own corners and weight (ink rounding, ink spread) — prototype, desktop-only, awaiting a ruling | [docs/ink-rounding.md](docs/ink-rounding.md) — measured ladder, the five negative results, the cost still to cut |
 | RAKING LIGHT — tilt the phone and the letterpress deboss is lit from a moving lamp; the model, the edge-only relight and its measured cost, and why the fixed light was always screen top-RIGHT on the phone | [docs/raking-light-spike-2026-09-25.md](docs/raking-light-spike-2026-09-25.md) — spike, device feel UNCONFIRMED |
+| SPEED READ (RSVP) — the book one word at a time on a fixed focal mark, each word cut from the rendered page; the ORP and pause rules and their sources, the read-aloud channel's FAN-OUT, measured rate | [docs/speed-read-rsvp-2026-09-25.md](docs/speed-read-rsvp-2026-09-25.md) — spike, device feel UNCONFIRMED. Not the reading speedrun timer (`src/Speedrun.h`), which was a misreading of the same ask |
 | One surface effect | [letterpress-and-scanlines](docs/letterpress-and-scanlines.md) · [phosphor-grain](docs/phosphor-grain.md) · [show-through](docs/show-through.md) · [corner-defocus](docs/corner-defocus.md) |
 | The button pad's tones | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
 | Zen mode's GESTURES (the 17-gesture set, what the 2026-08-28 trim removed and why, the hold ruling), its geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
@@ -685,8 +686,10 @@ channel, pointed the other way: `readAloudCaptureWanted()` /
 `publishReadAloudPage()` are firmware-facing (inline no-ops on device — the
 reader captures the displayed page's text and word rects only when asked, and
 publishes `nullptr` on exit), while `setReadAloudCaptureWanted()` /
-`consumeReadAloudPage()` are the simulator-only consumer half. One consumer
-per build: `CROSSPOINT_SIM_READALOUD_LOG=1` turns on an env-gated logger in
+`consumeReadAloudPage()` are the simulator-only consumer half. One DRAINING
+consumer per build (since 2026-09-25 any number of others may PEEK --
+`peekReadAloudPage` / `setReadAloudPeekerWanted`, non-destructive, own cursor,
+wanted flag OR'd; speed read is the first, `docs/speed-read-rsvp-2026-09-25.md`): `CROSSPOINT_SIM_READALOUD_LOG=1` turns on an env-gated logger in
 `simulator_main.cpp` (desktop only) that both requests capture and prints
 every publish — the headless way to audit the firmware's capture quality
 (`=2` additionally dumps full text and every rect). The capture-wanted flag
@@ -928,7 +931,7 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now twenty-one groups and 57 rows** (the twenty-first is **Raking Light**, 2026-09-25 -- one toggle, ships off, `src/RakingLight.h`; the twentieth is **Reading Speedrun**, 2026-09-25 -- one toggle, `src/Speedrun.h`; the nineteenth is **Zen Reading Goal**, 2026-09-24 -- one multi-value row, `src/ReadingAllowance.h`; the eighteenth group is **The Left Margin**, 2026-09-21 -- six gesture rows, generated like the rest of the gesture half; it took the count from seventeen/48. Before it: the six Ink sliders arrived 2026-09-11 as one group and became six titled groups on 2026-09-12, because iOS draws a `PSSliderSpecifier` with NO title and the owner's screenshot showed six anonymous sliders -- a group header is the only label a slider can have; the count before it was already 42, not the 37 this sentence claimed -- the 2026-09-05/06 rocker and tilt rows had not been added to it) — count them out of
+**Settings.app is now twenty-two groups and 59 rows** (the twenty-second is **Speed Read**, 2026-09-25 -- a toggle that ships off plus a words-per-minute row, `src/SpeedRead.h`; the twenty-first is **Raking Light**, 2026-09-25 -- one toggle, ships off, `src/RakingLight.h`; the twentieth is **Reading Speedrun**, 2026-09-25 -- one toggle, `src/Speedrun.h`; the nineteenth is **Zen Reading Goal**, 2026-09-24 -- one multi-value row, `src/ReadingAllowance.h`; the eighteenth group is **The Left Margin**, 2026-09-21 -- six gesture rows, generated like the rest of the gesture half; it took the count from seventeen/48. Before it: the six Ink sliders arrived 2026-09-11 as one group and became six titled groups on 2026-09-12, because iOS draws a `PSSliderSpecifier` with NO title and the owner's screenshot showed six anonymous sliders -- a group header is the only label a slider can have; the count before it was already 42, not the 37 this sentence claimed -- the 2026-09-05/06 rocker and tilt rows had not been added to it) — count them out of
 `ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
 is how this paragraph was wrong four times. It said "seven groups and 29 rows"
 while the file held nine and 36, because the gesture groups were added to the
@@ -960,6 +963,7 @@ print(len(g),'groups,',len(s)-len(g),'rows')"
 | Raking Light | Raking Light (Experimental) — toggle, ships OFF; tilt moves the lamp lighting the letterpress deboss (spike 2026-09-25, `docs/raking-light-spike-2026-09-25.md`) |
 | Zen Reading Goal | Minutes — Off/5/10/15/20/30/45/60, ships 5; counted only in zen, restarted when zen starts (2026-09-24) |
 | Reading Speedrun | Speedrun Timer — off by default (2026-09-25) |
+| Speed Read | Speed Read (Experimental) — toggle, ships OFF · Speed — 200/250/300/350/400/500/600/800 wpm, ships 300; RSVP, one word at a time cut from the page (spike 2026-09-25, `docs/speed-read-rsvp-2026-09-25.md`) |
 | Sleep | Power-Off Collapse · Diagnostics Log |
 | Reading Experiments | Reading Experiments (Experimental) |
 
