@@ -558,7 +558,89 @@ def g_sterling(c):
 def g_yen(c):
     from . import GLYPHS
     g = GLYPHS['Y'](c); x0, y0, x1, y1 = g.bounds
+    opt = yen_gap_opt()
+    if opt != 'a':
+        return _yen_gapped(g, opt)
     return _fill_cracks(geom.ink([g, bar(x0 - 8, x1 + 8, CAP * 0.34, MATH), bar(x0 - 8, x1 + 8, CAP * 0.50, MATH)]))
+# 2026-09-24 -- OPTIONS: THE YEN CARRIES THE Y's HAIRLINE GAP. Owner: *"give me
+# clever options for the Italic and bold italic yen characters to have a visible
+# gap like the Y branch and trunk has."* The italic Y's arm stops 16.8 units
+# (drawing; 13.0 in the built 400) short of its spine -- docs/albo-hairline-gap.md.
+# Today's two full bars run straight over that join and bury it. ALBO_YEN_GAP
+# picks; `a` is today's drawing, byte for byte, and is the default:
+#   b  CHANNEL   -- the gap carried DOWN the trunk's right edge through both bars:
+#                   each bar fuses to the trunk on the left and stands one gap
+#                   off it on the right, as the arm does
+#   c  FREE TRUNK -- the same white on BOTH sides: the bars never touch the trunk
+#   d  ONE BAR   -- a single bar at the height of the arm's end, split by the gap:
+#                   its right half grows out of the arm, its left out of the trunk
+#   e  ABOVE     -- both bars lifted over the join to cross the branches, so the
+#                   gap stands clear beneath them
+# The white is a DESIGNED width, not the cut's own Y gap: the BoldItalic Y's arm
+# stands 3.4 units off its spine (1.3 built), which no reader can see, so every
+# cut takes the italic 400's 16.8. The options apply to the italics only; the
+# roman Y has no gap to echo. ALBO_YEN_GAP_ROMAN=1 applies them upright too,
+# for comparison. Read at CALL time: build.py re-draws `a` to hold the cut phase.
+def yen_gap_opt():
+    opt = os.environ.get("ALBO_YEN_GAP", "a")
+    if opt != 'a' and not pen.ITALIC and os.environ.get("ALBO_YEN_GAP_ROMAN", "0") != "1":
+        return 'a'
+    return opt
+def _yen_gapped(g, opt):
+    import shapely.geometry as sg
+    from shapely.ops import nearest_points
+    G = float(os.environ.get("ALBO_YEN_GAP_W", 16.8))
+    x0, y0, x1, y1 = g.bounds
+    parts = sorted(list(g.geoms) if g.geom_type == 'MultiPolygon' else [g], key=lambda p: -p.area)
+    if len(parts) > 1:
+        # the italic: the trunk is the long spine, the branch the free arm
+        trunk, arm = parts[0], parts[1]
+        pa, pb = nearest_points(trunk, arm); gy = (pa.y + pb.y) / 2
+    else:
+        # the roman: one contour; the trunk is the stem's column below the fork
+        row = g.intersection(sg.LineString([(x0 - 10, CAP * 0.25), (x1 + 10, CAP * 0.25)]))
+        tx0, _, tx1, _ = row.bounds
+        trunk, arm = sg.box(tx0, -50, tx1, CAP * 0.60), None; gy = CAP * 0.42
+    # the trunk's centreline, row by row, and everything to its right
+    cl = []
+    for k in range(0, 61):
+        y = -40 + (CAP * 0.75 + 40) * k / 60
+        r = trunk.intersection(sg.LineString([(x0 - 50, y), (x1 + 50, y)]))
+        if not r.is_empty: cl.append(((r.bounds[0] + r.bounds[2]) / 2, y))
+    right = sg.Polygon(cl + [(x1 + 400, cl[-1][1]), (x1 + 400, cl[0][1])])
+    halo = trunk.buffer(G, join_style=2).difference(trunk)
+    collar = halo.intersection(right) if opt in ('b', 'd') else halo
+    L, R = x0 - 8, x1 + 8
+    if opt == 'e':
+        bars = [bar(L, R, gy + CAP * float(os.environ.get("ALBO_YEN_E_LO", 0.11)), MATH),
+                bar(L, R, gy + CAP * float(os.environ.get("ALBO_YEN_E_HI", 0.25)), MATH)]
+    elif opt == 'd':
+        bars = [bar(L, R, gy + CAP * float(os.environ.get("ALBO_YEN_D_Y", 0.03)), MATH * 1.15)]
+    else:
+        bars = [bar(L, R, CAP * 0.34, MATH), bar(L, R, CAP * 0.50, MATH)]
+    if opt != 'e':
+        bars = [b.difference(collar) for b in bars]
+    if arm is not None:
+        # the arm's own root opened to the same white: a no-op on the Italic
+        # (its arm already stands 16.8 off), 13 units off the BoldItalic's
+        arm = arm.difference(halo.intersection(right))
+        # where the arm's tip lands a few units short of a bar piece (the
+        # Italic's lower bar: 7 units, 5 in the font) the two are CLOSED into
+        # one, locally -- a slit that narrow is the crack round 384 filled, not
+        # the gap. The weld is the HULL of the two within 14 units of their
+        # nearest approach (a morphological closing cannot bridge a corner to
+        # an edge: the dilated neck is narrower than the erosion that follows).
+        fills = []
+        for b in bars:
+            for p in (list(b.geoms) if b.geom_type == 'MultiPolygon' else [b]):
+                d = arm.distance(p)
+                if 0 < d < 10:
+                    qa, qb = nearest_points(arm, p)
+                    near = sg.Point((qa.x + qb.x) / 2, (qa.y + qb.y) / 2).buffer(14)
+                    u = arm.union(p)
+                    fills.append(u.intersection(near).convex_hull.difference(u).difference(halo))
+        g = geom.ink([trunk, arm] + fills)
+    return _fill_cracks(geom.ink([g] + bars))
 @glyph('€')      # euro
 def g_euro(c):
     from . import GLYPHS

@@ -1002,6 +1002,20 @@ VM_WIN_ASCENT, VM_WIN_DESCENT = 1000, 320
 # counter. Proof: `cmp_outlines.py` against the previous build moves only the
 # glyphs a fix named.
 PHASE_LEGACY = {'\u2033': 1, '\u221a': 2, '\u2660': 2, '\u2663': 2, '\u2664': 4, '\u2667': 5}
+# 2026-09-24 -- THE SAME CONTAINMENT FOR AN OPTION. A glyph drawn under an
+# option env (docs/albo-yen-quote-options-2026-09-24.md) consumes the phase
+# count of its DEFAULT drawing, whatever the option draws: the yen's gap options
+# add islands, and without this choosing one would re-cut every glyph after the
+# yen. The default is re-drawn with the option forced to `a` to count it; with
+# every option unset this returns None and nothing here runs.
+OPTION_PHASE = {'ALBO_YEN_GAP': '\u00a5', 'ALBO_QUOTE_SYM': '\'"\u2018\u2019\u201c\u201d\u02bc\u02bb'}
+def _option_phase_k(ch, W):
+    for var, chars in OPTION_PHASE.items():
+        if ch in chars and os.environ.get(var, 'a') != 'a':
+            saved = os.environ[var]; os.environ[var] = 'a'
+            try: return len(geom.contours(draw(ch, W)))
+            finally: os.environ[var] = saved
+    return None
 
 SPUR_ARM = 8.0
 SPUR_TURN = 150.0
@@ -1054,7 +1068,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             # consumes the phases it used to, so the cut pattern of every
             # glyph AFTER it -- the Greek, the ligatures, the fractions -- does
             # not move. See PHASE_LEGACY.
-            _k = PHASE_LEGACY.get(ch, len(dense))
+            _k = PHASE_LEGACY.get(ch) or _option_phase_k(ch, W) or len(dense)
             phases = [cutter.phase() for _ in range(_k)]
             if len(dense) > _k:
                 phases += [cut.Cutter(911, cutter.every).phase() for _ in range(len(dense) - _k)]
