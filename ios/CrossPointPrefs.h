@@ -293,6 +293,9 @@ int CrossPointPrefs_powerOffCollapse(void);
 // registered default 5. A Settings row. src/ReadingAllowance.h.
 int CrossPointPrefs_readingAllowanceMinutes(void);
 
+// THE READING SPEEDRUN HUD: 1 = on. A Settings row, default off.
+int CrossPointPrefs_speedrun(void);
+
 // CrossPointPrefs_zenBottomRatio was RETIRED 2026-08-22: the zen band
 // proportion is a constant 1:2 (Van de Graaf) in the shim now, so the setting
 // row died with it (a one-option row is decoration). Stored values are ignored

@@ -43,3 +43,10 @@ Read as a speedrunner's timer laid over reading, in LiveSplit's vocabulary:
 ## RULED 2026-09-25 (owner)
 
 *"Add a phone switch"*: the speedrun gets a Settings.app row (off by default), and the HUD moves into the top margin, drawn larger.
+
+## Done (2026-09-25)
+
+- **Phone switch:** Settings.app › **Reading Speedrun › Speedrun Timer**, off by default. It is the dial row `SpeedrunOn` (`speedrunDemo`), pinned in `dial_table_test`, with the iOS poll `pollSpeedrun`. The desktop keeps `CROSSPOINT_SIM_SPEEDRUN` and settings.json.
+- **The HUD is one line, twice the size,** at the page's BOTTOM edge: `MM:SS ±run  pg MM:SS ±page  golds/splits*`.
+  - The top margin was tried first and sat on the running head, because the reader's text block starts almost at the page's top edge.
+  - A tie prints `+0.0`, never `−0.0`.

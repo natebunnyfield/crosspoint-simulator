@@ -141,6 +141,8 @@ static NSString *const kPowerOffCollapse = @"powerOffCollapse";
 // the Root.plist-unreadable registration below and the getter reads absence
 // as the shipped 5 rather than as Off.
 static NSString *const kReadingAllowanceMinutes = @"readingAllowanceMinutes";
+// The speedrun HUD. Missing key is benign: NO is Off, the shipped default.
+static NSString *const kSpeedrunDemo = @"speedrunDemo";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -687,6 +689,12 @@ int CrossPointPrefs_powerOffCollapse(void) {
 // matter the book. it only applies in zen mode and zen mode starting up again
 // restarts it"). Minutes per zen session; 0 is Off. src/ReadingAllowance.h
 // holds every decision about when.
+int CrossPointPrefs_speedrun(void) {
+  ensureDefaults();
+  checkKnown(kSpeedrunDemo);
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kSpeedrunDemo] ? 1 : 0;
+}
+
 int CrossPointPrefs_readingAllowanceMinutes(void) {
   ensureDefaults();
   checkKnown(kReadingAllowanceMinutes);

@@ -2216,6 +2216,16 @@ void pollReadingAllowance() {
   SimulatorOverlay::setReadingAllowance(minutes);
 }
 
+// THE READING SPEEDRUN, a Settings row; edge-triggered.
+void pollSpeedrun() {
+  static int s_on = -1;
+  const int on = CrossPointPrefs_speedrun();
+  if (on == s_on) return;
+  s_on = on;
+  SDL_Log("[speedrun] HUD %s", on ? "on" : "off");
+  SimulatorOverlay::setSpeedrun(on != 0);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -4223,6 +4233,7 @@ void CrossPointHarness_perFrame() {
   pollScanlines();
   pollDarkSurfaceItems();
   pollReadingAllowance();
+  pollSpeedrun();
   pollReaderInsets();
   pollZenMode();
   // AFTER pollZenMode, which may change g_zen from Settings this frame; the

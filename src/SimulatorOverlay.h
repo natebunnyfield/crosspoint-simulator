@@ -523,6 +523,9 @@ void setAppInactive(bool inactive);
 // reading goal counts only while it is set and restarts on its off->on edge.
 // Desktop default: CROSSPOINT_SIM_ZEN.
 void setZenActive(bool on);
+// THE READING SPEEDRUN's HUD on or off (src/Speedrun.h). A Settings row on
+// the phone; CROSSPOINT_SIM_SPEEDRUN overrides.
+void setSpeedrun(bool on);
 
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying
