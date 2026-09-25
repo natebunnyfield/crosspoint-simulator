@@ -1778,6 +1778,78 @@ def _alt376_widths(p, taper):
     return widths(list(zip(ts, ws))), ws
 
 
+# ROUND 383 -- THE TOP-RIGHT STROKE, SHORTER AND LOWER. Owner 2026-09-24, on
+# round 381's letter: *"the top right stroke of italic ampersand is too long and
+# tall."* It is the curl -- the arm's tail rising off the t-stroke and hooking
+# back -- and round 352 ruled the curl itself stays ("leave the curl"), so this
+# keeps the curl and shortens what carries it. `instruments/amp_reach.py`
+# measured the terminal: 1.60 x-heights tall (BoldItalic 1.62, 1.18 of its cap)
+# against 0.88-1.46 for the seven reference italics whose terminal stands right
+# of the bowl, standing 0.13 xh above its own E where none of them stands more
+# than 0.09, and running 0.27 xh right of the bowl against 0.03-0.26.
+#
+# THREE MOVES, each on its own part. The springing point is found the way
+# `_damp_curl` finds it (walking back from the end to the last sample still on
+# the arm's median level), so nothing below reaches into the bowl or the E.
+#   ascent  (MODE "ascent", RISE 0.30) -- only the rising run from the springing
+#           point to the curl's rightmost sample is shortened; the hook above it
+#           keeps its own shape and size and is carried down whole. Scaling the
+#           whole tail instead ("scale", 0.50 / 0.45 -- the first arm built)
+#           shrank the hook below the pen's own width and it rendered as a blob
+#           on a thin neck: the curl gone, which the 352 ruling forbids.
+#   run     (RUN 0.80) -- the tail's horizontal extent about the springing point.
+#   pull    (PULL 70 source units) -- the arm's right end drawn back in on a
+#           smoothstep from its first point, curl and all. Neither of the other
+#           two can shorten the REACH, because most of it is the arm before the
+#           curl springs: at RISE 0.30 alone the reach stayed at 0.28-0.30.
+# docs/albo-ampersand-2026-09-24.md, round 383, has the ladder and the numbers.
+ALT383_RISE = float(os.environ.get("ALBO_IT_AMP_H_CURL_RISE", 0.30))   # 1.0 = round 381; of the ASCENT only, mode below
+ALT383_RUN = float(os.environ.get("ALBO_IT_AMP_H_CURL_RUN", 0.80))     # 1.0 = round 381
+
+
+ALT383_MODE = os.environ.get("ALBO_IT_AMP_H_CURL_MODE", "ascent")   # scale | ascent
+
+
+ALT383_PULL = float(os.environ.get("ALBO_IT_AMP_H_ARM_PULL", 70.0))   # source units; 0 = round 381
+
+
+def _alt383_curl(pts):
+    if ALT383_RISE == 1.0 and ALT383_RUN == 1.0 and ALT383_PULL == 0.0:
+        return list(pts)
+    ys = [q[1] for q in pts]
+    arm = sorted(ys)[len(ys) // 2]
+    i = len(pts) - 1
+    while i > 0 and ys[i] > arm + 20:
+        i -= 1
+    if ALT383_PULL:
+        # THE REACH. Scaling the curl cannot shorten how far the letter runs
+        # right of its bowl, because most of that run is the ARM before the
+        # curl springs. PULL draws the arm's right end back in: 0 at the arm's
+        # first point (ALT051_ARM0, so the join to the bowl never moves),
+        # rising on a smoothstep to the full PULL at the springing point, and
+        # the whole curl carried with it -- no step, no change of direction at
+        # either end of the ramp.
+        a0 = ALT051_ARM0
+        def pull(n):
+            if n <= a0: return 0.0
+            if n >= i: return ALT383_PULL
+            u = (n - a0) / float(i - a0)
+            return ALT383_PULL * u * u * (3.0 - 2.0 * u)
+        pts = [(x - pull(n), y) for n, (x, y) in enumerate(pts)]
+    x0, y0 = pts[i]
+    tail = list(pts[i + 1:])
+    if ALT383_MODE == "ascent":
+        # Only the ASCENT is shortened; the hook (from the tail's rightmost
+        # point on) keeps its own shape and size and is carried down whole,
+        # so the curl stays a curl however far the stroke is lowered.
+        j = max(range(len(tail)), key=lambda n: tail[n][0])
+        ha = tail[j][1] - y0
+        f = lambda d: ALT383_RISE * min(d, ha) + max(0.0, d - ha)
+        return list(pts[:i + 1]) + [(x0 + (x - x0) * ALT383_RUN, y0 + f(y - y0)) for x, y in tail]
+    return list(pts[:i + 1]) + [(x0 + (x - x0) * ALT383_RUN, y0 + (y - y0) * ALT383_RISE)
+                                for x, y in tail]
+
+
 def alt376_aldine(c):
     """alt051's ruled route, on the Aldine italic's own pen and at its lean."""
     xs = [q[0] for q in ALT051_SPINE]; ys = [q[1] for q in ALT051_SPINE]
@@ -1799,7 +1871,9 @@ def alt376_aldine(c):
     parts = []
     # the main stroke: both of its ends are free, and both take the family's
     # finial -- the c's top, swell 1.10 over the last 13%, face sheared 28.
-    p = place(ALT051_SPINE)
+    # Round 383: the curl is shortened BEFORE placing, but `k` above is taken
+    # from the undamped spine, so the rest of the letter keeps its size.
+    p = place(_alt383_curl(ALT051_SPINE))
     wf, _ = _alt376_widths(p, (False, False))
     fl = ALT376_FLOOR * S * 1.1
     wf = _fw(wf, True, floor=fl); wf = _fw(wf, False, floor=fl)

@@ -351,3 +351,137 @@ advance identical to the pre-rebase build.
 Renders (PNG, native pixels, the 13 px row ×5 nearest), session scratchpad
 `albo/amp380/`: `1_amp_large_before_after.png`, `2_amp_vs_references.png`,
 `3_text_Italic.png`, `3_text_BoldItalic.png`, `4_text_13px_x5_nearest.png`.
+
+---
+
+## Round 383 — the top-right stroke, shorter and lower (2026-09-24)
+
+Owner, on round 381's letter: ***"the top right stroke of italic ampersand is
+too long and tall."*** Taken at face value: the curl's rising stroke, the one
+round 381's own account called a heavy club in the Bold Italic.
+
+### Measured first — `instruments/amp_reach.py` (new)
+
+Each '&' at one x-height, unsheared by its face's slant. `ttop` is the top of
+the ink strictly right of the lower bowl — the terminal alone, with no E head in
+it (the right HALF catches Flanker's E and read 1.36 there); `reach` is how far
+the ink runs right of the bowl; `r−l` is the right half's top minus the left
+half's (the E's head). All in x-heights; `/c` over the face's cap height.
+
+| face | ttop | ttop/c | r−l | reach |
+|---|---|---|---|---|
+| Flanker Griffo | 0.89 | 0.56 | −0.03 | 0.17 |
+| Pagella | 1.06 | 0.75 | −0.02 | 0.17 |
+| Palatino Italic | 1.07 | 0.75 | −0.02 | 0.17 |
+| Georgia Italic | 0.88 | 0.63 | −0.07 | 0.03 |
+| Hoefler Text Italic | 1.16 | 0.77 | −0.54 | 0.26 |
+| Poetica `alt051` (the ruled form's source) | 1.35 | 1.08 | +0.09 | 0.76 |
+| Baskerville Italic | 1.46 | 0.95 | 0.00 | 0.14 |
+| *(Poetica `&`, Coelacanth, Times: no terminal right of the bowl)* | — | — | | 0.00 |
+| **Albo Italic, round 381** | **1.60** | **1.11** | **+0.13** | **0.27** |
+| **Albo BoldItalic, round 381** | **1.62** | **1.18** | **+0.13** | **0.26** |
+
+Reference band: terminal top **0.88–1.46** xh (0.56–1.08 of cap); reach
+**0.03–0.26** (the Et forms 0.14–0.26, median 0.17; alt051's own 0.76 is its
+long swash, which round 318's squeeze already took out). Round 381 was taller
+than every one of them, stood higher above its own E than any, and ran at or
+past the widest reach. Both halves of the ruling were measurable.
+
+### What moved (`ampersands.py` only, round-381 values one env var away)
+
+Three moves, each on its own part; the springing point is found the way
+`_damp_curl` finds it, so nothing reaches the bowl or the E.
+
+- **The ascent** (`ALBO_IT_AMP_H_CURL_MODE=ascent`, `_CURL_RISE` 0.30): only the
+  rising run from the springing point to the curl's rightmost sample is
+  shortened; the hook above it keeps its own shape and size and is carried down
+  whole. That is how the curl survives (round 352).
+- **The run** (`_CURL_RUN` 0.80): the tail's width about the springing point.
+- **The pull** (`ALBO_IT_AMP_H_ARM_PULL` 70 source units): the arm's right end
+  drawn back in on a smoothstep from the arm's first point, curl and all.
+
+The pen (round 381's thick 1.12 S at 8:1) is untouched; `k`, the letter's scale,
+is still taken from the undamped spine, so the E and the bowl do not move.
+
+### The ladder, and why the first arm was rejected
+
+Italic 400, `ttop` / `reach`:
+
+| arm | ttop | reach | the curl |
+|---|---|---|---|
+| round 381 | 1.60 | 0.27 | — |
+| scale RISE 0.75 RUN 0.75 | 1.45 | 0.26 | kept |
+| scale 0.60 / 0.60 | 1.36 | 0.25 | shrinking |
+| scale 0.50 / 0.45 (first default) | 1.29 | 0.24 | **gone** — a blob on a thin neck |
+| scale 0.45 / 0.60 | 1.26 | 0.26 | gone |
+| ascent 0.30 / RUN 1.0 | 1.33 | 0.30 | kept |
+| ascent 0.30 / 0.80 | 1.32 | 0.28 | kept |
+| ascent 0.30 / 0.80, PULL 40 | 1.32 | 0.24 | kept |
+| **ascent 0.30 / 0.80, PULL 70 (ships)** | **1.32** | **0.20** | kept |
+| ascent 0.30 / 0.80, PULL 100 | 1.32 | 0.17 | kept; the curl crowds the t's crossing |
+
+**Negative result, recorded so it is not re-tried:** scaling the whole tail
+about its springing point shortens the stroke but shrinks the hook with it, and
+below about 0.6 the hook's inside radius falls under the pen's own width at
+1.12 S — the magnified crop showed a rounded club on a narrowed neck, the curl
+gone. **And RISE/RUN cannot fix the reach at all**: most of the 0.27 xh is the
+ARM before the curl springs (at 0.38 squeeze the curl itself adds only ~0.11
+xh), so every curl-only arm stayed at 0.24–0.30. The pull is what moves it.
+
+### Before and after
+
+| measure | refs band | Italic r381 → **r383** | BoldItalic r381 → **r383** |
+|---|---|---|---|
+| terminal top × xh | 0.88 – 1.46 | 1.60 → **1.32** | 1.62 → **1.34** |
+| terminal top ÷ cap | 0.56 – 1.08 | 1.11 → **0.91** | 1.18 → **0.97** |
+| terminal above own E (r−l) | −0.54 – +0.09 | +0.13 → **−0.15** | +0.13 → **−0.15** |
+| reach right of bowl × xh | 0.03 – 0.26 (Et median 0.17) | 0.27 → **0.20** | 0.26 → **0.20** |
+| ink width × xh | 1.35 – 1.70 | 1.40 → 1.33 | 1.43 → 1.37 |
+| ink height ÷ cap | 0.89 – 1.16 | 1.12 → **1.02** | 1.18 → **1.08** |
+| advance, units | — | 867 → 814 | 924 → 868 |
+| advance ÷ `o` | 1.32 – 2.34 | 2.16 → 2.02 | 2.29 → 2.15 |
+| stroke ÷ body | 0.60 – 1.04 | 0.96 → 0.94 | 0.97 → **0.86** |
+| contrast ÷ body's | 0.73 – 1.19 | 0.82 → 0.85 | 0.90 → 0.98 |
+| 13 px colour ÷ lowercase | 0.75 – 1.33 | 0.96 → 0.95 | 1.06 → 1.05 |
+| contours | — | 1 → 1 | 1 → 1 |
+
+Both halves of the ruling land inside the references in both italic weights, and
+the Bold Italic's overall ink height (1.18 of its cap, above Hoefler's 1.16) is
+now 1.08. The ink width fell to 1.33 in the 400, **0.02 under the narrowest
+reference (1.35)** — the price of the pull, stated rather than hidden.
+
+The pen is unchanged, so the **colour at 13 px is unchanged** (0.95 / 1.05). The
+Bold Italic's stroke MEDIAN falls 0.97 → 0.86 because the removed length was
+the letter's thickest stroke — the median samples less of it — not because any
+width changed; it stays inside the band, and its contrast rises to 0.98.
+
+**Seen in the renders, not measured by any gate:** the curl's hook-back now
+meets the rising stroke lower down, and in the Bold Italic at 240 px it shows as
+a small wedge notch on the terminal's left side, just above the x-height
+(`1_amp_large_before_after.png`; `5_top_right_terminal_x4_nearest.png`). The
+round-381 letter had the same notch, at the top of its taller stroke. It is the
+curl, which is ruled; whether it reads as a defect at this height is the
+owner's eye.
+
+### Gates, all four cuts, round 381 against round 383
+
+- The per-font report (hairs full and `--letters`, `cmp_touch`, glitch `--all
+  --ttf`, dents at 700 and 400, `approved.py`, contour census) is
+  **byte-identical** between the two builds.
+- `amp_touch.py`: 0 of 146 `&` pairs below the floor in either italic, before
+  or after.
+- `./gates.sh`: **GATES UNCHANGED**.
+- Scope, `cmp_outlines.py --advances`: Regular 0 of 530, Bold 0 of 530;
+  Italic and BoldItalic **1 of 530 each — `ampersand`**, outline and advance.
+  No composite uses it; one contour before and after, so no cut ripple.
+
+Re-verified on `16e4769` (round 382 landed on main during this round): both
+arms rebuilt, gate reports identical, `./gates.sh` unchanged, scope still
+`ampersand` alone in the two italics, and the new ampersand identical by
+outline and advance to the pre-rebase build.
+
+Renders (PNG, native pixels; ×4 and ×5 are NEAREST), session scratchpad
+`albo/amp382/`: `1_amp_large_before_after.png`, `2_amp_vs_references.png`,
+`3_text_Italic.png`, `3_text_BoldItalic.png`, `4_text_13px_x5_nearest.png`,
+`5_top_right_terminal_x4_nearest.png`; the ladder crops are
+`ladder_large.png`, `variants_crops.png`, `pull_crops.png`.
