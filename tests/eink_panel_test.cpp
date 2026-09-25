@@ -165,6 +165,7 @@ int main() {
       check(after <= before, "re-drawing the same page adds no ghost");
     }
     // HALF clears every ghost, and the settled page is exact.
+    auto shown = page(W, H, 114);  // the page drawn last, just above
     auto clean = page(W, H, 999);
     panel.onLevels(clean.data(), W, H, eink::Refresh::Half, lut->v, 30000, true,
                    out.data());
@@ -175,6 +176,21 @@ int main() {
     }
     check(exact, "a clearing refresh leaves no ghost and the exact page");
     check(panel.flashActive(), "...and runs its waveform");
+    // ...STARTING FROM THE OLD PAGE: every pixel whose level changed by more
+    // than half the range starts nearer its old level than its new one. The
+    // first cut started from the new page (adversarial review, build 213).
+    {
+      size_t changed = 0, fromOld = 0;
+      for (size_t i = 0; i < N; i++) {
+        const int d = static_cast<int>(clean[i]) - shown[i];
+        if (d > 128 || d < -128) {
+          changed++;
+          const int s = panel.flashStartLevel(i);
+          if (std::abs(s - shown[i]) < std::abs(s - clean[i])) fromOld++;
+        }
+      }
+      check(changed > 0 && fromOld == changed, "the waveform starts from the OLD page");
+    }
     std::vector<uint32_t> frame(N);
     check(panel.flashFrame(30000, frame.data()) == 1, "frame 0 renders");
     check(panel.flashFrame(30005, frame.data()) == 0,

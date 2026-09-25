@@ -1777,6 +1777,10 @@ void setSpeedReadWpm(int wpm) {
 
 bool speedReadTakeTap() { return simspeedread::takeTap(); }
 
+void setSpeedReadDefersTurns(bool readAloudOn) {
+  simspeedread::setReadAloudTurns(readAloudOn);
+}
+
 void setReadingAllowance(int minutes) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_READING_ALLOWANCE"))
     if (env[0]) minutes = std::atoi(env);

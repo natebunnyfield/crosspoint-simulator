@@ -363,7 +363,10 @@ public:
   void pageArrived(std::vector<Word> words, uint64_t now, bool samePage) {
     if (samePage && words.size() == words_.size()) {
       words_ = std::move(words);
-      awaitingTurn_ = false; // (a re-render never answers a turn request)
+      // awaitingTurn_ is KEPT: a re-render of the same page is not the turn
+      // arriving, and clearing it here made the next step ask for a second
+      // turn at once -- two pages at a time on a USB-edge or appearance
+      // repaint (adversarial review, build 213).
       return;
     }
     words_ = std::move(words);
