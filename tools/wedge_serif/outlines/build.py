@@ -1002,6 +1002,17 @@ VM_WIN_ASCENT, VM_WIN_DESCENT = 1000, 320
 # counter. Proof: `cmp_outlines.py` against the previous build moves only the
 # glyphs a fix named.
 PHASE_LEGACY = {'\u2033': 1, '\u221a': 2, '\u2660': 2, '\u2663': 2, '\u2664': 4, '\u2667': 5}
+# ROUND 385: the chess pieces were redrawn as Staunton figurines (owner
+# 2026-09-24, "improve the chess, card and other symbols"), which changed nine
+# of their contour counts -- the white queen's ten (five hollow balls, crown
+# windows) became three. Each keeps consuming what round 99's drawing did.
+# The hollow spade and club were already here, and keep their round-384 counts.
+# ...and a count that changed in ONE style only is keyed by style: the italic
+# fh (U+E001) was two islands and is one (its hook now joins the aldine h),
+# while the roman fh was always one -- a global entry would re-cut the roman.
+PHASE_LEGACY_STYLE = {('Italic', '\ue001'): 2}
+PHASE_LEGACY.update({'\u2654': 2, '\u2655': 10, '\u2656': 2, '\u2657': 4, '\u2658': 2, '\u2659': 2,
+                     '\u265b': 4, '\u265d': 2, '\u265e': 1})
 
 SPUR_ARM = 8.0
 SPUR_TURN = 150.0
@@ -1054,7 +1065,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             # consumes the phases it used to, so the cut pattern of every
             # glyph AFTER it -- the Greek, the ligatures, the fractions -- does
             # not move. See PHASE_LEGACY.
-            _k = PHASE_LEGACY.get(ch, len(dense))
+            _k = PHASE_LEGACY_STYLE.get((style, ch), PHASE_LEGACY.get(ch, len(dense)))
             phases = [cutter.phase() for _ in range(_k)]
             if len(dense) > _k:
                 phases += [cut.Cutter(911, cutter.every).phase() for _ in range(len(dense) - _k)]

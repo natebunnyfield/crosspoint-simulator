@@ -41,6 +41,13 @@ from .stems import DOT_R
 MID = XH * 0.50            # the lowercase body's optical middle: where a symbol centres
 MATH = TH_H * 0.92         # the weight of a mathematical rule (a shade under the pen's horizontal)
 ARROW_LEN = XH * 1.32
+# ROUND 385: the HORIZONTAL arrows' length. At 1.32 x-heights (0.57 em) the
+# arrow and the implication sign set at 20 px read as a dash and an equals
+# sign: Times New Roman's and STIX Two's run 0.9-1.0 em. 1.75 x-heights is
+# 0.75 em -- long enough for the head to register, still a word's sign rather
+# than a rule. The vertical and diagonal arrows keep ARROW_LEN: longer, they
+# would drop through the baseline.
+ARROW_LEN_H = XH * 1.75
 ARROW_HEAD = XH * 0.30
 
 def _fill_cracks(g, width=16.0):
@@ -60,38 +67,87 @@ def _fill_cracks(g, width=16.0):
     if g.geom_type == 'MultiPolygon': return sg.MultiPolygon([fix(p) for p in g.geoms])
     return g
 
+def _upright(g):
+    """ROUND 385: a PICTOGRAPH STANDS UPRIGHT IN THE ITALIC. Owner 2026-09-24,
+    *"improve the chess, card and other symbols. they are distractingly weird
+    currently."* `build.draw` shears every glyph about the baseline, so a
+    square came out a parallelogram and a chess piece leaned as if it were
+    falling over. Measured rather than assumed: Times New Roman, Arial and
+    Courier New Italic keep the suits, the notes, the squares, circles and
+    triangles and the arrows UPRIGHT (Georgia and Verdana Italic, the note),
+    while they slant the pilcrow and the section -- a picture is not a letter.
+    The inverse shear is applied here, BEFORE draw()'s own shear, so the pair
+    cancels and the glyph reaches the file upright."""
+    if not pen.SHEAR: return g
+    import shapely.affinity as aff
+    return aff.affine_transform(g, (1, -pen.SHEAR, 0, 1, 0, 0))
+
 def _s(pts, prof=None, w=None, cut0=CUT, cut1=CUT, light=1.0):
     return stroke(pts, w if w is not None else pen_widths(pts, (prof or (lambda t: 1.0)), scale=light), cut0=cut0, cut1=cut1)
 
+def _chevron(ax, ay, opens, D, H, apex, end_u, end_l):
+    """ROUND 385: a TAPERED chevron as one polygon -- its outer point at
+    (ax, ay), opening toward +x when `opens` is +1 (the < of a left
+    guillemet), its arms reaching D across and H up and down. `apex` is the
+    ink's horizontal depth on the axis, `end_u` / `end_l` the horizontal width
+    of the upper / lower arm where it is cut level at +-H: an arm heavy at the
+    point that thins toward its end, which is how Times New Roman Bold and
+    Georgia Bold draw a guillemet. Built from pen strokes instead, two arms
+    overlap at the point as two round or cut ends -- what made the 700's
+    guillemets read blunt."""
+    import shapely.geometry as sg
+    pts = [(D, H), (0.0, 0.0), (D, -H), (D + end_l, -H), (apex, 0.0), (D + end_u, H)]
+    return sg.Polygon([(ax + opens * x, ay + y) for x, y in pts]).buffer(0)
+
+def _arrowhead(tx, ty, points, D, H, k, te):
+    """ROUND 385: a double arrow's head -- two CURVED barbs sweeping back from
+    a sharp point at (tx, ty) and tapering to a fine level-cut end, the white
+    between them running in to an inner corner k behind the point. `points`
+    is +1 for a head pointing toward +x. The shape of the double arrow's head
+    in STIX Two Math and Apple Symbols (measured beside it in
+    docs/albo-symbols-2026-09-24.md): the barbs bow toward the shafts."""
+    import shapely.geometry as sg
+    from ..geom import quad
+    up_out = quad((0.0, 0.0), (-D * 0.52, H * 0.40), (-D, H))
+    up_in = quad((-D + te, H), (-k - (D - te - k) * 0.52, H * 0.34), (-k, 0.0))
+    upper = up_out + up_in[1:]
+    lower = [(x, -y) for x, y in reversed(upper)]
+    ring = upper[:-1] + lower[:-1]
+    return sg.Polygon([(tx + points * x, ty + y) for x, y in ring]).buffer(0)
+
 # ---------------------------------------------------------------- arrows
 def _arrow(c, dx, dy, length=None, double=False):
-    """A shaft with a two-stroke head, pointing along (dx, dy). The head's
-    barbs leave the tip at 32 degrees, the shaft holds the pen's weight for
-    its direction, and the whole thing is centred on MID."""
+    """A shaft with a head, pointing along (dx, dy), centered on MID.
+
+    ROUND 385: the head is `_arrowhead`, the double arrows' own -- two curved
+    barbs tapering to fine ends from a sharp point -- and the shaft a plain
+    rule. It was a pen stroke with two more pen strokes butted on at the
+    point at 32 degrees, which at the 700 piled up into the same knot the
+    double arrow's head made (owner 2026-09-24: "address the weirdness ... in
+    symbols"), and the shaft's tail carried the pen's slanted cut, a letter's
+    terminal on a sign. One head for all eleven arrows now, so the arrow and
+    the implication sign are visibly the same family. Built pointing right,
+    then turned."""
+    import shapely.affinity as aff
     L = length or ARROW_LEN
-    ang = math.atan2(dy, dx)
-    cx, cy = L / 2, MID
-    tip = (cx + math.cos(ang) * L / 2, cy + math.sin(ang) * L / 2)
-    tail = (cx - math.cos(ang) * L / 2, cy - math.sin(ang) * L / 2)
     w = max(MATH * 0.92, HAIR)
-    parts = [_s(line(tail, tip), w=w)]
-    for sgn in (+1, -1):
-        a = ang + math.pi + sgn * math.radians(32)
-        end = (tip[0] + math.cos(a) * ARROW_HEAD, tip[1] + math.sin(a) * ARROW_HEAD)
-        parts.append(_s(line(tip, end), w=w, cut0=None))
-    if double:   # a second tail barb pair: the left-right and up-down arrows
-        for sgn in (+1, -1):
-            a = ang + sgn * math.radians(32)
-            end = (tail[0] + math.cos(a) * ARROW_HEAD, tail[1] + math.sin(a) * ARROW_HEAD)
-            parts.append(_s(line(tail, end), w=w, cut0=None))
-    return geom.ink(parts)
+    H = XH * 0.32 + w * 0.5                              # big enough to read as a head at 20 px, not a dash
+    D = H * 1.12
+    k = w * 2.7                                          # the barbs ~1.8 strokes thick at the point, so they survive at 20 px
+    te = w * 0.50
+    parts = [_arrowhead(L, MID, +1, D, H, k, te), bar(k * 0.8 if double else 0.0, L - k * 0.8, MID, w)]
+    if double:   # the left-right and up-down arrows
+        parts.append(_arrowhead(0.0, MID, -1, D, H, k, te))
+    g = geom.ink(parts)
+    ang = math.degrees(math.atan2(dy, dx))
+    return aff.rotate(g, ang, origin=(L / 2, MID)) if ang else g
 
 @glyph('→')
-def g_arrowright(c): return _arrow(c, 1, 0)
+def g_arrowright(c): return _arrow(c, 1, 0, length=ARROW_LEN_H)
 @glyph('←')
-def g_arrowleft(c): return _arrow(c, -1, 0)
+def g_arrowleft(c): return _arrow(c, -1, 0, length=ARROW_LEN_H)
 @glyph('↔')
-def g_arrowboth(c): return _arrow(c, 1, 0, double=True)
+def g_arrowboth(c): return _arrow(c, 1, 0, length=ARROW_LEN_H, double=True)
 @glyph('↑')
 def g_arrowup(c): return _arrow(c, 0, 1, length=ARROW_LEN * 0.92)
 @glyph('↓')
@@ -109,41 +165,46 @@ def g_arrowsw(c): return _arrow(c, -1, -1)
 
 def _darrow(c, dx, both=False):
     """A double (hollow) arrow: two shafts and a barb pair, the implication
-    sign of mathematical prose."""
-    L = ARROW_LEN; ang = math.atan2(0, dx); w = max(MATH * 0.78, HAIR)
-    # ROUND 384: the gap between the shafts grows with their stroke, as the
-    # guillemets' does. A fixed XH * 0.13 leaves 31 units of white at the 400
-    # (1.26 strokes; the italic's 1.05) and a 7-unit slit at the 700, which the
-    # glitch gate calls a CRACK and the eye calls one fat arrow. 2.0 strokes
-    # of gap is a stroke of white; at both 400s the constant still wins.
-    gap = max(XH * 0.13, w * 2.0)
-    parts = []
-    # ROUND 384 -- THE SHAFTS STOP AT THE BARBS. Both shafts used to run the
-    # full length to the tip's x, so past each barb pair they poked out as two
-    # square ends beside the point -- the jagged heads, and the reversals
-    # `cmp_contour_hairs.py` listed on arrowdblleft/arrowdblboth -- and on
-    # the both-ended arrow the inside of each head was cut by the far shaft.
-    # A shaft now ends where it meets its barb's centreline (the barb leaves
-    # the tip at 30 degrees, so at a shaft's offset that is |off| / tan 30
-    # back from the tip), plus half a stroke so the two still overlap.
-    back = (gap / 2) / math.tan(math.radians(30)) - w * 0.5
-    # ...and the barbs reach a stroke past the outer edge of their shaft, or
-    # at the 700 (gap grown to a stroke of white) the heads closed into a
-    # hexagon around the shafts. At both 400s ARROW_HEAD is the longer.
-    head = max(ARROW_HEAD, (gap / 2 + w * 1.5) / math.sin(math.radians(30)))
-    x0 = back if both else 0.0
+    sign of mathematical prose.
+
+    ROUND 385 -- THE HEAD IS ONE CHEVRON, THE SHAFTS RUN INTO IT. Owner
+    2026-09-24, from the round-384 proof: the bold double arrow *"reads as a
+    lumpy hexagon with barbs"*. Round 384 had already stopped the shafts at
+    the barbs, but the head was still two pen strokes butted at the tip, so at
+    the 700 their round-cut ends piled up into a knot and the barbs' ends
+    stood out as two more lumps. The head is now a mitered chevron
+    (`_chevron`): a sharp point, barbs of the shafts' own weight cut square,
+    reaching 1.3 shaft-gaps past the outer shaft and never less than 0.40 of the x-height off the axis (the proportion of the
+    double arrow in Times New Roman and STIX Two, measured in
+    docs/albo-symbols-2026-09-24.md); each shaft ends inside the chevron's arm
+    so the two are one shape, and the white between the shafts runs on into
+    the head to the chevron's inner corner. Round 384's gap rule is kept: a
+    stroke of white between the shafts at every weight."""
+    L = ARROW_LEN_H; w = max(MATH * 0.78, HAIR)
+    gap = max(XH * 0.13, w * 2.0)                       # shaft center to shaft center
+    H = max(gap / 2 + w / 2 + gap * 1.30, XH * 0.40)     # the barb's reach off the axis: smaller, the 400's arrow read as an equals sign at 20 px
+    D = H * 1.10                                         # ... and back from the point
+    k = w * 2.7                                          # the head's depth on the axis: barbs ~1.8 strokes thick at the point
+    te = w * 0.50                                        # a barb's end, cut level
+    heads = [(L, +1)] + ([(0.0, -1)] if both else [])
+    parts = [_arrowhead(x, MID, p_, D, H, k, te) for x, p_ in heads]
+    # each shaft ends in the MIDDLE of the barb it runs into -- measured on the
+    # head itself, along the shaft's centerline -- so the two are one shape and
+    # no square end can stand out past the barb's outer curve
+    import shapely.geometry as sg
+    def _end(head, y, toward):
+        seg = head.intersection(sg.LineString([(-L, y), (2 * L, y)]))
+        segs = list(seg.geoms) if hasattr(seg, 'geoms') else [seg]
+        xs = [((q.coords[0][0] + q.coords[-1][0]) / 2) for q in segs if not q.is_empty]
+        return max(xs) if toward > 0 else min(xs)
     for off in (+gap / 2, -gap / 2):
-        parts.append(_s(line((x0, MID + off), (L - back, MID + off)), w=w,
-                        cut0=None if both else CUT, cut1=None))
-    for tipx, sgn2 in (((L, MID), -1),) if not both else (((L, MID), -1), ((0, MID), +1)):
-        for sgn in (+1, -1):
-            a = math.radians(180 if sgn2 < 0 else 0) + sgn * math.radians(30)
-            end = (tipx[0] + math.cos(a) * head, tipx[1] + math.sin(a) * head)
-            parts.append(_s(line(tipx, end), w=w, cut0=None))
+        x1 = _end(parts[0], MID + off, -1)
+        x0 = _end(parts[1], MID + off, +1) if both else 0.0
+        parts.append(bar(x0, x1, MID + off, w))
     g = geom.ink(parts)
     if dx < 0:
         import shapely.affinity as aff
-        g = aff.scale(g, -1, 1, origin='center')
+        g = aff.scale(g, -1, 1, origin=(L / 2, MID))
     return g
 
 @glyph('⇒')
@@ -241,6 +302,8 @@ def _guillemet(c, left, single=False):
     # still wins, so the 400s are unchanged.
     sin_a = math.sin(math.atan2(h / 2, w))
     gap = max(XH * 0.20, sw * (1.0 + GUIL_WHITE) / sin_a)
+    if S > GUIL_PEN_ABOVE:
+        return _guillemet_heavy(left, n, sw)
     parts = []
     for i in range(n):
         x0 = i * gap
@@ -249,6 +312,38 @@ def _guillemet(c, left, single=False):
         b = (x0 + w, MID - h / 2) if left else (x0, MID - h / 2)
         parts.append(_s(line(a, apex), w=sw, cut1=None))
         parts.append(_s(line(apex, b), w=sw, cut0=None))
+    return geom.ink(parts)
+
+GUIL_PEN_ABOVE = 84.0   # the 400s (stem 66.9) keep the construction above, byte for byte
+
+def _guillemet_heavy(left, n, sw):
+    """ROUND 385 -- THE HEAVY GUILLEMETS, DRAWN AS THE PEN WOULD. Owner
+    2026-09-24, from the round-384 proof: at the 700 the guillemets *"read as
+    chunky blunt chevrons"*. They were the 400's chevron -- 180 units tall,
+    monoline -- with its stroke nearly doubled (32 -> 57), so a chevron was a
+    third stroke and two butted round ends at the point. What Times New Roman
+    Bold and Georgia Bold do, measured beside them: the chevron grows a
+    little with the weight, it has a PEN's contrast -- the stroke that falls
+    to the right (\\) is the heavy one, the one that rises to the right (/)
+    about half of it -- its point is sharp, and its ends are cut level. So
+    here: 0.52 of the x-height tall against the 400's 0.42, the heavy arm the
+    400's rule scaled by 0.95, the light arm 0.52 of it, one mitered polygon
+    (`_chevron`) with a sharp point, and the gap solved for round 384's white
+    against the HEAVY arm, which is the one that faces its neighbor across the
+    gap on the lower half. The 400s are not touched."""
+    h = XH * 0.56; D = XH * 0.25
+    heavy = sw * 0.95
+    sin_t = math.sin(math.atan2(h / 2, D))
+    apex = heavy * 1.15 / sin_t                          # the point carries the most ink
+    e_heavy, e_light = heavy * 0.62 / sin_t, heavy * 0.34 / sin_t
+    gap = apex + heavy * GUIL_WHITE / sin_t              # round 384's white, at the point
+    parts = []
+    for i in range(n):
+        x0 = i * gap
+        if left:    # <: the upper arm rises to the right (light), the lower falls (heavy)
+            parts.append(_chevron(x0, MID, +1, D, h / 2, apex, e_light, e_heavy))
+        else:       # >: the upper arm falls to the right (heavy), the lower rises (light)
+            parts.append(_chevron(x0 + D + e_heavy * 0.0, MID, -1, D, h / 2, apex, e_heavy, e_light))
     return geom.ink(parts)
 
 @glyph('«')
@@ -322,34 +417,29 @@ def g_section(c):
 
 @glyph('\u00b6')      # pilcrow
 def g_paragraph(c):
-    """The font's own P with its counter FILLED, plus a second stem at the
-    bowl's right edge: that is what a pilcrow is, and building it from the
-    letter means it cannot drift from the capitals. Two hand-drawn versions
-    came out as a block -- a ring clipped by a box, then a solid
-    superellipse -- because a pilcrow's bowl is solid and a solid bowl
-    drawn from scratch has no counter to give it a shape."""
+    """ROUND 385 -- THE BOWL HANGS TO THE LEFT OF THE STEMS. Owner 2026-09-24,
+    *"improve the chess, card and other symbols. they are distractingly weird
+    currently."* Rounds 100-272 built this from the font's own P with its
+    counter filled and a second stem at the bowl's right edge -- which put the
+    solid bowl BETWEEN the two stems: a block at the 400 and, sheared, a
+    capital A in the italic. In the pilcrow of every text face measured beside
+    it (Times New Roman, Georgia, STIX Two, DejaVu, Apple Symbols) the two
+    stems stand side by side and the solid bowl -- a reversed D -- hangs off the
+    LEFT one from the cap line to a little under half the cap height; a flat
+    top joins the stems. The stems are light (0.62 of the cap stem) and the
+    bowl carries the weight, which is what makes it read as a mark rather
+    than as a letter. The stems have no foot wedges: round 272's two inner
+    feet met under the slot at the 700 and closed it into a counter, and with
+    no feet there is nothing to meet."""
     import shapely.geometry as sg
     from ..pen import CS
-    from . import GLYPHS
-    g = GLYPHS['P'](c)
-    parts = list(g.geoms) if hasattr(g, 'geoms') else [g]
-    filled = geom.ink([sg.Polygon(pp.exterior) for pp in parts])
-    x0, y0, x1, y1 = filled.bounds
-    g = geom.ink([filled, stem(x1 - CS * 0.5, 0, CAP, w=CS * 0.92, foot='both')])
-    if S > 84.0:
-        # round 272: at the 700 and the 900 the two stems' inner feet meet and
-        # the slot between the stems becomes an enclosed counter with a dent
-        # in it (adversarial review); the feet's ink under each such slot is
-        # cut so the slot opens to the baseline as it does at the 400
-        parts = list(g.geoms) if hasattr(g, 'geoms') else [g]
-        cuts = []
-        for pp in parts:
-            for r in pp.interiors:
-                hx0, hy0, hx1, hy1 = sg.Polygon(r).bounds
-                if hy0 < CAP * 0.5:
-                    cuts.append(sg.box(hx0 + 1.0, -CAP * 0.1, hx1 - 1.0, hy0 + CS * 0.35))   # up past where the brackets come within the ink spread of each other
-        if cuts: g = g.difference(geom.union(cuts))
-    return g
+    w = CS * 0.55
+    rx, ry = CAP * 0.26, CAP * 0.29
+    x1 = rx + w * 0.5
+    x2 = x1 + w * 2.1                               # a stem and a tenth of white between the stems
+    bowl = geom.poly(superellipse(x1, CAP - ry, rx, ry, math.pi / 2, math.pi * 1.5, 2.2), [])
+    top = sg.box(x1 - 1.0, CAP - TH_H * 1.1, x2 + w / 2, CAP)
+    return geom.ink([bowl, top, stem(x1, 0, CAP, w=w, ent=0.0, it_entry=False, it_exit=False), stem(x2, 0, CAP, w=w, ent=0.0, it_entry=False, it_exit=False)])
 
 @glyph('†')      # dagger
 def g_dagger(c):
@@ -463,10 +553,19 @@ def g_infinity(c):
     return geom.ink([a, b])
 @glyph('√')      # radical
 def g_radical(c):
-    h = CAP * 0.96
-    p = [(0, MID * 1.10), (XH * 0.26, MID * 0.40), (XH * 0.54, h)]   # a V wide enough to read: the first cut was near-vertical and looked like a bar's edge
-    return _fill_cracks(geom.ink([_s(p, widths([(0.0, 0.58), (0.45, 1.10), (1.0, 0.70)]), cut1=None),
-                     bar(XH * 0.52, XH * 1.36, h, MATH * 0.92, align='top')]))
+    """ROUND 385 -- ONE MITERED PATH. It was a pen stroke through three points
+    with a swelling width profile, folded at the V and crack-filled (round
+    384), plus a separate bar: at the 700 the long leg carried a 9-unit STEP
+    two-thirds of the way up (`cmp_jogs.py`, docs/albo-symbols-2026-09-24.md) and
+    the whole sign read lumpy. The radical is now what Albo's other
+    mathematical signs are: a monoline rule, here one path -- the short
+    down-stroke, the long up-stroke, the vinculum -- with a sharp point at the
+    V and a square corner where the bar leaves the leg."""
+    import shapely.geometry as sg
+    w = max(MATH * 1.05, HAIR)
+    h = CAP * 0.96 - w / 2                                # the bar's centerline: its top on CAP * 0.96
+    path = [(0, MID * 1.10), (XH * 0.26, MID * 0.40 + w * 0.5), (XH * 0.54, h), (XH * 1.36, h)]
+    return sg.LineString(path).buffer(w / 2, cap_style=2, join_style=2, mitre_limit=8.0)
 
 # ---------------------------------------------------------------- signs
 @glyph('°')      # degree
@@ -625,6 +724,11 @@ def g_ballotxheavy(c):
 
 # ---------------------------------------------------------------- geometric
 def _shape(c, kind, filled, size=None):
+    # ROUND 385: upright in the italic -- see `_upright`. A sheared square is a
+    # parallelogram, which is a different sign.
+    return _upright(_shape_drawn(c, kind, filled, size))
+
+def _shape_drawn(c, kind, filled, size=None):
     import shapely.geometry as sg
     r = (size or XH * 0.34)
     cx, cy = r, MID
@@ -638,8 +742,12 @@ def _shape(c, kind, filled, size=None):
     if kind == 'circle':
         if filled:
             return geom.poly(superellipse(cx, cy, r, r, 0, 2 * math.pi, 2.0)[:-1], [])
-        solid, *_ = ring(cx, cy, r, r, w_scale=0.60, floor=HAIR)
-        return solid
+        # ROUND 385: MONOLINE, as the white square and triangle are. It was
+        # the pen's ring -- thick at the sides, thin at top and bottom -- which
+        # is the letter o's stress, and at the 700 the white circle set beside
+        # a word read as an o.
+        disc = geom.poly(superellipse(cx, cy, r, r, 0, 2 * math.pi, 2.0)[:-1], [])
+        return disc.difference(disc.buffer(-max(MATH * 0.95, HAIR)))
     outer = sg.Polygon(pts)
     if filled: return outer
     return outer.difference(outer.buffer(-max(MATH * 0.95, HAIR)))

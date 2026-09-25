@@ -128,8 +128,11 @@ MULTI = {
     '©': 2, '®': 2,           # the ring and the letter inside it
     '¼': 3, '½': 3, '¾': 3, '÷': 3, '‰': 5,
     '™': 2, '≈': 2, '≤': 2, '≥': 2,
-    '♠': 2, '♤': 2,           # the spade's body and its foot
-    '♕': 4, '♛': 4,           # the queen: body, two arms, one finial
+    # ROUND 385: the pieces and suits were redrawn as one silhouette each, so
+    # the old allowances (the spade's foot, the queen's arms and finial) are
+    # gone -- an allowance left above the drawing's count would hide a real
+    # fracture. The white knight's eye is a dot inside its outline.
+    '♘': 2,
     'Ω': 1,                        # NOT 3 -- see g_Omega, its feet were adrift
     # round 379: the Theta's bar floats inside the O (all four reference
     # Greeks draw it so -- traced, the bar's run at mid-height stands clear of

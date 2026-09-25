@@ -157,7 +157,7 @@ def f_bar(x, xh, wf, th, opt):
         return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th, cut0=a_, cut1=-a_)
     return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th)
 
-def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_cut=True, flush=False):
+def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_cut=True, flush=False, finial=True):
     """The f's three solids (round 42 construction). The ligatures (round 96,
     `glyphs/ligatures.py`) re-aim the hook: `hook_end` replaces the cubic's
     end point, `hook_c2` its second control, `hook_profile` the width keys;
@@ -177,7 +177,12 @@ def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_c
     # needs, over which the centerline moves 0.01), and the hook begins at
     # the stem's own width, easing to the pen's by a quarter of its length.
     st_top = asc - r + (2 if flush else 30)
-    st = stem(x, 0, st_top, top=None, foot=('left' if adj('f') else 'both'), ent_span=(0, asc))   # round 92 (adj 'f'): the double foot wide under the hook's reach -- left foot only
+    st = stem(x, 0, st_top, top=None, foot=('left' if adj('f') else 'both'), ent_span=(0, asc), it_entry=False)   # round 92 (adj 'f'): the double foot wide under the hook's reach -- left foot only
+    # ROUND 385: it_entry=False. The stem's TOP is always under the hook, so the
+    # italic's calligraphic entry flick drawn there could only poke out of the
+    # hook's left edge -- the spur on the italic long s and on every italic
+    # f-ligature (owner 2026-09-24, "the weirdness and stray hairy mess").
+    # The roman never draws an entry; the standalone italic f is aldine's.
     end = hook_end or (x + r * 1.25, asc - r * 0.55); c2 = hook_c2 or (x + r * 0.9, asc + 8)
     hook = cubic((x, asc - r), (x, asc + 8), c2, end)
     prof = hook_profile or [(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)]
@@ -192,7 +197,11 @@ def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_c
     # the vertical (73.3 and 127.1 wide). The standalone roman f only, with
     # the flush hook: the ligatures re-aim the hook and pass their own
     # profile with no cut, and keep round 42's drawing.
-    _finial = flush and hook_profile is None and hook_cut
+    # ROUND 385: `finial=False` takes R20's flush join without its finial --
+    # the long s and the ligatures take the join (their stem's top-left corner
+    # was the same 4.7-6.4-unit step R20 removed from the f: `cmp_jogs.py`,
+    # docs/albo-symbols-2026-09-24.md) but keep the hooks the owner ruled on.
+    _finial = flush and finial and hook_profile is None and hook_cut
     if _finial:
         # The face is sheared 28 degrees against the cut's 20, so its forward
         # (inner, lower) corner would reach tan(28) x 1.10 / 2 - tan(20) x 1.2

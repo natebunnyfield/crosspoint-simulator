@@ -165,6 +165,18 @@ def ink(solids, cutouts=()):
         g = g.difference(union(cutouts))
     return g
 
+def ease_step(g, x0, x1, y0, y1):
+    """ROUND 385: where a stem's flat end stops against the stroke that
+    carries on from it and the two edges do not meet exactly, the edge
+    STEPS -- the fracture class the owner showed on the yen (2026-09-24). The
+    ink inside the box is replaced by its convex hull, which turns a step into
+    a short straight slope and adds nothing outside the box. The box is the
+    caller's promise that no counter or designed notch lies inside it."""
+    import shapely.geometry as _sg
+    band = g.intersection(_sg.box(x0, y0, x1, y1))
+    if band.is_empty: return g
+    return g.union(band.convex_hull)
+
 def close_corners(g, r, segs=24):
     """ROUND 205b -- FILL THE CONCAVE CORNERS A UNION LEAVES.
 

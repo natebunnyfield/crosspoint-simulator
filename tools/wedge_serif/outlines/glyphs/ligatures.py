@@ -25,13 +25,17 @@ FI_PUSH = float(_os.environ.get("ALBO_FI_PUSH", 0.35))   # the i's stem centre, 
 FL_PUSH = float(_os.environ.get("ALBO_FL_PUSH", 0.40))
 FF_STEP = float(_os.environ.get("ALBO_FF_STEP", 1.38))   # the second f's stem centre, in hook radii past the first (the natural pair is ~1.47; 1.02 was cramped)
 
+# ROUND 385: no italic ENTRY on a ligature's i or l. The hook arrives on the
+# stem's top-left, so the calligraphic entry flick `stem` draws there in the
+# italic stood out beside it as a hair (BoldItalic fi and ffi, owner
+# 2026-09-24: "the weirdness and stray hairy mess"). The roman draws none.
 def _i_stem(x, c):
-    return stem(x, 0, c["xh"], top='left', foot='both')
+    return stem(x, 0, c["xh"], top='left', foot='both', it_entry=False)
 def _l_stem(x, c):
-    if adj('l'): return stem(x, 0, c["asc"], top='left', foot='both', top_len=1.05, foot_len=0.92)
-    return stem(x, 0, c["asc"], top='left', foot='both')
+    if adj('l'): return stem(x, 0, c["asc"], top='left', foot='both', top_len=1.05, foot_len=0.92, it_entry=False)
+    return stem(x, 0, c["asc"], top='left', foot='both', it_entry=False)
 
-def fi_parts(c, x_f_shift=0.0):
+def fi_parts(c, x_f_shift=0.0, flush=True):
     """f + i fused: the hook comes over and flows INTO the i's dot, arriving
     on a diagonal (a vertical arrival takes the pen's full stem weight and
     read as the stem climbing into a knot -- the first cut)."""
@@ -42,7 +46,12 @@ def fi_parts(c, x_f_shift=0.0):
     end = (ix - dr * 0.55, dy + dr * 0.55)                     # the dot's upper-left shoulder
     c2 = (x + r * 1.25, c["asc"] - r * 0.15)                   # over the crown, then down at ~50 degrees
     prof = [(0.0, 1.0), (0.6, 1.0), (1.0, 0.9)]
-    f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=prof, parts=True, hook_cut=False)
+    # ROUND 385 (every f_ink call here): R20's flush join -- the stem's
+    # top-left corner stood out of the hook as a 4.7-6.4-unit step on every
+    # ligature, the defect R20 removed from the f -- without the f's finial,
+    # since these hooks are the owner's ruled ligature hooks (`cmp_jogs.py`,
+    # docs/albo-symbols-2026-09-24.md).
+    f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=prof, parts=True, hook_cut=False, flush=flush, finial=False)
     return f + [_i_stem(ix, c), dot(ix, dy, dr)]
 
 def fl_parts(c, x_f_shift=0.0):
@@ -52,7 +61,7 @@ def fl_parts(c, x_f_shift=0.0):
     end = (lx - S * 0.45, c["asc"] - 8)                        # inside the wedge's bracket
     c2 = (x + r * 1.1, c["asc"] + 8)
     prof = [(0.0, 1.0), (0.7, 1.0), (1.0, 1.05)]
-    f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=prof, parts=True, hook_cut=False)
+    f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=prof, parts=True, hook_cut=False, flush=True, finial=False)
     return f + [_l_stem(lx, c)]
 
 def ff_first(c):
@@ -69,7 +78,7 @@ def ff_first(c):
     else:
         end = (x2 + S * 0.2, c["asc"] - r * 0.40)
     c2 = (x + r * 1.0, c["asc"] + 8)
-    f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=[(0.0, 1.0), (1.0, 1.0)], parts=True, hook_cut=False)
+    f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=[(0.0, 1.0), (1.0, 1.0)], parts=True, hook_cut=False, flush=True, finial=False)
     return f, x2 - x
 
 # ROUND 266 -- THE BARS MUST MEET AT ANY WEIGHT. The f-ligatures read as one
@@ -100,16 +109,29 @@ def _bridge(bar_a, bar_b):
 def g_fi(c): return geom.ink(fi_parts(c))
 @glyph('\ufb02')
 def g_fl(c): return geom.ink(fl_parts(c))
+# ROUND 385: in the ff and the ffi the SECOND f keeps round 42's join (no
+# flush). Its stem's top-left corner -- the step the flush removes -- is
+# buried in the first f's hook here, and the flush's reshaped hook start
+# turned the white slit between the two hooks into a needle (a REVERSAL in
+# both italics). Closing that slit instead, as the ffl's is, sealed a pocket
+# in the roman ffi; the drawing below is round 384's.
+# Its step is not buried after all -- the first hook ends 76 units above it
+# -- so it is eased to a slope over the LEFT half of the stem only
+# (`geom.ease_step`): the right half runs up into the hook's underside, a
+# counter the box must not reach.
+def _second_f_step(g, c, dx):
+    x, r, _ = f_geometry(c); x2 = x + dx; top = c["asc"] - r + 30      # f_ink's round-42 stem top
+    return geom.ease_step(g, x2 - S * 0.75, x2, top - S * 0.6, top + S * 0.35)
 @glyph('\ufb00')
 def g_ff(c):
     first, dx = ff_first(c); second = [aff.translate(g, dx, 0) for g in f_ink(c, parts=True)]
     j = _bridge(first[2], second[2])
-    return geom.ink(first + second + ([j] if j is not None else []))
+    return _second_f_step(geom.ink(first + second + ([j] if j is not None else [])), c, dx)
 @glyph('\ufb03')
 def g_ffi(c):
-    first, dx = ff_first(c); rest = [aff.translate(g, dx, 0) for g in fi_parts(c)]
+    first, dx = ff_first(c); rest = [aff.translate(g, dx, 0) for g in fi_parts(c, flush=False)]
     j = _bridge(first[2], rest[2])
-    return geom.ink(first + rest + ([j] if j is not None else []))
+    return _second_f_step(geom.ink(first + rest + ([j] if j is not None else [])), c, dx)
 def _close_slits(g, r=6.0):
     """ROUND 384: a MITRE closing -- dilate by r, erode by r -- which fills a
     feature narrower than 2r and nothing else: a square inside corner comes back
@@ -168,10 +190,23 @@ def _f_into_ascender(c, ch, push=None):
     end = (lx - S * 0.45, c["asc"] - 8)
     c2 = (x + r * 1.1, c["asc"] + 8)
     f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=[(0.0, 1.0), (0.7, 1.0), (1.0, 1.05)],
-              parts=True, hook_cut=False)
+              parts=True, hook_cut=False, flush=True, finial=False)
     # the l's stem would stand with its own left edge here; the letter follows it
     ref = geom.bbox(_l_stem(lx, c))[0]
-    return f + [_place(ch, c, ref)]
+    L = _place(ch, c, ref)
+    # ROUND 385: a hook that only GRAZES the letter is joined to it. In the
+    # italic the fh's hook came to rest on the aldine h's entry at a single
+    # point once the f's stem was made flush (PINCH 0.00, `cmp_aldine_glitch`)
+    # -- a join no pen makes. Where the two are within 6 units of each other
+    # the lens between them is inked, so they meet as one stroke; a hook that
+    # is already buried in the letter's wedge (every roman, overlap in the
+    # thousands of units) is left exactly as it was.
+    hk = f[1]
+    if hk.intersection(L).area < 200.0:
+        lens = hk.buffer(6.0).intersection(L.buffer(6.0))
+        if not lens.is_empty:
+            return f + [L, lens]
+    return f + [L]
 
 @glyph('\ue000')
 def g_fb(c): return geom.ink(_f_into_ascender(c, 'b'))
@@ -190,7 +225,7 @@ def g_fj(c):
     end = (jx - dr * 0.55, dy + dr * 0.55)
     c2 = (x + r * 1.25, c["asc"] - r * 0.15)
     f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=[(0.0, 1.0), (0.6, 1.0), (1.0, 0.9)],
-              parts=True, hook_cut=False)
+              parts=True, hook_cut=False, flush=True, finial=False)
     j = _G['j'](c)
     # The j carries its own dot and the hook arrives as one, so the dot goes.
     # Pick it by POSITION and SIZE, not by area alone: the first cut took

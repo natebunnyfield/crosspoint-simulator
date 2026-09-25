@@ -27,7 +27,7 @@ from ..geom import cubic, line, superellipse
 from ..primitives import stroke, pen_widths, widths, dot, ring, bar, stem
 from ..pen import S, XH, CAP, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K
 from .stems import DOT_R
-from .symbols import MATH, MID, _s
+from .symbols import MATH, MID, _s, _upright
 
 # ---------------------------------------------------------------- spaces
 @glyph(' ')      # no-break space: the space's twin, and the corpus's 30 uses
@@ -158,6 +158,16 @@ class hand:
         global _HAND
         _HAND = self.prev
 
+def _ent():
+    """ROUND 385: the width at which a round stroke leaves (or arrives at) a
+    stem, as a fraction of the round pen -- so the stroke's edges run on from
+    the stem's with no step. The roman's is the stem over the o's pen at the
+    vertical; the italic hand's pen and stem are other widths, and the roman
+    ratio there left 5-17-unit steps where the phi's loop and the beta's bowl
+    meet their stems (`cmp_jogs.py`, docs/albo-symbols-2026-09-24.md)."""
+    if _HAND is not None and hasattr(_HAND, 'ent'): return _HAND.ent()
+    return TH_V / (S * 1.0 * O_W_ADJ)
+
 def _oring(cx, cy, rx, ry):
     """A closed bowl on the o's own weight (`rounds.g_o`: O_W_ADJ on the
     round pen, the hair floored at O_FLOOR_ADJ of the stem)."""
@@ -250,17 +260,26 @@ def g_beta(c):
     and the 2026-09-19 ruling is that a 700's counters are not indented."""
     u = _u(c); x = 45 * u
     tip = (x + TH_V / 2 + BETA_OPEN_GAP * u, 392) if S <= 84.0 else (x, 394)
-    ent = TH_V / (S * 1.0 * O_W_ADJ)      # the curve leaves the stem at the stem's own width
+    ent = _ent()      # the curve leaves the stem at the stem's own width
     up = _round([(x, 470), (x + 4 * u, 600), (x + 38 * u, 700), (x + 118 * u, 752), (x + 210 * u, 752),
                  (x + 286 * u, 712), (x + 310 * u, 625), (x + 305 * u, 540), (x + 282 * u, 468), (x + 238 * u, 420),
                  (x + 175 * u, 398), tip],
-                widths([(0.0, ent), (0.10, 1.0), (0.86, 1.0), (1.0, 0.25)]))
+                widths([(0.0, ent), (0.14, 1.0), (0.86, 1.0), (1.0, 0.25)]))
     lo = _round([tip, (x + 180 * u, 388), (x + 262 * u, 362), (x + 322 * u, 298), (x + 342 * u, 212),
                  (x + 332 * u, 132), (x + 292 * u, 58), (x + 215 * u, 8), (x + 125 * u, 6), (x + 50 * u, 38),
                  (x + 6 * u, 100), (x, 160)],
                 widths([(0.0, 0.25), (0.12, 1.0), (0.90, 1.0), (1.0, ent)]))
-    st = _lc_stem(x, -DESC, 560)
-    return _heavy(geom.ink([st, up, lo]))
+    # ROUND 385: the stem stops 30 units into the rising curve, not 90. Its
+    # flat top at 560 stood where the curve (leaning right as it climbs) had
+    # already left it, and the top-left corner stood out as a 9-unit step at
+    # the bold italic (`cmp_jogs.py`); the curve now carries the stem's width
+    # (`_ent`) from 470 and eases to the round pen by 0.14 of its length.
+    st = _lc_stem(x, -DESC, 500)
+    g = geom.ink([st, up, lo])
+    # the step the stem's flat top leaves against the curve, eased to a slope;
+    # the band stops at the stem's right edge, short of the upper counter
+    g = geom.ease_step(g, x - TH_V * 1.2, x + TH_V * 0.45, 500 - TH_V, 500 + TH_V)
+    return _heavy(g)
 
 @glyph('γ')      # gamma
 def g_gamma(c):
@@ -415,13 +434,20 @@ def g_phi(c):
     the descender line. The loop is open between its start and the stem.
     Traced: 1.20 o wide, the stem at 0.60 o."""
     u = _u(c); xs = 278 * u
-    ent = TH_V / (S * 1.0 * O_W_ADJ)
+    ent = _ent()
     loop = _round([(165 * u, 412), (100 * u, 365), (55 * u, 285), (45 * u, 200), (62 * u, 110), (112 * u, 38),
                    (200 * u, 3), (320 * u, 2), (425 * u, 30), (492 * u, 100), (518 * u, 200), (508 * u, 310),
-                   (460 * u, 400), (385 * u, 437), (318 * u, 418), (287 * u, 360), (xs, 280)],
-                  widths([(0.0, 1.0), (0.90, 1.0), (1.0, ent)]), fin0=True)
+                   (460 * u, 400), (385 * u, 437), (318 * u, 418), (xs + 6 * u, 360), (xs, 318), (xs, 280)],
+                  widths([(0.0, 1.0), (0.84, 1.0), (0.93, ent), (1.0, ent)]), fin0=True)
+    # ROUND 385: the loop ARRIVES VERTICAL AND AT THE STEM'S WIDTH, so the two
+    # run on edge to edge. It came in at a slant, at the round pen's width, and
+    # met the stem's flat top as a step -- 6.5 units in the italic, 17 at the
+    # bold italic (`cmp_jogs.py`, docs/albo-symbols-2026-09-24.md).
     st = _lc_stem(xs, -DESC, 300)
-    return _heavy(geom.ink([loop, st]))
+    # and what is left of the step at the bold italic, eased over a band no
+    # wider than the stem itself, so neither of the loop's counters is reached
+    g = geom.ease_step(geom.ink([loop, st]), xs - TH_V * 0.62, xs + TH_V * 0.62, 300 - TH_V * 0.6, 300 + TH_V * 0.6)
+    return _heavy(g)
 
 @glyph('ω')      # omega
 def g_omega(c):
@@ -431,7 +457,7 @@ def g_omega(c):
     round and up into a shared middle stroke that stops at 0.74 of the
     x-height. Traced: 1.36 o wide, the middle at 0.68 o."""
     u = _u(c); m = 315 * u
-    ent = TH_V / (S * 1.0 * O_W_ADJ)
+    ent = _ent()
     pts = [(165 * u, 428), (108 * u, 392), (68 * u, 340), (48 * u, 280), (42 * u, 215), (50 * u, 150), (72 * u, 88),
            (108 * u, 38), (170 * u, 3), (238 * u, 25), (283 * u, 85), (306 * u, 160), (m, 235)]
     prof = widths([(0.0, 1.0), (0.90, 1.0), (1.0, ent)])
@@ -587,9 +613,15 @@ def g_upsilon(c):
     u = _u(c); x0 = S / 2
     X = lambda px: x0 + (px - 133) * u
     left = _lc_stem(x0, 0.40 * XH - 30, XH, top='left')
+    # ROUND 385: the round stroke LEAVES THE STEM AT THE STEM'S WIDTH. It began
+    # at the o's round pen, wider than the stem, so where it starts on the stem
+    # both edges stepped out -- 6 units at the 400, 10 at the 700 (`cmp_jogs.py`,
+    # docs/albo-symbols-2026-09-24.md). `ent` is the psi's own end width for
+    # the same join; it eases to the round pen over the first fifth.
+    ent = _ent()
     bowl_ = _round([(x0, 0.44 * XH), (X(136), 130), (X(152), 66), (X(200), 22), (X(268), 8), (X(338), 26), (X(396), 76),
                     (X(434), 146), (X(454), 228), (X(452), 305), (X(432), 368), (X(400), 418)],
-                   widths([(0.0, 1.0), (0.90, 1.0)]), fin1=True)
+                   widths([(0.0, ent), (0.20, 1.0), (0.90, 1.0)]), fin1=True)
     return geom.ink([left, bowl_])
 
 @glyph('χ')      # chi
@@ -622,9 +654,9 @@ def g_psi(c):
     xs = X(340)
     stem_ = stem(xs, -DESC, ASC, w=TH_V, top=None, foot=None, cap=True, cut_top=CUT, ent_span=(-DESC, ASC))
     left = _lc_stem(x0, 0.40 * XH - 30, XH, top='left')
-    ent = TH_V / (S * 1.0 * O_W_ADJ)
+    ent = _ent()
     cupl = _round([(x0, 0.44 * XH), (X(134), 128), (X(160), 64), (X(220), 28), (X(290), 16), (xs, 16)],
-                  widths([(0.0, 1.0), (0.80, 1.0), (1.0, ent)]))
+                  widths([(0.0, ent), (0.20, 1.0), (0.80, 1.0), (1.0, ent)]))   # ROUND 385: leaves the stem at its width, as the upsilon's
     cupr = _round([(X(566), 418), (X(572), 350), (X(570), 260), (X(552), 170), (X(516), 94), (X(460), 42),
                    (X(396), 18), (xs, 16)], widths([(0.0, 1.0), (0.80, 1.0), (1.0, ent)]), fin0=True)
     return _heavy(geom.ink([stem_, left, cupl, cupr]))
@@ -977,14 +1009,27 @@ def g_thorn(c):
 def g_Thorn(c):
     from ..pen import CS
     x = CS / 2
-    return geom.ink([stem(x, 0, CAP, w=CS, top='left', foot='both'),
+    # ROUND 385: cap=True. Without it the italic gave the capital thorn the
+    # LOWERCASE's calligraphic entry and exit -- a spur out of the stem's top
+    # left (8.6 units, `cmp_jogs.py`) and a flick at its foot -- which no other
+    # italic capital carries (docs/albo-italic-capitals.md: an italic capital
+    # is the roman one narrowed and sheared).
+    return geom.ink([stem(x, 0, CAP, w=CS, top='left', foot='both', cap=True),
                      _bowl(x + CAP * 0.24, CAP * 0.62, CAP * 0.26, CAP * 0.24, 1.0)])
 @glyph('ß')      # eszett
 def g_germandbls(c):
     """The long s joined to the sharp s: a stem rising to the ascender with
     a shoulder, and a lower bowl that ends in the s's own terminal."""
     x = S * 0.5
-    sh = cubic((x, ASC * 0.72), (x, ASC * 0.96), (x + XH * 0.50, ASC * 0.98), (x + XH * 0.48, ASC * 0.62))
+    # ROUND 385 -- THE STEM ENDS INSIDE THE SHOULDER. It ran to ASC * 0.74 with
+    # the entasis swelling its top end 14%, so its flat top-left corner stood
+    # out of the shoulder stroke as an 11-unit square STEP (`cmp_jogs.py`, both
+    # romans), and in the italic `stem` drew its calligraphic entry flick up
+    # there too, a spur out of the letter's back. Now the stem stops a little
+    # inside the shoulder with its swell spread over the whole height the
+    # stroke rises to, no italic entry, and the shoulder starts at the stem's
+    # own width, lower down, so the two edges run on as one.
+    sh = cubic((x, ASC * 0.60), (x, ASC * 0.96), (x + XH * 0.50, ASC * 0.98), (x + XH * 0.48, ASC * 0.62))
     lower = cubic((x + XH * 0.48, ASC * 0.62), (x + XH * 0.44, XH * 0.62), (x + XH * 0.10, XH * 0.58), (x + XH * 0.16, XH * 0.40))
     tail = cubic((x + XH * 0.16, XH * 0.40), (x + XH * 0.62, XH * 0.30), (x + XH * 0.60, -XH * 0.02), (x + XH * 0.18, XH * 0.06))
     # ROUND 267 -- at a 148 stem the shoulder and the lower stroke filled the
@@ -995,9 +1040,14 @@ def g_germandbls(c):
     # 84 the factor is 1 and the drawing is as it was.
     _lt = min(1.0, (84.0 / S) ** 0.5)
     pr = widths([(0.0, 0.80), (0.5, 0.95), (1.0, 0.82)])
-    g = geom.ink([stem(x, 0, ASC * 0.74, top=None, foot='both'),
-                  _s(sh, pr, cut0=None, cut1=None, light=_lt), _s(lower, pr, cut0=None, cut1=None, light=_lt),
+    g = geom.ink([stem(x, 0, ASC * 0.66, top=None, foot='both', it_entry=False, ent_span=(0, ASC * 1.10)),
+                  _s(sh, widths([(0.0, 1.0 / _lt), (0.18, 0.84), (0.5, 0.95), (1.0, 0.82)]), cut0=None, cut1=None, light=_lt),
+                  _s(lower, pr, cut0=None, cut1=None, light=_lt),
                   _s(tail, widths([(0.0, 0.82), (0.6, 0.95), (1.0, 0.50)]), cut0=None, light=_lt)])
+    # ...and whatever step the stem's top still leaves against the shoulder
+    # (the shoulder narrows as it climbs) is eased to a slope: `geom.ease_step`
+    # over a band a stem wide either side of the join
+    g = geom.ease_step(g, x - TH_V * 1.1, x + TH_V * 0.9, ASC * 0.66 - TH_V, ASC * 0.66 + TH_V)
     if S > 84.0:
         # round 272: the ruling (no indentations in a counter at the 700 and
         # the 900) reaches the eszett's two counters, which are strokes and
@@ -1031,7 +1081,10 @@ def g_longs(c):
     constant, so the nub cannot come adrift again when the f is redrawn."""
     from .stems import f_ink
     import shapely.geometry as _sg
-    parts = f_ink(c, parts=True)
+    # ROUND 385: R20's flush join (the stem's top-left corner stood out of
+    # the hook as a 4.7-unit step, `cmp_jogs.py`), without the f's finial -- the
+    # long s's hook is not what the owner's finial ruling was made on
+    parts = f_ink(c, parts=True, flush=True, finial=False)
     y = XH - TH_H * 0.4
     band = geom.union([parts[0], parts[1]]).intersection(
         _sg.box(-9e3, y - TH_H * 0.4, 9e3, y + TH_H * 0.4))
@@ -1054,13 +1107,58 @@ def g_commabelow(c):
     return geom.ink([dot(DOT_R * 0.92, -DOT_R * 1.2, DOT_R * 0.92), comma_tail(DOT_R * 0.92, -DOT_R * 1.2, k=1.0)])   # k=1.0: an accent, not punctuation -- see comma_tail
 
 # ---------------------------------------------------------------- chess
-def _piece_body(top_h, neck_w, base_w, shoulder=0.30):
-    """A piece's stem and base: the flared body every chessman shares."""
-    return sg.Polygon([(-base_w, 0), (base_w, 0), (base_w, CAP * 0.08), (neck_w * 1.5, CAP * 0.16),
-                       (neck_w, CAP * shoulder), (neck_w, top_h), (-neck_w, top_h),
-                       (-neck_w, CAP * shoulder), (-neck_w * 1.5, CAP * 0.16), (-base_w, CAP * 0.08)])
+# ROUND 385 -- THE PIECES REDRAWN AS STAUNTON FIGURINES. Owner 2026-09-24:
+# *"improve the chess, card and other symbols. they are distractingly weird
+# currently."* -- and the standing request of round 100, *"use standard
+# stanton or ascii or unicode shapes for chess symbols"*, which had never been
+# acted on. What round 99 drew was a single trapezoid body under every piece,
+# a cross-shaped king, a three-pronged star for a queen, a bishop whose
+# miter was a pentagon with a triangle bitten out of it, and a knight that was
+# an eleven-point polygon; set in a line they read as a row of odd signs.
+#
+# The figurine grammar the reference faces share (Apple Symbols, DejaVu Sans,
+# STIX Two Math, measured side by side in docs/albo-symbols-2026-09-24.md):
+# every piece but the knight is a lathe profile -- a PLINTH, a CUSHION on it, a
+# WAISTED body flaring into the cushion, a COLLAR, and the head that names the
+# piece; the knight stands on the same plinth. The heights step up the rank,
+# so a line of figurines reads by silhouette before any detail: pawn 0.74 of
+# the cap height, rook 0.86, knight 0.94, bishop 0.97, queen 1.00, king 1.06
+# (under the ascender). Every piece sits on the baseline.
+#
+# The pieces are pictures, so they stand upright in the italic (`_upright`).
+PIECE_H = {'pawn': 0.74, 'rook': 0.86, 'knight': 0.94, 'bishop': 0.97, 'queen': 1.00, 'king': 1.06}
 
-def _hollow(g, w=None):
+def _lathe(half):
+    """A solid of revolution seen side-on: `half` is the right-hand profile,
+    bottom to top, in CAP units with x >= 0; the left is its mirror."""
+    right = [(x * CAP, y * CAP) for x, y in half]
+    left = [(-x, y) for x, y in reversed(right)]
+    return sg.Polygon(right + left).buffer(0)
+
+def _cap_bar(x0, x1, y, t):
+    """A disc seen edge-on: a bar of thickness t (CAP units) with round ends."""
+    r = t * CAP / 2
+    return sg.LineString([(x0 * CAP + r, y * CAP + r), (x1 * CAP - r, y * CAP + r)]).buffer(r)
+
+def _curve(p0, c1, c2, p3):
+    return cubic(*[(x * CAP, y * CAP) for x, y in (p0, c1, c2, p3)])
+
+def _base(half=0.35):
+    """The plinth and the cushion on it, shared by every piece."""
+    slab = sg.box(-half * CAP, 0, half * CAP, CAP * 0.085).buffer(-CAP * 0.02).buffer(CAP * 0.02)
+    slab = slab.union(sg.box(-half * CAP, 0, half * CAP, CAP * 0.04))      # square at the foot, rounded on top
+    cushion = aff.scale(sg.Point(0, CAP * 0.10).buffer(CAP), (half - 0.07), 0.055)
+    return slab.union(cushion)
+
+def _body(wb, wt, yt, yb=0.11):
+    """The waisted body: a trumpet from the cushion (half-width wb) up to the
+    collar (wt at height yt). The flare is at the FOOT, as on a turned piece."""
+    side = _curve((wb, yb), (wt * 1.05, yb + (yt - yb) * 0.22), (wt, yt - (yt - yb) * 0.55), (wt, yt))
+    return sg.Polygon([(x, y) for x, y in side] + [(-x, y) for x, y in reversed(side)]).buffer(0)
+
+PIECE_STEM_400 = 66.9     # the 400's stem, which the 0.042 outline was set against
+
+def _hollow(g, w=None, lines=()):
     """The white piece: the black one's outline. Same silhouette, so the
     pair can never disagree about what a rook is.
 
@@ -1068,101 +1166,215 @@ def _hollow(g, w=None):
     round 100 found the white queen, bishop and spade losing counters at the
     SemiBold and Bold, because a pen-derived width thickens with the text
     weight while the piece stays the same size. A pictograph's outline is a
-    property of the picture, not of the typeface's weight."""
-    return g.difference(g.buffer(-(w or CAP * 0.042)))
+    property of the picture, not of the typeface's weight.
 
-def _chess(kind):
-    B = CAP * 0.46          # half the base
-    N = CAP * 0.13          # half the neck
-    parts = []
+    ROUND 385: ...but not WHOLLY independent of it. A 28-unit outline beside a
+    116 stem read as a hairline drawing dropped into bold text. It now grows
+    with the SQUARE ROOT of the stem -- 28 at the 400, 37 at the 700 -- which is
+    what the redrawn pieces' counters can carry (their narrowest measured
+    counter is recorded in docs/albo-symbols-2026-09-24.md). `lines` are the
+    interior rules a white figurine carries where the black one has a step in
+    its silhouette (the plinth's top, the collar): drawn at the same width,
+    clipped to the piece."""
+    w = w or CAP * 0.042 * math.sqrt(S / PIECE_STEM_400)
+    out = g.difference(g.buffer(-w))
+    for y in lines:
+        out = out.union(sg.box(-CAP, y * CAP - w / 2, CAP, y * CAP + w / 2).intersection(g))
+    return out
+
+def _piece(kind):
+    """(silhouette, interior rules for the white piece, cut-outs for the black)."""
     if kind == 'pawn':
-        parts.append(_piece_body(CAP * 0.52, N * 0.92, B * 0.78))
-        parts.append(sg.Point(0, CAP * 0.66).buffer(CAP * 0.17))
-    elif kind == 'rook':
-        parts.append(_piece_body(CAP * 0.62, N * 1.25, B * 0.86))
-        top = sg.box(-B * 0.80, CAP * 0.62, B * 0.80, CAP * 0.90)
-        for cx in (-B * 0.36, B * 0.36):   # the crenels
-            top = top.difference(sg.box(cx - B * 0.14, CAP * 0.74, cx + B * 0.14, CAP * 0.92))
-        parts.append(top)
-    elif kind == 'bishop':
-        parts.append(_piece_body(CAP * 0.50, N * 0.95, B * 0.80))
-        mitre = sg.Polygon([(0, CAP * 1.00), (CAP * 0.24, CAP * 0.66), (CAP * 0.18, CAP * 0.46),
-                            (-CAP * 0.18, CAP * 0.46), (-CAP * 0.24, CAP * 0.66)])
-        parts.append(mitre.difference(sg.Polygon([(CAP * 0.02, CAP * 0.84), (CAP * 0.20, CAP * 0.62), (CAP * 0.06, CAP * 0.60)])))
-        parts.append(sg.Point(0, CAP * 1.04).buffer(CAP * 0.075))
-    elif kind == 'queen':
-        parts.append(_piece_body(CAP * 0.56, N * 1.05, B * 0.86))
-        crown = [(-B * 0.72, CAP * 0.56), (B * 0.72, CAP * 0.56)]
-        pts = [(-B * 0.72, CAP * 0.92), (-B * 0.36, CAP * 0.66), (0, CAP * 0.98), (B * 0.36, CAP * 0.66), (B * 0.72, CAP * 0.92)]
-        parts.append(sg.Polygon(crown[:1] + pts[::-1] + crown[1:]).buffer(0))
-        for x, y in ((-B * 0.72, CAP * 0.96), (0, CAP * 1.02), (B * 0.72, CAP * 0.96)):
-            parts.append(sg.Point(x, y).buffer(CAP * 0.075))
-    elif kind == 'king':
-        parts.append(_piece_body(CAP * 0.56, N * 1.05, B * 0.86))
-        parts.append(sg.Polygon([(-B * 0.72, CAP * 0.56), (B * 0.72, CAP * 0.56), (B * 0.56, CAP * 0.86), (-B * 0.56, CAP * 0.86)]))
-        parts.append(sg.box(-CAP * 0.055, CAP * 0.86, CAP * 0.055, CAP * 1.14))
-        parts.append(sg.box(-CAP * 0.15, CAP * 0.96, CAP * 0.15, CAP * 1.05))
-    else:   # knight: the head in profile
-        parts.append(sg.Polygon([(-B, 0), (B, 0), (B, CAP * 0.10), (-B, CAP * 0.10)]))
-        parts.append(sg.Polygon([
-            (-B * 0.55, CAP * 0.10), (B * 0.62, CAP * 0.10), (B * 0.50, CAP * 0.40),
-            (B * 0.66, CAP * 0.62), (B * 0.30, CAP * 0.86), (B * 0.10, CAP * 1.00),
-            (-B * 0.16, CAP * 0.96), (-B * 0.10, CAP * 0.80), (-B * 0.52, CAP * 0.62),
-            (-B * 0.66, CAP * 0.40), (-B * 0.40, CAP * 0.26)]))
-    g = geom.ink(parts)
-    return aff.translate(g, CAP * 0.50, 0)
+        body = [_base(0.31), _body(0.20, 0.075, 0.40),
+                _cap_bar(-0.165, 0.165, 0.375, 0.05),
+                sg.Point(0, CAP * 0.575).buffer(CAP * 0.165)]
+        return geom.ink(body), (0.085, 0.40), (), None
+    if kind == 'rook':
+        # the tower flares slightly to a turret wider than the body, with three
+        # merlons and two crenels -- the crenels are what make it a rook at 9 px
+        tw, top, crenel = 0.235, 0.86, 0.075
+        m = (2 * tw - 2 * crenel) / 3
+        turret = sg.box(-tw * CAP, 0.63 * CAP, tw * CAP, top * CAP)
+        for x0 in (-tw + m, tw - m - crenel):
+            turret = turret.difference(sg.box(x0 * CAP, 0.765 * CAP, (x0 + crenel) * CAP, CAP))
+        body = [_base(0.35), _body(0.25, 0.185, 0.60),
+                _cap_bar(-0.255, 0.255, 0.585, 0.055), turret]
+        return geom.ink(body), (0.085, 0.64), (), None
+    if kind == 'bishop':
+        # the miter: an ogive, widest a third of the way up, to a point that
+        # carries the ball; the slit runs down to the right from near the
+        # crown's center and opens at its edge
+        side = _curve((0.09, 0.44), (0.21, 0.50), (0.19, 0.74), (0.0, 0.905))
+        miter = sg.Polygon([(x, y) for x, y in side] + [(-x, y) for x, y in reversed(side)]).buffer(0)
+        slit = sg.LineString([(-0.02 * CAP, 0.765 * CAP), (0.30 * CAP, 0.555 * CAP)])
+        body = [_base(0.33), _body(0.22, 0.085, 0.42),
+                _cap_bar(-0.19, 0.19, 0.40, 0.05), miter,
+                sg.Point(0, CAP * 0.935).buffer(CAP * 0.048)]
+        return geom.ink(body), (0.085, 0.425), (slit,), slit
+    if kind == 'queen':
+        # the coronet: a cup flaring from the collar to a rim, and five points
+        # standing on the rim, each carrying a ball -- the outer two lean out
+        side = _curve((0.12, 0.49), (0.15, 0.58), (0.215, 0.66), (0.235, 0.735))
+        tips = [(-0.265, 0.855), (-0.13, 0.88), (0.0, 0.90), (0.13, 0.88), (0.265, 0.855)]
+        vall = [(-0.19, 0.755), (-0.065, 0.765), (0.065, 0.765), (0.19, 0.755)]
+        rim = [tips[0]]
+        for i in range(4): rim += [vall[i], tips[i + 1]]
+        left = [(-x, y) for x, y in side]                 # up the left side
+        crown = sg.Polygon(left + [(x * CAP, y * CAP) for x, y in rim] + side[::-1]).buffer(0)
+        balls = [sg.Point(x * CAP, (y + 0.025) * CAP).buffer(CAP * 0.044) for x, y in tips]
+        body = [_base(0.35), _body(0.23, 0.10, 0.47),
+                _cap_bar(-0.215, 0.215, 0.45, 0.055), crown] + balls
+        return geom.ink(body), (0.085, 0.475), (), None
+    if kind == 'king':
+        # the crown flares to a domed top; the cross stands on the dome
+        side = _curve((0.12, 0.49), (0.16, 0.58), (0.235, 0.70), (0.225, 0.77))
+        dome = _curve((0.225, 0.77), (0.20, 0.815), (0.08, 0.835), (0.0, 0.835))
+        half = side + dome
+        crown = sg.Polygon([(x, y) for x, y in half] + [(-x, y) for x, y in reversed(half)]).buffer(0)
+        cross = [sg.box(-0.036 * CAP, 0.80 * CAP, 0.036 * CAP, 1.06 * CAP),
+                 sg.box(-0.11 * CAP, 0.915 * CAP, 0.11 * CAP, 0.978 * CAP)]
+        body = [_base(0.35), _body(0.23, 0.10, 0.47),
+                _cap_bar(-0.215, 0.215, 0.45, 0.055), crown] + cross
+        return geom.ink(body), (0.085, 0.475, 0.80), (), None
+    # the knight: a horse's head in profile facing LEFT, as in every reference
+    # face -- ear, forehead, muzzle, the chin and the notch under the jaw, the
+    # throat running down into a full chest, the mane's long curve down the back
+    head = [(0.265, 0.10), (0.27, 0.27), (0.275, 0.44), (0.25, 0.60), (0.20, 0.73),
+            (0.14, 0.83), (0.085, 0.885), (0.06, 0.94), (0.035, 0.985),   # up the mane to the ear
+            (0.005, 0.925), (-0.04, 0.90),                                  # the ear's front
+            (-0.11, 0.855), (-0.19, 0.78), (-0.26, 0.69), (-0.315, 0.615),  # forehead and face
+            (-0.335, 0.56), (-0.315, 0.515), (-0.27, 0.495),                # the muzzle
+            (-0.19, 0.505), (-0.10, 0.535), (-0.055, 0.53),                 # the jaw, back to the throat
+            (-0.075, 0.47), (-0.14, 0.38), (-0.20, 0.27), (-0.235, 0.17), (-0.24, 0.10)]
+    pts = geom.catmull([(x * CAP, y * CAP) for x, y in head], closed=True, tension=0.5)
+    silhouette = geom.ink([_base(0.35), sg.Polygon(pts).buffer(0)])
+    eye = sg.Point(-0.085 * CAP, 0.765 * CAP).buffer(CAP * 0.036)
+    return silhouette, (0.085,), (eye,), eye
+
+def _chess(kind, white):
+    g, lines, cuts, mark = _piece(kind)
+    if white:
+        g2 = _hollow(g, lines=lines)
+        w = CAP * 0.042 * math.sqrt(S / PIECE_STEM_400)
+        if kind == 'bishop':     # the slit, drawn as a rule from the edge in
+            g2 = g2.union(mark.buffer(w / 2, cap_style=2).intersection(g))
+        elif kind == 'knight':   # the eye, a dot
+            g2 = g2.union(mark)
+        # a part narrower than two outlines (the queen's and the bishop's
+        # balls, the tip of the ear) insets to a speck of white inside a ring:
+        # filled, so a small part of a white piece is solid, as it is printed
+        g = _fill_cracks(g2)
+    else:
+        if kind == 'bishop':
+            g = g.difference(cuts[0].buffer(CAP * 0.022, cap_style=2))
+        else:
+            for k in cuts: g = g.difference(k)
+    return _upright(aff.translate(g, CAP * 0.38, 0))
 
 _CHESS = [('♔', '♚', 'king'), ('♕', '♛', 'queen'), ('♖', '♜', 'rook'),
           ('♗', '♝', 'bishop'), ('♘', '♞', 'knight'), ('♙', '♟', 'pawn')]
 for _white, _black, _kind in _CHESS:
-    glyph(_black)((lambda k: (lambda c: _chess(k)))(_kind))
-    glyph(_white)((lambda k: (lambda c: _hollow(_chess(k))))(_kind))
+    glyph(_black)((lambda k: (lambda c: _chess(k, False)))(_kind))
+    glyph(_white)((lambda k: (lambda c: _chess(k, True)))(_kind))
 
 # ---------------------------------------------------------------- suits
-def _heart(scale=1.0):
-    r = CAP * 0.21 * scale
-    a = sg.Point(-r * 0.92, CAP * 0.56).buffer(r); b = sg.Point(r * 0.92, CAP * 0.56).buffer(r)
-    v = sg.Polygon([(-r * 1.92, CAP * 0.56), (r * 1.92, CAP * 0.56), (0, CAP * 0.02)])
-    return geom.ink([a, b, v])
+# ROUND 385 -- THE SUITS REDRAWN ON CURVES, at the size of a capital. Round
+# 99's heart was two circles on a straight-sided triangle, its spade the same
+# upside down on a trapezoid, its diamond a lozenge 0.55 as wide as it was tall,
+# and all four stood a quarter lower than the capitals they sit beside in a
+# bridge hand ("♠AK7"). The references (Apple Symbols, DejaVu Sans, STIX Two,
+# Times New Roman) agree on the shapes the owner named:
+# - HEART: two lobes whose sides run in convex curves to the point -- no
+#   straight edge anywhere; about as wide as it is tall;
+# - SPADE: the heart inverted, its point on top, with a stem that leaves the
+#   cleft between the lobes and flares in two concave curves to a foot;
+# - CLUB: three round lobes that overlap into one shape, on the same stem;
+# - DIAMOND: a lozenge about 0.72 as wide as tall with faintly concave sides.
+# All four sit on the baseline (the heart's and the diamond's points dip by the
+# round letters' overshoot) and reach 0.90 of the cap height.
+SUIT_H = 0.90
+
+def _heart_half(h=SUIT_H, w=0.44):
+    """The heart's right half, point at the origin, cleft on the axis at the top."""
+    return (_curve((0.0, 0.0), (w * 0.28, h * 0.17), (w * 1.02, h * 0.40), (w, h * 0.70))[:-1]
+            + _curve((w, h * 0.70), (w * 0.99, h * 0.92), (w * 0.72, h * 1.0), (w * 0.52, h))[:-1]
+            + _curve((w * 0.52, h), (w * 0.26, h * 1.0), (w * 0.03, h * 0.93), (0.0, h * 0.80)))
+
+def _mirror_closed(half):
+    return sg.Polygon(half + [(-x, y) for x, y in reversed(half)][1:-1]).buffer(0)
+
+def _heart():
+    g = _mirror_closed(_heart_half())
+    return aff.translate(g, 0, -OVER * 0.5)
+
+def _foot(y_join, top_w=0.028, foot_w=0.20, foot_h=0.0):
+    """The stem and flared foot a spade and a club stand on: two concave curves
+    from a narrow neck at y_join down to a foot 2 x foot_w wide on the baseline."""
+    # the curve lands on a short upright edge, not on the baseline itself: a
+    # concave flare arriving tangent to the foot's bottom left a 168-degree
+    # sliver at the tip (cmp_contour_hairs REVERSAL)
+    side = _curve((top_w, y_join), (top_w, y_join * 0.45), (foot_w * 0.40, 0.045), (foot_w, 0.030)) + [(foot_w * CAP, 0.0)]
+    return sg.Polygon([(x, y) for x, y in side] + [(-x, y) for x, y in reversed(side)]).buffer(0)
+
 def _spade():
-    r = CAP * 0.21
-    a = sg.Point(-r * 0.92, CAP * 0.38).buffer(r); b = sg.Point(r * 0.92, CAP * 0.38).buffer(r)
-    v = sg.Polygon([(-r * 1.92, CAP * 0.38), (r * 1.92, CAP * 0.38), (0, CAP * 0.92)])
-    # ROUND 384: the stem reaches up INTO the lobes. It stopped at CAP * 0.10
-    # while the lobes bottom out at CAP * 0.17, so the foot floated free of the
-    # spade -- visible in the outline spade as a separate trapezoid with a
-    # crack inside it.
-    stem_ = sg.Polygon([(-r * 0.16, CAP * 0.30), (r * 0.16, CAP * 0.30), (r * 0.16, CAP * 0.10),
-                        (r * 0.50, 0), (-r * 0.50, 0), (-r * 0.16, CAP * 0.10)])
-    return geom.ink([a, b, v, stem_])
+    h = SUIT_H * 0.80                                  # the body; the stem takes the rest
+    body = aff.scale(_mirror_closed(_heart_half(h, 0.43)), 1, -1, origin=(0, 0))
+    body = aff.translate(body, 0, SUIT_H * CAP)          # point at the top, cleft at the bottom
+    cleft = SUIT_H - h * 0.80
+    return geom.ink([body, _foot(cleft + 0.06, 0.03, 0.19)])
+
 def _club():
-    r = CAP * 0.19
-    parts = [sg.Point(0, CAP * 0.72).buffer(r), sg.Point(-r * 1.10, CAP * 0.40).buffer(r), sg.Point(r * 1.10, CAP * 0.40).buffer(r),
-             sg.Polygon([(-r * 0.16, CAP * 0.10), (r * 0.16, CAP * 0.10), (r * 0.55, 0), (-r * 0.55, 0)]),
-             sg.box(-r * 0.16, CAP * 0.10, r * 0.16, CAP * 0.50),
-             # ROUND 384: THE HEART OF THE CLUB. The three lobes only kiss, so
-             # they left white slivers between them (glitch CRACK on the solid
-             # club) and the stem's top poked up into the notch; the outline
-             # club came out as three loose rings around a square. One disc at
-             # the junction makes the three lobes and the stem one shape.
-             sg.Point(0, CAP * 0.46).buffer(r * 0.62)]
-    # ...and the V-notches where two lobes meet are blunted to 12 units: in
-    # the italic they close at 12 degrees, a needle of white driven into the
-    # outline club (REVERSAL, pass 3). A mitre closing fills only what is
-    # narrower than 2 x 6 units; the lobes' own curves are untouched.
-    return geom.ink(parts).buffer(6.0, join_style=2).buffer(-6.0, join_style=2)
+    r = 0.19
+    lobes = [sg.Point(0, (SUIT_H - r) * CAP).buffer(r * CAP),
+             sg.Point(-0.205 * CAP, 0.40 * CAP).buffer(r * CAP),
+             sg.Point(0.205 * CAP, 0.40 * CAP).buffer(r * CAP),
+             sg.Point(0, 0.47 * CAP).buffer(r * 0.62 * CAP)]     # the heart where the three meet
+    # the V-notches between two lobes blunted to 12 units, round 384's reason
+    g = geom.ink(lobes + [_foot(0.40, 0.035, 0.19)])
+    return g.buffer(6.0, join_style=2).buffer(-6.0, join_style=2)
+
 def _diamond():
-    r = CAP * 0.30
-    return sg.Polygon([(0, CAP * 0.02), (r * 0.82, CAP * 0.47), (0, CAP * 0.92), (-r * 0.82, CAP * 0.47)])
+    h, w, sag = SUIT_H + 0.02, 0.33, 0.022
+    pts = [(0, 0), (w, h / 2), (0, h), (-w, h / 2)]
+    out = []
+    for i in range(4):
+        (x0, y0), (x1, y1) = pts[i], pts[(i + 1) % 4]
+        mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+        inward = (-mx, h / 2 - my)                      # toward the center
+        L = math.hypot(*inward) or 1.0
+        cx, cy = mx + inward[0] / L * sag, my + inward[1] / L * sag
+        out += quad_((x0, y0), (cx, cy), (x1, y1))[:-1]
+    return aff.translate(sg.Polygon(out).buffer(0), 0, -OVER * 0.5 - 0.01 * CAP)
+
+def quad_(p0, c, p1):
+    from ..geom import quad
+    return quad(*[(x * CAP, y * CAP) for x, y in (p0, c, p1)])
+
+def _suit_w():
+    return CAP * 0.042 * math.sqrt(S / PIECE_STEM_400)
+
 for _cp, _fn in (('♠', _spade), ('♥', _heart), ('♦', _diamond), ('♣', _club)):
-    glyph(_cp)((lambda f: (lambda c: aff.translate(f(), CAP * 0.34, 0)))(_fn))
+    glyph(_cp)((lambda f: (lambda c: _upright(aff.translate(f(), CAP * 0.36, 0))))(_fn))
 for _cp, _fn in (('♤', _spade), ('♡', _heart), ('♢', _diamond), ('♧', _club)):
     # ROUND 384: the outline's inset leaves a sliver of white inside the
     # spade's and the club's narrow foot (glitch CRACK); filled, so the foot
-    # is solid as it is on every printed card.
-    glyph(_cp)((lambda f: (lambda c: _fill_cracks(_hollow(aff.translate(f(), CAP * 0.34, 0)))))(_fn))
+    # is solid as it is on every printed card. ROUND 385: the redrawn foot is
+    # wider and its sliver measured 17-25 units -- past round 384's 16, so it
+    # survived as a white needle in the foot. 40 fills it; the suits' real
+    # counters measure 134 (the diamond at the 700) and up.
+    glyph(_cp)((lambda f: (lambda c: _upright(_fill_cracks(_hollow(aff.translate(f(), CAP * 0.36, 0)), 40.0))))(_fn))
 
 # ---------------------------------------------------------------- music
+# ROUND 385: all six stand upright in the italic (`_upright`), as the notes do
+# in Times New Roman, Arial, Georgia and Verdana Italic. Two were wrong in
+# themselves: the eighth note's flag was a four-point polygon, straight-edged
+# where every engraved flag is a curved teardrop, and the natural was drawn
+# as an H with sloped bars -- both stems ran almost the full height. In an
+# engraved natural the LEFT stem rises above the upper bar and stops at the
+# lower one, and the RIGHT stem starts at the upper bar and runs below the
+# lower; that offset is the sign. The accidentals' bars are now the heavy
+# strokes and the stems the light ones, which is how a sharp and a natural
+# are engraved (the bars carry the weight so they survive a staff line).
 def _note(beams=0, flag=False):
     r = CAP * 0.15
     head = aff.rotate(aff.scale(sg.Point(0, 0).buffer(1), r * 1.20, r * 0.86), 22)
@@ -1170,14 +1382,17 @@ def _note(beams=0, flag=False):
     x = r * 1.1 + r * 1.06
     parts.append(sg.box(x - MATH * 0.55, r * 0.9, x + MATH * 0.55, CAP * 0.94))
     if flag:
-        parts.append(sg.Polygon([(x, CAP * 0.94), (x + r * 1.5, CAP * 0.72), (x + r * 1.3, CAP * 0.44), (x, CAP * 0.66)]))
+        xs = x / CAP
+        outer = _curve((xs - 0.01, 0.94), (xs + 0.03, 0.80), (xs + 0.27, 0.74), (xs + 0.20, 0.44))
+        inner = _curve((xs + 0.20, 0.44), (xs + 0.22, 0.62), (xs + 0.06, 0.66), (xs - 0.01, 0.70))
+        parts.append(sg.Polygon(outer + inner[1:]).buffer(0))
     for i in range(beams):
         y = CAP * (0.94 - 0.16 * i)
         parts.append(sg.Polygon([(x, y), (x + r * 2.6, y - r * 0.30), (x + r * 2.6, y - r * 0.72), (x, y - r * 0.42)]))
     return geom.ink(parts)
-glyph('♪')(lambda c: _note(flag=True))
-glyph('♫')(lambda c: _twonotes(1))
-glyph('♬')(lambda c: _twonotes(2))
+glyph('♪')(lambda c: _upright(_note(flag=True)))
+glyph('♫')(lambda c: _upright(_twonotes(1)))
+glyph('♬')(lambda c: _upright(_twonotes(2)))
 def _twonotes(beams):
     r = CAP * 0.15
     a = _note(); b = aff.translate(_note(), r * 2.9, 0)
@@ -1185,24 +1400,26 @@ def _twonotes(beams):
                         (r * 5.06, CAP * (0.94 - 0.16 * i) - r * 0.42), (r * 2.16, CAP * (0.94 - 0.16 * i) - r * 0.42)])
             for i in range(beams)]
     return geom.ink([a, b] + beam)
+ACC_STEM = TH_V * 0.45     # an accidental's stems: the light strokes
+ACC_BAR = MATH * 1.45      # ... and its bars: the heavy ones
 @glyph('♭')      # flat
 def g_flat(c):
     x = S * 0.4
-    return geom.ink([_s(line((x, -CAP * 0.06), (x, CAP * 1.02)), w=TH_V * 0.72),
+    return _upright(geom.ink([_s(line((x, -CAP * 0.06), (x, CAP * 1.02)), w=TH_V * 0.72),
                      _s(cubic((x, CAP * 0.40), (x + CAP * 0.30, CAP * 0.46), (x + CAP * 0.26, CAP * 0.06), (x, CAP * 0.14)),
-                        widths([(0.0, 0.62), (0.5, 0.95), (1.0, 0.62)]), cut0=None, cut1=None)])
+                        widths([(0.0, 0.62), (0.5, 0.95), (1.0, 0.62)]), cut0=None, cut1=None)]))
 @glyph('♯')      # sharp
 def g_sharp(c):
     w = CAP * 0.34
-    parts = [_s(line((w * 0.30, -CAP * 0.06), (w * 0.30, CAP * 0.92)), w=TH_V * 0.55),
-             _s(line((w * 0.78, -CAP * 0.02), (w * 0.78, CAP * 0.96)), w=TH_V * 0.55)]
-    for y in (CAP * 0.30, CAP * 0.58):
-        parts.append(_s(line((0, y), (w * 1.08, y + CAP * 0.10)), w=MATH * 1.15))
-    return geom.ink(parts)
+    parts = [_s(line((w * 0.30, -CAP * 0.06), (w * 0.30, CAP * 0.92)), w=ACC_STEM),
+             _s(line((w * 0.78, -CAP * 0.02), (w * 0.78, CAP * 0.96)), w=ACC_STEM)]
+    for y in (CAP * 0.28, CAP * 0.58):
+        parts.append(_s(line((0, y), (w * 1.08, y + CAP * 0.10)), w=ACC_BAR))
+    return _upright(geom.ink(parts))
 @glyph('♮')      # natural
 def g_natural(c):
     w = CAP * 0.26
-    return geom.ink([_s(line((0, CAP * 0.06), (0, CAP * 0.86)), w=TH_V * 0.55),
-                     _s(line((w, CAP * 0.14), (w, CAP * 0.96)), w=TH_V * 0.55),
-                     _s(line((0, CAP * 0.62), (w, CAP * 0.70)), w=MATH * 1.05),
-                     _s(line((0, CAP * 0.30), (w, CAP * 0.38)), w=MATH * 1.05)])
+    return _upright(geom.ink([_s(line((0, CAP * 0.26), (0, CAP * 1.00)), w=ACC_STEM),     # left: rises above
+                     _s(line((w, -CAP * 0.04), (w, CAP * 0.72)), w=ACC_STEM),             # right: runs below
+                     _s(line((0, CAP * 0.58), (w, CAP * 0.66)), w=ACC_BAR),
+                     _s(line((0, CAP * 0.30), (w, CAP * 0.38)), w=ACC_BAR)]))

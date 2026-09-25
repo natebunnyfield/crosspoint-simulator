@@ -123,6 +123,12 @@ class ItalicHand:
         T = pen_thick(self.c)
         return self._stroke(center or S2._path(pts), T, T * PEN_THIN, math.radians(PEN_PHI), prof, cut0, cut1, fin0, fin1)
 
+    def ent(self):
+        """ROUND 385: the stem's width over this hand's round pen at the
+        vertical (`S2._ent`)."""
+        T, H = _pair(); phi = math.radians(ALD.O_PEN)
+        return (ALD.HM_STEMW * ALD.hm_u(self.c)) / (H + (T - H) * abs(math.cos(phi)))
+
     def lc_stem(self, x, y0, y1, top=None):
         c = self.c
         if top:
@@ -194,7 +200,15 @@ if ON:
         cross, a 165-degree REVERSAL). Traced on the roman skeleton."""
         H = _it(c); u = H.u(c); sw = ALD.HM_STEMW * ALD.hm_u(c); rx = 223 * u
         bowl_, *_ = H.oring(rx, XH / 2, rx, XH / 2 + OVER)
-        return S2._heavy(geom.ink([bowl_, ALD.hm_stem(c, sw / 2 - 3, -DESC, XH * 0.5, cut=False)]))
+        g = geom.ink([bowl_, ALD.hm_stem(c, sw / 2 - 3, -DESC, XH * 0.5, cut=False)])
+        # ROUND 385: the 3 units outside leave a STEP where the stem's flat top
+        # stops on the ring's side (3.7 units at the 400, 4.7 at the 700,
+        # `cmp_jogs.py`). The outer side of the join is made its own hull over a
+        # short band, so the stem's edge eases onto the ring's in a slope; the
+        # band stops at the stem's middle, so the counter is not touched.
+        import shapely.geometry as _sg
+        band = g.intersection(_sg.box(-9e3, XH * 0.5 - sw * 0.9, sw * 0.45, XH * 0.5 + sw * 1.2))
+        return S2._heavy(g.union(band.convex_hull))
 
     @glyph('η')
     def it_eta(c):
