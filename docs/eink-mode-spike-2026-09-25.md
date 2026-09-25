@@ -292,3 +292,8 @@ not measured.
 6. **Photosensitivity.** The full refresh is one dark excursion of about 0.5 s.
    It fires only on a host request or a firmware FULL. The periodic HALF on the
    X3 is a scrub and does not flash. So the default cadence adds no flashes.
+
+## RULED 2026-09-25 (owner)
+
+- **E-ink mode is LIGHT PAGE ONLY.** The dark page stays the tube, per the 2026-08-22 doctrine: light is paper and ink, dark is CRT.
+- **Shake stays bound to zen.** Full Refresh stays available in Settings to bind to any gesture. The shipped default does not change.
