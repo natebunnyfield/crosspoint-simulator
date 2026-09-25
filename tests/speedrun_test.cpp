@@ -66,6 +66,7 @@ int main() {
 
   check(clock(125.9) == "02:05" && delta(-2.04) == "-2.0" && delta(1.0) == "+1.0",
         "formatting");
+  check(delta(-0.02) == "+0.0", "a tie prints +0.0, never -0.0");
 
   if (failures == 0) std::printf("speedrun: all passed\n");
   return failures == 0 ? 0 : 1;

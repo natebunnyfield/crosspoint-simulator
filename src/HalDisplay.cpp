@@ -141,13 +141,10 @@ static uint64_t allowancePageCopySeq = ~0ull;
 
 // THE READING SPEEDRUN (spike, src/Speedrun.h): off unless
 // CROSSPOINT_SIM_SPEEDRUN=1. Main thread only, like the goal's clock.
-static bool speedrunOn() {
-  static const bool on = [] {
-    const char *e = std::getenv("CROSSPOINT_SIM_SPEEDRUN");
-    return e && e[0] == '1';
-  }();
-  return on;
-}
+// A dial now (owner 2026-09-25, "Add a phone switch"): Settings.app on the
+// phone, CROSSPOINT_SIM_SPEEDRUN / settings.json on the desktop.
+namespace SimulatorOverlay { static std::atomic<bool> speedrunEnabled{false}; }
+static bool speedrunOn() { return SimulatorOverlay::speedrunEnabled.load(); }
 static std::string speedrunFile() {
   if (const char *p = std::getenv("CROSSPOINT_SIM_SPEEDRUN_FILE"))
     if (p[0]) return p;
@@ -191,11 +188,12 @@ static void speedrunStep(bool onPage, const speedrun::PageKey &key,
   std::string hud[3];
   if (g_speedrun.active) {
     char b[64];
-    std::snprintf(b, sizeof b, "RUN %s %6s", speedrun::clock(g_speedrun.runSecs).c_str(),
+    std::snprintf(b, sizeof b, "%s %s", speedrun::clock(g_speedrun.runSecs).c_str(),
                   g_speedrun.splits ? speedrun::delta(g_speedrun.runDelta).c_str() : "");
     hud[0] = b;
-    std::snprintf(b, sizeof b, "PG  %s %6s", speedrun::clock(g_speedrun.pageSecs).c_str(),
-                  speedrun::delta(g_speedrun.pageDelta()).c_str());
+    std::snprintf(b, sizeof b, "pg %s %s  %d/%d*", speedrun::clock(g_speedrun.pageSecs).c_str(),
+                  speedrun::delta(g_speedrun.pageDelta()).c_str(), g_speedrun.golds,
+                  g_speedrun.splits);
     hud[1] = b;
     std::snprintf(b, sizeof b, "SPLITS %d  GOLD %d", g_speedrun.splits, g_speedrun.golds);
     hud[2] = b;
@@ -1680,6 +1678,13 @@ void setPowerOffCollapse(bool enabled) {
   powerOffCollapse.store(enabled);
 }
 
+void setSpeedrun(bool on) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_SPEEDRUN"))
+    if (env[0]) on = env[0] == '1';
+  if (speedrunEnabled.exchange(on) == on) return;
+  requestDirtyPresent();  // show or hide the HUD now, not at the next page
+}
+
 void setReadingAllowance(int minutes) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_READING_ALLOWANCE"))
     if (env[0]) minutes = std::atoi(env);
@@ -1788,6 +1793,9 @@ void applyDialGroup(simdials::Id group, const simdials::Values &v) {
       break;
     case ReadingAllowanceMinutes:
       setReadingAllowance(v[ReadingAllowanceMinutes]);
+      break;
+    case SpeedrunOn:
+      setSpeedrun(v[SpeedrunOn] != 0);
       break;
   }
 }
@@ -3815,23 +3823,25 @@ void HalDisplay::presentIfNeeded() {
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
     int outW = 0, outH = 0;
     SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH);
-    const float sc = std::max(1.0f, std::round(static_cast<float>(outH) / 700.0f));
+    // ONE LINE, at the page's edge, twice the old size (owner 2026-09-25:
+    // "Add a phone switch", which named the HUD moved and drawn larger).
+    const float sc = std::max(2.0f, std::round(static_cast<float>(outH) / 400.0f));
     const PanelPalette pal = livePanelPalette(display.isInverted());
-    size_t cols = 0;
-    for (const auto &l : g_speedrunHud) cols = std::max(cols, l.size());
+    const std::string line = g_speedrunHud[0] + "  " + g_speedrunHud[1];
     const float cw = SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE;
-    const float bw = (cols * cw + 8) * sc, bh = (3 * (cw + 3) + 5) * sc;
-    const float x0 = sheetPanelX + sheetPanelW - bw - 6 * sc, y0 = sheetPanelY + 6 * sc;
+    const float bw = (line.size() * cw + 6) * sc, bh = (cw + 4) * sc;
+    // The BOTTOM edge of the page, not the top: this reader's text block
+    // starts almost at the page's top, so a top-margin HUD sat on the running
+    // head (checked on the owner's own book, 2026-09-25).
+    const float x0 = sheetPanelX + sheetPanelW - bw - 4 * sc,
+                y0 = sheetPanelY + sheetPanelH - bh - 3 * sc;
     SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(sdl_renderer, pal.paper[0], pal.paper[1], pal.paper[2], 235);
     const SDL_FRect plate{x0, y0, bw, bh};
     SDL_RenderFillRect(sdl_renderer, &plate);
     SDL_SetRenderDrawColor(sdl_renderer, pal.ink[0], pal.ink[1], pal.ink[2], 255);
-    SDL_RenderRect(sdl_renderer, &plate);
     SDL_SetRenderScale(sdl_renderer, sc, sc);
-    for (int i = 0; i < 3; i++)
-      SDL_RenderDebugText(sdl_renderer, x0 / sc + 4, y0 / sc + 4 + i * (cw + 3),
-                          g_speedrunHud[i].c_str());
+    SDL_RenderDebugText(sdl_renderer, x0 / sc + 3, y0 / sc + 2, line.c_str());
     SDL_SetRenderScale(sdl_renderer, 1.0f, 1.0f);
     int logW = 0, logH = 0;
     getLogicalPresentationSize(orientation, &logW, &logH);

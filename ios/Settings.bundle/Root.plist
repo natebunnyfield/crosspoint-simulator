@@ -1924,6 +1924,24 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>A speedrunner's timer over your reading: each page is a split timed against your best on that page. The line at the top of the page shows the run's time, this page's time, how far ahead or behind you are, and how many pages you have beaten.</string>
+			<key>Title</key>
+			<string>Reading Speedrun</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>speedrunDemo</string>
+			<key>Title</key>
+			<string>Speedrun Timer</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>On a dark page, switching off looks like switching off a tube: the picture collapses to a bright line, the line closes to a dot, and the dot fades. The screen then stays dark until you wake it — you will not see the sleep screen.</string>
 			<key>Title</key>
 			<string>Sleep</string>

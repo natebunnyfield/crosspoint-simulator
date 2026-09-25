@@ -119,6 +119,8 @@ inline std::string clock(double s) {
 }
 inline std::string delta(double d) {
   if (std::isnan(d)) return "";
+  d = std::round(d * 10.0) / 10.0;
+  if (d == 0.0) d = 0.0;  // no "-0.0": a tie is a tie
   char b[16];
   std::snprintf(b, sizeof b, "%+.1f", d);
   return b;

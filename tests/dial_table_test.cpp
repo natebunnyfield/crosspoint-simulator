@@ -429,6 +429,8 @@ int main(int argc, char **argv) {
   pinShipped(simdials::ReadingAllowanceMinutes,
              plistNumberDefault(plist, "readingAllowanceMinutes"),
              "Settings.bundle/Root.plist");
+  pinShipped(simdials::SpeedrunOn, plistToggleDefault(plist, "speedrunDemo"),
+             "Settings.bundle/Root.plist");
   pinShipped(simdials::ReadingAllowanceMinutes,
              static_cast<int>(literalAfter(
                  prefs, "objectForKey:kReadingAllowanceMinutes] == nil) return")),

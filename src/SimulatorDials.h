@@ -78,13 +78,14 @@ enum Id {
   CornerDefocusPercent,
   PowerOffCollapseOn,
   ReadingAllowanceMinutes,
+  SpeedrunOn,
 };
 
 // NOT an enumerator: the appliers switch over Id with no `default:`, so that a
 // row added here without a setter call is a compiler warning rather than a
 // dial that silently does nothing. A count enumerator would have to be
 // handled in that switch, which is exactly the case a reader skips past.
-inline constexpr int kDialCount = ReadingAllowanceMinutes + 1;
+inline constexpr int kDialCount = SpeedrunOn + 1;
 
 // THE THREE NON-UNIFORMITIES, as flags rather than as special cases scattered
 // through three call sites. Every one of them is a real difference in what the
@@ -296,6 +297,10 @@ inline constexpr Dial kDials[kDialCount] = {
    "CROSSPOINT_SIM_READING_ALLOWANCE", "readingAllowanceMinutes", 0,
    readingallowance::kMaxMinutes, 0, readingallowance::kDefaultMinutes, kPlain,
    ReadingAllowanceMinutes},
+  // THE READING SPEEDRUN's HUD (owner 2026-09-25, "Add a phone switch"): a
+  // Settings ROW, off by default on both platforms. src/Speedrun.h.
+  {SpeedrunOn, "reading speedrun", "CROSSPOINT_SIM_SPEEDRUN", "speedrunDemo",
+   0, 1, 0, 0, kPlain, SpeedrunOn},
 };
 // clang-format on
 
