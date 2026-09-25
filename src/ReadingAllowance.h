@@ -117,40 +117,6 @@ namespace picture {
 // SDL half that draws with it is src/SurfaceAllowance.h.
 // ---------------------------------------------------------------------------
 
-// A fixed tooth field in [0,1], one value per panel pixel: a 1 px octave for
-// the paper's grain and a 3 px octave for its clumps. Deterministic in (x, y)
-// alone, so a page decays the same way every time it is looked at and a stroke
-// that has broken stays broken rather than shimmering.
-inline float toothAt(int x, int y) {
-  auto h = [](uint32_t a, uint32_t b) {
-    uint32_t v = a * 0x9E3779B1u ^ b * 0x85EBCA77u;
-    v ^= v >> 15;
-    v *= 0x2C1B3C6Du;
-    v ^= v >> 12;
-    v *= 0x297A2D39u;
-    v ^= v >> 15;
-    return static_cast<float>(v & 0xFFFFu) / 65535.0f;
-  };
-  const float fine = h(static_cast<uint32_t>(x), static_cast<uint32_t>(y));
-  const float coarse =
-      h(static_cast<uint32_t>(x / 3) + 7919u, static_cast<uint32_t>(y / 3) + 104729u);
-  return 0.45f * fine + 0.55f * coarse;
-}
-
-// How far, in device pixels, the letterpress reaches outside a stroke.
-inline constexpr int kReach = 2;
-
-// How much of a pixel's ink SURVIVES at decay t, given its tooth: 1 = all of
-// it, 0 = none. The mock-up's option G, as the owner saw it.
-inline float inkRetained(float tooth, float t) {
-  // The threshold starts BELOW the lowest tooth, so t = 0 retains every
-  // pixel's ink: the first version started it at 0.15 and 4.6% of the ink lost
-  // up to 59% of itself the instant the last minute began (adversarial review).
-  float starve = (tooth - (-0.25f + 1.2f * t)) * 4.0f + 1.0f - 1.2f * t;
-  starve = std::clamp(starve, 0.0f, 1.0f);
-  return starve * (1.0f - 0.55f * t);
-}
-
 // How much ink a presented pixel carries, 0 (paper) .. 1 (full ink), read
 // against the page's own palette on the channel with the widest ink/paper
 // spread (a single channel keeps a tinted ink from reading as half ink).
@@ -171,68 +137,90 @@ inline float inkness(uint32_t argb, const panelpalette::Palette &pal) {
   return std::clamp(k, 0.0f, 1.0f);
 }
 
-// The LIGHT veil's alpha at one pixel: the ink this pixel loses.
-inline float veilAlpha(float ink, float tooth, float t) {
-  return ink * (1.0f - inkRetained(tooth, t));
-}
-
-// ---- THE STARVED PRESS (owner 2026-09-24: "redo the decay in light mode to
-// take full advantage of the letterpress and ink and paper simulation, it
-// seems lacking currently"). The first light decay starved the ink against a
-// private noise field of its own, so the break-up had nothing to do with the
-// paper the page is drawn on or the plate that printed it. This one reads the
-// SAME lanes the letterpress model reads (src/Letterpress.h), seeded by the
-// page's own sheet identity:
-//
-//   the paper's TOOTH ('TOOT', per panel pixel) -- a starved plate kisses the
-//     high spots of the sheet first and misses the valleys;
-//   the sheet's FORMATION ('FORM', 3 cells) -- the cloudy, thicker regions of
-//     the sheet take the kiss better than the thin ones;
-//   the PLATE PRESSURE ('PLTE', 4 cells) -- where the press bears down
-//     heaviest, ink survives longest;
-//
-// and the STROKE'S INTERIOR (the page's own inkness, blurred one device pixel):
-// a light impression drops the edges of a stroke first, so the letters thin
-// before they break. What survives is a thinner film, so it pales toward the
-// paper -- in the ink's own hue, because the veil is the paper's color over
-// the ink. The IMPRESSION recedes with the pressure (pressLeft below), so the
-// squeeze rim and the deboss go with the ink instead of printing a ghost of
-// every letter on a spent page.
-
-// How well a starved plate still prints at panel pixel (x, y), 0..1.
-inline float kissAt(int x, int y, int w, int h, uint32_t seed) {
-  const float u = phosphorgrain::unitFromHash(phosphorgrain::hash3(
-      static_cast<uint32_t>(x), static_cast<uint32_t>(y), seed ^ 0x544F4F54u));
-  const float nx = (static_cast<float>(x) + 0.5f) / static_cast<float>(w > 0 ? w : 1);
-  const float ny = (static_cast<float>(y) + 0.5f) / static_cast<float>(h > 0 ? h : 1);
-  const float form = phosphorgrain::valueNoise(nx * 3.0f, ny * 3.0f, seed ^ 0x464F524Du);
-  const float plate = phosphorgrain::valueNoise(nx * 4.0f, ny * 4.0f, seed ^ 0x504C5445u);
-  return 0.60f * u + 0.15f * form + 0.25f * plate;
-}
-
-// The fraction of a pixel's ink that survives at decay t, from the press's
-// kiss there and how deep inside its stroke it sits (0 at the edge, 1 deep).
-// Exactly 1 at t = 0 and exactly 0 at t = 1 for every input.
-inline float starvedRetained(float kiss, float interior, float t) {
-  if (t <= 0.0f) return 1.0f;
-  if (t >= 1.0f) return 0.0f;
-  const float score = 0.65f * kiss + 0.35f * interior;
-  // A soft, wide ramp (slope 2.5, threshold -0.4 -> 1.4): the first cut
-  // (slope 5, -0.3 -> 1.3) held the page nearly clean to 4:24 and blank by
-  // 4:50, so the starvation read as a cut rather than as a minute.
-  const float threshold = -0.40f + 1.80f * t;
-  const float kept = std::clamp((score - threshold) * 2.5f + 1.0f, 0.0f, 1.0f);
-  // A thinner film pales what is left -- but only by 40%: starved letterpress
-  // reads as dark fragments on the sheet's high spots, not as uniformly faint
-  // type, and at 55% the break-up disappeared into the fade.
-  return kept * (1.0f - 0.40f * t);
-}
-
 // How much of the letterpress impression (rim, deboss, pressure) remains.
+// The PRESS is not what is failing -- the ink is -- so the impression holds
+// until the very end: a starved plate still bites, and the blind deboss of an
+// uninked letter is what a starved sheet actually shows. It goes only at the
+// close, because the page must end unreadable.
 inline float pressLeft(float t) {
   if (t <= 0.0f) return 1.0f;
   if (t >= 1.0f) return 0.0f;
-  return std::pow(1.0f - t, 1.5f);
+  return 1.0f - t * t * t;
+}
+
+// ---- VERSION 2 (owner 2026-09-24, fourth ruling: "incorporate more physical
+// ink and paper and plate simulation. it shouldn't be this faint, it should be
+// incidental and viscous. research how"). What the research says a starved
+// letterpress sheet looks like, and what each term below models:
+//
+//  * TRANSFER. Walker & Fetsko's ink-transfer model: the fraction of paper a
+//    film covers is 1 - exp(-k x) in the film thickness x; the paper's
+//    contact scales k. A thin film misses the sheet's VALLEYS -- the classic
+//    "salty" print: white pinholes in the solids, following the paper.
+//  * VISCOUS. Letterpress ink is a stiff paste; where it transfers it prints
+//    at full body, and where it does not the paper is bare. So a pixel prints
+//    or it does not, decided against a CLUSTERED field (ink splits into cells
+//    and filaments, not white noise) -- never a uniform fade. The film
+//    thinning only greys what prints by a little.
+//  * STARVATION IS INCIDENTAL, not uniform. The form rollers lose ink to what
+//    they inked just before: a line under a heavy line is starved ("light
+//    print ghost", the roller robbed by the elements ahead of it), and the
+//    roller's own circumference leaves bands where its film was thinner.
+//  * EDGE PRESSURE. The sheet wraps the type's shoulder, so a stroke's EDGE
+//    bites harder than its middle: under starvation letters go salty in the
+//    middle and hold their outline.
+struct PressSample {
+  float interior;   // ink blurred one device pixel: 1 deep in a stroke, ~0.5 at its edge
+  float tooth;      // the paper's tooth, 0..1 ('TOOT')
+  float form;       // the sheet's formation, 0..1 ('FORM')
+  float plate;      // the plate pressure, 0..1 ('PLTE')
+  float blob;       // the ink's clustered split field, 0.06..1 ('VISC')
+  float depletion;  // ink the roller spent on the rows just above, 0..1
+  float band;       // the roller circumference's thin band, 0..1
+  float skip = 0.0f;  // word-sized patches of the form the roller skipped, 0..1 ('SKIP')
+};
+
+// The fraction of a pixel's ink that prints at decay t. 1 at t = 0, 0 at t = 1.
+inline float printedFraction(const PressSample &p, float t) {
+  if (t <= 0.0f) return 1.0f;
+  if (t >= 1.0f) return 0.0f;
+  // Pass 3: the incidental terms doubled (the page read uniformly salty at
+  // 4:38), a SKIP-OUT field of word-sized patches that fail early, and the
+  // supply eased to ^1.25 so the whole minute is used.
+  const float skip = std::max(0.0f, (p.skip - 0.55f) * 2.2f);
+  float supply = std::pow(1.0f - t, 1.25f) *
+                 (1.0f - t * (0.55f * p.band + 0.60f * p.depletion + 0.60f * skip));
+  if (supply < 0.0f) supply = 0.0f;
+  const float contact = 0.40f * p.tooth + 0.15f * p.form + 0.25f * p.plate +
+                        0.20f * (1.0f - p.interior);
+  // Walker-Fetsko coverage, NORMALIZED to the full film's so the page is
+  // exactly clean at t = 0. k = 4 (pass 2): at k = 14 coverage stayed near 1
+  // until the film was almost gone, and the page held clean to 4:50 and then
+  // vanished -- the same "cut, not a minute" the first model had.
+  const float kk = 4.0f * (0.35f + contact);
+  const float cover = (1.0f - std::exp(-kk * supply)) / (1.0f - std::exp(-kk));
+  // Pass 4: SHARP -- a viscous paste prints or it does not. At slope 12 the
+  // late fragments went pale grey (partially veiled), which is exactly the
+  // faintness the owner ruled out; at 28 they stay dark and dwindle in NUMBER.
+  const float kept = std::clamp((cover - 0.92f * p.blob) * 28.0f + 0.5f, 0.0f, 1.0f);
+  const float body = 0.90f + 0.10f * std::min(1.0f, supply * 3.0f);
+  return kept * body;
+}
+
+// The clustered split field at panel pixel (x, y): cells about 2.2 device
+// pixels across with a fine hash in them, so a starved stroke breaks into
+// blobs and threads rather than into single-pixel salt.
+inline float blobAt(int x, int y, int scale, uint32_t seed) {
+  // Pass 5: 2.2 device px cells, 80/20 coherent/fine (was 1.5 and 65/35):
+  // at 1.5 the salt was close to single-pixel noise; viscous ink splits into
+  // cells and threads a couple of pixels across.
+  const float c = 2.2f * static_cast<float>(scale > 0 ? scale : 1);
+  const float v = phosphorgrain::valueNoise(static_cast<float>(x) / c,
+                                            static_cast<float>(y) / c,
+                                            seed ^ 0x56495343u);
+  const float h = phosphorgrain::unitFromHash(phosphorgrain::hash3(
+      static_cast<uint32_t>(x), static_cast<uint32_t>(y), seed ^ 0x53504C54u));
+  return 0.06f + 0.94f * (0.80f * v + 0.20f * h);
 }
 
 // Box-downsample the page's excess light over `ground` by `factor`, then blur

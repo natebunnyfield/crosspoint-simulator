@@ -15,7 +15,54 @@
   - With `CROSSPOINT_SIM_ZEN=1` the page decays.
   - Without it, the frame is **byte-identical** to the un-preset page (md5 `87a81473…` both arms).
 
-## The light decay, redone on the page's own simulation (2026-09-24, third ruling)
+## The light decay, v2: viscous, incidental, physical (2026-09-24, fourth ruling — five passes)
+
+The owner: *"incorporate more physical ink and paper and plate simulation. it shouldn't be this faint, it should be incidental and viscous. research how and take five passes at getting this right."*
+
+### The research
+
+What a starved letterpress sheet actually shows:
+
+- **Salty print.** Coverage follows the Walker–Fetsko transfer model: covered fraction = 1 − e^(−kx) in the film thickness x, with k scaled by the paper's contact. A thin film misses the sheet's valleys and leaves white pinholes in the solids.
+- **Ink is a stiff paste.** It prints at full body or not at all. Too viscous an ink causes skip-out and mottle (luminite.com's defect catalog).
+- **Light print ghosts.** The form rollers are robbed by elements just ahead of them, so a line under a heavy line starves (the-print-guide.blogspot.com, "Ghosting"; briarpress.org/31453).
+- **Roller bands.** The rollers' own circumference leaves bands.
+- **Film splitting.** Ink splits into filaments and cells, not white noise (the filament-separation literature on ink transfer).
+- **Edge pressure.** The sheet wraps the type's shoulder, so a stroke's edge bites harder than its middle.
+
+### The model
+
+`picture::PressSample` / `printedFraction` / `blobAt` / `pressLeft`, in `src/ReadingAllowance.h`. Per pixel:
+
+- **Film supply:** `(1−t)^1.25 · (1 − t·(0.55 band + 0.60 depletion + 0.60 skip))`.
+  - The **depletion** is the mean ink the roller met in the 28 device px before this row, along its travel (page-down, which is +x on the landscape framebuffer).
+  - The **band** is the roller's circumference, about 0.37 page height per turn.
+  - The **skip** is word-sized patches (`'SKIP'`, 40 device px cells).
+- **Contact:** `0.40 tooth + 0.15 formation + 0.25 plate + 0.20 edge`, using the letterpress lanes `'TOOT' 'FORM' 'PLTE'` off the page's sheet seed.
+- **Coverage:** Walker–Fetsko with k = 4·(0.35 + contact), normalized to the full film so t = 0 is exactly clean.
+- **Printing:** a sharp print/no-print decision (slope 28) against a clustered split field (`'VISC'` cells 2.2 device px, 80% coherent, 20% fine). What prints keeps at least 90% of its body.
+- **The impression holds** (`pressLeft = 1 − t³`): a starved plate still bites. It goes only at the close.
+
+### The five passes
+
+1. **Transfer at k = 14** held the page clean until 4:50, then it vanished. That was the "cut, not a minute" failure again.
+2. **k = 4, normalized:** the right kind of dark, salty, viscous break-up, but uniform across the page.
+3. **Incidental terms roughly doubled, plus skip-out patches and supply ^1.25:** lines and words now starve unevenly. Late fragments went pale grey.
+4. **The print decision sharpened (slope 12 → 28, body ≥ 0.9):** fragments stay dark and dwindle in number. Letters hold their outlines with salty middles.
+5. **Split cells 1.5 → 2.2 px, 65/35 → 80/20 coherent:** the salt reads as cells and threads, not pixel noise.
+
+`tests/reading_allowance_test.cpp` pins:
+
+- clean at t = 0 and gone at t = 1;
+- ink only ever leaves;
+- a stroke's edge holds longer than its middle;
+- every incidental term starves earlier, never later;
+- the impression holds until late;
+- the split field belongs to the sheet.
+
+The v1 functions (`kissAt`, `starvedRetained`, the private tooth) are retired.
+
+## The light decay, redone on the page's own simulation (2026-09-24, third ruling) — SUPERSEDED by v2 above
 
 The owner: *"redo the decay in light mode to take full advantage of the letterpress and ink and paper simulation, it seems lacking currently."*
 
