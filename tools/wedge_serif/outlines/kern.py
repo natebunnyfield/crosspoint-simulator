@@ -760,6 +760,44 @@ else:
         for _r, _d in (('s', -43), ('t', -41)):
             PAIRS[(_q, _r)] = _shipped(_q, _r) + _d
 
+# ROUND 389 -- fortune, rhythm, Yesterday, and the italic capital pairs.
+# Owner 2026-09-25: *"fortune rhythm Yesterday all need kerning, take a pass"*.
+# Same arithmetic as round 388: target white = the pair's white in the 09-20
+# bench fonts + his delta (the mean of both answers where the pair was
+# re-asked, rounded away from zero as he rounds); each value is target minus
+# the white measured at round 388, ADDED to what the pair carries. White =
+# rsb + kern + lsb, kern by HarfBuzz (instruments/r389_bench_residuals.py).
+#
+# A word pair moves only where his bench residual (>= 12, past his 10.8
+# repeatability) AGREES IN SIGN with at least one reference measure -- the
+# pair's 2-D interaction (Measure 4) or its clamped band white (Measure 5),
+# each taken against the letter's own pairs and against the references'
+# same pair (instruments/r389_pair_evidence.py, docs/albo-round-389-...md).
+#   roman  or  his -14 (mean of -26/-2)  now +20 loose   M4 +20  M5  +6  -> -20
+#   roman  rt  his +25                   now -14 tight   M4 -18  M5 -11  -> +14
+#   roman  st  his  -3                   now +14 loose   M4 +21  M5  -4  -> -14
+#   italic or  his  -6                   now +16 loose   M4 +30  M5 +32  -> -16
+#   italic es  his  +8                   now -22 tight   M4  -9  M5 -12  -> +22
+#   italic te  his  +7                   now -18 tight   M4 -14  M5  +2  -> +18
+# Nothing in `rhythm` passes in either style (every pair within noise on all
+# three readings); those pairs go to the outlier bench instead.
+#
+# The italic capitals are round 388's section-3 finding, the same double
+# count at smaller size: the P's, W's and A's bearings moved after his round
+# 304 kerns were written on top. Po takes the mean of -25/-12 (-19).
+#   Pa -27 -> white 4 (was -24) +28 · Po -19 -> 11 (was -22) +33 · Pr -9 -> 64 (was 37) +27
+#   Wa +12 -> -117 (was -106) -11 · Wh +11 -> -54 (was -42) -12 · Wi +15 -> -27 (was -15) -12
+#   Am +6 -> 88 (was 94) -6 · An +2 -> 92 (was 98) -6 · Av +16 -> 73 (was 79) -6
+if _ALD is not None and _ALD.ON:
+    for _p, _d in ((('P', 'a'), 28), (('P', 'o'), 33), (('P', 'r'), 27),
+                   (('W', 'a'), -11), (('W', 'h'), -12), (('W', 'i'), -12),
+                   (('A', 'm'), -6), (('A', 'n'), -6), (('A', 'v'), -6),
+                   (('o', 'r'), -16), (('e', 's'), 22), (('t', 'e'), 18)):
+        PAIRS[_p] = _shipped(*_p) + _d
+else:
+    for _p, _d in ((('o', 'r'), -20), (('r', 't'), 14), (('s', 't'), -14)):
+        PAIRS[_p] = _shipped(*_p) + _d
+
 _apply_bench()
 
 
