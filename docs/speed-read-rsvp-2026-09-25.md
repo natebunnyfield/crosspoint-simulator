@@ -304,3 +304,7 @@ them before quoting outside this repo:
   Spritz", *Computers in Human Behavior* 45. It reported comparable literal
   comprehension to normal reading, with more visual fatigue: fewer blinks under
   RSVP.
+
+## RULED 2026-09-25 (owner)
+
+*"Leave unbound"*: stepping back a word or a sentence stays built and tested but gets no gesture for now. Pause and resume by tap is the only control.
