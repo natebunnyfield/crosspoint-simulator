@@ -200,3 +200,20 @@ error of 11 units is about a third of an X3 pixel.
 
 - **The 73 answers `bench_values.json` is missing** (2026-09-21 evening, after round 344) wait for the re-ask. If the re-ask shows the held-out error beats his own repeatability, they are folded in as a spacing round with before/after proof. If not, pair fitting stops.
 - **A bench answer of 0 ("the shipped spacing is right") COUNTS as a judgment** when the fit next runs. `judgments()` stops discarding it. This is applied together with the 73, not before.
+
+## RESULT, 2026-09-25 (his 40 re-asked answers)
+
+The answers and the full analysis are in `tools/wedge_serif/bench/answers/reask-2026-09-25-{answers.json,analysis.txt}`.
+
+| | units |
+|---|---|
+| His repeatability on typical rows (mean abs new − previous, n=30) | **10.83** (95% bootstrap 8.57–13.13) |
+| Implied noise per judgment | 9.60 |
+| Floor for any model against one judgment (repeatability / √2) | 7.66 |
+| Model held-out error, bench-wide (`bench_fit --cv`) | **11.66** |
+| Model vs his NEW answer on typical rows | 13.14 (the model is closer than his previous answer on 11/30) |
+| Outlier rows: his repeatability / the model's error | 14.00 / **31.94** |
+
+- **Verdict, per his rule of 2026-09-25:** the held-out error (11.66) does NOT beat his repeatability (10.83). Pair-fitting stops. The 73 pending answers stay out and are moot for fitting.
+- **Finding 1 — DRIFT.** On typical rows his new answers are **+5.4 units looser** than his 09-21 answers (sd of the difference 11.5, n = 30, ≈ 2.6 standard errors): lowercase +6.1, marks +6.3, capitals +2.7. This is a global tracking preference that no pair fit can express.
+- **Finding 2 — REAL MISSES.** On the 10 rows the model gets most wrong he is consistent with himself (14.0) and the model is off by 31.9. Those are specific pairs where the model is wrong, not noise.

@@ -1,0 +1,88 @@
+40 of 40 re-asked rows answered
+
+  style  pair  word           stratum   prev   new  |d|  model |m-new|
+  italic Fi    First          outlier    -41   -37    4   -4.0    33.0
+  italic Fo    For            outlier    -40   -33    7   +7.8    40.8
+  italic Ye    Yesterday      outlier    +42   +50    8   +0.0    50.0
+  italic Yo    You            outlier    +57   +52    5   +5.8    46.2
+  italic d,    word,          outlier    +28   +10   18   -6.4    16.4
+  roman  's    Suvi's         outlier    -42   -54   12   -0.8    53.2
+  roman  't    don't          outlier    -23   -37   14  +13.0    50.0
+  roman  Qu    Quiet          outlier    +37   +11   26   +3.0     8.0
+  roman  iv    five           outlier    -26    -4   22   +9.2    13.2
+  roman  or    for            outlier    -26    -2   24   +6.6     8.6
+  italic Po    Port           typical    -25   -12   13   +6.8    18.8
+  italic Se    See            typical     -7    +5   12   +0.0     5.0
+  italic St    Steel          typical     +4   +15   11   -4.0    19.0
+  italic ap    Chapter        typical     +7   +15    8   +0.0    15.0
+  italic do    does           typical     +5   +22   17   +6.2    15.8
+  italic ec    because        typical    -12    -7    5  -13.4     6.4
+  italic io    relationship   typical    +18   +28   10  +13.4    14.6
+  italic ly    only           typical     +7   +24   17   +5.8    18.2
+  italic m.    them.          typical     +3   +16   13   +1.4    14.6
+  italic n.    question.      typical     +1   +14   13   -8.4    22.4
+  italic o,    to,            typical    -11    -7    4   +2.8     9.8
+  italic ot    not            typical     -8    +3   11   -1.8     4.8
+  italic pl    people         typical    +10   +14    4   +8.6     5.4
+  italic to    into           typical    -13   -24   11   -1.4    22.6
+  italic ul    would          typical     +7   +17   10  +11.2     5.8
+  roman  Av    Avenue         typical    +12    +3    9   +0.0     3.0
+  roman  To    Tomorrow       typical    +24   +14   10   +6.8     7.2
+  roman  Wa    Wayward        typical    +41   +40    1  +16.4    23.6
+  roman  ct    actually       typical    +30   +11   19   +8.0     3.0
+  roman  e;    people;        typical     -5   -10    5   +4.2    14.2
+  roman  ea    real           typical    +19    +5   14  +20.6    15.6
+  roman  fi    first          typical    +13   +30   17   -1.6    31.6
+  roman  ic    which          typical    +11    +8    3   +7.2     0.8
+  roman  it    with           typical    +30   +34    4  +16.2    17.8
+  roman  ll    all            typical    +19   +12    7   +9.0     3.0
+  roman  lo    Eursulon       typical     +5   +15   10   +8.8     6.2
+  roman  of    software       typical    +11   +43   32   +5.4    37.6
+  roman  r,    her,           typical    -11    +4   15  -11.0    15.0
+  roman  re    reading        typical     -1   +17   18   +8.2     8.8
+  roman  s;    years;         typical     -5    -7    2   +1.6     8.6
+
+TYPICAL rows (n=30):
+  his repeatability, mean |new - previous|   10.83 units   (95% bootstrap 8.57..13.13; mean drift +5.43, sd of the difference 11.49)
+  implied noise per judgment, sd              9.60   (from sd of difference: 8.13)
+  floor for ANY model against one judgment    7.66
+  model held-out error vs his NEW answer      13.14   (model closer than his previous answer on 11/30, 1 ties)
+
+OUTLIER rows (largest model residuals) (n=10):
+  his repeatability, mean |new - previous|   14.00 units   (95% bootstrap 9.20..18.90; mean drift -1.00, sd of the difference 16.81)
+  implied noise per judgment, sd             12.41   (from sd of difference: 11.89)
+  floor for ANY model against one judgment    9.90
+  model held-out error vs his NEW answer      31.94   (model closer than his previous answer on 4/10, 0 ties)
+
+ALL re-asked rows (n=40):
+  his repeatability, mean |new - previous|   11.62 units   (95% bootstrap 9.60..13.78; mean drift +3.83, sd of the difference 13.09)
+  implied noise per judgment, sd             10.30   (from sd of difference: 9.26)
+  floor for ANY model against one judgment    8.22
+  model held-out error vs his NEW answer      17.84   (model closer than his previous answer on 15/40, 1 ties)
+
+typical, class lower (n=18):
+  his repeatability, mean |new - previous|   12.06 units   (95% bootstrap 9.17..15.33; mean drift +6.06, sd of the difference 12.91)
+  implied noise per judgment, sd             10.68   (from sd of difference: 9.13)
+  floor for ANY model against one judgment    8.52
+  model held-out error vs his NEW answer      12.94   (model closer than his previous answer on 8/18, 0 ties)
+
+typical, class cap (n=6):
+  his repeatability, mean |new - previous|    9.33 units   (95% bootstrap 5.67..11.83; mean drift +2.67, sd of the difference 10.71)
+  implied noise per judgment, sd              8.27   (from sd of difference: 7.57)
+  floor for ANY model against one judgment    6.60
+  model held-out error vs his NEW answer      12.77   (model closer than his previous answer on 3/6, 0 ties)
+
+typical, class mark (n=6):
+  his repeatability, mean |new - previous|    8.67 units   (95% bootstrap 4.83..12.67; mean drift +6.33, sd of the difference 8.57)
+  implied noise per judgment, sd              7.68   (from sd of difference: 6.06)
+  floor for ANY model against one judgment    6.13
+  model held-out error vs his NEW answer      14.10   (model closer than his previous answer on 0/6, 1 ties)
+
+bench-wide held-out error (bench_fit --cv, 370 judgments): 11.66
+his repeatability on typical rows:                       10.83
+noise floor for any model (repeatability / sqrt 2):      7.66
+
+VERDICT: held-out error is within 25% of his repeatability.  Pair-fitting is
+near the end of what it can buy; a better MODEL (class priors, shape features,
+research doc §3b) is the only lever left worth pulling, and only if it closes
+the gap on held-out rows.
