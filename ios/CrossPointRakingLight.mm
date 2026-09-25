@@ -19,8 +19,14 @@
 extern "C" int CrossPointPrefs_rakingLight(void);
 extern "C" void CrossPointRakingLight_perFrame(void);
 extern "C" void CrossPointRakingLight_appWillResignActive(void);
+extern "C" void CrossPointRakingLight_appDidBecomeActive(void);
 
 namespace {
+// Set at resign-active, cleared only when the app is active again. The main
+// loop keeps running in the background under read-aloud (S-041), so without
+// this perFrame restarted the stream on the very next frame -- CoreMotion at
+// 30 Hz with the screen locked (adversarial review before build 212).
+bool g_resigned = false;
 
 CMMotionManager *g_motion = nil;
 int g_lastPref = -1;
@@ -59,8 +65,11 @@ void stopStream() {
 void CrossPointRakingLight_appWillResignActive(void) {
   // Backgrounded: no reason to hold the accelerometer, and the pose on return
   // is a new pose, so the neutral is recaptured when the stream restarts.
+  g_resigned = true;
   stopStream();
 }
+
+void CrossPointRakingLight_appDidBecomeActive(void) { g_resigned = false; }
 
 void CrossPointRakingLight_perFrame(void) {
   // The Settings row, edge-triggered into the dial's setter -- the same poll
@@ -72,7 +81,7 @@ void CrossPointRakingLight_perFrame(void) {
     SimulatorOverlay::setRakingLight(pref != 0);
   }
 
-  if (!SimulatorOverlay::rakingLightWanted()) {
+  if (g_resigned || !SimulatorOverlay::rakingLightWanted()) {
     stopStream();
     return;
   }
