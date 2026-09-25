@@ -877,6 +877,35 @@ def _body_edges(conts, q=80.0):
     return pct(los, 100.0 - q), pct(his, q)
 
 
+# ROUND 388b -- TRACKING OPTIONS FOR THE OWNER, DEFAULT UNCHANGED. The re-ask
+# bench (docs/albo-kerning-noise-floor-2026-09-25.md, RESULT) found his answers
+# +5.4 units looser than his 09-21 ones on typical rows: lowercase +6.1, marks
+# +6.3, capitals +2.7. That is a global preference no pair fit can express. Owner
+# 2026-09-25, "show me options first": so ALBO_TRACK=a|b|c, a (or unset) = today.
+#
+# Each arm is stated as what a bench PAIR gains, and every side is derived from
+# that. A lowercase pair is rsb(l) + lsb(l), so the lowercase takes half on each
+# side. A mark pair is a lowercase letter's side plus the mark's side, so the
+# mark takes the other half. A bench CAPITAL pair is a capital followed by a
+# lowercase letter (Fi, Ye, Qu ...), so the lowercase letter's own left half
+# already delivers the capital target. The capitals themselves do not move, and
+# neither do the figures, the fences or the Greek, because none was judged.
+#   a  lowercase +0, marks +0, capital pairs +0    (today)
+#   b  lowercase +3, marks +3, capital pairs +1.5
+#   c  lowercase +6, marks +6, capital pairs +3
+# Applied after fit(), before anything records the advance or the ink, so the
+# accented composites follow their base. docs/albo-round-388-2026-09-25.md.
+TRACK_ARMS = {'a': 0.0, 'b': 1.5, 'c': 3.0}   # units per SIDE
+ALBO_TRACK = (os.environ.get("ALBO_TRACK", "a").strip().lower() or "a")
+if ALBO_TRACK not in TRACK_ARMS:
+    raise SystemExit(f"ALBO_TRACK={ALBO_TRACK!r}: expected one of {sorted(TRACK_ARMS)}")
+TRACK_MARKS = set(".,:;!?'\"‘’“”…-")   # the bench's MARKS (bench_fit.py), with the curly forms and the ellipsis the stops/quotes fit as
+def _track_side(ch):
+    t = TRACK_ARMS[ALBO_TRACK]
+    if not t: return 0.0
+    latin_lc = ch.isalpha() and ch.islower() and (ord(ch) < 0x370 or 0xFB00 <= ord(ch) <= 0xFB06)
+    return t if (latin_lc or ch in TRACK_MARKS) else 0.0
+
 def fit(ch, conts, c):
     """Round 20's bearing rule: ink measured in the x-height band (cap band
     for capitals and figures); the g and every non-letter on their full
@@ -1099,6 +1128,8 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         pen_ = TTGlyphPen(None)
         if conts:
             adv, dx, lsb_ink = fit(ch, conts, c)
+            _tk = _track_side(ch)          # round 388b; 0 unless ALBO_TRACK picks an arm
+            if _tk: adv += 2 * _tk; dx += _tk; lsb_ink += _tk
             for ci, (pts, hole) in enumerate(conts):
                 _obst = [q for cj, (p2, _) in enumerate(conts) if cj != ci for q in p2] if CURVES else None
                 fitted = geom.fit_curves(pts, turn=CURVE_TURN, step=CURVE_STEP, max_dev=CURVE_DEV, clearance=CURVE_CLEAR, obstacles=_obst) if CURVES else None
