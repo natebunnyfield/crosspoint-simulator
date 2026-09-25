@@ -325,6 +325,12 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = off   1 = on
   "rakingLight": 0,
 
+  // E-INK MODE: the light page drawn as the real e-paper panel -- ghosts of
+  // earlier pages build up across partial refreshes, and the firmware's
+  // clearing refreshes run the X3's own waveform (the flash).
+  //   0 = off   1 = on
+  "einkMode": 0,
+
   // --------------------------------------------------------- PHOSPHOR MIX ---
   // The same mixer the iOS page-color modal drives, through the same math. A
   // mix OWNS the page and its glow while active; panelPalettePreset is ignored.

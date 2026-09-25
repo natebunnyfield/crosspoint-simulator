@@ -250,6 +250,8 @@ enum class Action : int {
                              // inserted -- see the comment above this enum
   OpenActionMenu = 13,  // Manage Files' per-item action menu; appended, not
                          // inserted -- see the comment above this enum
+  FullRefresh = 14,  // e-ink mode's host-side full refresh (spike
+                     // 2026-09-25, src/EinkPanel.h); appended, not inserted
 };
 
 // The firmware button indices, mirrored from HalGPIO::BTN_* so this header can
@@ -295,6 +297,7 @@ constexpr const char* actionName(Action a) {
     case Action::Inherit: return "inherit";
     case Action::FontFamilyStepBack: return "font family step back";
     case Action::OpenActionMenu: return "open action menu";
+    case Action::FullRefresh: return "full refresh";
   }
   return "?";
 }
@@ -317,11 +320,17 @@ constexpr const char* actionName(Action a) {
 // OpenActionMenu is offered LAST-of-all (appended 2026-09-01) by the same
 // rule: it may be pointed at, nothing defaults to it, and it goes at the end
 // of both lists rather than beside anything else.
+//
+// FullRefresh is offered LAST (appended 2026-09-25, the e-ink mode spike) by
+// the same rule. NOTHING DEFAULTS TO IT, the shake included: the shake ships
+// bound to ToggleZen and moving that default would change what an existing
+// install does on a shake, so the owner binds it himself. It does nothing
+// while e-ink mode is off, and logs so.
 constexpr Action kGlobalActions[] = {
     Action::Nothing,   Action::Back,  Action::Confirm, Action::Left,
     Action::Right,     Action::Up,    Action::Down,    Action::Power,
     Action::ToggleZen, Action::FontFamilyStep, Action::FontFamilyStepBack,
-    Action::OpenActionMenu,
+    Action::OpenActionMenu, Action::FullRefresh,
 };
 constexpr int kGlobalActionCount =
     static_cast<int>(sizeof(kGlobalActions) / sizeof(kGlobalActions[0]));
@@ -332,7 +341,7 @@ constexpr Action kZoneActions[] = {
     Action::Inherit,   Action::Nothing, Action::Back,  Action::Confirm,
     Action::Left,      Action::Right,   Action::Up,    Action::Down,
     Action::Power,     Action::ToggleZen, Action::FontFamilyStep,
-    Action::FontFamilyStepBack, Action::OpenActionMenu,
+    Action::FontFamilyStepBack, Action::OpenActionMenu, Action::FullRefresh,
 };
 constexpr int kZoneActionCount =
     static_cast<int>(sizeof(kZoneActions) / sizeof(kZoneActions[0]));

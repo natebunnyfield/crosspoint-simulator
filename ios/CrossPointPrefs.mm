@@ -960,3 +960,15 @@ int CrossPointPrefs_rakingLight(void) {
   checkKnown(kRakingLight);
   return [[NSUserDefaults standardUserDefaults] boolForKey:kRakingLight] ? 1 : 0;
 }
+
+// E-INK MODE (spike 2026-09-25): the light page as the real e-paper panel.
+// A Settings row that ships OFF; a missing key reads NO, which is the shipped
+// default, so like kRakingLight it needs no Root.plist-unreadable fallback.
+// src/EinkPanel.h, docs/eink-mode-spike-2026-09-25.md.
+static NSString *const kEinkMode = @"einkMode";
+
+int CrossPointPrefs_einkMode(void) {
+  ensureDefaults();
+  checkKnown(kEinkMode);
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kEinkMode] ? 1 : 0;
+}

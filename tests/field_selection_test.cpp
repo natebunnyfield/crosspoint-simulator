@@ -207,9 +207,36 @@ void testBudgetShares() {
         "the three shares never sum past what the tooth left");
 }
 
+// E-INK MODE (spike 2026-09-25): on a LIGHT page nothing composites -- the
+// ghost plane's 7:1 cap (src/EinkPanel.h) is computed against the bare
+// palette, which is only true if no field spends the paper too. The dark page
+// is untouched: its doctrine field still selects exactly as before.
+void testEinkLightPageSelectsNothing() {
+  for (int lp : {0, 50, 100, 200})
+    for (int gr : {0, 100, 300}) {
+      fieldselect::Dials d;
+      d.dark = false;
+      d.letterpressStrength = lp;
+      d.grainStrength = gr;
+      d.scanlinesIntensity = 50;
+      d.eink = true;
+      const auto a = fieldselect::select(d);
+      check(!a.letterpress && !a.grain && !a.scanlines,
+            "e-ink light page: no surface field at any dial");
+      d.dark = true;
+      fieldselect::Dials noEink = d;
+      noEink.eink = false;
+      const auto ad = fieldselect::select(d), an = fieldselect::select(noEink);
+      check(ad.scanlines == an.scanlines && ad.grain == an.grain &&
+                ad.letterpress == an.letterpress,
+            "e-ink mode leaves the dark page's selection alone");
+    }
+}
+
 }  // namespace
 
 int main() {
+  testEinkLightPageSelectsNothing();
   testDoctrineSplit();
   testPolarityGatesEachFieldSeparately();
   testGrainIsTheFallback();

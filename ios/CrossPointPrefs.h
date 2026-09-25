@@ -422,6 +422,10 @@ int CrossPointPrefs_gestureBindingIsExplicit(int gesture);
 // Polled by ios/CrossPointRakingLight.mm. src/RakingLight.h.
 int CrossPointPrefs_rakingLight(void);
 
+// E-INK MODE (spike 2026-09-25): 1 while the Settings row is on. Ships OFF.
+// Polled by ios/CrossPointIOSShim.cpp. src/EinkPanel.h.
+int CrossPointPrefs_einkMode(void);
+
 #ifdef __cplusplus
 }
 #endif
