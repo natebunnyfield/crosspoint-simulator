@@ -977,6 +977,64 @@ WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "M
 VM_ASCENT, VM_DESCENT = 1000, -300
 VM_WIN_ASCENT, VM_WIN_DESCENT = 1000, 320
 
+# ROUND 384 -- THE CURVE FIT'S SPURS, removed at export. Owner 2026-09-24,
+# "take three passes at all albo fonts, find any issues and fix them". Round
+# 295's `geom.despike` cures the integer grid's spikes, but only on the
+# no-curve FALLBACK path; a contour that goes through `geom.fit_curves` never
+# meets it, and the fit leaves its own: the Bold m carried a 2-unit spur at the
+# bottom of the notch between its arches, the Bold OE two, the bishop one --
+# every one a HAIR to `cmp_contour_hairs.py` (a turn past 150 degrees with an
+# arm under 8 units), none in the dense drawing (probed per glyph).
+#
+# THE TEST IS THE GATE'S OWN DEFINITION, narrowed twice so a real corner cannot
+# qualify: an ON-curve vertex between two ON-curve neighbours (a curve's
+# junction is never touched), turning past 150 degrees, whose SHORTER arm is
+# under 8 units -- and which stands no further off its neighbours' chord than
+# that short arm, i.e. it is the tip of a spur a few units long. A wedge's or an
+# arrow's tip has two long arms and fails the second clause; a serif's facet is
+# not a reversal and fails the first.
+# THE CUT'S PHASE COUNTER IS GLOBAL (`cut.Cutter`: one phase per contour, in
+# glyph order), so a glyph that gains or loses a contour shifts the cut of
+# every glyph drawn after it -- measured on this round's first build, 60 glyphs
+# of the 400s moved that no fix touched. The glyphs below changed their contour
+# count only because a defect was fixed (round 384), so each goes on consuming
+# the count it had before; a contour beyond that draws its phase from a side
+# counter. Proof: `cmp_outlines.py` against the previous build moves only the
+# glyphs a fix named.
+PHASE_LEGACY = {'\u2033': 1, '\u221a': 2, '\u2660': 2, '\u2663': 2, '\u2664': 4, '\u2667': 5}
+
+SPUR_ARM = 8.0
+SPUR_TURN = 150.0
+def _despur(glyph):
+    if glyph.numberOfContours <= 0: return glyph
+    coords = list(glyph.coordinates); flags = list(glyph.flags); ends = list(glyph.endPtsOfContours)
+    cos_lim = math.cos(math.radians(180.0 - SPUR_TURN))
+    out_c, out_f, out_e, start = [], [], [], 0
+    for end in ends:
+        pts = list(zip(coords[start:end + 1], flags[start:end + 1])); start = end + 1
+        changed = True
+        while changed and len(pts) > 3:
+            changed = False
+            n = len(pts)
+            for i in range(n):
+                (a, fa), (b, fb), (c, fc) = pts[i - 1], pts[i], pts[(i + 1) % n]
+                if not (fa & 1 and fb & 1 and fc & 1): continue
+                ax, ay = a[0] - b[0], a[1] - b[1]; cx, cy = c[0] - b[0], c[1] - b[1]
+                la, lc = math.hypot(ax, ay), math.hypot(cx, cy)
+                if la < 1e-9 or lc < 1e-9:
+                    del pts[i]; changed = True; break          # a duplicate point
+                if min(la, lc) >= SPUR_ARM: continue
+                if (ax * cx + ay * cy) / (la * lc) < cos_lim: continue
+                chord = math.hypot(a[0] - c[0], a[1] - c[1])
+                dev = abs(ax * cy - ay * cx) / chord if chord > 1e-9 else 0.0
+                if dev > min(la, lc): continue
+                del pts[i]; changed = True; break
+        out_c += [p for p, _ in pts]; out_f += [f for _, f in pts]; out_e.append(len(out_c) - 1)
+    from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
+    from array import array
+    glyph.coordinates = GlyphCoordinates(out_c); glyph.flags = array('B', out_f); glyph.endPtsOfContours = out_e
+    return glyph
+
 def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=None):   # owner 2026-09-13, round 83: today's cut is the 500, "Rename to Medium"; the calibrated 400 is Albo-Regular
     os.makedirs(out_dir, exist_ok=True)
     W = solve_widths()
@@ -992,7 +1050,15 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             # round 62: the cut is an amount on the DENSE point set (cut.blend):
             # every point kept, the dropped ones moved onto their chords -- the
             # same construction the variable font's masters use
-            phases = [cutter.phase() for _ in dense]
+            # ROUND 384: a glyph whose contour count a fix changed still
+            # consumes the phases it used to, so the cut pattern of every
+            # glyph AFTER it -- the Greek, the ligatures, the fractions -- does
+            # not move. See PHASE_LEGACY.
+            _k = PHASE_LEGACY.get(ch, len(dense))
+            phases = [cutter.phase() for _ in range(_k)]
+            if len(dense) > _k:
+                phases += [cut.Cutter(911, cutter.every).phase() for _ in range(len(dense) - _k)]
+            phases = phases[:len(dense)]
             amount = pen.CUT_AMOUNT if do_cut else 0.0
             lines = (0.0, pen.XH, pen.CAP) if not isfig(ch) else (0.0, pen.XH, pen.CAP, (latin.FIG_BOX[ch][0] - latin.FIG_BOX[ch][1]) * C)   # round 93: the baseline, x-height and cap line are pinned through the cut
             conts = [(cut.blend(pts, ph, amount, lines=lines), hole) for (pts, hole), ph in zip(dense, phases)]
@@ -1036,7 +1102,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             xs = [x for pts, _ in conts for x, y in pts]; ys = [y for pts, _ in conts for x, y in pts]
             ink[ch] = (min(xs) + dx, min(ys), max(xs) + dx, max(ys))
         advances[ch] = adv
-        glyphs[gname(ch)] = pen_.glyph(); metrics[gname(ch)] = (int(round(adv)), int(round(lsb_ink)))
+        glyphs[gname(ch)] = _despur(pen_.glyph()); metrics[gname(ch)] = (int(round(adv)), int(round(lsb_ink)))
     # ------------------------------------------------ round 99: the composites
     # An accented letter is its base plus its mark, both as components: the
     # letter is never redrawn, so a later round that changes the e changes

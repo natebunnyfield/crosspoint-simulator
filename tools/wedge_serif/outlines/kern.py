@@ -712,6 +712,26 @@ if (_ALD is not None and _ALD.ON):
         for _r, _k in (('g', 12), ('i', 12), ('u', 4)):
             PAIRS[('q', _r)] = _shipped('q', _r) + _k
 
+# ROUND 384 -- THE FOUR PAIRS THE FOUR-CUT SWEEP FOUND. Owner 2026-09-24,
+# "take three passes at all albo fonts": `cmp_touch.py` on all four cuts, not
+# the two `gates.sh` covers. Each value is the measured gap, the 0.012 em floor
+# and a few units of clearance, ADDED to what the pair carries:
+#   BoldItalic  q'  -0.0049 em (TOUCHING -- the q's flag against the quote)
+#   BoldItalic  q"   0.0008
+#   Regular     fT   0.0048   (the f's hook under the T's arm; in the gate
+#                              baseline since before this round, never kerned)
+#   Bold        QQ   0.0114   (round 225's 72 is the 400's; the tail is wider)
+if _ALD is not None and _ALD.ON:
+    from . import pen as _pen_4
+    if _pen_4.S > 84.0:
+        for _r, _k in (('quotesingle', 20), ('quotedbl', 15)):
+            PAIRS[('q', _r)] = _shipped('q', _r) + _k
+else:
+    from . import pen as _pen_4
+    PAIRS[('f', 'T')] = _shipped('f', 'T') + 10
+    if _pen_4.S > 84.0:
+        PAIRS[('Q', 'Q')] = PAIRS.get(('Q', 'Q'), 0) + 4
+
 _apply_bench()
 
 

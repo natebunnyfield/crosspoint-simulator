@@ -43,6 +43,23 @@ MATH = TH_H * 0.92         # the weight of a mathematical rule (a shade under th
 ARROW_LEN = XH * 1.32
 ARROW_HEAD = XH * 0.30
 
+def _fill_cracks(g, width=16.0):
+    """ROUND 384: fill every hole whose mean width (2 x area / perimeter) is
+    under `width` -- the glitch gate's CRACK and SPECK, left where two strokes
+    of a symbol meet at an angle. 16, not the gate's 12, because this runs
+    BEFORE the ink spread, which shrinks a hole on its way to the file: the
+    700's radical measured 13 here and 11 in the font. A designed counter is
+    far wider than this; the chess pieces' small crown windows are not passed
+    through here."""
+    import shapely.geometry as sg
+    def fix(poly):
+        keep = [r for r in poly.interiors
+                if 2.0 * sg.Polygon(r).area / max(sg.Polygon(r).length, 1e-9) >= width]
+        return sg.Polygon(poly.exterior, keep)
+    if g.geom_type == 'Polygon': return fix(g)
+    if g.geom_type == 'MultiPolygon': return sg.MultiPolygon([fix(p) for p in g.geoms])
+    return g
+
 def _s(pts, prof=None, w=None, cut0=CUT, cut1=CUT, light=1.0):
     return stroke(pts, w if w is not None else pen_widths(pts, (prof or (lambda t: 1.0)), scale=light), cut0=cut0, cut1=cut1)
 
@@ -93,14 +110,35 @@ def g_arrowsw(c): return _arrow(c, -1, -1)
 def _darrow(c, dx, both=False):
     """A double (hollow) arrow: two shafts and a barb pair, the implication
     sign of mathematical prose."""
-    L = ARROW_LEN; ang = math.atan2(0, dx); w = max(MATH * 0.78, HAIR); gap = XH * 0.13
+    L = ARROW_LEN; ang = math.atan2(0, dx); w = max(MATH * 0.78, HAIR)
+    # ROUND 384: the gap between the shafts grows with their stroke, as the
+    # guillemets' does. A fixed XH * 0.13 leaves 31 units of white at the 400
+    # (1.26 strokes; the italic's 1.05) and a 7-unit slit at the 700, which the
+    # glitch gate calls a CRACK and the eye calls one fat arrow. 2.0 strokes
+    # of gap is a stroke of white; at both 400s the constant still wins.
+    gap = max(XH * 0.13, w * 2.0)
     parts = []
+    # ROUND 384 -- THE SHAFTS STOP AT THE BARBS. Both shafts used to run the
+    # full length to the tip's x, so past each barb pair they poked out as two
+    # square ends beside the point -- the jagged heads, and the reversals
+    # `cmp_contour_hairs.py` listed on arrowdblleft/arrowdblboth -- and on
+    # the both-ended arrow the inside of each head was cut by the far shaft.
+    # A shaft now ends where it meets its barb's centreline (the barb leaves
+    # the tip at 30 degrees, so at a shaft's offset that is |off| / tan 30
+    # back from the tip), plus half a stroke so the two still overlap.
+    back = (gap / 2) / math.tan(math.radians(30)) - w * 0.5
+    # ...and the barbs reach a stroke past the outer edge of their shaft, or
+    # at the 700 (gap grown to a stroke of white) the heads closed into a
+    # hexagon around the shafts. At both 400s ARROW_HEAD is the longer.
+    head = max(ARROW_HEAD, (gap / 2 + w * 1.5) / math.sin(math.radians(30)))
+    x0 = back if both else 0.0
     for off in (+gap / 2, -gap / 2):
-        parts.append(_s(line((0, MID + off), (L, MID + off)), w=w))
+        parts.append(_s(line((x0, MID + off), (L - back, MID + off)), w=w,
+                        cut0=None if both else CUT, cut1=None))
     for tipx, sgn2 in (((L, MID), -1),) if not both else (((L, MID), -1), ((0, MID), +1)):
         for sgn in (+1, -1):
             a = math.radians(180 if sgn2 < 0 else 0) + sgn * math.radians(30)
-            end = (tipx[0] + math.cos(a) * ARROW_HEAD, tipx[1] + math.sin(a) * ARROW_HEAD)
+            end = (tipx[0] + math.cos(a) * head, tipx[1] + math.sin(a) * head)
             parts.append(_s(line(tipx, end), w=w, cut0=None))
     g = geom.ink(parts)
     if dx < 0:
@@ -187,18 +225,30 @@ def g_bullet(c): return dot(DOT_R * 1.5, MID, DOT_R * 1.5)
 @glyph('∙')
 def g_bulletop(c): return dot(DOT_R * 1.1, MID, DOT_R * 1.1)
 
+GUIL_WHITE = 0.70   # the least white between the chevrons, as a fraction of their stroke: the italic 400's own (0.71; the roman's is 0.88)
 def _guillemet(c, left, single=False):
     """Angle quotes: the chevrons are the pen's diagonals, their apex on MID
     and their opening the same 52 degrees as the circumflex's."""
-    h = XH * 0.42; w = XH * 0.24; gap = XH * 0.20; n = 1 if single else 2
+    h = XH * 0.42; w = XH * 0.24; n = 1 if single else 2
+    sw = max(MATH * 0.95, HAIR)
+    # ROUND 384 -- THE GAP GROWS WITH THE STROKE. It was a fixed XH * 0.20,
+    # which at the 400 leaves 26 units of white between the two chevrons
+    # (0.87 of the stroke) and at the 700 leaves MINUS one: the chevrons ran
+    # into each other and trapped a 760-unit hole, the glitch gate's SPECK on
+    # both bolds. The white between two parallel diagonals is the horizontal
+    # gap times the sine of their angle, so the gap is solved for the 400's
+    # own white-to-stroke ratio; at the 400 the old constant is the larger and
+    # still wins, so the 400s are unchanged.
+    sin_a = math.sin(math.atan2(h / 2, w))
+    gap = max(XH * 0.20, sw * (1.0 + GUIL_WHITE) / sin_a)
     parts = []
     for i in range(n):
         x0 = i * gap
         apex = (x0, MID) if left else (x0 + w, MID)
         a = (x0 + w, MID + h / 2) if left else (x0, MID + h / 2)
         b = (x0 + w, MID - h / 2) if left else (x0, MID - h / 2)
-        parts.append(_s(line(a, apex), w=max(MATH * 0.95, HAIR), cut1=None))
-        parts.append(_s(line(apex, b), w=max(MATH * 0.95, HAIR), cut0=None))
+        parts.append(_s(line(a, apex), w=sw, cut1=None))
+        parts.append(_s(line(apex, b), w=sw, cut0=None))
     return geom.ink(parts)
 
 @glyph('«')
@@ -315,8 +365,17 @@ def g_daggerdbl(c):
 def g_prime(c): return _s(line((S * 0.42, CAP * 0.62), (S * 0.10, CAP)), widths([(0.0, 0.58), (1.0, 1.0)]))
 @glyph('″')      # double prime
 def g_dblprime(c):
+    # ROUND 384 -- THE TWO PRIMES NO LONGER RUN TOGETHER. The second was set a
+    # fixed 0.60 S to the right, but a prime is 0.91 S wide across its top
+    # (measured at the 400 and the 700 alike), so the two tops overlapped in
+    # every cut and the union left a slit between them -- the `second` finding
+    # `cmp_contour_hairs.py` has listed since the gate existed. The offset is
+    # now the prime's own top width plus 0.45 of it in white.
+    import shapely.geometry as sg
     a = _s(line((S * 0.42, CAP * 0.62), (S * 0.10, CAP)), widths([(0.0, 0.58), (1.0, 1.0)]))
-    b = _s(line((S * 1.02, CAP * 0.62), (S * 0.70, CAP)), widths([(0.0, 0.58), (1.0, 1.0)]))
+    x0, _, x1, _ = a.intersection(sg.box(-1e4, CAP * 0.90, 1e4, CAP * 0.92)).bounds
+    dx = (x1 - x0) * 1.45
+    b = _s(line((S * 0.42 + dx, CAP * 0.62), (S * 0.10 + dx, CAP)), widths([(0.0, 0.58), (1.0, 1.0)]))
     return geom.ink([a, b])
 @glyph('‰')      # per mille
 def g_perthousand(c):
@@ -359,12 +418,18 @@ def g_notequal(c):
     sl = _s(line(((x0 + x1) / 2 - XH * 0.16, MID - XH * 0.40), ((x0 + x1) / 2 + XH * 0.16, MID + XH * 0.40)), w=MATH)
     return geom.ink([g, sl])
 def _rel(c, eq_below=True, gt=False):
-    w = XH * 0.82; h = XH * 0.30
-    apex = (w, MID + h) if gt else (0, MID + h)
-    a = (0, MID + h + h * 0.30) if gt else (w, MID + h + h * 0.30)
-    b = (0, MID + h - h * 0.30) if gt else (w, MID + h - h * 0.30)
+    # ROUND 384 -- THE CHEVRON IS THE `<`'s. It rose only 0.09 x-height over a
+    # 0.82 x-height run -- a 12-degree wedge beside the `<`'s 49 -- so `≤` read
+    # as a flattened arrowhead rather than as "less than", and its inside
+    # corner was a REVERSAL to `cmp_contour_hairs.py` (167 degrees on 200-unit
+    # arms). Now the `<`'s own width and nearly its slope (0.36 of the run
+    # against 0.46, so it sits over the bar), lifted clear of the bar.
+    w = XH * 0.74; h = w * 0.36; cy = MID + XH * 0.13
+    apex = (w, cy) if gt else (0, cy)
+    a = (0, cy + h) if gt else (w, cy + h)
+    b = (0, cy - h) if gt else (w, cy - h)
     parts = [_s(line(a, apex), w=MATH * 0.95, cut1=None), _s(line(apex, b), w=MATH * 0.95, cut0=None)]
-    parts.append(bar(0, w, MID - h * 0.62, MATH))
+    parts.append(bar(0, w, MID - XH * 0.36, MATH))
     return geom.ink(parts)
 @glyph('≤')
 def g_lessequal(c): return _rel(c, gt=False)
@@ -400,8 +465,8 @@ def g_infinity(c):
 def g_radical(c):
     h = CAP * 0.96
     p = [(0, MID * 1.10), (XH * 0.26, MID * 0.40), (XH * 0.54, h)]   # a V wide enough to read: the first cut was near-vertical and looked like a bar's edge
-    return geom.ink([_s(p, widths([(0.0, 0.58), (0.45, 1.10), (1.0, 0.70)]), cut1=None),
-                     bar(XH * 0.52, XH * 1.36, h, MATH * 0.92, align='top')])
+    return _fill_cracks(geom.ink([_s(p, widths([(0.0, 0.58), (0.45, 1.10), (1.0, 0.70)]), cut1=None),
+                     bar(XH * 0.52, XH * 1.36, h, MATH * 0.92, align='top')]))
 
 # ---------------------------------------------------------------- signs
 @glyph('°')      # degree
@@ -493,7 +558,7 @@ def g_sterling(c):
 def g_yen(c):
     from . import GLYPHS
     g = GLYPHS['Y'](c); x0, y0, x1, y1 = g.bounds
-    return geom.ink([g, bar(x0 - 8, x1 + 8, CAP * 0.34, MATH), bar(x0 - 8, x1 + 8, CAP * 0.50, MATH)])
+    return _fill_cracks(geom.ink([g, bar(x0 - 8, x1 + 8, CAP * 0.34, MATH), bar(x0 - 8, x1 + 8, CAP * 0.50, MATH)]))
 @glyph('€')      # euro
 def g_euro(c):
     from . import GLYPHS
@@ -515,14 +580,38 @@ def g_logicalnot(c):
     return geom.ink([bar(0, w, MID + XH * 0.16, MATH), _s(line((w - MATH / 2, MID + XH * 0.16), (w - MATH / 2, MID - XH * 0.08)), w=MATH)])
 
 # ---------------------------------------------------------------- dingbats
+# ROUND 384 -- A CHECK IS TWO STROKES, not one polyline stroke. Offsetting one
+# stroke around a 90-degree vertex folds its inner edge over itself: the check
+# carried a crack at the vertex in every cut, and the HEAVY check at the bolds
+# came out as a slab beside a reversed sliver (glitch CRACK, contour REVERSAL).
+# Each leg is now its own stroke, meeting at the vertex in a hull joint, and
+# whatever tiny hole the union still leaves is filled.
+def _check(w0, w1, w2):
+    a, v, b = (0, XH * 0.46), (XH * 0.26, XH * 0.08), (XH * 0.80, XH * 0.92)
+    import shapely.geometry as sg
+    leg1 = _s(line(a, v), widths([(0.0, w0), (1.0, w1)]), cut1=None, light=1.05)
+    leg2 = _s(line(v, b), widths([(0.0, w1), (1.0, w2)]), cut0=None, light=1.05)
+    # THE JOINT: the hull of the two legs' ends near the vertex, less the
+    # inside angle -- so the outer corner closes cleanly and the crotch stays
+    # sharp. Extending each leg past the vertex instead (the first cut) left a
+    # stepped foot where the two butt ends crossed.
+    R = TH_V * w1 * 1.4
+    disk = sg.Point(v).buffer(R)
+    hull = sg.MultiPolygon([p for g in (leg1.intersection(disk), leg2.intersection(disk))
+                            for p in (g.geoms if g.geom_type == 'MultiPolygon' else [g])]).convex_hull
+    def toward(p, k):
+        L = math.hypot(p[0] - v[0], p[1] - v[1])
+        return (v[0] + (p[0] - v[0]) / L * k, v[1] + (p[1] - v[1]) / L * k)
+    inside = sg.Polygon([v, toward(a, R * 3), toward(b, R * 3)])
+    return _fill_cracks(geom.ink([leg1, leg2, hull.difference(inside)]))
 @glyph('✓')      # check
-def g_check(c):
-    p = [(0, XH * 0.46), (XH * 0.26, XH * 0.08), (XH * 0.80, XH * 0.92)]
-    return _s(p, widths([(0.0, 0.72), (0.30, 1.00), (1.0, 0.62)]), light=1.05)
+def g_check(c): return _check(0.72, 1.00, 0.62)
 @glyph('✔')
 def g_checkheavy(c):
-    p = [(0, XH * 0.46), (XH * 0.26, XH * 0.08), (XH * 0.80, XH * 0.92)]
-    return _s(p, widths([(0.0, 1.05), (0.30, 1.45), (1.0, 0.92)]), light=1.05)
+    # The heavy check is the check made heavier with a MITRE dilation, not a
+    # second drawing at 1.45x widths: drawn separately, its two thick legs at
+    # the 700 met as two blocks with a step between them. One outline, grown.
+    return _check(0.72, 1.00, 0.62).buffer(TH_V * 0.16, join_style=2)
 @glyph('✗')      # ballot X
 def g_ballotx(c):
     h = XH * 0.82

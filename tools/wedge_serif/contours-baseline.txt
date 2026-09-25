@@ -191,7 +191,7 @@ Regular cent 2
 Regular chi 1
 Regular circle 2
 Regular circumflex 1
-Regular club 2
+Regular club 1
 Regular colon 2
 Regular comma 1
 Regular copyright 3
@@ -352,7 +352,7 @@ Regular quotesinglbase 1
 Regular quotesingle 1
 Regular r 1
 Regular racute 2
-Regular radical 2
+Regular radical 1
 Regular rcaron 2
 Regular registered 4
 Regular rho 2
@@ -362,7 +362,7 @@ Regular sacute 2
 Regular scaron 2
 Regular scedilla 2
 Regular scircumflex 2
-Regular second 1
+Regular second 2
 Regular section 2
 Regular semicolon 2
 Regular seven 1
@@ -371,7 +371,7 @@ Regular sigma 2
 Regular sigma1 1
 Regular six 2
 Regular slash 1
-Regular spade 2
+Regular spade 1
 Regular sterling 1
 Regular summation 1
 Regular t 1
@@ -483,8 +483,8 @@ Regular uni265E 1
 Regular uni265F 1
 Regular uni2661 2
 Regular uni2662 2
-Regular uni2664 4
-Regular uni2667 5
+Regular uni2664 2
+Regular uni2667 2
 Regular uni266C 2
 Regular uni266D 2
 Regular uni266E 2
@@ -719,7 +719,7 @@ Italic cent 2
 Italic chi 1
 Italic circle 2
 Italic circumflex 1
-Italic club 2
+Italic club 1
 Italic colon 2
 Italic comma 1
 Italic copyright 3
@@ -880,7 +880,7 @@ Italic quotesinglbase 1
 Italic quotesingle 1
 Italic r 1
 Italic racute 2
-Italic radical 2
+Italic radical 1
 Italic rcaron 2
 Italic registered 4
 Italic rho 2
@@ -890,7 +890,7 @@ Italic sacute 2
 Italic scaron 2
 Italic scedilla 2
 Italic scircumflex 2
-Italic second 1
+Italic second 2
 Italic section 2
 Italic semicolon 2
 Italic seven 1
@@ -899,7 +899,7 @@ Italic sigma 2
 Italic sigma1 1
 Italic six 2
 Italic slash 1
-Italic spade 2
+Italic spade 1
 Italic sterling 1
 Italic summation 1
 Italic t 1
@@ -1011,8 +1011,8 @@ Italic uni265E 1
 Italic uni265F 1
 Italic uni2661 2
 Italic uni2662 2
-Italic uni2664 4
-Italic uni2667 5
+Italic uni2664 2
+Italic uni2667 2
 Italic uni266C 2
 Italic uni266D 2
 Italic uni266E 2

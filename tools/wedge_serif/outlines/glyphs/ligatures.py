@@ -110,11 +110,23 @@ def g_ffi(c):
     first, dx = ff_first(c); rest = [aff.translate(g, dx, 0) for g in fi_parts(c)]
     j = _bridge(first[2], rest[2])
     return geom.ink(first + rest + ([j] if j is not None else []))
+def _close_slits(g, r=6.0):
+    """ROUND 384: a MITRE closing -- dilate by r, erode by r -- which fills a
+    feature narrower than 2r and nothing else: a square inside corner comes back
+    exactly, a slit does not come back at all. The ffl's first f leaves a
+    tapering white slit where its arch runs into the second f's (a REVERSAL to
+    `cmp_contour_hairs.py` in the Regular and the BoldItalic, 25 units long
+    and a few wide); the global welder (`geom.weld_slivers`) is held to an
+    8-unit mouth so it can never reach the Y's and P's ruled hairline gap, and
+    this slit's mouth is wider, so it is closed here, on this glyph alone.
+    r = 6, not 3: at the BoldItalic the same join is a 13-degree V rather than
+    a slit, and a 3-unit closing left its needle tip standing (pass 3)."""
+    return g.buffer(r, join_style=2).buffer(-r, join_style=2)
 @glyph('\ufb04')
 def g_ffl(c):
     first, dx = ff_first(c); rest = [aff.translate(g, dx, 0) for g in fl_parts(c)]
     j = _bridge(first[2], rest[2])
-    return geom.ink(first + rest + ([j] if j is not None else []))
+    return _close_slits(geom.ink(first + rest + ([j] if j is not None else [])))
 
 
 # ============================ ROUND 309 -- MORE, AND ROMAN ONLY ============

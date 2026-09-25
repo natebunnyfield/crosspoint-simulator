@@ -1,6 +1,6 @@
 hairs.letters.Regular
-hairs.all.Regular      arrowdblboth arrowdblleft cedilla club greaterequal lessequal oe second uni2655 uni2667 uniFB04
-touch.Regular          0 pair(s) TOUCHING, 1 below
+hairs.all.Regular
+touch.Regular          0 pair(s) TOUCHING, 0 below
 hairs.letters.Italic
-hairs.all.Italic      cedilla cent club eng mu second uni2667 uniE001 uniFB02 uniFB04
+hairs.all.Italic
 touch.Italic          0 pair(s) TOUCHING, 0 below

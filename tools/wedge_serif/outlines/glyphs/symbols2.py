@@ -22,6 +22,7 @@ import shapely.geometry as sg
 import shapely.affinity as aff
 from . import glyph, GLYPHS
 from .. import geom, pen
+from .symbols import _fill_cracks
 from ..geom import cubic, line, superellipse
 from ..primitives import stroke, pen_widths, widths, dot, ring, bar, stem
 from ..pen import S, XH, CAP, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K
@@ -1127,21 +1128,39 @@ def _spade():
     r = CAP * 0.21
     a = sg.Point(-r * 0.92, CAP * 0.38).buffer(r); b = sg.Point(r * 0.92, CAP * 0.38).buffer(r)
     v = sg.Polygon([(-r * 1.92, CAP * 0.38), (r * 1.92, CAP * 0.38), (0, CAP * 0.92)])
-    stem_ = sg.Polygon([(-r * 0.16, CAP * 0.10), (r * 0.16, CAP * 0.10), (r * 0.50, 0), (-r * 0.50, 0)])
+    # ROUND 384: the stem reaches up INTO the lobes. It stopped at CAP * 0.10
+    # while the lobes bottom out at CAP * 0.17, so the foot floated free of the
+    # spade -- visible in the outline spade as a separate trapezoid with a
+    # crack inside it.
+    stem_ = sg.Polygon([(-r * 0.16, CAP * 0.30), (r * 0.16, CAP * 0.30), (r * 0.16, CAP * 0.10),
+                        (r * 0.50, 0), (-r * 0.50, 0), (-r * 0.16, CAP * 0.10)])
     return geom.ink([a, b, v, stem_])
 def _club():
     r = CAP * 0.19
     parts = [sg.Point(0, CAP * 0.72).buffer(r), sg.Point(-r * 1.10, CAP * 0.40).buffer(r), sg.Point(r * 1.10, CAP * 0.40).buffer(r),
              sg.Polygon([(-r * 0.16, CAP * 0.10), (r * 0.16, CAP * 0.10), (r * 0.55, 0), (-r * 0.55, 0)]),
-             sg.box(-r * 0.16, CAP * 0.10, r * 0.16, CAP * 0.50)]
-    return geom.ink(parts)
+             sg.box(-r * 0.16, CAP * 0.10, r * 0.16, CAP * 0.50),
+             # ROUND 384: THE HEART OF THE CLUB. The three lobes only kiss, so
+             # they left white slivers between them (glitch CRACK on the solid
+             # club) and the stem's top poked up into the notch; the outline
+             # club came out as three loose rings around a square. One disc at
+             # the junction makes the three lobes and the stem one shape.
+             sg.Point(0, CAP * 0.46).buffer(r * 0.62)]
+    # ...and the V-notches where two lobes meet are blunted to 12 units: in
+    # the italic they close at 12 degrees, a needle of white driven into the
+    # outline club (REVERSAL, pass 3). A mitre closing fills only what is
+    # narrower than 2 x 6 units; the lobes' own curves are untouched.
+    return geom.ink(parts).buffer(6.0, join_style=2).buffer(-6.0, join_style=2)
 def _diamond():
     r = CAP * 0.30
     return sg.Polygon([(0, CAP * 0.02), (r * 0.82, CAP * 0.47), (0, CAP * 0.92), (-r * 0.82, CAP * 0.47)])
 for _cp, _fn in (('♠', _spade), ('♥', _heart), ('♦', _diamond), ('♣', _club)):
     glyph(_cp)((lambda f: (lambda c: aff.translate(f(), CAP * 0.34, 0)))(_fn))
 for _cp, _fn in (('♤', _spade), ('♡', _heart), ('♢', _diamond), ('♧', _club)):
-    glyph(_cp)((lambda f: (lambda c: _hollow(aff.translate(f(), CAP * 0.34, 0))))(_fn))
+    # ROUND 384: the outline's inset leaves a sliver of white inside the
+    # spade's and the club's narrow foot (glitch CRACK); filled, so the foot
+    # is solid as it is on every printed card.
+    glyph(_cp)((lambda f: (lambda c: _fill_cracks(_hollow(aff.translate(f(), CAP * 0.34, 0)))))(_fn))
 
 # ---------------------------------------------------------------- music
 def _note(beams=0, flag=False):
