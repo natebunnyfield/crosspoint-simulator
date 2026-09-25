@@ -13,12 +13,15 @@
 // THE TWO PICTURES the owner ruled (2026-09-24, from the mock-up page's options
 // G and I):
 //
-//   LIGHT -- "too light of ink". The plate only kisses the paper's high spots:
-//   ink survives where a fixed tooth field is high, the threshold climbs over
-//   the minute, strokes break, what survives greys out, and at the end there is
-//   no ink at all. Drawn as a paper-coloured veil over the page whose alpha is
-//   the ink LOST at each pixel, weighted by how much ink the pixel had -- so a
-//   paper pixel is never touched and the sheet's own treatment under it stands.
+//   LIGHT -- "too light of ink", redone on the page's own simulation (owner,
+//   the same day: "take full advantage of the letterpress and ink and paper
+//   simulation"). The starved plate kisses the sheet's tooth, its formation
+//   and the plate's heavy patches first, a stroke's edges go before its core,
+//   what survives thins toward the paper in the ink's own hue, and the
+//   letterpress impression recedes with the pressure. Drawn as a paper-colored
+//   veil whose alpha is the ink LOST at each pixel, over a letterpress field
+//   composited at a fading weight -- so a paper pixel is never touched and the
+//   sheet's own tooth, drawn later over the whole glass, stands.
 //
 //   DARK -- "too much emission". The beam overdriven: the glyphs bloom, swell
 //   into one another, and the ground itself lifts toward the phosphor until the
@@ -109,9 +112,13 @@ struct Textures {
   uint64_t veilSeq = ~0ull;
   int veilStep = -1;
   std::vector<uint32_t> veilPixels;
-  std::vector<float> tooth;  // cached tooth field, veilW * veilH
-  std::vector<float> inkRow, inkDil;  // scratch for the dilated ink
+  std::vector<float> tooth;  // the press's kiss per panel pixel
+  std::vector<float> inkRow, inkDil;  // the page's ink, and blur scratch
+  std::vector<float> interior;        // ink blurred one device pixel
+  uint32_t veilSeed = 0;
   int scale = 1;
+  SDL_Texture *pressTarget = nullptr;  // the faded letterpress field
+  int pressW = 0, pressH = 0;
 
   SDL_Texture *defocus = nullptr;
 
@@ -127,9 +134,10 @@ inline Textures &textures() {
 
 inline void destroyAll() {
   Textures &t = textures();
-  if (!t.veil && !t.lift && !t.defocus && !t.glow[0] && !t.glow[1] &&
-      !t.glow[2])
+  if (!t.veil && !t.lift && !t.defocus && !t.pressTarget && !t.glow[0] &&
+      !t.glow[1] && !t.glow[2])
     return;
+  if (t.pressTarget) SDL_DestroyTexture(t.pressTarget);
   if (t.veil) SDL_DestroyTexture(t.veil);
   for (SDL_Texture *&g : t.glow)
     if (g) SDL_DestroyTexture(g), g = nullptr;
@@ -138,12 +146,15 @@ inline void destroyAll() {
   t = Textures{};
 }
 
-// LIGHT: rebuild the veil when the page or the decay step moves, then draw it.
-// `pixels` is the presented panel (w*h ARGB), read under the caller's lock.
+// LIGHT: the starved press. Rebuilt per PAGE (the ink, its interior, and the
+// press's kiss off the page's own sheet seed) and per decay STEP (the alpha
+// only). `pixels` is the presented panel (w*h ARGB), a copy the caller took
+// under the pixel lock. See picture::starvedRetained for the model.
 template <typename DrawPanel>
 inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
-                      int scale, uint64_t seq, double f, const panelpalette::Palette &pal,
-                      SDL_ScaleMode mode, DrawPanel &&drawPanel) {
+                      int scale, uint64_t seq, uint32_t sheetSeed, double f,
+                      const panelpalette::Palette &pal, SDL_ScaleMode mode,
+                      DrawPanel &&drawPanel) {
   Textures &t = textures();
   const int step = readingallowance::quantize(f);
   if (!t.veil || t.veilW != w || t.veilH != h || t.scale != scale) {
@@ -156,61 +167,100 @@ inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
     t.veilW = w;
     t.veilH = h;
     t.veilSeq = ~0ull;
-    t.tooth.resize(static_cast<size_t>(w) * h);
-    // The field is in PANEL pixels at the render scale, so a 2x build's tooth
-    // would be twice as fine in device terms; the octaves are indexed by the
-    // DEVICE pixel so the break-up reads the same at every scale.
-    const int s = std::max(1, scale);
-    for (int y = 0; y < h; y++)
-      for (int x = 0; x < w; x++)
-        t.tooth[static_cast<size_t>(y) * w + x] = toothAt(x / s, y / s);
   }
-  const bool newPage = t.veilSeq != seq;
+  const bool newPage = t.veilSeq != seq || t.veilSeed != sheetSeed;
   if (newPage || t.veilStep != step) {
+    const size_t n = static_cast<size_t>(w) * h;
+    if (newPage) {
+      // The page's ink, the stroke interior (ink box-blurred one device pixel,
+      // so a stroke's edge reads about half and its core 1), and the kiss.
+      std::vector<float> &ink = t.inkRow;
+      std::vector<float> &tmp = t.inkDil;
+      ink.resize(n);
+      tmp.resize(n);
+      t.interior.resize(n);
+      t.tooth.resize(n);
+      for (size_t i = 0; i < n; i++) ink[i] = inkness(pixels[i], pal);
+      const int rad = std::max(1, scale);
+      for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+          float sum = 0; int c = 0;
+          for (int k = std::max(0, x - rad); k <= std::min(w - 1, x + rad); k++, c++)
+            sum += ink[static_cast<size_t>(y) * w + k];
+          tmp[static_cast<size_t>(y) * w + x] = sum / c;
+        }
+      for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+          float sum = 0; int c = 0;
+          for (int k = std::max(0, y - rad); k <= std::min(h - 1, y + rad); k++, c++)
+            sum += tmp[static_cast<size_t>(k) * w + x];
+          t.interior[static_cast<size_t>(y) * w + x] = sum / c;
+        }
+      for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+          t.tooth[static_cast<size_t>(y) * w + x] = kissAt(x, y, w, h, sheetSeed);
+    }
     t.veilSeq = seq;
+    t.veilSeed = sheetSeed;
     t.veilStep = step;
     const float tf = static_cast<float>(step) / 120.0f;
-    t.veilPixels.resize(static_cast<size_t>(w) * h);
+    t.veilPixels.resize(n);
     const uint32_t rgb = (static_cast<uint32_t>(pal.paper[0]) << 16) |
                          (static_cast<uint32_t>(pal.paper[1]) << 8) | pal.paper[2];
-    std::vector<float> &ink = t.inkRow;
-    if (newPage || ink.size() != t.veilPixels.size()) {
-      // The ink under the veil is DILATED by the press's reach before it is
-      // starved: the letterpress rim and deboss shadow sit just OUTSIDE the
-      // stroke, on pixels that carry no ink of their own, and a veil weighted by
-      // the pixel's own ink left them printing a ghost of every letter on a page
-      // that was supposed to be spent (measured: text still legible at 10:00).
-      // Dilated by the max over a square of kReach device pixels, separably.
-      // Per PAGE, not per step: only the alpha below depends on t.
-      const int reach = kReach * std::max(1, scale);
-      std::vector<float> &dil = t.inkDil;
-      ink.resize(t.veilPixels.size());
-      dil.resize(t.veilPixels.size());
-      for (size_t i = 0; i < ink.size(); i++) ink[i] = inkness(pixels[i], pal);
-      for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++) {
-          float m = 0;
-          for (int k = std::max(0, x - reach); k <= std::min(w - 1, x + reach); k++)
-            m = std::max(m, ink[static_cast<size_t>(y) * w + k]);
-          dil[static_cast<size_t>(y) * w + x] = m;
-        }
-      for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++) {
-          float m = 0;
-          for (int k = std::max(0, y - reach); k <= std::min(h - 1, y + reach); k++)
-            m = std::max(m, dil[static_cast<size_t>(k) * w + x]);
-          ink[static_cast<size_t>(y) * w + x] = m;
-        }
-    }
-    for (size_t i = 0; i < t.veilPixels.size(); i++) {
-      const float a = veilAlpha(ink[i], t.tooth[i], tf);
-      t.veilPixels[i] =
-          (static_cast<uint32_t>(a * 255.0f + 0.5f) << 24) | rgb;
+    for (size_t i = 0; i < n; i++) {
+      // The veil must take away (1 - retained) of WHATEVER ink is there: a
+      // veil weighted by the pixel's own ink fraction leaves ink*(1-ink) of
+      // it behind -- a quarter of every half-covered edge pixel, which read
+      // as a ghost of the whole page at 5:00 (measured p5 214 against paper
+      // 241). Masked to the ink and one device pixel around it, so bare paper
+      // is never veiled.
+      const float mask = std::min(1.0f, 6.0f * std::max(t.inkRow[i], t.interior[i]));
+      const float a =
+          mask * (1.0f - starvedRetained(t.tooth[i], t.interior[i], tf));
+      t.veilPixels[i] = (static_cast<uint32_t>(a * 255.0f + 0.5f) << 24) | rgb;
     }
     SDL_UpdateTexture(t.veil, nullptr, t.veilPixels.data(), w * 4);
   }
   SDL_SetTextureScaleMode(t.veil, mode);
   drawPanel(t.veil);
+}
+
+// LIGHT: the letterpress field at a FADING weight -- the impression receding
+// with the pressure. MOD cannot take an alpha, so the field is first composed
+// over white at `pressLeft` into a target the page's size, and that is what
+// MODs the page: white * (1 - a) + field * a, i.e. every darkening term of the
+// press scaled by a. Returns false (and the caller draws the field at full
+// strength) if the renderer cannot make a target.
+template <typename DrawPanel>
+inline bool drawFadedField(SDL_Renderer *r, SDL_Texture *field, int w, int h,
+                           float left, SDL_ScaleMode mode, DrawPanel &&drawPanel) {
+  Textures &t = textures();
+  if (!t.pressTarget || t.pressW != w || t.pressH != h) {
+    if (t.pressTarget) SDL_DestroyTexture(t.pressTarget);
+    t.pressTarget = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888,
+                                      SDL_TEXTUREACCESS_TARGET, w, h);
+    if (!t.pressTarget) return false;
+    t.pressW = w;
+    t.pressH = h;
+  }
+  SDL_Texture *prev = SDL_GetRenderTarget(r);
+  if (!SDL_SetRenderTarget(r, t.pressTarget)) return false;
+  SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+  SDL_RenderClear(r);
+  SDL_BlendMode fieldBlend = SDL_BLENDMODE_MOD;
+  SDL_GetTextureBlendMode(field, &fieldBlend);
+  Uint8 fieldAlpha = 255;
+  SDL_GetTextureAlphaMod(field, &fieldAlpha);
+  SDL_SetTextureBlendMode(field, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureAlphaMod(field, static_cast<Uint8>(std::clamp(left, 0.0f, 1.0f) * 255.0f + 0.5f));
+  SDL_RenderTexture(r, field, nullptr, nullptr);
+  SDL_SetTextureBlendMode(field, fieldBlend);
+  SDL_SetTextureAlphaMod(field, fieldAlpha);
+  SDL_SetRenderTarget(r, prev);
+  SDL_SetTextureBlendMode(t.pressTarget, SDL_BLENDMODE_MOD);
+  SDL_SetTextureScaleMode(t.pressTarget, mode);
+  drawPanel(t.pressTarget);
+  return true;
 }
 
 // The three glows: (downsample factor, blur radius). The first is the swell --

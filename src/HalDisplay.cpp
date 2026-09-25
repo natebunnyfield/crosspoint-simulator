@@ -3620,7 +3620,18 @@ void HalDisplay::presentIfNeeded() {
       SDL_ScaleMode panelMode = kPanelScaleMode;
       SDL_GetTextureScaleMode(texture, &panelMode);
       SDL_SetTextureScaleMode(simsheet::letterpressField(), panelMode);
-      drawPanel(simsheet::letterpressField());
+      // THE ZEN READING GOAL'S LIGHT DECAY: the impression recedes with the
+      // pressure, so the field is drawn at a fading weight while the page
+      // starves (src/SurfaceAllowance.h drawFadedField).
+      const bool faded =
+          allowanceDecay > 0.0 &&
+          simallowance::drawFadedField(
+              sdl_renderer, simsheet::letterpressField(), activeWidth(),
+              activeHeight(),
+              readingallowance::picture::pressLeft(
+                  static_cast<float>(allowanceDecay)),
+              panelMode, drawPanel);
+      if (!faded) drawPanel(simsheet::letterpressField());
     }
   } else if (simsheet::letterpressField()) {
     simsheet::destroyLetterpressField();
@@ -3655,8 +3666,8 @@ void HalDisplay::presentIfNeeded() {
       SDL_ScaleMode panelMode = kPanelScaleMode;
       SDL_GetTextureScaleMode(texture, &panelMode);
       simallowance::drawLight(sdl_renderer, pageCopy.data(), w, h,
-                              cp::renderScale(), pageCopySeq, allowanceDecay,
-                              pal, panelMode, drawPanel);
+                              cp::renderScale(), pageCopySeq, pageSheetSeed(),
+                              allowanceDecay, pal, panelMode, drawPanel);
     }
   } else if (allowanceDecay <= 0.0) {
     simallowance::destroyAll();
