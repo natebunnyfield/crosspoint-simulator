@@ -355,7 +355,7 @@ def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and 
     upper = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5)], tension=0.5)
     P = upper[-1]; tn = geom.tangents(upper)[-1]; E = (w * 0.5, end_y); L = math.dist(P, E)
     hook = geom.resample(upper + cubic(P, (P[0] + tn[0] * Q8_TAIL_K1 * L, P[1] + tn[1] * Q8_TAIL_K1 * L), (E[0], E[1] + Q8_TAIL_K2 * L), E)[1:])
-    wf = _smooth_wf(PR.bowl_widths(hook, widths([(0.0, Q8_LIGHT), (0.25, Q8_LIGHT), (0.5, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR), len(hook) - 1)
+    wf = _smooth_wf(PR.bowl_widths(hook, widths(Q8_PLAN), floor=S * Q8_FLOOR), len(hook) - 1)
     return geom.ink([dot(w * 0.5, BY, MDOT),   # round 375: the period's dot (was 1.1x, 10% over every other)
                      _raise(stroke(hook, wf, cut0=CUT, cut1=CUT), c, w, end_y)])
 def _smooth_wf(wf, n, passes=4):
@@ -376,8 +376,25 @@ Q8_SCALE = 1.15   # owner 2026-09-13: "make the question mark back into its orig
 # which measures 2.06, on the o and c. The THICK is untouched (56 -> 55 px at
 # the test size), so the Albertus weight of the 2026-09-13 ruling stays where
 # the pen is heavy; only the thin gets thin. Ladder: 0.60 -> 1.62, 0.36 -> 2.50.
-Q8_FLOOR = float(os.environ.get("ALBO_Q8_FLOOR", 0.36 if pen.ITALIC else 0.46))   # was 0.78 (round 19's "Albertus weight" everywhere on the hook)
-Q8_LIGHT = float(os.environ.get("ALBO_Q8_LIGHT", 0.45 if pen.ITALIC else 0.7))   # the width plan on the hook's light left arm and top (round 233's 0.7); round 380: 0.45 in the italic, whose o runs 2.88 -- floor 0.36 alone saturated at 2.29, this takes the ? to 2.50
+Q8_FLOOR = float(os.environ.get("ALBO_Q8_FLOOR", 0.24 if pen.ITALIC else 0.46))   # round 382: italic 0.24, so the plan -- not the floor -- sets its thins   # was 0.78 (round 19's "Albertus weight" everywhere on the hook)
+Q8_CROWN_IT = float(os.environ.get("ALBO_Q8_CROWN_IT", 0.40))
+Q8_RIGHT_IT = float(os.environ.get("ALBO_Q8_RIGHT_IT", 0.60))
+Q8_LIGHT = float(os.environ.get("ALBO_Q8_LIGHT", 0.7))   # the roman's width plan on the hook's light left arm and top (round 233's 0.7)
+# ROUND 382 -- THE ITALIC ? HAD ITS WEIGHT ON THE WRONG SIDE. Owner
+# 2026-09-24: *"italic question mark has inverted thickness, the top left
+# should be thick."* Round 380 made it so: to raise the italic hook's contrast
+# it thinned the LEFT ARM and TOP (plan 0.45 there), and the weight went to the
+# right. Measured by clock position about the hook's bowl (median ridge
+# thickness / the hook's own thickest): round 381's italic read left 0.40,
+# top-left 0.45, right 0.91, lower-right 1.00. The reference italics put it the
+# other way -- top-left Flanker 1.00, Coelacanth 1.00, Georgia 1.00, Times 0.86;
+# crown thin (0.32-0.38); right side only medium (0.43-0.76). Q8_PLAN_IT is the
+# italic's own plan along the hook (t 0 = the left terminal, 1 = the foot above
+# the dot): heavy up the left arm and into the top-left, light over the crown,
+# medium down the right, heavy again into the foot. The roman keeps its plan.
+Q8_CROWN_T = float(os.environ.get("ALBO_Q8_CROWN_T", 0.28))   # where on the hook the plan lightens; laddered 0.16/0.22/0.28 -- 0.28 keeps the whole left arm heavy (top-left 0.98)
+_Q8_PLAN_IT = [(0.0, 1.0), (Q8_CROWN_T * 0.5, 1.0), (Q8_CROWN_T, Q8_CROWN_IT), (Q8_CROWN_T + 0.21, Q8_RIGHT_IT), (0.8, 1.0), (1.0, 1.05)]
+Q8_PLAN = _Q8_PLAN_IT if pen.ITALIC else [(0.0, Q8_LIGHT), (0.25, Q8_LIGHT), (0.5, 1.0), (0.8, 1.0), (1.0, 1.05)]
 # ROUND 377 -- NARROWER, SAME SHAPE. The ? stays the owner's 2026-09-13 mark
 # (original shape, Albertus heavy, larger) and stays at the ascender (round
 # 369). But raising it scaled it UNIFORMLY, so it got wider as well as taller:

@@ -271,3 +271,28 @@ style (mostly line contrast)."*
   dent finding.
 - Seen and not fixed: the ?'s outline is faceted, like the round-377 ampersand
   and — per the owner's note — the italic figures.
+
+## Round 382 — 2026-09-24: the italic ? had its weight on the wrong side
+
+Owner: *"italic question mark has inverted thickness, the top left should be
+thick."* Round 380 did this: to raise the italic hook's contrast it thinned
+the LEFT ARM and TOP (plan 0.45 there), so the weight moved right. Measured by
+clock position about the hook (median ridge thickness / the hook's thickest):
+round 381's italic read left 0.40, top-left 0.45, right 0.91, lower-right 1.00.
+Reference italics put it the other way: top-left Flanker 1.00, Coelacanth 1.00,
+Georgia 1.00, Times 0.86; right side 0.43–0.76. Seen at size, the references'
+weight sits at the START of the hook — Georgia's ball terminal, Flanker's
+heavy flat swash — where Albo's began on a thin tapered arm.
+
+The italic gets its own width plan along the hook (`Q8_PLAN_IT`): heavy up the
+left arm into the top-left, lighter from t 0.28 (`Q8_CROWN_T`, laddered
+0.16 / 0.22 / 0.28), medium down the right, heavy into the foot; its floor
+drops to 0.24 S so the plan, not the floor, sets the thins. Italic: top-left
+0.45 → 0.98, contrast 3.18. Bold Italic: top-left 1.00, crown 0.51, right
+0.74 — the references' pattern outright. Roman untouched.
+
+**Instrument note, recorded because it cost a wrong turn:** the first ladder
+of crown/right values returned three identical rows — a dead dial. The crown
+point sat at t 0.34, past where the hook actually crowns, and the 0.36 S floor
+was holding the right side. Moving the crown point and lowering the floor made
+both live.
