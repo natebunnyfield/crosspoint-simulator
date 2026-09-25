@@ -1789,6 +1789,10 @@ void applyDialGroup(simdials::Id group, const simdials::Values &v) {
     case ReadingAllowanceMinutes:
       setReadingAllowance(v[ReadingAllowanceMinutes]);
       break;
+    // Defined in SurfaceSheet.cpp with the rest of the raking light.
+    case RakingLightOn:
+      setRakingLight(v[RakingLightOn] != 0);
+      break;
   }
 }
 
@@ -2968,6 +2972,10 @@ void HalDisplay::presentIfNeeded() {
   }
 
   const bool screenshotDue = hasDueScreenshot();
+
+  // The raking light's desktop hatch (a fixed azimuth or a sweep); it asks for
+  // its own present when the quantized light moves. SurfaceSheet.cpp.
+  simsheet::stepRakingLight(SDL_GetTicks());
 
   // COALESCE. See presentHoldUntil: an antialiased page's composed pass is
   // 13-22 ms behind its 1-bit pass, and presenting the 1-bit one is the

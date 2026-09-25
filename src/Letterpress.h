@@ -297,40 +297,57 @@ inline float remainingPaperBudget(const Params &p) {
   return r > 0.0f ? r : 0.0f;
 }
 
-// THE ANSWER: the 0..255 modulate value for one panel pixel, from its 3x3
-// inkness window. win[row][col], row 0 up, col 0 left; inkness is 0 at paper,
-// 1 at ink (the caller normalizes framebuffer luminance between the live
-// pair's luminances). 255 means "untouched"; strength 0 returns 255
-// everywhere, so OFF is bit-exact.
-inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
-                            int y, int w, int h) {
+// THE PER-PIXEL TERMS, split out of multiplierAt (2026-09-25, the raking-light
+// spike, src/RakingLight.h) so a second combiner can re-light the SAME terms
+// from a different direction without a second copy of their arithmetic. Every
+// expression below is the one multiplierAt used to evaluate inline, statement
+// for statement and in the same order, so the legacy answer is byte-identical
+// -- tests/raking_light_test.cpp holds a verbatim copy of the pre-split body
+// and compares the two over a million windows, and the desktop render md5 gate
+// in docs/raking-light-spike-2026-09-25.md is the end-to-end proof.
+//
+// `off` is multiplierAt's early return (strength 0 or an empty panel), which
+// answers 255 without computing anything else.
+struct Terms {
+  bool off = true;
+  float t = 0.0f;         // inkness at the pixel
+  float gx = 0.0f;        // Sobel, normalized: a full step is magnitude 1
+  float gy = 0.0f;
+  float ring = 0.0f;      // ink squeeze, direction-free
+  float debossK = 0.0f;   // kDebossAt100 * part * s: the shadow's full depth
+  float press = 0.0f;
+  float irregular = 0.0f;
+  float tooth = 0.0f;
+};
+
+inline Terms termsAt(const Params &p, const float win[3][3], int x, int y,
+                     int w, int h) {
+  Terms out;
   const int strength = clampStrength(p.strengthPercent);
-  if (strength == kStrengthOff || w <= 0 || h <= 0) return 255;
+  if (strength == kStrengthOff || w <= 0 || h <= 0) return out;
+  out.off = false;
   const float s = static_cast<float>(strength) /
                   static_cast<float>(kStrengthStandard);
 
   const float t = win[1][1];  // inkness at the pixel itself
+  out.t = t;
 
   // Sobel, normalized so a full paper-to-ink step is magnitude 1.
   const float gx = ((win[0][2] + 2.0f * win[1][2] + win[2][2]) -
                     (win[0][0] + 2.0f * win[1][0] + win[2][0])) * 0.25f;
   const float gy = ((win[2][0] + 2.0f * win[2][1] + win[2][2]) -
                     (win[0][0] + 2.0f * win[0][1] + win[0][2])) * 0.25f;
+  out.gx = gx;
+  out.gy = gy;
   float gmag = std::sqrt(gx * gx + gy * gy);
   if (gmag > 1.0f) gmag = 1.0f;
 
   // INK SQUEEZE: the rim of the stroke, weighted onto the ink side.
-  const float ring = kRingAt100 * clampScale(p.ringScale) * s * gmag * t;
+  out.ring = kRingAt100 * clampScale(p.ringScale) * s * gmag * t;
 
-  // DEBOSS SHADOW: the paper side of edges whose ink lies toward the
-  // bottom-right -- i.e. the top-left walls of the depression, the ones a
-  // top-left light cannot reach. grad points from paper toward ink, so the
-  // shadowed walls are where grad . (1,1)/sqrt(2) is positive.
-  float lightDot = (gx + gy) * 0.70710678f;
-  if (lightDot < 0.0f) lightDot = 0.0f;
-  if (lightDot > 1.0f) lightDot = 1.0f;
-  const float deboss =
-      kDebossAt100 * clampScale(p.debossScale) * s * lightDot * (1.0f - t);
+  // The deboss's depth before its direction. Left-to-right, so the legacy
+  // product kDebossAt100 * part * s * lightDot * (1 - t) is unchanged.
+  out.debossK = kDebossAt100 * clampScale(p.debossScale) * s;
 
   const float nx = (static_cast<float>(x) + 0.5f) / static_cast<float>(w);
   const float ny = (static_cast<float>(y) + 0.5f) / static_cast<float>(h);
@@ -343,8 +360,8 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
   // The ratio runs through pressAmpScale -- the widened dial (see above).
   // clampScale first, then the widening, so the drawer's 0..2 stays the
   // stored range and the widening has one definition.
-  const float press = kPressAt100 * pressAmpScale(clampScale(p.pressScale)) *
-                      s * heavy * t;
+  out.press = kPressAt100 * pressAmpScale(clampScale(p.pressScale)) * s *
+              heavy * t;
 
   // IN-STROKE IRREGULARITY (ink) and PAPER TOOTH (paper), both uniform noise
   // in [0, amplitude]. Tooth rides sqrt of the dial and is clamped to the
@@ -353,11 +370,38 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
   const float u = phosphorgrain::unitFromHash(phosphorgrain::hash3(
       static_cast<uint32_t>(x), static_cast<uint32_t>(y),
       p.seed ^ 0x544F4F54u));
-  const float irregular = kIrregularAt100 * s * u * t;
+  out.irregular = kIrregularAt100 * s * u * t;
   const float toothAmp = clampedToothAmp(p);
-  const float tooth = p.includeTooth ? toothAmp * u * (1.0f - t) : 0.0f;
+  out.tooth = p.includeTooth ? toothAmp * u * (1.0f - t) : 0.0f;
+  return out;
+}
 
-  float m = 1.0f - (ring + deboss + press + irregular + tooth);
+// THE ANSWER: the 0..255 modulate value for one panel pixel, from its 3x3
+// inkness window. win[row][col], row 0 up, col 0 left; inkness is 0 at paper,
+// 1 at ink (the caller normalizes framebuffer luminance between the live
+// pair's luminances). 255 means "untouched"; strength 0 returns 255
+// everywhere, so OFF is bit-exact.
+inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
+                            int y, int w, int h) {
+  const Terms T = termsAt(p, win, x, y, w, h);
+  if (T.off) return 255;
+
+  // DEBOSS SHADOW: the paper side of edges whose ink lies toward the
+  // bottom-right -- i.e. the top-left walls of the depression, the ones a
+  // top-left light cannot reach. grad points from paper toward ink, so the
+  // shadowed walls are where grad . (1,1)/sqrt(2) is positive.
+  //
+  // "Top-left" is in FRAMEBUFFER space, which the presentation then rotates:
+  // in the reader's default Portrait the framebuffer's top-left is the
+  // SCREEN's top-right, so on the phone this has always been a top-right
+  // light (docs/raking-light-spike-2026-09-25.md). src/RakingLight.h makes
+  // the direction live; this fixed one is its OFF.
+  float lightDot = (T.gx + T.gy) * 0.70710678f;
+  if (lightDot < 0.0f) lightDot = 0.0f;
+  if (lightDot > 1.0f) lightDot = 1.0f;
+  const float deboss = T.debossK * lightDot * (1.0f - T.t);
+
+  float m = 1.0f - (T.ring + deboss + T.press + T.irregular + T.tooth);
   if (m < kMinMultiplier) m = kMinMultiplier;
   if (m > 1.0f) m = 1.0f;
   return static_cast<uint8_t>(m * 255.0f + 0.5f);
