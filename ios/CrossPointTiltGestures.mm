@@ -15,6 +15,7 @@ extern "C" void CrossPointZenRecognizers_fireGesture(int gesture);
 extern "C" void CrossPointTiltGestures_begin(void);
 extern "C" void CrossPointTiltGestures_perFrame(void);
 extern "C" void CrossPointTiltGestures_appWillResignActive(void);
+extern "C" void CrossPointTiltGestures_appDidBecomeActive(void);
 
 namespace {
 
@@ -22,6 +23,12 @@ CMMotionManager *g_motion = nil;
 tiltgesture::Neutral g_neutral;
 bool g_armed = true;
 int g_lastBound = -1;
+// Set at resign-active, cleared only when the app is active again. Resetting
+// g_lastBound alone made the very next perFrame restart the stream, and the
+// main loop keeps running in the background under read-aloud (S-041): motion
+// at full rate with the screen locked. Found by the adversarial review before
+// build 212 (the raking light had copied the pattern); owner: "Fix it".
+bool g_resigned = false;
 
 // The same question the volume rocker asks, and for the same reason: a stream
 // nobody has bound is battery spent on nothing.
@@ -77,11 +84,18 @@ void CrossPointTiltGestures_begin(void) {
 void CrossPointTiltGestures_appWillResignActive(void) {
   // Backgrounded: no reason to hold the accelerometer, and the pose on return
   // is a new pose, so neutral is recaptured rather than carried across.
+  g_resigned = true;
   stopStream();
   g_lastBound = -1;
 }
 
+void CrossPointTiltGestures_appDidBecomeActive(void) {
+  g_resigned = false;
+  g_lastBound = -1;  // re-evaluate the bindings on the next frame
+}
+
 void CrossPointTiltGestures_perFrame(void) {
+  if (g_resigned) return;  // stream already stopped; nothing fires either
   const int bound = anyTiltBound() ? 1 : 0;
   if (bound != g_lastBound) {
     g_lastBound = bound;
