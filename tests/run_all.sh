@@ -603,6 +603,18 @@ run letterpress \
 run raking_light \
   c++ -std=c++17 -Isrc -Itests -o "$OUT/raking_light" tests/raking_light_test.cpp
 
+# E-ink mode (2026-09-25 spike, src/EinkPanel.h): the light page as the X3's
+# own e-paper panel. Pins the X3 waveform tables frame for frame against
+# freeink-sdk's Uc8253X3Luts.h (full 62 frames, the half a SCRUB with no
+# inversion), that the per-class affine form equals stepping the panel frame by
+# frame, that the full flash shows the new page in negative and ends on it,
+# that the ghost cap computed from the palette holds the 7:1 floor -- measured
+# on RENDERED output after 14 partials, on the frozen page and the default one
+# -- that a palette already under the floor draws no ghost at all, and that a
+# clearing refresh (firmware HALF, or the host's shake) leaves the exact page.
+run eink_panel \
+  c++ -std=c++17 -Isrc -Itests -o "$OUT/eink_panel" tests/eink_panel_test.cpp
+
 run scanlines \
   c++ -std=c++17 -Isrc -o "$OUT/scanlines" tests/scanlines_test.cpp
 

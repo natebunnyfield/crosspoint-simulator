@@ -435,6 +435,10 @@ int main(int argc, char **argv) {
   // getter reads absence as off through -boolForKey:, which agrees.
   pinShipped(simdials::RakingLightOn, plistToggleDefault(plist, "rakingLight"),
              "Settings.bundle/Root.plist");
+  // E-INK MODE (spike 2026-09-25): a toggle row that ships OFF, read through
+  // -boolForKey:, whose absent-key answer (NO) agrees.
+  pinShipped(simdials::EinkModeOn, plistToggleDefault(plist, "einkMode"),
+             "Settings.bundle/Root.plist");
   pinShipped(simdials::ReadingAllowanceMinutes,
              static_cast<int>(literalAfter(
                  prefs, "objectForKey:kReadingAllowanceMinutes] == nil) return")),

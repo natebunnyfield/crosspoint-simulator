@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include "CornerDefocus.h"
+#include "EinkPanel.h"
 #include "FieldSelection.h"
 #include "GlassCapture.h"
 #include "GrayscalePreview.h"
@@ -988,7 +989,19 @@ static std::vector<uint32_t> inkRoundingScratch;
 static std::atomic<uint32_t> lastInkRoundingMs{0};
 static std::atomic<bool> lastInkRoundingRan{false};
 
-static void writePixelsFromLevels(const LevelRamp &ramp, bool darkPage) {
+// E-INK MODE (spike 2026-09-25, src/EinkPanel.h). The panel model sits HERE,
+// at the one step from levels to pixels, because that is where the firmware's
+// refresh MODE can still be tied to the page it painted. Off (the default, and
+// every desktop run) never enters it, so the loop below is today's, byte for
+// byte. Guarded by pixelBufMutex like everything else in this function.
+std::atomic<bool> g_einkMode{false};
+std::atomic<bool> g_einkFullRequested{false};
+eink::Panel g_eink;
+std::vector<uint32_t> g_einkFlashBuf;
+bool einkPageLive(bool darkPage) { return g_einkMode.load() && !darkPage; }
+
+static void writePixelsFromLevels(const LevelRamp &ramp, bool darkPage,
+                                  eink::Refresh einkTransition = eink::Refresh::None) {
   const int w = HalDisplay::activeWidth();
   const int h = HalDisplay::activeHeight();
   bool ran = false;
@@ -1002,10 +1015,40 @@ static void writePixelsFromLevels(const LevelRamp &ramp, bool darkPage) {
   lastInkRoundingMs.store(static_cast<uint32_t>(SDL_GetTicks() - t0));
   lastInkRoundingRan.store(ran);
   const size_t n = static_cast<size_t>(w) * static_cast<size_t>(h);
+  if (einkPageLive(darkPage)) {
+    // The UC8253 X3 (whose banks EinkPanel.h transcribes). Keyed on the BUILD
+    // FLAG, not on FREEINK_DEVICE_X3: BoardConfig.h is not included in this
+    // file, so that macro reads 0 here on every build (found by this spike's
+    // own log line; see docs/eink-mode-spike-2026-09-25.md).
+#if defined(SIMULATOR_DEVICE_X3) && !defined(SIMULATOR_DISPLAY_UC8279)
+    constexpr bool kIsX3 = true;
+#else
+    constexpr bool kIsX3 = false;
+#endif
+    const uint64_t n0 = SDL_GetTicksNS();
+    g_eink.onLevels(levelBuf, w, h, einkTransition, ramp.lut, n0 / 1000000ull,
+                    kIsX3, pixelBuf);
+    const double writeMs = static_cast<double>(SDL_GetTicksNS() - n0) / 1.0e6;
+    if (einkTransition == eink::Refresh::Half ||
+        einkTransition == eink::Refresh::Full)
+      SDL_Log("[eink] firmware %s refresh -> %s (%.2f ms to write)",
+              einkTransition == eink::Refresh::Half ? "HALF" : "FULL",
+              eink::programFor(einkTransition, kIsX3).name, writeMs);
+    else if (timingLogWanted())
+      SDL_Log("[eink] %s write %.2f ms",
+              einkTransition == eink::Refresh::Fast ? "FAST" : "same-page",
+              writeMs);
+    if (g_eink.flashActive()) requestPlainPresent();
+    return;
+  }
+  // Leaving e-ink mode, or a dark page: the panel's memory of the previous
+  // page and its ghosts is dropped, so re-entering starts from a clean panel.
+  if (g_eink.valid()) g_eink.invalidate();
   for (size_t i = 0; i < n; i++) pixelBuf[i] = ramp[levelBuf[i]];
 }
 
-uint64_t renderBwPixels(const uint8_t *fb) {
+uint64_t renderBwPixels(const uint8_t *fb,
+                        eink::Refresh einkTransition = eink::Refresh::None) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const uint64_t seq = ++pixelBufSeq;
   const PanelPalette pal = livePanelPalette(display.isInverted());
@@ -1017,7 +1060,7 @@ uint64_t renderBwPixels(const uint8_t *fb) {
           white ? GrayscalePreview::kWhite : GrayscalePreview::kBlack;
     }
   }
-  writePixelsFromLevels(ramp, display.isInverted());
+  writePixelsFromLevels(ramp, display.isInverted(), einkTransition);
   lastPixelWriter.store('B');
   if (presentFlashWanted()) {
     // Show this pass, and set the deadline the compose below will wait for.
@@ -1691,6 +1734,27 @@ void setSpeedrun(bool on) {
   requestDirtyPresent();  // show or hide the HUD now, not at the next page
 }
 
+// E-INK MODE (spike 2026-09-25, src/EinkPanel.h). A reconvert, because the
+// page's pixels are written through the panel model only while this is on,
+// and because the surface fields (FieldSelection.h) change with it.
+void setEinkMode(bool on) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_EINK_MODE"))
+    if (env[0]) on = env[0] == '1';
+  if (g_einkMode.exchange(on) == on) return;
+  SDL_Log("[eink] mode %s", on ? "on" : "off");
+  pendingReconvert.store(true);
+  requestDirtyPresent();
+}
+bool einkMode() { return g_einkMode.load(); }
+void requestEinkFullRefresh() {
+  if (!g_einkMode.load()) {
+    SDL_Log("[eink] full refresh ignored: e-ink mode is off");
+    return;
+  }
+  g_einkFullRequested.store(true);
+  requestDirtyPresent();
+}
+
 void setReadingAllowance(int minutes) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_READING_ALLOWANCE"))
     if (env[0]) minutes = std::atoi(env);
@@ -1806,6 +1870,9 @@ void applyDialGroup(simdials::Id group, const simdials::Values &v) {
     // Defined in SurfaceSheet.cpp with the rest of the raking light.
     case RakingLightOn:
       setRakingLight(v[RakingLightOn] != 0);
+      break;
+    case EinkModeOn:
+      setEinkMode(v[EinkModeOn] != 0);
       break;
   }
 }
@@ -2279,7 +2346,7 @@ void HalDisplay::displayWindow(int, int, int, int) {
 
 // Called from the render task (background thread): convert framebuffer to
 // pixels and flag for present.
-void HalDisplay::refreshDisplay(RefreshMode /*mode*/, bool /*turnOffScreen*/) {
+void HalDisplay::refreshDisplay(RefreshMode mode, bool /*turnOffScreen*/) {
   if (powerLogFirstRefresh) {
     powerLogFirstRefresh = false;
     if (powerLogWanted())
@@ -2290,7 +2357,11 @@ void HalDisplay::refreshDisplay(RefreshMode /*mode*/, bool /*turnOffScreen*/) {
   // buffer would show a torn frame. The lender's own refresh follows.
   if (!fb) return;
   snapshotBwBase(fb);
-  renderBwPixels(fb);
+  // The mode is only READ by e-ink mode (src/EinkPanel.h); with it off the
+  // argument is ignored exactly as it always was.
+  renderBwPixels(fb, mode == FULL_REFRESH   ? eink::Refresh::Full
+                     : mode == HALF_REFRESH ? eink::Refresh::Half
+                                            : eink::Refresh::Fast);
 }
 
 // Called from the main thread (simulator_main.cpp) to push pixels to SDL.
@@ -3122,8 +3193,12 @@ void HalDisplay::presentIfNeeded() {
   // comment for the owner report this closes and why deepSleep() cannot settle
   // it alone.
   const bool sleepSettled = displaySleeping.load();
-  const float trailMs = sleepSettled ? 0.0f : glowTrailMs.load();
-  const float beamMs = sleepSettled ? 0.0f : beamPaintMs.load();
+  // E-ink mode's light page is a reflective panel, not a tube: no beam sweeps
+  // it and nothing on it glows (src/EinkPanel.h). Its own refresh waveform is
+  // the transition, and a sweep over the flash frames would be two machines.
+  const bool einkQuiet = g_einkMode.load() && !display.isInverted();
+  const float trailMs = (sleepSettled || einkQuiet) ? 0.0f : glowTrailMs.load();
+  const float beamMs = (sleepSettled || einkQuiet) ? 0.0f : beamPaintMs.load();
   // The beam needs the PREVIOUS frame for the same reason the glow does -- it
   // is what is still on screen below the sweep -- so the capture is gated on
   // either wanting it, not on the glow alone.
@@ -3204,8 +3279,41 @@ void HalDisplay::presentIfNeeded() {
     // The seq is bumped by both pixel writers (renderBwPixels and the
     // grayscale compose) and by nothing else, so a polarity reconvert -- which
     // goes through renderBwPixels -- is a change like any other.
-    if (texture != uploadedTexture || pixelBufSeq != uploadedSeq ||
-        live != uploadedLive) {
+    // E-INK MODE's WAVEFORM (src/EinkPanel.h): while a full refresh or scrub
+    // is running, the texture carries the panel's frame instead of the page,
+    // and the next present is owed so the sequence advances. A frame is only
+    // re-uploaded when the panel's own frame index moves (20 ms). Once the
+    // sequence ends `uploadedTexture` is null, so the settled page -- already
+    // in pixelBuf -- uploads below on this same pass. Sleep settles it at
+    // once: the sleep loop never presents again, so a flash left running
+    // would freeze mid-inversion for the whole sleep.
+    bool einkFrameOnGlass = false;
+    if (g_einkMode.load() && !display.isInverted()) {
+      if (g_einkFullRequested.exchange(false) &&
+          g_eink.requestFull(SDL_GetTicks(), pixelBuf))
+        SDL_Log("[eink] full refresh requested by the host");
+      if (sleepSettled) g_eink.endFlash();
+      if (g_einkFlashBuf.size() < live) g_einkFlashBuf.resize(live);
+      const uint64_t f0 = SDL_GetTicksNS();
+      const int fr = g_eink.flashFrame(SDL_GetTicks(), g_einkFlashBuf.data());
+      if (fr >= 0) {
+        const uint64_t f1 = SDL_GetTicksNS();
+        if (fr == 1)
+          SDL_UpdateTexture(texture, nullptr, g_einkFlashBuf.data(),
+                            activeWidth() * sizeof(uint32_t));
+        if (fr == 1 && timingLogWanted())
+          SDL_Log("[eink] flash frame: build %.2f ms, upload %.2f ms",
+                  (f1 - f0) / 1.0e6, (SDL_GetTicksNS() - f1) / 1.0e6);
+        uploadedTexture = nullptr;
+        einkFrameOnGlass = true;
+        pendingPresent.store(true);
+      }
+    } else {
+      g_einkFullRequested.store(false);
+    }
+    if (!einkFrameOnGlass && (texture != uploadedTexture ||
+                              pixelBufSeq != uploadedSeq ||
+                              live != uploadedLive)) {
       const uint64_t upT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
       SDL_UpdateTexture(texture, nullptr, pixelBuf,
                         activeWidth() * sizeof(uint32_t));
@@ -3552,7 +3660,7 @@ void HalDisplay::presentIfNeeded() {
   const fieldselect::Active fields = fieldselect::select(
       {display.isInverted(), SimulatorOverlay::scanlinesIntensity.load(),
        SimulatorOverlay::letterpressStrength.load(),
-       SimulatorOverlay::grainStrength.load()});
+       SimulatorOverlay::grainStrength.load(), g_einkMode.load()});
 
   // ENTER AND LEAVE THE GLASS -- device pixels, the whole app surface, no
   // logical presentation. Every whole-sheet pass below goes through this pair.
