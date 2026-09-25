@@ -115,6 +115,7 @@ struct Textures {
   std::vector<float> tooth;  // the press's kiss per panel pixel
   std::vector<float> inkRow, inkDil;  // the page's ink, and blur scratch
   std::vector<float> interior;        // ink blurred one device pixel
+  std::vector<readingallowance::picture::PressSample> samples;
   uint32_t veilSeed = 0;
   int scale = 1;
   SDL_Texture *pressTarget = nullptr;  // the faded letterpress field
@@ -149,7 +150,7 @@ inline void destroyAll() {
 // LIGHT: the starved press. Rebuilt per PAGE (the ink, its interior, and the
 // press's kiss off the page's own sheet seed) and per decay STEP (the alpha
 // only). `pixels` is the presented panel (w*h ARGB), a copy the caller took
-// under the pixel lock. See picture::starvedRetained for the model.
+// under the pixel lock. See picture::printedFraction for the model.
 template <typename DrawPanel>
 inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
                       int scale, uint64_t seq, uint32_t sheetSeed, double f,
@@ -172,14 +173,15 @@ inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
   if (newPage || t.veilStep != step) {
     const size_t n = static_cast<size_t>(w) * h;
     if (newPage) {
-      // The page's ink, the stroke interior (ink box-blurred one device pixel,
-      // so a stroke's edge reads about half and its core 1), and the kiss.
+      // Per PAGE: the ink, the stroke interior (ink box-blurred one device
+      // pixel), each press sample's lanes, and what the roller spent on the
+      // rows above (ghosting). Per STEP only the alpha below is recomputed.
       std::vector<float> &ink = t.inkRow;
       std::vector<float> &tmp = t.inkDil;
       ink.resize(n);
       tmp.resize(n);
       t.interior.resize(n);
-      t.tooth.resize(n);
+      t.samples.resize(n);
       for (size_t i = 0; i < n; i++) ink[i] = inkness(pixels[i], pal);
       const int rad = std::max(1, scale);
       for (int y = 0; y < h; y++)
@@ -196,9 +198,53 @@ inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
             sum += tmp[static_cast<size_t>(k) * w + x];
           t.interior[static_cast<size_t>(y) * w + x] = sum / c;
         }
+      // DEPLETION: the mean ink in a band of rows just above each pixel and
+      // a little to either side -- the roller met those first. In the PAGE's
+      // reading orientation the roller runs down the page, which on this
+      // landscape framebuffer (the reader is Portrait, rotated 90 CCW) is
+      // along +x; the band is the WIN framebuffer columns before this one.
+      const int win = 28 * std::max(1, scale);
+      const int half = 6 * std::max(1, scale);
+      std::vector<float> colSum(static_cast<size_t>(w) * h);
+      // prefix sums along x per row of a vertically box-blurred ink
+      for (int y = 0; y < h; y++) {
+        float run = 0;
+        for (int x = 0; x < w; x++) {
+          float v = 0; int c = 0;
+          for (int k = std::max(0, y - half); k <= std::min(h - 1, y + half); k += std::max(1, scale), c++)
+            v += ink[static_cast<size_t>(k) * w + x];
+          run += v / c;
+          colSum[static_cast<size_t>(y) * w + x] = run;
+        }
+      }
+      const uint32_t phase = phosphorgrain::hash3(sheetSeed, 0x524F4Cu, 7u);
+      const float ph = static_cast<float>(phase & 0xFFFF) / 65535.0f;
       for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++)
-          t.tooth[static_cast<size_t>(y) * w + x] = kissAt(x, y, w, h, sheetSeed);
+        for (int x = 0; x < w; x++) {
+          const size_t i = static_cast<size_t>(y) * w + x;
+          const int x0 = std::max(0, x - win), x1 = std::max(0, x - 1 - rad);
+          float dep = 0.0f;
+          if (x1 > x0) dep = (colSum[static_cast<size_t>(y) * w + x1] -
+                              colSum[static_cast<size_t>(y) * w + x0]) / (x1 - x0);
+          PressSample &ps = t.samples[i];
+          ps.interior = t.interior[i];
+          ps.tooth = phosphorgrain::unitFromHash(phosphorgrain::hash3(
+              static_cast<uint32_t>(x), static_cast<uint32_t>(y), sheetSeed ^ 0x544F4F54u));
+          const float nx = (x + 0.5f) / w, ny = (y + 0.5f) / h;
+          ps.form = phosphorgrain::valueNoise(nx * 3.0f, ny * 3.0f, sheetSeed ^ 0x464F524Du);
+          ps.plate = phosphorgrain::valueNoise(nx * 4.0f, ny * 4.0f, sheetSeed ^ 0x504C5445u);
+          ps.blob = blobAt(x, y, scale, sheetSeed);
+          // text covers ~15% of a band of rows, so x4 makes a full line
+          // above read as a heavily robbed roller
+          ps.depletion = std::min(1.0f, dep * 4.0f);
+          // word-sized skip-out patches (~40 device px cells)
+          ps.skip = phosphorgrain::valueNoise(x / (40.0f * std::max(1, scale)),
+                                              y / (40.0f * std::max(1, scale)),
+                                              sheetSeed ^ 0x534B4950u);
+          // the roller's circumference: ~0.37 of the page's height per turn,
+          // along the roller's travel (+x here)
+          ps.band = 0.5f + 0.5f * std::sin(6.2831853f * (nx * 2.7f + ph));
+        }
     }
     t.veilSeq = seq;
     t.veilSeed = sheetSeed;
@@ -208,15 +254,11 @@ inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
     const uint32_t rgb = (static_cast<uint32_t>(pal.paper[0]) << 16) |
                          (static_cast<uint32_t>(pal.paper[1]) << 8) | pal.paper[2];
     for (size_t i = 0; i < n; i++) {
-      // The veil must take away (1 - retained) of WHATEVER ink is there: a
-      // veil weighted by the pixel's own ink fraction leaves ink*(1-ink) of
-      // it behind -- a quarter of every half-covered edge pixel, which read
-      // as a ghost of the whole page at 5:00 (measured p5 214 against paper
-      // 241). Masked to the ink and one device pixel around it, so bare paper
-      // is never veiled.
+      // The veil takes away (1 - printed) of WHATEVER ink is there, masked to
+      // the ink and one device pixel around it, so bare paper is never veiled
+      // (an ink-weighted veil left ink*(1-ink) of every edge pixel: a ghost).
       const float mask = std::min(1.0f, 6.0f * std::max(t.inkRow[i], t.interior[i]));
-      const float a =
-          mask * (1.0f - starvedRetained(t.tooth[i], t.interior[i], tf));
+      const float a = mask * (1.0f - printedFraction(t.samples[i], tf));
       t.veilPixels[i] = (static_cast<uint32_t>(a * 255.0f + 0.5f) << 24) | rgb;
     }
     SDL_UpdateTexture(t.veil, nullptr, t.veilPixels.data(), w * 4);

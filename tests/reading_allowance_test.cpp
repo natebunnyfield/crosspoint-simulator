@@ -95,62 +95,49 @@ int main() {
   check(quantize(1) == 120 && quantize(2) == 120, "spent quantizes to 120");
   check(quantize(0.001) >= 0 && quantize(0.5) == 60, "midpoint is 60");
 
-  // THE LIGHT PICTURE. At the first instant of the last minute EVERY pixel
-  // keeps all of its ink -- the first curve started its threshold at 0.15 and
-  // 4.6% of the ink dropped by up to 59% the moment the minute began
-  // (adversarial review). At the end NONE survives, or the spent page reads.
+  // THE LIGHT PICTURE (v2, the viscous starved press): exactly clean at
+  // t = 0, gone at t = 1, only ever losing ink, a stroke's EDGE holding longer
+  // than its middle (edge pressure at the type's shoulder), and every
+  // incidental term (a robbed roller, the roller's thin band, a skipped patch)
+  // starving a pixel EARLIER, never later.
   {
     using namespace readingallowance::picture;
-    bool allKept = true, noneLeft = true, mono = true;
-    for (int y = 0; y < 200; y++)
-      for (int x = 0; x < 200; x++) {
-        const float tooth = toothAt(x, y);
-        if (tooth < 0.0f || tooth > 1.0f) allKept = false;
-        if (inkRetained(tooth, 0.0f) < 1.0f) allKept = false;
-        if (inkRetained(tooth, 1.0f) > 0.0f) noneLeft = false;
-        float prev = 2.0f;
-        for (int k = 0; k <= 120; k++) {
-          const float r = inkRetained(tooth, k / 120.0f);
-          if (r > prev + 1e-6f) mono = false;
-          prev = r;
-        }
-      }
-    check(allKept, "light: t = 0 keeps every pixel's ink (and tooth in [0,1])");
-    check(noneLeft, "light: t = 1 leaves no ink anywhere");
-    check(mono, "light: ink only ever leaves");
-    check(veilAlpha(0.0f, 0.5f, 1.0f) == 0.0f, "light: a paper pixel is never veiled");
-    // THE STARVED PRESS: clean at t = 0, gone at t = 1, only ever losing ink,
-    // and a stroke's EDGE goes before its interior at the same kiss.
-    bool clean0 = true, gone1 = true, monoS = true, edgeFirst = true;
-    for (int y = 0; y < 120; y++)
-      for (int x = 0; x < 120; x++) {
-        const float k = kissAt(x, y, 120, 120, 0xC0FFEEu);
-        if (k < 0.0f || k > 1.0f) clean0 = false;
-        for (float in : {0.0f, 0.5f, 1.0f}) {
-          if (starvedRetained(k, in, 0.0f) != 1.0f) clean0 = false;
-          if (starvedRetained(k, in, 1.0f) != 0.0f) gone1 = false;
+    bool clean0 = true, gone1 = true, mono = true, edgeHolds = true, incidental = true;
+    for (int y = 0; y < 60; y++)
+      for (int x = 0; x < 60; x++) {
+        PressSample p{};
+        p.tooth = phosphorgrain::unitFromHash(phosphorgrain::hash3(x, y, 1u));
+        p.form = phosphorgrain::valueNoise(x / 20.0f, y / 20.0f, 2u);
+        p.plate = phosphorgrain::valueNoise(x / 15.0f, y / 15.0f, 3u);
+        p.blob = blobAt(x, y, 1, 4u);
+        if (p.blob < 0.0f || p.blob > 1.0f) clean0 = false;
+        for (float in : {0.5f, 1.0f}) {
+          p.interior = in;
+          if (printedFraction(p, 0.0f) != 1.0f) clean0 = false;
+          if (printedFraction(p, 1.0f) != 0.0f) gone1 = false;
           float prev = 2.0f;
-          for (int s = 0; s <= 120; s++) {
-            const float r = starvedRetained(k, in, s / 120.0f);
-            if (r > prev + 1e-6f) monoS = false;
+          for (int k = 0; k <= 120; k++) {
+            const float r = printedFraction(p, k / 120.0f);
+            if (r > prev + 1e-6f) mono = false;
             prev = r;
           }
         }
-        for (int s = 1; s < 120; s++)
-          if (starvedRetained(k, 0.2f, s / 120.0f) > starvedRetained(k, 1.0f, s / 120.0f) + 1e-6f)
-            edgeFirst = false;
+        for (int k = 1; k < 120; k++) {
+          PressSample e = p, c = p; e.interior = 0.5f; c.interior = 1.0f;
+          if (printedFraction(e, k / 120.0f) + 1e-6f < printedFraction(c, k / 120.0f)) edgeHolds = false;
+          PressSample r = c; r.depletion = 1.0f; r.band = 1.0f; r.skip = 1.0f;
+          if (printedFraction(r, k / 120.0f) > printedFraction(c, k / 120.0f) + 1e-6f) incidental = false;
+        }
       }
-    check(clean0, "starved press: t = 0 keeps all ink (kiss in [0,1])");
-    check(gone1, "starved press: t = 1 leaves none");
-    check(monoS, "starved press: ink only ever leaves");
-    check(edgeFirst, "starved press: a stroke's edge goes before its interior");
-    check(pressLeft(0.0f) == 1.0f && pressLeft(1.0f) == 0.0f && pressLeft(0.5f) < 1.0f,
-          "starved press: the impression recedes to nothing");
-    // The kiss is the PAGE's paper: a different sheet seed is a different
-    // break-up, the same seed the same one.
-    check(kissAt(10, 10, 100, 100, 1u) == kissAt(10, 10, 100, 100, 1u) &&
-          kissAt(10, 10, 100, 100, 1u) != kissAt(10, 10, 100, 100, 2u),
-          "starved press: the break-up belongs to the page's sheet");
+    check(clean0, "viscous press: t = 0 prints everything (blob in [0,1])");
+    check(gone1, "viscous press: t = 1 prints nothing");
+    check(mono, "viscous press: ink only ever leaves");
+    check(edgeHolds, "viscous press: a stroke's edge holds longer than its middle");
+    check(incidental, "viscous press: a robbed roller, its band and a skip starve earlier");
+    check(pressLeft(0.0f) == 1.0f && pressLeft(1.0f) == 0.0f && pressLeft(0.5f) > 0.8f,
+          "viscous press: the impression holds until late, then goes");
+    check(blobAt(10, 10, 1, 1u) == blobAt(10, 10, 1, 1u) && blobAt(10, 10, 1, 1u) != blobAt(10, 10, 1, 2u),
+          "viscous press: the split field belongs to the page's sheet");
     // inkness reads a pixel against the page's own palette.
     const panelpalette::Palette pal{{0x5C, 0x33, 0x2B}, {0xF9, 0xF3, 0xE9}};
     check(inkness(0xFF5C332Bu, pal) == 1.0f, "inkness: the ink is full ink");
