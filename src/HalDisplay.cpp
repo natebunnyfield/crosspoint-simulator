@@ -31,6 +31,7 @@
 #include "ReadingLog.h"
 #include "SurfaceAllowance.h"
 #include "Speedrun.h"
+#include "SurfaceSpeedRead.h"
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
@@ -306,6 +307,10 @@ static std::mutex pixelBufMutex;
 // alive it presents every frame. The writers already know, so they say so, and
 // the comparison is one integer. Under pixelBufMutex like the buffer itself.
 static uint64_t pixelBufSeq = 0;
+// SDL_GetTicks() of the last pixelBuf write, under pixelBufMutex's writers.
+// Speed read waits for a write newer than a read-aloud publish before it cuts
+// words out of the buffer (src/SurfaceSpeedRead.h).
+static std::atomic<uint64_t> pixelBufWriteMs{0};
 // The pixelBufSeq produced by a POLARITY RECONVERT, or 0. A reconvert rewrites
 // every pixel from the cached planes, so it bumps the seq exactly like a new
 // page -- and until 2026-08-30 the CRT beam read that bump as new content and
@@ -1051,6 +1056,7 @@ uint64_t renderBwPixels(const uint8_t *fb,
                         eink::Refresh einkTransition = eink::Refresh::None) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const uint64_t seq = ++pixelBufSeq;
+  pixelBufWriteMs.store(SDL_GetTicks());
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const LevelRamp ramp(pal);
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
@@ -1130,6 +1136,7 @@ uint64_t composeGrayscalePreview() {
     return 0;
   }
   const uint64_t seq = ++pixelBufSeq;
+  pixelBufWriteMs.store(SDL_GetTicks());
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
     for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool baseWhite = getBit(bwBase, x, y);
@@ -1755,6 +1762,21 @@ void requestEinkFullRefresh() {
   requestDirtyPresent();
 }
 
+void setSpeedRead(bool on) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_SPEED_READ"))
+    if (env[0]) on = env[0] == '1';
+  simspeedread::setEnabled(on);
+  requestDirtyPresent();
+}
+
+void setSpeedReadWpm(int wpm) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_SPEED_READ_WPM"))
+    if (env[0]) wpm = std::atoi(env);
+  simspeedread::setWpm(wpm);
+}
+
+bool speedReadTakeTap() { return simspeedread::takeTap(); }
+
 void setReadingAllowance(int minutes) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_READING_ALLOWANCE"))
     if (env[0]) minutes = std::atoi(env);
@@ -1873,6 +1895,12 @@ void applyDialGroup(simdials::Id group, const simdials::Values &v) {
       break;
     case EinkModeOn:
       setEinkMode(v[EinkModeOn] != 0);
+      break;
+    case SpeedReadOn:
+      setSpeedRead(v[SpeedReadOn] != 0);
+      break;
+    case SpeedReadWpm:
+      setSpeedReadWpm(v[SpeedReadWpm]);
       break;
   }
 }
@@ -3124,6 +3152,11 @@ void HalDisplay::presentIfNeeded() {
                                             SimulatorOverlay::sleepScreenEntered(),
                                             SimulatorOverlay::appInactive.load()));
     }
+    // SPEED READ (spike): the word clock, stepped every pass like the goal's.
+    // A PLAIN present when the word changes -- see the speedrun HUD's note.
+    if (simspeedread::step(SDL_GetTicks(), bookPage && !displaySleeping.load(),
+                           pixelBufWriteMs.load()))
+      requestPlainPresent();
   }
 
   if (!pendingPresent.exchange(false) && !screenshotDue)
@@ -3971,6 +4004,25 @@ void HalDisplay::presentIfNeeded() {
     SDL_SetRenderScale(sdl_renderer, sc, sc);
     SDL_RenderDebugText(sdl_renderer, x0 / sc + 3, y0 / sc + 2, line.c_str());
     SDL_SetRenderScale(sdl_renderer, 1.0f, 1.0f);
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  }
+
+  // SPEED READ (spike, src/SurfaceSpeedRead.h): one word at a time, cut from
+  // the page itself, over the page's own rect in OUTPUT pixels. Chrome, like
+  // the HUD above, so the whole-glass passes below still cover it.
+  if (simspeedread::showing() && sheetPanelW > 0) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    simspeedread::draw(sdl_renderer, pixelBuf, pixelBufMutex, activeWidth(),
+                       activeHeight(), cp::renderScale(), sheetPanelOrientation,
+                       static_cast<float>(sheetPanelX),
+                       static_cast<float>(sheetPanelY),
+                       static_cast<float>(sheetPanelW),
+                       static_cast<float>(sheetPanelH),
+                       livePanelPalette(display.isInverted()));
     int logW = 0, logH = 0;
     getLogicalPresentationSize(orientation, &logW, &logH);
     SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,

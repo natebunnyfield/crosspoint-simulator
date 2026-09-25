@@ -556,6 +556,13 @@ bool einkMode();
 // verb EINKFULL): the panel runs its full waveform over the page it shows and
 // the ghosts clear. A no-op, logged, while e-ink mode is off.
 void requestEinkFullRefresh();
+// SPEED READ (RSVP, src/SpeedRead.h): on/off and words per minute. Settings
+// rows on the phone; CROSSPOINT_SIM_SPEED_READ / _WPM override.
+void setSpeedRead(bool on);
+void setSpeedReadWpm(int wpm);
+// A tap on the glass while a speed-read word is up: taken as pause/resume and
+// true returned, so the caller does nothing else with it. False otherwise.
+bool speedReadTakeTap();
 
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying

@@ -2054,6 +2054,56 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>The book one word at a time, in one spot, so your eyes never move: each word is cut from the page itself and lined up on the marks at the letter you recognize it by. Longer pauses at commas, sentence ends and paragraph breaks; the page turns itself. Tap the screen to pause or resume.</string>
+			<key>Title</key>
+			<string>Speed Read</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>speedRead</string>
+			<key>Title</key>
+			<string>Speed Read (Experimental)</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>300</integer>
+			<key>Key</key>
+			<string>speedReadWpm</string>
+			<key>Title</key>
+			<string>Speed</string>
+			<key>Titles</key>
+			<array>
+				<string>200 words per minute</string>
+				<string>250 words per minute</string>
+				<string>300 words per minute</string>
+				<string>350 words per minute</string>
+				<string>400 words per minute</string>
+				<string>500 words per minute</string>
+				<string>600 words per minute</string>
+				<string>800 words per minute</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>200</integer>
+				<integer>250</integer>
+				<integer>300</integer>
+				<integer>350</integer>
+				<integer>400</integer>
+				<integer>500</integer>
+				<integer>600</integer>
+				<integer>800</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>On a dark page, switching off looks like switching off a tube: the picture collapses to a bright line, the line closes to a dot, and the dot fades. The screen then stays dark until you wake it — you will not see the sleep screen.</string>
 			<key>Title</key>
 			<string>Sleep</string>
