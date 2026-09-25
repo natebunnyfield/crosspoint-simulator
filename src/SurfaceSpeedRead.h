@@ -56,6 +56,10 @@ struct State {
   std::atomic<int> wpm{speedread::kDefaultWpm};
   std::atomic<bool> tapToggle{false};
   std::atomic<bool> showing{false};
+  // Read-aloud turns pages itself when its speech ends; with both on, each
+  // page end got two page-forward presses (adversarial review, build 213).
+  // While this is set speed read leaves the turn to read-aloud.
+  std::atomic<bool> readAloudTurns{false};
 
   speedread::Reader reader;
   uint32_t lastGen = 0;
@@ -93,6 +97,8 @@ inline void destroyTexture() {
 
 // On/off. Capture is asked for through the channel's PEEKER flag, OR'd with
 // the read-aloud consumer's own -- never written over it.
+inline void setReadAloudTurns(bool on) { st().readAloudTurns.store(on); }
+
 inline void setEnabled(bool on) {
   State &s = st();
   if (s.enabled.exchange(on) == on) return;
@@ -116,6 +122,7 @@ inline void setEnabled(bool on) {
     s.hasPending = false;
     s.curUtf8.clear();
     s.curRects.clear();
+    destroyTexture();  // nothing to show; do not hold the word crop
   }
   SDL_Log("[speedread] %s", on ? "on" : "off");
 }
@@ -207,8 +214,12 @@ inline bool step(uint64_t now, bool onReaderPage, uint64_t lastPixelWriteMs) {
                 s.reader.current()->paragraphEnd ? " PARA" : "");
     }
     if (e.requestTurn) {
-      SDL_Log("[speedread] end of page -> page forward");
-      gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60);
+      if (s.readAloudTurns.load()) {
+        SDL_Log("[speedread] end of page -> read-aloud turns the page");
+      } else {
+        SDL_Log("[speedread] end of page -> page forward");
+        gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60);
+      }
     }
   }
   const bool show = onReaderPage && s.reader.hasPage() &&

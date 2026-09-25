@@ -563,6 +563,9 @@ void setSpeedReadWpm(int wpm);
 // A tap on the glass while a speed-read word is up: taken as pause/resume and
 // true returned, so the caller does nothing else with it. False otherwise.
 bool speedReadTakeTap();
+// Read-aloud is on and turns pages itself at the end of its speech: speed read
+// then leaves page turns to it, so a page end is never pressed twice.
+void setSpeedReadDefersTurns(bool readAloudOn);
 
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying

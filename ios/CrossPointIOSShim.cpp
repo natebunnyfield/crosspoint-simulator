@@ -2225,6 +2225,7 @@ void pollReadingAllowance() {
 // SPEED READ (RSVP), two Settings rows; edge-triggered. src/SpeedRead.h.
 void pollSpeedRead() {
   static int s_on = -1, s_wpm = -1;
+  SimulatorOverlay::setSpeedReadDefersTurns(CrossPointPrefs_readAloudEnabled() != 0);
   const int on = CrossPointPrefs_speedRead();
   const int wpm = CrossPointPrefs_speedReadWpm();
   if (wpm != s_wpm) {

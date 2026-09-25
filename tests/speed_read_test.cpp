@@ -191,9 +191,11 @@ int main() {
     Reader::Event e = rd.step(5100);
     CHECK(e.requestTurn && !e.changed && rd.awaitingTurn());
     CHECK(!rd.step(5200).requestTurn);
-    // a re-render of the same page does not move the position
+    // a re-render of the same page does not move the position, and does not
+    // answer the pending turn: no second turn may be asked for
     rd.pageArrived(speedread::wordsFromPage(c.text, c.rects), 5300, true);
     CHECK(rd.index() == 3);
+    CHECK(rd.awaitingTurn() && !rd.step(5350).requestTurn);
     // the new page restarts at its first word
     rd.pageArrived(speedread::wordsFromPage(c.text, c.rects), 5400, false);
     CHECK(rd.index() == 0 && !rd.awaitingTurn());

@@ -240,7 +240,11 @@ class Panel {
       accumulate(levels, n);
     } else if (!fresh && (transition == Refresh::Half ||
                           transition == Refresh::Full)) {
-      startFlash(levels, n, programFor(transition, isX3), nowMs);
+      // FROM THE OLD PAGE: prev_ still holds it here (it is overwritten two
+      // lines down). Passing `levels` started the waveform from the NEW page,
+      // so the glass jumped first and then flashed unchanged content, and on
+      // HALF no changed pixel was ever driven (adversarial review, build 213).
+      startFlash(prev_.data(), n, programFor(transition, isX3), nowMs);
     }
     std::memcpy(prev_.data(), levels, n);
     if (flashActive_) std::memcpy(flashNew_.data(), levels, n);
@@ -303,6 +307,8 @@ class Panel {
     lastFrame_ = -1;
   }
   bool flashActive() const { return flashActive_; }
+  // The level the running waveform started pixel i from (tests).
+  uint8_t flashStartLevel(size_t i) const { return flashOld_[i]; }
   int cap() const { return cap_; }
   // The ghost at pixel i, in levels (signed; negative = darker than the page).
   double ghostAt(size_t i) const {
