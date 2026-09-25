@@ -38,6 +38,14 @@ struct Dials {
   int scanlinesIntensity = scanlines::kIntensityOff;
   int letterpressStrength = letterpress::kStrengthOff;
   int grainStrength = phosphorgrain::kStrengthOff;
+  // E-INK MODE (spike 2026-09-25, src/EinkPanel.h). On a LIGHT page it is a
+  // third doctrine: an e-paper panel, not a printed sheet, so NO surface field
+  // composites -- no letterpress sheet and no grain. That is also what keeps
+  // its ghost plane honest: the ghost's 7:1 cap is computed against the bare
+  // palette, which is only true if nothing else spends the paper's headroom.
+  // The dark page is untouched (e-ink mode draws nothing there). Defaulted, so
+  // every existing four-field initializer means exactly what it did.
+  bool eink = false;
 };
 
 struct Active {
@@ -65,12 +73,14 @@ struct Active {
 constexpr Active select(const Dials &d) {
   Active a;
   a.scanlines = d.dark && d.scanlinesIntensity > scanlines::kIntensityOff;
-  a.letterpress = !d.dark && d.letterpressStrength > letterpress::kStrengthOff;
+  const bool einkPage = d.eink && !d.dark;
+  a.letterpress = !d.dark && !einkPage &&
+                  d.letterpressStrength > letterpress::kStrengthOff;
   // The exclusion. Note it is NOT "not dark-and-scanlines": a letterpress
   // strength with the scanlines also somehow live must still suppress the
   // grain, because the breach is two fields multiplying, whatever the two are.
   a.grain = d.grainStrength != phosphorgrain::kStrengthOff && !a.scanlines &&
-            !a.letterpress;
+            !a.letterpress && !einkPage;
   return a;
 }
 

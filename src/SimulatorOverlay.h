@@ -545,6 +545,17 @@ void setZenActive(bool on);
 // THE READING SPEEDRUN's HUD on or off (src/Speedrun.h). A Settings row on
 // the phone; CROSSPOINT_SIM_SPEEDRUN overrides.
 void setSpeedrun(bool on);
+// E-INK MODE (spike 2026-09-25): the light page drawn as the real e-paper
+// panel -- ghosts accumulate across the firmware's FAST refreshes, and its
+// HALF/FULL requests run the X3's decoded waveform. Off by default and
+// bit-exact off. Model src/EinkPanel.h; docs/eink-mode-spike-2026-09-25.md.
+// CROSSPOINT_SIM_EINK_MODE overrides the switch.
+void setEinkMode(bool on);
+bool einkMode();
+// A host-side full refresh (the "Full Refresh" gesture action; the script
+// verb EINKFULL): the panel runs its full waveform over the page it shows and
+// the ghosts clear. A no-op, logged, while e-ink mode is off.
+void requestEinkFullRefresh();
 
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying

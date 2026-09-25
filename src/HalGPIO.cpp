@@ -298,6 +298,10 @@ enum class SyntheticAction {
   // uses to ask Manage Files for its action menu — same reasoning as
   // FontFamilyStep above.
   OpenActionMenu,
+  // EINKFULL calls SimulatorOverlay::requestEinkFullRefresh -- the call the
+  // "Full Refresh" gesture action makes -- so e-ink mode's host-side full
+  // refresh is provable headlessly (src/EinkPanel.h).
+  EinkFullRefresh,
   // RawKey* push a REAL SDL key event instead of writing
   // syntheticButtonDown[], so a script can exercise the scancode->button map
   // and the text-entry gate that sits in front of it. Everything else here
@@ -762,6 +766,8 @@ void initializeSyntheticEvents() {
         // polls for it; on any other screen it is a no-op until consumed or
         // drained.
         syntheticEvents.push_back({atMs, SyntheticAction::OpenActionMenu});
+      } else if (key == "EINKFULL") {
+        syntheticEvents.push_back({atMs, SyntheticAction::EinkFullRefresh});
       } else if (key == "S" || key == "SLEEP") {
         syntheticEvents.push_back({atMs, SyntheticAction::Sleep});
       } else if (key == "RESIGN") {
@@ -906,6 +912,9 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::OpenActionMenu:
       gpio.injectOpenActionMenu();
+      break;
+    case SyntheticAction::EinkFullRefresh:
+      SimulatorOverlay::requestEinkFullRefresh();
       break;
     case SyntheticAction::RawKeyDown:
       pushRawKey(event.scancode, event.keymod, /*down=*/true);

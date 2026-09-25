@@ -80,13 +80,14 @@ enum Id {
   ReadingAllowanceMinutes,
   SpeedrunOn,
   RakingLightOn,
+  EinkModeOn,
 };
 
 // NOT an enumerator: the appliers switch over Id with no `default:`, so that a
 // row added here without a setter call is a compiler warning rather than a
 // dial that silently does nothing. A count enumerator would have to be
 // handled in that switch, which is exactly the case a reader skips past.
-inline constexpr int kDialCount = RakingLightOn + 1;
+inline constexpr int kDialCount = EinkModeOn + 1;
 
 // THE THREE NON-UNIFORMITIES, as flags rather than as special cases scattered
 // through three call sites. Every one of them is a real difference in what the
@@ -308,6 +309,13 @@ inline constexpr Dial kDials[kDialCount] = {
   // src/RakingLight.h, docs/raking-light-spike-2026-09-25.md.
   {RakingLightOn, "raking light", "CROSSPOINT_SIM_RAKING_LIGHT",
    "rakingLight", 0, 1, 0, 0, kPlain, RakingLightOn},
+  // E-INK MODE (spike 2026-09-25): the light page as the real e-paper panel,
+  // ghosting across FAST refreshes and running the X3's decoded waveform on
+  // HALF/FULL. A Settings ROW that ships OFF, and off on the desktop, so every
+  // capture stays byte-identical. src/EinkPanel.h,
+  // docs/eink-mode-spike-2026-09-25.md.
+  {EinkModeOn, "e-ink mode", "CROSSPOINT_SIM_EINK_MODE", "einkMode", 0, 1, 0,
+   0, kPlain, EinkModeOn},
 };
 // clang-format on
 

@@ -318,6 +318,17 @@ void performGestureAction(gesturebind::Action a, const char *what) {
     gpio.injectOpenActionMenu();
     return;
   }
+  if (a == gesturebind::Action::FullRefresh) {
+    // HOST-SIDE, like the panel it drives: e-ink mode runs the panel's full
+    // waveform over the page on the glass and clears its ghosts
+    // (src/EinkPanel.h). The firmware is not asked -- on the device a manual
+    // full refresh is the same waveform over the same page. With e-ink mode
+    // off the call logs that it did nothing.
+    SDL_Log("[zen] %s -> full refresh (e-ink mode %s)", what,
+            SimulatorOverlay::einkMode() ? "on" : "off");
+    SimulatorOverlay::requestEinkFullRefresh();
+    return;
+  }
 
   const int btn = gesturebind::buttonFor(a);
   if (btn == gesturebind::kNoButton) {
