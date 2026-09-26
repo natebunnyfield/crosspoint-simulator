@@ -69,6 +69,14 @@ static NSString *const kLetterpressPercent = @"letterpressPercent";
 static NSString *const kPressRingPercent = @"pressRingPercent";
 static NSString *const kPressDebossPercent = @"pressDebossPercent";
 static NSString *const kPressPressurePercent = @"pressPressurePercent";
+// THE RAKING LIGHT'S FOUR DIALS (2026-09-26), the same shape: 0..200 sliders
+// that ship at 100, so a missing key must not read as 0 (0 pins the lamp,
+// flattens the sheet, or leaves the shadow at the depth the owner could not
+// see). Same fallback discipline as the Ink group. src/RakingLight.h Dials.
+static NSString *const kRakingStrengthPercent = @"rakingStrengthPercent";
+static NSString *const kRakingLampHeightPercent = @"rakingLampHeightPercent";
+static NSString *const kRakingTiltRangePercent = @"rakingTiltRangePercent";
+static NSString *const kRakingPagePercent = @"rakingPagePercent";
 // Hidden marker for the one-shot Ink defaults migration (no Settings row).
 static NSString *const kInkDefaultsMigration = @"inkDefaultsMigration";
 
@@ -333,6 +341,10 @@ static void ensureDefaults(void) {
         kPressRingPercent : @(93),
         kPressDebossPercent : @(99),
         kPressPressurePercent : @(125),
+        kRakingStrengthPercent : @(100),
+        kRakingLampHeightPercent : @(100),
+        kRakingTiltRangePercent : @(100),
+        kRakingPagePercent : @(100),
         kReadingAllowanceMinutes : @(5),
         kSpeedReadWpm : @(300),
       }];
@@ -984,6 +996,16 @@ int CrossPointPrefs_rakingLight(void) {
   checkKnown(kRakingLight);
   return [[NSUserDefaults standardUserDefaults] boolForKey:kRakingLight] ? 1 : 0;
 }
+
+// ...and its four dials (2026-09-26, owner: "based on variable settings"),
+// read exactly as the Ink sliders are: a slider's double, rounded and clamped
+// to 0..200, with the shipped 100 for a store that holds nothing.
+// tests/dial_table_test.cpp pins the fallback literal on each line below to
+// the Root.plist DefaultValue and to the dial table.
+int CrossPointPrefs_rakingStrengthPercent(void) { return inkSliderPercent(kRakingStrengthPercent, 100); }
+int CrossPointPrefs_rakingLampHeightPercent(void) { return inkSliderPercent(kRakingLampHeightPercent, 100); }
+int CrossPointPrefs_rakingTiltRangePercent(void) { return inkSliderPercent(kRakingTiltRangePercent, 100); }
+int CrossPointPrefs_rakingPagePercent(void) { return inkSliderPercent(kRakingPagePercent, 100); }
 
 // E-INK MODE (spike 2026-09-25): the light page as the real e-paper panel.
 // A Settings row that ships OFF; a missing key reads NO, which is the shipped

@@ -17,6 +17,10 @@
 #include "SimulatorOverlay.h"
 
 extern "C" int CrossPointPrefs_rakingLight(void);
+extern "C" int CrossPointPrefs_rakingStrengthPercent(void);
+extern "C" int CrossPointPrefs_rakingLampHeightPercent(void);
+extern "C" int CrossPointPrefs_rakingTiltRangePercent(void);
+extern "C" int CrossPointPrefs_rakingPagePercent(void);
 extern "C" void CrossPointRakingLight_perFrame(void);
 extern "C" void CrossPointRakingLight_appWillResignActive(void);
 extern "C" void CrossPointRakingLight_appDidBecomeActive(void);
@@ -79,6 +83,29 @@ void CrossPointRakingLight_perFrame(void) {
   if (pref != g_lastPref) {
     g_lastPref = pref;
     SimulatorOverlay::setRakingLight(pref != 0);
+  }
+  // The four sliders (2026-09-26), polled the way the Ink group is
+  // (CrossPointIOSShim.cpp pollInkEffects): edge-triggered, pushed on change,
+  // so a slider moved in Settings.app while the app was backgrounded lands
+  // on the first frame after it returns.
+  struct Row {
+    const char *tag;
+    int (*read)();
+    void (*push)(int);
+    int applied;
+  };
+  static Row rows[] = {
+      {"strength", CrossPointPrefs_rakingStrengthPercent, SimulatorOverlay::setRakingStrength, -1},
+      {"lamp height", CrossPointPrefs_rakingLampHeightPercent, SimulatorOverlay::setRakingLampHeight, -1},
+      {"tilt range", CrossPointPrefs_rakingTiltRangePercent, SimulatorOverlay::setRakingTiltRange, -1},
+      {"page", CrossPointPrefs_rakingPagePercent, SimulatorOverlay::setRakingPage, -1},
+  };
+  for (Row &row : rows) {
+    const int pct = row.read();
+    if (pct == row.applied) continue;
+    row.applied = pct;
+    SDL_Log("[raking] %s %d%%", row.tag, pct);
+    row.push(pct);
   }
 
   if (g_resigned || !SimulatorOverlay::rakingLightWanted()) {

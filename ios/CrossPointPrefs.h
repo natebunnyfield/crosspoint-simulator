@@ -426,6 +426,12 @@ int CrossPointPrefs_gestureBindingIsExplicit(int gesture);
 // RAKING LIGHT (spike 2026-09-25): 1 while the Settings row is on. Ships OFF.
 // Polled by ios/CrossPointRakingLight.mm. src/RakingLight.h.
 int CrossPointPrefs_rakingLight(void);
+// Its four 0..200 sliders (2026-09-26), each shipping at 100; absent reads
+// 100. Polled by ios/CrossPointRakingLight.mm. src/RakingLight.h Dials.
+int CrossPointPrefs_rakingStrengthPercent(void);
+int CrossPointPrefs_rakingLampHeightPercent(void);
+int CrossPointPrefs_rakingTiltRangePercent(void);
+int CrossPointPrefs_rakingPagePercent(void);
 
 // E-INK MODE (spike 2026-09-25): 1 while the Settings row is on. Ships OFF.
 // Polled by ios/CrossPointIOSShim.cpp. src/EinkPanel.h.

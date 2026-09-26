@@ -4,12 +4,15 @@
 // Every failure mode here is a wrong picture or a thrashing field:
 //   - the split changes the SHIPPED letterpress by one code value somewhere
 //     (the feature is off by default, so this is the one that ships);
-//   - a tilt deepens a shadow past what the fixed light could ever draw, or
-//     touches flat paper, which every contrast-floor proof assumes it cannot;
+//   - a tilt touches flat paper in the panel field, which every contrast-floor
+//     proof assumes it cannot, or deepens a shadow past strength * rake;
 //   - the light turns the wrong way for the tilt, or does not come back to
 //     exactly today's when the phone does;
 //   - the edge-only recompose disagrees with a full per-pixel light;
-//   - quantization without hysteresis flips on a tremor.
+//   - quantization without hysteresis flips on a tremor;
+//   - the lamp field lifts a pixel, or darkens one past its budget, or puts the
+//     bright side of the sheet away from the lamp, or shades the wrong slope;
+//   - the 7:1 floor breaks at some corner of the four dials and the light.
 // No compiler and no other test sees any of these.
 
 #include "Letterpress.h"
@@ -156,6 +159,17 @@ letterpress::Params heavyParams(uint32_t seed) {
   return p;
 }
 
+// sRGB byte -> relative luminance, the WCAG way (what srgbLumOf does).
+float lin(int c) {
+  const float v = static_cast<float>(c) / 255.0f;
+  return v <= 0.04045f ? v / 12.92f : std::pow((v + 0.055f) / 1.055f, 2.4f);
+}
+float lumOf(int r, int g, int b) {
+  return 0.2126f * lin(r) + 0.7152f * lin(g) + 0.0722f * lin(b);
+}
+
+uint8_t gray(uint32_t argb) { return static_cast<uint8_t>(argb & 0xFF); }
+
 }  // namespace
 
 int main() {
@@ -226,16 +240,54 @@ int main() {
           "screen's top-RIGHT");
   }
 
-  // ------------------------------------- 3. GRAVITY TO LIGHT, PHYSICALLY ---
+  // --------------------------------------------------- 3. THE FOUR DIALS ---
+  {
+    const Dials def;
+    check(strengthGain(0) == 1.0f, "strength 0 is today's deboss depth, exactly");
+    check(std::fabs(strengthGain(100) - 3.0f) < 1e-6f, "strength 100 is 3x");
+    check(std::fabs(strengthGain(200) - 5.0f) < 1e-6f, "strength 200 is 5x");
+    check(strengthGain(-5) == 1.0f && strengthGain(900) == strengthGain(200),
+          "strength clamps to 0..200");
+    check(lampElevationDeg(100) == kRefElevationDeg,
+          "lamp height 100 is the reference 35 degrees");
+    check(rakeForElevation(lampElevationDeg(100)) == 1.0f,
+          "...at which the rake is EXACTLY 1.0f (the fixed light's depth)");
+    check(lampElevationDeg(0) < lampElevationDeg(200),
+          "a lower slider is a lower lamp");
+    check(rakeForElevation(lampElevationDeg(0)) == kRakeMax,
+          "the lowest lamp reaches the rake cap");
+    check(rakeForElevation(lampElevationDeg(200)) < 0.5f,
+          "the highest lamp rakes under half as much");
+    check(rakeForElevation(90.0f) == 0.0f && rakeForElevation(-3.0f) == kRakeMax,
+          "overhead is rake 0; below the horizon is held at grazing");
+    for (float r = 0.0f; r <= kRakeMax; r += 0.125f)
+      check(std::fabs(rakeForElevation(elevationForRake(r)) - r) < 1e-3f,
+            "elevationForRake inverts rakeForElevation at rake " +
+                std::to_string(r));
+    check(tiltGain(0) == 0.0f && std::fabs(tiltGain(100) - 2.0f) < 1e-6f,
+          "tilt range 0 pins the lamp; 100 is the spike's gain of 2");
+    check(pageFactor(0) == 0.0f && pageFactor(100) == kPageAt100,
+          "page 0 is no sheet response; 100 is kPageAt100");
+    const Continuous nl = neutralLight(def);
+    check(nl.deltaDeg == 0.0f && nl.rake == 1.0f,
+          "the default neutral light is today's, exactly");
+    Dials low = def;
+    low.lampHeightPct = 0;
+    check(neutralLight(low).rake == kRakeMax,
+          "the neutral light with a low lamp is a raking one");
+  }
+
+  // ------------------------------------- 4. GRAVITY TO LIGHT, PHYSICALLY ---
   {
     const float ref = referenceScreenAzimuthDeg(0);
+    const Dials def;
     // A reading pose: phone tipped back ~40 degrees from flat.
     const Vec3 neutral{0.0f, -0.64f, -0.77f};
-    const Continuous same = lightFromGravity(neutral, neutral, ref);
+    const Continuous same = lightFromGravity(neutral, neutral, ref, def);
     check(same.deltaDeg == 0.0f && same.rake == 1.0f,
           "at the neutral pose the light is EXACTLY today's");
     check(quantize(same, nullptr) == Quantized{},
-          "and quantizes to index 0, full rake");
+          "and quantizes to index 0, rake 8/8");
 
     // Roll the right edge DOWN: gravity's x goes positive. The lamp is fixed
     // in the room, so the raised LEFT edge now faces it more: the light's
@@ -246,8 +298,8 @@ int main() {
       return Vec3{neutral.x * std::cos(a) - neutral.z * std::sin(a), neutral.y,
                   neutral.x * std::sin(a) + neutral.z * std::cos(a)};
     };
-    const Continuous right = lightFromGravity(neutral, rolled(-12.0f), ref);
-    const Continuous left = lightFromGravity(neutral, rolled(12.0f), ref);
+    const Continuous right = lightFromGravity(neutral, rolled(-12.0f), ref, def);
+    const Continuous left = lightFromGravity(neutral, rolled(12.0f), ref, def);
     std::printf("raking_light_test: roll +-12 deg -> delta %.1f / %.1f deg, "
                 "rake %.2f / %.2f\n",
                 static_cast<double>(right.deltaDeg),
@@ -255,11 +307,11 @@ int main() {
                 static_cast<double>(right.rake), static_cast<double>(left.rake));
     check((right.deltaDeg < 0.0f) != (left.deltaDeg < 0.0f),
           "rolling the two ways swings the light opposite ways");
-    check(std::fabs(right.deltaDeg) > 10.0f && std::fabs(left.deltaDeg) > 10.0f,
+    check(std::fabs(right.deltaDeg) > kStepDeg && std::fabs(left.deltaDeg) > kStepDeg,
           "a 12-degree roll moves the light by more than a quantization step");
     // Which way is right: gravity x positive = right edge down.
     const Vec3 rightDown{0.2f, -0.62f, -0.76f};
-    const Continuous rd = lightFromGravity(neutral, rightDown, ref);
+    const Continuous rd = lightFromGravity(neutral, rightDown, ref, def);
     check(rd.deltaDeg < 0.0f,
           "right edge down: the lamp arrives more from the raised LEFT side "
           "(counter-clockwise from top-right)");
@@ -267,29 +319,49 @@ int main() {
           "right edge down turns the page toward a top-right lamp: it climbs "
           "overhead and the relief fades");
     const Vec3 leftDown{-0.2f, -0.62f, -0.76f};
-    const Continuous ld = lightFromGravity(neutral, leftDown, ref);
-    check(ld.deltaDeg > 0.0f && ld.rake == 1.0f,
-          "left edge down: clockwise, and raked -- capped at today's depth");
+    const Continuous ld = lightFromGravity(neutral, leftDown, ref, def);
+    check(ld.deltaDeg > 0.0f && ld.rake > 1.0f,
+          "left edge down: clockwise, and the lamp drops toward grazing -- "
+          "the rake now GROWS past today's instead of being capped there");
 
-    // Every pose, every orientation: rake in [0,1], delta in (-180,180].
+    // The dials reach the gravity path.
+    Dials pinned = def;
+    pinned.tiltRangePct = 0;
+    const Continuous p = lightFromGravity(neutral, leftDown, ref, pinned);
+    check(p.deltaDeg == 0.0f && p.rake == 1.0f,
+          "tilt range 0: the lamp does not move whatever the hand does");
+    Dials wide = def;
+    wide.tiltRangePct = 200;
+    const Continuous wd = lightFromGravity(neutral, leftDown, ref, wide);
+    check(std::fabs(wd.deltaDeg) > std::fabs(ld.deltaDeg),
+          "tilt range 200 swings the light further for the same tilt");
+    Dials high = def;
+    high.lampHeightPct = 200;
+    check(lightFromGravity(neutral, leftDown, ref, high).rake < ld.rake,
+          "a higher lamp rakes less at the same tilt");
+
+    // Every pose, every orientation: rake in [0,kRakeMax], delta in (-180,180].
     bool bounded = true;
     for (int i = 0; i < 20000; ++i) {
       const Vec3 g{unit() * 2 - 1, unit() * 2 - 1, unit() * 2 - 1};
+      Dials d;
+      d.lampHeightPct = static_cast<int>(next() % 201);
+      d.tiltRangePct = static_cast<int>(next() % 201);
       for (int o = 0; o < 4; ++o) {
         const Continuous c =
-            lightFromGravity(neutral, g, referenceScreenAzimuthDeg(o));
-        if (!(c.rake >= 0.0f && c.rake <= 1.0f) ||
+            lightFromGravity(neutral, g, referenceScreenAzimuthDeg(o), d);
+        if (!(c.rake >= 0.0f && c.rake <= kRakeMax) ||
             !(c.deltaDeg > -180.0f && c.deltaDeg <= 180.0f))
           bounded = false;
       }
     }
-    check(bounded, "every pose yields a rake in [0,1] and a wrapped azimuth");
-    const Continuous none = lightFromGravity(Vec3{}, neutral, ref);
+    check(bounded, "every pose and dial yields a bounded rake and a wrapped azimuth");
+    const Continuous none = lightFromGravity(Vec3{}, neutral, ref, def);
     check(none.deltaDeg == 0.0f && none.rake == 1.0f,
           "no reading yet (zero gravity) is today's light, not a guess");
   }
 
-  // ------------------------------------------------- 4. QUANTIZATION -------
+  // ------------------------------------------------- 5. QUANTIZATION -------
   {
     Quantized z;
     const Quantized a = quantize({kStepDeg * 0.6f, 1.0f}, &z);
@@ -300,109 +372,103 @@ int main() {
     check(c.dir == 1, "and coming back 0.15 of a step does not flip it back");
     const Quantized wrapA = quantize({179.0f, 1.0f}, nullptr);
     const Quantized wrapB = quantize({-179.0f, 1.0f}, nullptr);
-    check(wrapA.dir == 8 && wrapB.dir == 8, "+-179 degrees both quantize to 8");
-    const Quantized held = quantize({-170.0f, 1.0f}, &wrapA);
-    check(held.dir == 8, "hysteresis is circular across the wrap");
+    check(wrapA.dir == kDirections / 2 && wrapB.dir == kDirections / 2,
+          "+-179 degrees both quantize to the opposite direction");
+    const Quantized held = quantize({-175.0f, 1.0f}, &wrapA);
+    check(held.dir == kDirections / 2, "hysteresis is circular across the wrap");
     const Quantized r = quantize({0.0f, 0.62f}, &z);
     check(r.rake == 5, "rake 0.62 -> 5/8 (from 8, far past the band)");
     const Quantized r2 = quantize({0.0f, 0.57f}, &r);
     check(r2.rake == 5, "rake 0.57 holds at 5 (inside the band)");
+    check(quantize({0.0f, 9.0f}, nullptr).rake == kRakeLevelMax,
+          "a rake past the cap quantizes to the top level");
+    bool roundTrip = true;
     for (int d = 0; d < kDirections; ++d)
-      for (int k = 0; k <= kRakeLevels; ++k) {
+      for (int k = 0; k <= kRakeLevelMax; ++k) {
         const Quantized q{d, k};
-        if (unpack(pack(q)) != q || pack(q) <= 0) {
-          check(false, "pack/unpack round trip and never zero");
-          d = kDirections;
-          break;
-        }
+        if (unpack(pack(q)) != q || pack(q) <= 0) roundTrip = false;
       }
+    check(roundTrip, "pack/unpack round trip over every level, never zero");
     const Shadow s0 = shadowFor(Quantized{});
     check(std::fabs(s0.dx - 0.70710678f) < 1e-6f &&
               std::fabs(s0.dy - 0.70710678f) < 1e-6f && s0.rake == 1.0f,
-          "index 0 is today's shadow direction (1,1)/sqrt2 at full rake");
-    const Shadow s4 = shadowFor(Quantized{4, 8});
-    check(s4.dx < -0.7f && s4.dy > 0.7f,
-          "four steps clockwise turns the shadow a quarter turn clockwise");
+          "index 0 is today's shadow direction (1,1)/sqrt2 at rake 1");
+    const Shadow s8 = shadowFor(Quantized{kDirections / 4, kRakeLevelsPerUnit});
+    check(s8.dx < -0.7f && s8.dy > 0.7f,
+          "a quarter of the directions turns the shadow a quarter turn clockwise");
+    check(shadowFor(Quantized{0, kRakeLevelMax}).rake == kRakeMax,
+          "the top rake level is kRakeMax");
+    const Light L0 = lightFor(Quantized{}, 0);
+    check(L0.azDeg == 45.0f && std::fabs(L0.elevDeg - kRefElevationDeg) < 1e-3f,
+          "the screen light for index 0 in Portrait is 45 degrees at 35 up");
   }
 
-  // ----------------------------- 5. PER-PIXEL: FLAT UNTOUCHED, NO DEEPER ---
+  // ----------------------------- 6. PER-PIXEL: FLAT UNTOUCHED, BOUNDED -----
   {
     const SynthPage page;
     const int W = SynthPage::W, H = SynthPage::H;
-    bool flatExact = true, neverDeeper = true, neverAboveOne = true;
+    bool flatExact = true, neverDeeperAtOne = true, neverAboveOne = true,
+         boundedByGain = true;
     long edgePx = 0;
-    double worstMeanPaper = 0.0, fixedMeanPaper = 0.0;
+    const float gains[] = {1.0f, strengthGain(100), strengthGain(200)};
     for (int seedIx = 0; seedIx < 3; ++seedIx) {
       const letterpress::Params p = heavyParams(0x50524553u + seedIx * 977u);
-      for (int d = 0; d < kDirections; ++d)
-        for (int k = 0; k <= kRakeLevels; ++k) {
-          const Shadow S = shadowFor(Quantized{d, k});
-          double sumPaper = 0.0;
-          long nPaper = 0;
-          for (int y = 0; y < H; ++y)
-            for (int x = 0; x < W; ++x) {
-              float win[3][3];
-              page.window(x, y, win);
-              const letterpress::Terms T =
-                  letterpress::termsAt(p, win, x, y, W, H);
-              const Edge e = edgeOf(T);
-              const uint8_t m = multiplierFor(e, S);
-              const uint8_t fixed =
-                  letterpress::multiplierAt(p, win, x, y, W, H);
-              if (T.gx == 0.0f && T.gy == 0.0f) {
-                if (m != fixed) flatExact = false;
-              } else if (d == 0 && k == kRakeLevels && seedIx == 0) {
-                ++edgePx;
+      for (int d = 0; d < kDirections; d += 2)
+        for (int k = 0; k <= kRakeLevelMax; k += 2)
+          for (float gain : gains) {
+            const Shadow S = shadowFor(Quantized{d, k});
+            for (int y = 0; y < H; ++y)
+              for (int x = 0; x < W; ++x) {
+                float win[3][3];
+                page.window(x, y, win);
+                const letterpress::Terms T =
+                    letterpress::termsAt(p, win, x, y, W, H);
+                const Edge e = edgeOf(T);
+                const uint8_t m = multiplierFor(e, S, gain);
+                const uint8_t fixed =
+                    letterpress::multiplierAt(p, win, x, y, W, H);
+                if (T.gx == 0.0f && T.gy == 0.0f) {
+                  if (m != fixed) flatExact = false;
+                } else if (d == 0 && k == kRakeLevelsPerUnit && seedIx == 0 &&
+                           gain == 1.0f) {
+                  ++edgePx;
+                }
+                // The fixed light's own ceiling at this pixel: full shade and
+                // the full rim, which no light at gain 1, rake <= 1 exceeds.
+                float worst = 1.0f - (e.ring + e.depth + e.rest);
+                if (worst < letterpress::kMinMultiplier)
+                  worst = letterpress::kMinMultiplier;
+                const uint8_t worstB =
+                    static_cast<uint8_t>(worst * 255.0f + 0.5f);
+                if (gain == 1.0f && S.rake <= 1.0f && m < worstB)
+                  neverDeeperAtOne = false;
+                if (fixed < worstB) neverDeeperAtOne = false;  // sanity
+                // ...and above that the deboss is bounded by gain * rake.
+                float bound = 1.0f - (e.ring + e.depth * gain * S.rake + e.rest);
+                if (bound < letterpress::kMinMultiplier)
+                  bound = letterpress::kMinMultiplier;
+                if (m + 1 < static_cast<uint8_t>(bound * 255.0f + 0.5f))
+                  boundedByGain = false;
+                if (m > 255) neverAboveOne = false;
               }
-              // The fixed light's own ceiling at this pixel: full shade and
-              // the full rim, which no light can exceed.
-              float worst = 1.0f - (e.ring + e.depth + e.rest);
-              if (worst < letterpress::kMinMultiplier)
-                worst = letterpress::kMinMultiplier;
-              const uint8_t worstB =
-                  static_cast<uint8_t>(worst * 255.0f + 0.5f);
-              if (m < worstB) neverDeeper = false;
-              if (fixed < worstB) neverDeeper = false;  // sanity on the bound
-              if (m > 255) neverAboveOne = false;
-              if (T.t == 0.0f) {
-                sumPaper += (255.0 - m) / 255.0;
-                ++nPaper;
-                if (d == 0 && k == kRakeLevels)
-                  fixedMeanPaper += (255.0 - fixed) / 255.0;
-              }
-            }
-          const double mean = nPaper ? sumPaper / nPaper : 0.0;
-          if (mean > worstMeanPaper) worstMeanPaper = mean;
-        }
+          }
     }
-    // fixedMeanPaper was summed over 3 seeds x all paper pixels; normalize.
-    long paperPx = 0;
-    for (float v : page.t) paperPx += (v == 0.0f);
-    fixedMeanPaper /= (3.0 * paperPx);
-    std::printf("raking_light_test: synthetic page %d edge px of %d; paper "
-                "mean darkening, fixed light %.5f, worst raking light %.5f\n",
-                static_cast<int>(edgePx), W * H, fixedMeanPaper, worstMeanPaper);
+    std::printf("raking_light_test: synthetic page %d edge px of %d\n",
+                static_cast<int>(edgePx), W * H);
     check(edgePx > 0, "the synthetic page has edges to light");
     check(flatExact,
           "every FLAT pixel (zero gradient) is byte-identical to the fixed "
-          "light under all 16 x 9 lights -- the pixels every contrast-floor "
-          "proof reasons about do not move");
-    check(neverDeeper,
-          "no pixel under any light is darker than the fixed light's own "
-          "worst case at that pixel (full shade + full rim)");
+          "light under every light and every strength -- the pixels every "
+          "contrast-floor proof reasons about do not move");
+    check(neverDeeperAtOne,
+          "at strength 0 and rake <= 1 no pixel is darker than the fixed "
+          "light's own worst case (the spike's guarantee still holds there)");
+    check(boundedByGain,
+          "at any strength and rake the deboss is at most depth * gain * rake");
     check(neverAboveOne, "the multiplier never exceeds 1: darken-only");
-    // The page-mean paper darkening is the deboss spent on the paper side of
-    // edges. Tilting moves it round the letters; on a page with walls in all
-    // directions it must stay within 2x of today's (it is ~1x on a page whose
-    // edges are isotropic).
-    check(worstMeanPaper <= 2.0 * fixedMeanPaper + 1e-6,
-          "no light spends more than twice today's paper-side shadow, page-mean");
-    // The 7:1 floor needs nothing further here: letterpress_test proves it on
-    // FLAT paper against FLAT ink, and flatExact above shows those pixels are
-    // the fixed light's to the byte under every raking light.
   }
 
-  // ------------------------------ 6. THE EDGE FIELD RE-LIGHTS EXACTLY ------
+  // ------------------------------ 7. THE EDGE FIELD RE-LIGHTS EXACTLY ------
   {
     const SynthPage page;
     const int W = SynthPage::W, H = SynthPage::H;
@@ -415,15 +481,17 @@ int main() {
     EdgeField f;
     f.build(W, H, termsAt);
     bool exact = true;
-    // Relight through a sequence of lights, including repeats and jumps, and
-    // compare each to a from-scratch per-pixel lighting.
-    const Quantized seq[] = {{0, 8}, {5, 8}, {5, 3}, {15, 0}, {8, 8}, {0, 8}};
-    for (const Quantized &q : seq) {
-      const Shadow S = shadowFor(q);
-      f.relight(S);
+    // Relight through a sequence of lights and gains, including repeats and
+    // jumps, and compare each to a from-scratch per-pixel lighting.
+    struct Step { Quantized q; float gain; } seq[] = {
+        {{0, 8}, 1.0f}, {{5, 8}, 3.0f}, {{5, 3}, 3.0f}, {{31, 0}, 5.0f},
+        {{16, 24}, 5.0f}, {{0, 8}, 1.0f}};
+    for (const Step &st : seq) {
+      const Shadow S = shadowFor(st.q);
+      f.relight(S, st.gain);
       for (int y = 0; y < H && exact; ++y)
         for (int x = 0; x < W; ++x) {
-          const uint32_t m = multiplierFor(edgeOf(termsAt(x, y)), S);
+          const uint32_t m = multiplierFor(edgeOf(termsAt(x, y)), S, st.gain);
           const uint32_t want = 0xFF000000u | (m << 16) | (m << 8) | m;
           if (f.field[static_cast<size_t>(y) * W + x] != want) {
             exact = false;
@@ -432,7 +500,7 @@ int main() {
         }
     }
     check(exact, "EdgeField::relight equals a full per-pixel lighting after "
-                 "every light in a sequence");
+                 "every light and gain in a sequence");
     check(!f.edges.empty() && f.edges.size() < static_cast<size_t>(W) * H / 2,
           "only a minority of pixels are edges, which is the whole saving");
     // Strength 0: every pixel white, no edges kept.
@@ -449,7 +517,7 @@ int main() {
     check(allWhite, "strength 0 builds an all-white field with no edges");
   }
 
-  // ----------------------------------------------------- 7. SMOOTHING ------
+  // ----------------------------------------------------- 8. SMOOTHING ------
   {
     const Vec3 a{0, 0, -1}, b{0, -1, 0};
     const Vec3 first = smooth(a, b, 0.05f, false);
@@ -460,6 +528,241 @@ int main() {
           "after one time constant the low-pass is ~63% of the way");
     const Vec3 still = smooth(a, b, 0.0f, true);
     check(still.y == -1.0f, "a non-positive dt takes the sample");
+  }
+
+  // ---------------------------------------------- 9. THE SHEET'S LAMP FIELD
+  {
+    // A portrait glass at the desktop 2x's presented size, lattice of 2.
+    const int W = 528, H = 792;
+    LampField lf;
+    lf.build(W, H, 2, 0xC0FFEEu, [](float, float) { return 0.0f; });
+    check(lf.lw == 264 && lf.lh == 396, "the lattice is the output over the cell");
+    check(lf.falloffRef > 0.3f && lf.falloffRef < 0.9f,
+          "the reference lamp's corner-to-corner falloff is a real fraction "
+          "(measured: ~0.63 at kLampDistance 4, elevation 35)");
+    std::printf("raking_light_test: lamp field %dx%d lattice, falloffRef %.3f\n",
+                lf.lw, lf.lh, static_cast<double>(lf.falloffRef));
+    // Gradient statistics: RMS one by construction, so |g| ~ kGradScale.
+    double sq = 0.0;
+    for (size_t k = 0; k < lf.gx.size(); ++k)
+      sq += static_cast<double>(lf.gx[k]) * lf.gx[k] +
+            static_cast<double>(lf.gy[k]) * lf.gy[k];
+    const double rms = std::sqrt(sq / lf.gx.size());
+    check(rms > kGradScale * 0.8 && rms < kGradScale * 1.2,
+          "the stored gradient is normalized to about one RMS unit");
+
+    const Dials def;
+    const float budget = 0.12f;
+    // (a) Darken-only, and never past the budget, at every light and dial.
+    bool darkenOnly = true, withinBudget = true;
+    for (int d = 0; d < kDirections; d += 4)
+      for (int k = 0; k <= kRakeLevelMax; k += 4)
+        for (int pg : {0, 100, 200}) {
+          Dials dl = def;
+          dl.pagePct = pg;
+          lf.relight(lightFor(Quantized{d, k}, 0), dl, budget);
+          const int floor = static_cast<int>((1.0f - budget) * 255.0f + 0.5f);
+          for (uint32_t v : lf.field) {
+            const int g = gray(v);
+            if (g > 255) darkenOnly = false;
+            if (g < floor) withinBudget = false;
+            if (pg == 0 && g != 255) darkenOnly = false;  // page 0: nothing
+          }
+        }
+    check(darkenOnly, "the lamp field never lifts a pixel, and page 0 is white");
+    check(withinBudget, "no lamp pixel darkens past its budget, at any light");
+    lf.relight(lightFor(Quantized{}, 0), def, 0.0f);
+    bool white = true;
+    for (uint32_t v : lf.field) white = white && v == 0xFFFFFFFFu;
+    check(white, "budget 0 (a palette at the floor) leaves the field white");
+
+    // (b) The bright side is the lamp's side. Light from the TOP (az 0):
+    // the top band is lighter than the bottom band. From the LEFT (270): the
+    // left band lighter than the right.
+    auto bandMean = [&](int x0, int x1, int y0, int y1) {
+      double s = 0.0;
+      long n = 0;
+      for (int j = y0; j < y1; ++j)
+        for (int i = x0; i < x1; ++i) {
+          s += gray(lf.field[static_cast<size_t>(j) * lf.lw + i]);
+          ++n;
+        }
+      return s / n;
+    };
+    Light top;
+    top.azDeg = 0.0f;
+    top.elevDeg = kRefElevationDeg;
+    lf.relight(top, def, budget);
+    const double topBand = bandMean(0, lf.lw, 0, lf.lh / 8);
+    const double botBand = bandMean(0, lf.lw, lf.lh * 7 / 8, lf.lh);
+    check(topBand > botBand + 8.0,
+          "light from the top: the top of the sheet is plainly lighter than "
+          "the bottom (" + std::to_string(topBand) + " vs " +
+              std::to_string(botBand) + ")");
+    Light leftL;
+    leftL.azDeg = 270.0f;
+    leftL.elevDeg = kRefElevationDeg;
+    lf.relight(leftL, def, budget);
+    check(bandMean(0, lf.lw / 8, 0, lf.lh) > bandMean(lf.lw * 7 / 8, lf.lw, 0, lf.lh) + 8.0,
+          "light from the left: the left of the sheet is lighter");
+    // At the far corner under the default dials the falloff spends about
+    // kPageAt100 of the budget -- the visibility the owner asked for.
+    lf.relight(top, def, budget);
+    const double farDark = 255.0 - botBand;
+    check(farDark > budget * 255.0 * kPageAt100 * 0.6,
+          "the far edge at default spends a good part of the budget (" +
+              std::to_string(farDark) + " of " +
+              std::to_string(budget * 255.0) + " levels)");
+    // A higher lamp evens the light; a lower one does not make it MORE uneven
+    // than the budget allows (it clips).
+    Light high = top;
+    high.elevDeg = 70.0f;
+    lf.relight(high, def, budget);
+    const double highSpread = bandMean(0, lf.lw, 0, lf.lh / 8) - bandMean(0, lf.lw, lf.lh * 7 / 8, lf.lh);
+    check(highSpread < topBand - botBand,
+          "a higher lamp lights the sheet more evenly");
+    Light overhead = top;
+    overhead.elevDeg = 90.0f;
+    lf.relight(overhead, def, budget);
+    check(std::fabs(bandMean(0, lf.lw, 0, lf.lh / 8) - bandMean(0, lf.lw, lf.lh * 7 / 8, lf.lh)) < 1.0,
+          "straight overhead the top and bottom bands are the same");
+
+    // (c) The relief shades the slope that faces AWAY from the lamp. Build a
+    // field whose only height is a ramp rising toward +x, light it from the
+    // right (az 90): the ramp faces away, so it darkens; light it from the
+    // left: it faces the lamp, so it does not.
+    LampField ramp;
+    ramp.build(64, 64, 1, 1u, [](float x, float) { return x * 50.0f; });
+    Dials noFall = def;
+    Light fromRight;
+    fromRight.azDeg = 90.0f;
+    fromRight.elevDeg = kRefElevationDeg;
+    Light fromLeft = fromRight;
+    fromLeft.azDeg = 270.0f;
+    // Compare the CENTER pixel, where the falloff of the two mirror lights
+    // is identical, so only the relief separates them.
+    const size_t center = static_cast<size_t>(ramp.lh / 2) * ramp.lw + ramp.lw / 2;
+    ramp.relight(fromRight, noFall, budget);
+    const int shaded = gray(ramp.field[center]);
+    ramp.relight(fromLeft, noFall, budget);
+    const int lit = gray(ramp.field[center]);
+    check(shaded < lit,
+          "a slope rising toward the lamp is shaded; the same slope lit from "
+          "the other side is not (" + std::to_string(shaded) + " vs " +
+              std::to_string(lit) + ")");
+    // The relief is stronger under a lower lamp.
+    Light lowRight = fromRight;
+    lowRight.elevDeg = 15.0f;
+    ramp.relight(lowRight, noFall, budget);
+    check(gray(ramp.field[center]) <= shaded,
+          "a lower lamp shades the same slope at least as hard");
+    // Bit-exact repeat: the same light twice gives the same bytes.
+    ramp.relight(fromRight, noFall, budget);
+    const std::vector<uint32_t> once = ramp.field;
+    ramp.relight(fromLeft, noFall, budget);
+    ramp.relight(fromRight, noFall, budget);
+    check(once == ramp.field, "relighting is a pure function of the light");
+  }
+
+  // ------------------------------------- 10. THE 7:1 FLOOR, AT THE EXTREMES
+  // The sheet pass's own budget chain, reproduced: paperBudget -> the tooth's
+  // mean -> the wires' and the show-through's DECLARED shares (taken at their
+  // full share, the worst case) -> lampBudget of what is left -> the MARKS at
+  // their full share of what the lamp leaves -> the field's per-pixel cap.
+  // With every other consumer at its full share the chain is exactly tight,
+  // so what this proves is that the lamp field's DARKEST pixel never exceeds
+  // the share the sheet pass took out of the marks for it -- under every
+  // light and dial, at three budgets. (Adversarial review 2026-09-26: without
+  // the marks' share the sweep had 25% of slack and could not fail.) The
+  // standard is the one every paper pass here is held to: the page-mean
+  // paper darkening keeps flat paper at 7:1 against flat ink. Three palettes:
+  // the frozen shipped page, the repo's historical light pair, and a pair one
+  // hundredth above the floor.
+  {
+    struct Pal {
+      const char *name;
+      float ink, paper;
+    } pals[] = {
+        {"Sanguine on India (shipped)", lumOf(0x5C, 0x33, 0x2B), lumOf(0xF9, 0xF3, 0xE9)},
+        {"2D2D2D on FBFBF9 (historical)", lumOf(0x2D, 0x2D, 0x2D), lumOf(0xFB, 0xFB, 0xF9)},
+        {"a pair at 7.01:1", 0.05f, 7.01f * 0.10f - 0.05f},
+    };
+    LampField lf;
+    lf.build(264, 396, 2, 0x50524553u, [](float, float) { return 0.0f; });
+    float worstRatio = 1e9f, worstMargin = 1e9f;
+    const char *worstWhere = "";
+    for (const Pal &pal : pals) {
+      // THE FIELD'S BYTE QUANTIZATION, per palette: a multiplier rounds to the
+      // nearest 1/255, so the darkest pixel may overshoot its cap by half a
+      // level of the paper's light. That is the only slack this sweep allows,
+      // and it is computed rather than guessed: on the darkest ink here it is
+      // 0.024 of a ratio point, on the shipped page 0.018.
+      const float roundingRatio =
+          pal.paper * (0.5f / 255.0f) / (pal.ink + 0.05f);
+      for (int strength : {letterpress::kOfferedStrengthMax, 68, 1})
+        for (float tooth : {1.0f, 3.36f}) {
+          letterpress::Params p;
+          p.strengthPercent = strength;
+          p.toothScale = tooth;
+          p.paperDarkenBudget = letterpress::paperBudget(pal.ink, pal.paper);
+          const float toothMean = letterpress::clampedToothAmp(p) * 0.5f;
+          const float left = letterpress::remainingPaperBudget(p);
+          const float wires = 0.5f * left;             // the wires' full share
+          const float show = 0.5f * (left - wires);    // show-through's
+          const float afterShow = left - wires - show;
+          const float lamp = lampBudget(afterShow);
+          const float marks = afterShow - lamp;  // the marks' full share
+          for (int d = 0; d < kDirections; d += 8)
+            for (int k : {0, kRakeLevelsPerUnit, kRakeLevelMax})
+              for (int pg : {0, 100, 200}) {
+                Dials dl;
+                dl.pagePct = pg;
+                lf.relight(lightFor(Quantized{d, k}, 0), dl, lamp);
+                int darkest = 255;
+                for (uint32_t v : lf.field)
+                  if (gray(v) < darkest) darkest = gray(v);
+                const float lampDark = 1.0f - static_cast<float>(darkest) / 255.0f;
+                const float paperMean =
+                    pal.paper *
+                    (1.0f - toothMean - wires - show - marks - lampDark);
+                const float ratio = (paperMean + 0.05f) / (pal.ink + 0.05f);
+                const float margin =
+                    ratio - (letterpress::kContrastFloor - roundingRatio);
+                if (margin < worstMargin) {
+                  worstMargin = margin;
+                  worstRatio = ratio;
+                  worstWhere = pal.name;
+                }
+              }
+        }
+    }
+    std::printf("raking_light_test: floor sweep worst ratio %.3f:1 (%s), "
+                "margin over the floor less byte rounding %+.4f\n",
+                static_cast<double>(worstRatio), worstWhere,
+                static_cast<double>(worstMargin));
+    check(worstMargin >= -1e-4f,
+          "no light, dial or palette drags the page-mean paper under 7:1 (less "
+          "the field's own byte rounding) with every other paper consumer at "
+          "its full share and the lamp at its darkest pixel");
+    // And the shipped page has a budget worth seeing: the lamp's cap at the
+    // frozen palette and dials is at least 8% of the paper's light, else the
+    // default cannot be "clearly visible".
+    {
+      letterpress::Params p;
+      p.strengthPercent = 68;
+      p.toothScale = 3.36f;
+      p.paperDarkenBudget = letterpress::paperBudget(pals[0].ink, pals[0].paper);
+      const float left = letterpress::remainingPaperBudget(p);
+      // Wove (no wires) and India's show-through at its declared share.
+      const float lamp = lampBudget(left - 0.5f * left);
+      std::printf("raking_light_test: shipped page paper budget %.3f, after "
+                  "tooth %.3f, lamp cap (worst-case show-through) %.3f\n",
+                  static_cast<double>(p.paperDarkenBudget),
+                  static_cast<double>(left), static_cast<double>(lamp));
+      check(lamp >= 0.08f,
+            "the shipped page leaves the lamp at least 8% of the paper's "
+            "light, even with the show-through at its full declared share");
+    }
   }
 
   if (failures == 0) std::printf("raking_light_test: PASS\n");
