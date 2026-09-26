@@ -879,7 +879,8 @@ if _B2 is not None and _ALD is not None and _ALD.ON:
         # q pairs fell under the floor in the 900 only (cmp_touch, em):
         # qC 0.0079, qQ 0.0093, qj 0.0101 (with the +4 above), q4 0.0107,
         # qg 0.0113, qm 0.0118. Each is lifted to about 0.015 em.
-        for _r, _k in (('C', 7), ('Q', 6), ('j', 9), ('four', 5), ('g', 4), ('m', 4)):
+        # ROUND 398: qt 0.0122 -> 0.0107 as the italic t's left side went -2 -> -3; +5.
+        for _r, _k in (('C', 7), ('Q', 6), ('j', 9), ('four', 5), ('g', 4), ('m', 4), ('t', 5)):
             PAIRS[('q', _r)] = _shipped('q', _r) + _k
 
 _apply_bench()

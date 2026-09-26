@@ -821,3 +821,5 @@ The largest absolute moves are rare pairs:
 **Shipped as round 396** (`docs/albo-round-396-2026-09-26.md`): B2 is the default; `ALBO_SPACING_FIT=bench` builds round 395.
 
 **Round 397** (`docs/albo-round-397-2026-09-26.md`): refit on 520 answers (bench pairs held out 10.33); session 2's pairs predicted 14.76 by round 396 before he answered, 10.00 held out after; `--consolidate` (per-glyph bearings instead of consistent kerns) measured and offered, not shipped.
+
+**Round 398** (`docs/albo-round-398-2026-09-26.md`): refit on 570 answers (bench pairs held out 10.12); a single touched answer is only ~21% realized, while his repeat error (6.4) now beats the model on his touched rows (9.02), so a literal-override option for touched answers is offered, not shipped. Also the Bold Italic g put on the weight axis.

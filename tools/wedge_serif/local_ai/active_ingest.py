@@ -42,6 +42,7 @@ Z0920 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-20", f)) for s, f in FN.
 Z395 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26", f)) for s, f in FN.items()}
 Z396 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r396", f)) for s, f in FN.items()}
 Z397 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r397", f)) for s, f in FN.items()}
+Z398 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r398", f)) for s, f in FN.items()}
 
 
 def load_extra():
@@ -69,6 +70,7 @@ def outliers():
                          d_r395=int(w0 + a["delta"] - Z395[a["style"]](p[0], p[1])),
                          d_r396=int(w0 + a["delta"] - Z396[a["style"]](p[0], p[1])),
                          d_r397=int(w0 + a["delta"] - Z397[a["style"]](p[0], p[1])),
+                         d_r398=int(w0 + a["delta"] - Z398[a["style"]](p[0], p[1])),
                          session="2026-09-25/26", at=a.get("at"), kind="outlier"))
     print(f"outlier answers: {len(rows)}; page-font white matches the key's on {agree}/{len(rows)}")
     shift = [r["d0920"] - r["delta"] for r in rows]
@@ -106,6 +108,7 @@ def active(src):
                          d_r395=int(r["white0"] + a["delta"] - Z395[a["style"]](*r["pair"])),
                          d_r396=int(r["white0"] + a["delta"] - Z396[a["style"]](*r["pair"])),
                          d_r397=int(r["white0"] + a["delta"] - Z397[a["style"]](*r["pair"])),
+                         d_r398=int(r["white0"] + a["delta"] - Z398[a["style"]](*r["pair"])),
                          zero=key.get("zero"),
                          session=a.get("session"), at=a.get("at"), kind=r["kind"],
                          verdict=a.get("verdict", "") or "",

@@ -5320,6 +5320,16 @@ if ON:
     G_BOWL_OVAL = float(os.environ.get("ALBO_ALD_G_BOWL_OVAL", 1.0))
     G_LOOP_OVAL = float(os.environ.get("ALBO_ALD_G_LOOP_OVAL", 1.0))
     G_OVAL_WALL = float(os.environ.get("ALBO_ALD_G_OVAL_WALL", 16.0))
+    # ROUND 398: every WIDTH of the cursive g at the weight above the Medium
+    # (1.0 at and below it; see a_g). 1.65 is MEASURED: the Bold Italic's
+    # bowl family (a o q d b p, median chamfer stroke 97.1) over the Italic's
+    # (58.7) is 1.654. ALD_WF_UP (1.381 at the 700) scales the g exactly as it
+    # scales those rings, but the 700's family is heavier than that factor
+    # alone (round 274's junctions, the stems' own ALD_WF), so it left the g at
+    # 0.67 of its family where the Italic's sits at 0.85. Ladder, g / family
+    # (thin, stroke, thick, colour): 1.381 -> .77 .67 .74 .83; 1.50 -> .80 .71
+    # .80 .87; 1.65 -> .89 .77 .85 .93; the Italic 400 -> .73 .85 .84 .91.
+    _G_WF = float(os.environ.get("ALBO_ALD_G_WF", 1.65))
     G_CUT = float(os.environ.get("ALBO_ALD_G_CUT", 3.0))
     G_BOWL_CUT = [(30, 1.0), (110, -0.8), (200, 0.9), (290, -1.0)]
     G_LOOP_CUT = [(60, -0.9), (150, 1.0), (240, -0.7), (330, 0.8)]
@@ -5563,15 +5573,28 @@ if ON:
         if G_STYLE == 'roman':
             return _g_roman(c)
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6; dsc = c["desc"]
+        # ROUND 398 -- THE CURSIVE g WAS NEVER ON THE WEIGHT AXIS. Owner
+        # 2026-09-26: *"check that 'g' is right in bold italic"*. Round 269
+        # put every absolute width in this module on ALD_WF_UP -- and did so
+        # for `_g_roman` (its rings take wscale=ALD_WF_UP * G_WALL), which was
+        # the shipped g then. The cursive arm became the default later and
+        # its rings (pen=... with no wscale), neck (_nk) and ear (G_EAR_T)
+        # all stayed in absolute units, so the 700 drew the 400's g stroke for
+        # stroke: 47 against a bowl family of 97 (0.49), where the Italic's g
+        # sits at 0.85 of its own. _G_WF scales every WIDTH of the letter (no
+        # position) and is exactly 1.0 at and below the Medium, so the
+        # approved Italic g is untouched. Its default is measured, not ALD_WF_UP:
+        # see docs/albo-round-398-2026-09-26.md.
+        _gwf = _G_WF if S > 84.0 else 1.0
         del _RING_PARTS[:]
         del _RING_GEOM[:]
         up, up_outer = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u,
                         G_RING, k=A_K, skew=G_SKEW, unit=u, want_outer=True,
                         hand=_gh(G_BOWL_HAND), adj=G_RING_ADJ, _phi=G_BOWL_PHI,
-                        oval=G_BOWL_OVAL, oval_wall=G_OVAL_WALL * u,
+                        oval=G_BOWL_OVAL, oval_wall=G_OVAL_WALL * u * _gwf,
                         oval_hand=_gc(G_BOWL_CUT),
                         pen=(G_BOWL_PEN, G_BOWL_THIN_F, G_BOWL_CON)
-                            if G_BOWL_PEN else None)
+                            if G_BOWL_PEN else None, wscale=_gwf)
         # ROUND 197 -- THE LOOP CAN BE MOVED AS A WHOLE.
         # Owner 2026-09-17: *"move the bottom loop up until the top stroke of it
         # rests on the baseline"*. G_LTOP moves only the ring's top, which
@@ -5584,10 +5607,10 @@ if ON:
                                   (lt - lb) / 2.0, G_LRING, k=A_K, skew=G_SKEW_L,
                                   unit=u, want_outer=True, hand=_gh(G_LOOP_HAND),
                                   adj=G_LRING_ADJ, _phi=G_LOOP_PHI,
-                                  oval=G_LOOP_OVAL, oval_wall=G_OVAL_WALL * u,
+                                  oval=G_LOOP_OVAL, oval_wall=G_OVAL_WALL * u * _gwf,
                                   oval_hand=_gc(G_LOOP_CUT),
                                   pen=(G_LOOP_PEN, G_LOOP_THIN_F, G_LOOP_CON)
-                                      if G_LOOP_PEN else None)
+                                      if G_LOOP_PEN else None, wscale=_gwf)
         # ROUND 173 -- THE NECK IS THINNER, ANGULAR, AND STOPS AT THE LOOP.
         # Owner 2026-09-16: *"thin out and fix and make the connector in g
         # tastefully angular. do not overrun into counter"*. Three faults, and
@@ -5691,11 +5714,11 @@ if ON:
             return (px_ + dx_ / dl_ * hw_, py_ + dy_ / dl_ * hw_)
 
         _startw = (_bw(G_BOWL_EXIT) if G_NECK_START_MATCH else G_NECK_START_W * G_NECK_SCALE)
-        _nk = [(0.0, _startw * u),
-               (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE),
-               (1.0, _endw * u)]
+        _nk = [(0.0, _startw * u * _gwf),
+               (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE * _gwf),
+               (1.0, _endw * u * _gwf)]
         if G_NECK_TWIST:
-            _nk = sorted(_nk + [(G_NECK_TWIST_AT, G_NECK_TWIST * u * G_NECK_SCALE)])
+            _nk = sorted(_nk + [(G_NECK_TWIST_AT, G_NECK_TWIST * u * G_NECK_SCALE * _gwf)])
         _nw = widths(_nk)
         # ROUND 188 -- THE CONNECTOR IS PART OF A COMPOUND PATH, so its end must
         # land ON THE LOOP'S WALL -- not short of it, not through it.
@@ -5894,10 +5917,10 @@ if ON:
             # their places in between
             _bw2, _bw1, _lw1, _lw2, _t1, _t2 = _weld_w
             _nk2 = [(0.0, _bw2), (_t1, _bw1),
-                    (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE),
+                    (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE * _gwf),
                     (_t2, _lw1), (1.0, _lw2)]
             if G_NECK_TWIST and G_NECK_TWIST_AT < _t2:
-                _nk2 = sorted(_nk2 + [(G_NECK_TWIST_AT, G_NECK_TWIST * u * G_NECK_SCALE)])
+                _nk2 = sorted(_nk2 + [(G_NECK_TWIST_AT, G_NECK_TWIST * u * G_NECK_SCALE * _gwf)])
             _nk2 = sorted({round(t, 5): w for t, w in sorted(_nk2)}.items())
             _nw = widths(_nk2)
         nk = stroke(catmull(_pen, tension=G_NECK_ANG), _nw,
@@ -6125,10 +6148,10 @@ if ON:
         _elev = (_er[0] + (_etip[0] - _er[0]) * G_EAR_TANG, _er[1])
         _emid = ((_elev[0] + _etip[0]) / 2, (_elev[1] + _etip[1]) / 2 + G_EAR_BOW * xh)
         ear = stroke(catmull([tuple(_er), _elev, _emid, _etip], tension=0.5),
-                     widths([(0.0, G_EAR_T * u * G_EAR_ROOT_W),
-                             (0.45, G_EAR_T * u * 0.85),
-                             (0.82, G_EAR_T * u * G_EAR_FLARE),
-                             (1.0, G_EAR_T * u * G_EAR_TIP)]), cut1=CUT)
+                     widths([(0.0, G_EAR_T * u * _gwf * G_EAR_ROOT_W),
+                             (0.45, G_EAR_T * u * _gwf * 0.85),
+                             (0.82, G_EAR_T * u * _gwf * G_EAR_FLARE),
+                             (1.0, G_EAR_T * u * _gwf * G_EAR_TIP)]), cut1=CUT)
         # ROUND 197 -- AN EXPORT HOOK FOR THE INTERACTIVE CONNECTOR EDITOR.
         # Owner 2026-09-17: *"make an interactive editor for g for me to dial in
         # the connector"*. The page cannot run this module, so it needs the two

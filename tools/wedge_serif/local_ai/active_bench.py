@@ -47,9 +47,9 @@ from b2_fit import white_fn, in_scope  # noqa: E402
 BENCH = os.path.join(WS, "bench")
 # THE ZERO a new session is answered against: the SHIPPED font. Sessions 1-2
 # were round 395 (fonts-2026-09-26); round 396 (B2 shipped) is
-# fonts-2026-09-26-r396; session 3 on is round 397 (fonts-2026-09-26-r397). Each key file records its own zero and every row's
+# fonts-2026-09-26-r396; session 3 is round 397 (fonts-2026-09-26-r397), session 4 on round 398 (fonts-2026-09-26-r398). Each key file records its own zero and every row's
 # white there, so active_ingest.py converts each session from ITS zero.
-ZERO_DIR = "fonts-2026-09-26-r397"
+ZERO_DIR = "fonts-2026-09-26-r398"
 ZERO = {"roman": os.path.join(BENCH, ZERO_DIR, "Albo-Regular.ttf"),
         "italic": os.path.join(BENCH, ZERO_DIR, "Albo-Italic.ttf")}
 B0920 = FT.FONTS
