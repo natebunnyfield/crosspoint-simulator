@@ -686,3 +686,132 @@ Owner: *"explain lora and other options besides qwen, maybe with cheaper models 
 - **Small local VLMs as judges without training** (Qwen3-VL-8B, Gemma 3, SmolVLM): measured negative for Qwen (position bias, order flips); zero-shot judging is out.
 - **Claude models** cannot be fine-tuned from here. Their role is the ORCHESTRATOR -- running build, gates, score, proof, ingest -- not the judge. Haiku 4.5 or Sonnet 5 are enough for that and far cheaper than Opus; the local Qwen 27B in LM Studio does it for free, slowly (~2 min per turn measured in section 4).
 - **Hosted fine-tuning services** would send rendered bitmaps and his answers off the machine; outlines never leave, but it is a data-leaving step and not needed at this scale.
+
+
+## RULED 2026-09-26 (owner), session 1
+
+- *"i corrected the ones that needed it the most but mostly skipped the ones
+  that didn't."* **A skipped row is "fine as shipped", a judgment of 0.** This
+  follows the 2026-09-25 ruling that a 0 counts. Session 1 has 18 touched rows
+  and 32 skipped. The skipped rows are stored as delta 0, verdict
+  `skipped-ok`.
+- **Caveat.** A skip is weaker evidence than a slider he moved to 0. It can
+  mean "not worth my time" as well as "right". So `b2_fit.py --skip-weight W`
+  down-weights skipped rows, as an **option, not a default**. It is CV-tested
+  below, and on this data the full weight scored best, so the default stays 1.
+
+## 12. The refit on 470 answers (2026-09-26)
+
+**Session 1 ingest.** `active_ingest.py` on the 50 rows: repeats n = 5,
+mean |new − previous| **12.20**, drift **+1.40** (the re-ask was 10.83 / +5.4).
+`extra-judgments.json` now holds 100 rows: 50 outlier-bench answers and 50
+from session 1. Ingest now carries each row's `verdict`.
+
+**Held out** (`local_ai/probe_extra.py`, same folds as `bench_fit --cv`):
+
+```
+A. the 370 bench pairs, held out on bench_fit's folds, scored against his bench number
+   bench only (B2 as proofed)        10.73
+   + extras, skip weight 1           10.37
+   + extras, skip weight 0.5         10.43
+   + extras, skip weight 0.25        10.48
+   + extras, skip weight 0           10.56
+
+B. the pairs first answered after the bench (mean |error| vs his answer, 09-20 zero)
+   subset         n  nothing  BEFORE   CV sk1 CV sk0.5 CV sk0.25   CV sk0  in-samp
+   s1-touched    17    14.06    6.84     7.44     7.45     7.46     7.52     5.77
+   s1-skipped    28    10.00    7.87     6.76     6.93     7.09     7.34     3.49
+   outlier       29    12.93   13.28    11.19    11.36    11.50    11.81     7.49
+   ALL           74    12.08    9.76     8.65     8.78     8.90     9.13     5.58
+```
+
+- **On the 370 bench pairs, B2 goes from 10.73 to 10.37** when the extras are
+  in training. A held-out pair's own later readings are excluded, so nothing
+  leaks. The comparison is not significance-tested. Every skip weight under 1
+  is worse (10.43 / 10.48 / 10.56), so skips count in full.
+- **The session-1 pairs, BEFORE they were answered.** B2 predicted his touched
+  answers to **6.84** (doing nothing: 14.06) and his skips to 7.87. It already
+  knew where these pairs wanted to go; the selection spent his time where the
+  model was *uncertain*, not where it was *wrong*.
+- **The same pairs, AFTER, held out:** touched 7.44 (no gain, n = 17),
+  skipped 6.76, outlier pairs **13.28 → 11.19**.
+- **All 74 post-bench pairs:** 9.76 → **8.65** held out (in-sample 5.58).
+- **The rebuilt arm** (`spacing_b2.json`, two-pass holds as before) has
+  in-sample error roman 7.76 and italic
+  6.76. It has 395 roman and
+  447 italic kerns.
+  - The italic `pp fy py yp` extrapolations (−57 to −73) are gone: session 1
+    answered `pp`.
+  - New: roman `he` −12 in *the* (68,121), the largest move on the most
+    common pair. Look at it first.
+
+**Gates on the refit arm:**
+- `gates.sh`: UNCHANGED.
+- `cmp_touch`: 0/0 on all four cuts, **after one fix**. The refit's italic
+  `q` right side (−4) took the **BoldItalic `qj`** to 0.0111 em, under the
+  0.012 floor. It gets round 384's answer: a heavy-cut clearance kern, +4, B2
+  and BoldItalic only, now 0.0151.
+- Hairs: `--letters` exits 0 and the full sweep passes on all four cuts.
+- Approved glyphs: unchanged.
+
+**The default is still round 395:** `cmp_outlines --advances` and the GPOS
+XML are identical on all four cuts.
+
+**What moved**, frequency-weighted:
+
+| | pairs moved | by 4+ units | mean Δ | mean \|Δ\| | largest \|Δ\| |
+|---|---|---|---|---|---|
+| roman | 992 | 580 | +0.06 | 3.18 | 41 |
+| italic | 978 | 608 | +0.66 | 3.43 | 40 |
+
+The top 30 by |Δ| × count:
+
+| style | pair | count | r395 | B2 | Δ | word |
+|---|---|---|---|---|---|---|
+| roman | `he` | 68,121 | 95 | 83 | -12 | the |
+| italic | `in` | 54,252 | 45 | 52 | +7 | in |
+| roman | `st` | 32,597 | 108 | 118 | +10 | first |
+| italic | `ve` | 23,953 | 52 | 63 | +11 | have |
+| italic | `re` | 43,721 | 47 | 41 | -6 | are |
+| roman | `ha` | 23,757 | 111 | 100 | -11 | that |
+| italic | `an` | 46,222 | 87 | 92 | +5 | and |
+| roman | `re` | 43,721 | 99 | 94 | -5 | are |
+| roman | `es` | 38,079 | 88 | 93 | +5 | does |
+| italic | `ne` | 21,599 | 84 | 76 | -8 | one |
+| italic | `is` | 28,567 | -15 | -9 | +6 | is |
+| italic | `nt` | 23,307 | 103 | 96 | -7 | into |
+| roman | `se` | 21,583 | 109 | 116 | +7 | because |
+| roman | `en` | 35,806 | 95 | 99 | +4 | when |
+| italic | `on` | 42,190 | 80 | 83 | +3 | on |
+| roman | `ho` | 11,155 | 93 | 82 | -11 | who |
+| italic | `ng` | 28,537 | -9 | -13 | -4 | English |
+| italic | `vi` | 6,870 | 51 | 67 | +16 | Suvi |
+| roman | `hi` | 15,576 | 94 | 87 | -7 | which |
+| roman | `in` | 54,252 | 114 | 116 | +2 | in |
+| roman | `me` | 21,640 | 91 | 86 | -5 | me |
+| italic | `me` | 21,640 | 99 | 94 | -5 | me |
+| roman | `ch` | 15,003 | 92 | 99 | +7 | which |
+| italic | `de` | 20,917 | 31 | 26 | -5 | de |
+| italic | `ed` | 25,402 | 78 | 82 | +4 | usted |
+| italic | `ll` | 14,102 | 20 | 27 | +7 | all |
+| italic | `as` | 19,511 | 27 | 32 | +5 | as |
+| italic | `ab` | 8,026 | 80 | 92 | +12 | about |
+| italic | `at` | 31,840 | 103 | 100 | -3 | that |
+| roman | `ea` | 18,767 | 101 | 106 | +5 | real |
+
+The largest absolute moves are rare pairs:
+- roman `'v 'd 'r 'm`, −36 to −41;
+- italic `k;` −40, `Fr Fa Fe` −34 to −37, `Op` +38.
+
+**The proof** was regenerated in place, same file names, from the refit arm.
+
+**Session 2** (`bench/active-2026-09-26-s2.key.json`; the page is in
+`activebench2/` in the scratchpad):
+- Selected from the refit, with fresh uncertainty over 200 resamples of all
+  470 readings.
+- Candidates: 840 (672 visible). The sd runs **1.7 to 30.7, median 4.1**
+  (session 1: 2.0 to 40.3, median 4.5).
+- 45 chosen plus 5 repeats: 29 roman, 21 italic. The chosen sd runs 2.4 to
+  30.7, median 4.0.
+- Same zero (round 395), same page, the `db` collection `active`, bench id
+  `active-2026-09-26-s2`.

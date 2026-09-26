@@ -90,11 +90,12 @@ def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1):
     fonts = {s: FT.Font(p) for s, p in B0920.items()}
     rows = []
     for style in ("roman", "italic"):
-        J = bench_fit.judgments(style)
+        J, W = b2_fit.with_extra(style)          # bench + every ingested answer (skips = 0)
         cand = [p for p, c in census.items() if in_scope(p) and p not in done[style]
                 and (c >= b2_fit.CENSUS_MIN or (c >= b2_fit.CENSUS_MIN_MARK and any(ch in b2_fit.MARKS for ch in p)))]
-        pairs = sorted(set(J) | set(cand))
+        pairs = sorted(p for p in set(J) | set(cand) if in_scope(p) or p in bench_fit.judgments(style))
         feats = {p: FT.pair_features(fonts[style], p[0], p[1], style == "italic")[0] for p in pairs}
+        J = {p: v for p, v in J.items() if p in pairs}
         keys = sorted(J)
         boots = []
         for _ in range(BOOT):
@@ -102,7 +103,7 @@ def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1):
             Jb = {}
             for i in pick:                                   # duplicates: average is the same value
                 Jb[keys[i]] = J[keys[i]]
-            *_, predict, _ = b2_fit.fit(style, Jb, feats)
+            *_, predict, _ = b2_fit.fit(style, Jb, feats, W)
             boots.append([predict(p) for p in cand])
         sd = np.array(boots).std(0)
         wz = white_fn(ZERO[style]); w2 = white_fn(os.path.join(b2_dir, os.path.basename(ZERO[style])))

@@ -868,6 +868,15 @@ if _B2 is not None:
             for _r in _rs:
                 PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
 
+# B2 + BoldItalic: the refit's italic q right side (-4) takes the 900-weight
+# q's flag against the j's hook to 0.0111 em, under cmp_touch's 0.012 floor
+# (2026-09-26). The pair is round 384's kind -- a heavy-cut clearance, not a
+# spacing judgment -- so it gets round 384's answer: floor plus a few units.
+if _B2 is not None and _ALD is not None and _ALD.ON:
+    from . import pen as _pen_b2
+    if _pen_b2.S > 84.0:
+        PAIRS[('q', 'j')] = _shipped('q', 'j') + 4
+
 _apply_bench()
 
 

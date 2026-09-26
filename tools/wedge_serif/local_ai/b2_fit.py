@@ -82,7 +82,8 @@ def in_scope(p):
     return (a.isalpha() or a in MARKS) and (b.islower() or b in MARKS)
 
 
-def fit(style, J, feats):
+def fit(style, J, feats, W=None):
+    """W: optional {pair: weight} (weighted ridge); missing pairs weigh 1."""
     pairs = sorted(J)
     glyphs = sorted({c for p in pairs for c in p})
     gi = {c: i for i, c in enumerate(glyphs)}
@@ -96,7 +97,8 @@ def fit(style, J, feats):
     Z = np.hstack([A, sc.transform(Xf), np.ones((len(pairs), 1))])
     pen = np.r_[np.full(2 * G, ALPHA_ID), np.full(len(names), ALPHA_F), 0.0]
     y = np.array([J[p] for p in pairs])
-    w = np.linalg.solve(Z.T @ Z + np.diag(pen), Z.T @ y)
+    sw = np.array([(W or {}).get(p, 1.0) for p in pairs])
+    w = np.linalg.solve(Z.T @ (Z * sw[:, None]) + np.diag(pen), Z.T @ (sw * y))
     lsb = {c: w[2 * gi[c]] for c in glyphs}
     rsb = {c: w[2 * gi[c] + 1] for c in glyphs}
     wf, c0 = w[2 * G:-1], w[-1]
@@ -115,6 +117,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--census", required=True)
     ap.add_argument("--holds", nargs=2, metavar=("BASE_DIR", "B2_DIR"))
+    ap.add_argument("--skip-weight", type=float, default=1.0,
+                    help="weight of a SKIPPED active-bench row (verdict skipped-ok, delta 0); "
+                         "default 1 = a skip counts as a full judgment (owner 2026-09-26)")
     ap.add_argument("--extra", action="store_true",
                     help="also fold in bench/answers/extra-judgments.json (active_ingest.py): "
                          "each pair's judgment becomes the mean of every reading on the fit's zero")
@@ -123,14 +128,14 @@ def main():
     fonts = {s: FT.Font(p) for s, p in FT.FONTS.items()}
     out = json.load(open(OUT)) if (args.holds and os.path.exists(OUT)) else {}
     for style in ("roman", "italic"):
-        J = with_extra(style) if args.extra else bench_fit.judgments(style)
+        J, W = with_extra(style, skip_w=args.skip_weight) if args.extra else (bench_fit.judgments(style), None)
         scope = sorted({p for p in J if in_scope(p)} |
                        {p for p, n in census.items() if in_scope(p) and
                         (n >= CENSUS_MIN or (n >= CENSUS_MIN_MARK and any(c in MARKS for c in p)))})
         feats = {}
         for p in scope:
             feats[p] = FT.pair_features(fonts[style], p[0], p[1], style == "italic")[0]
-        lsb, rsb, predict, ins = fit(style, {p: J[p] for p in J if p in feats}, feats)
+        lsb, rsb, predict, ins = fit(style, {p: J[p] for p in J if p in feats}, feats, W)
         letters, marks = {}, {}
         for c in sorted(set(lsb) | set(rsb)):
             L, R = int(round(lsb.get(c, 0))), int(round(rsb.get(c, 0)))
@@ -157,17 +162,35 @@ def main():
     print("wrote", OUT)
 
 
-def with_extra(style, drop=("g",)):
-    """The bench judgments plus every ingested reading (active_ingest.py), each
-    pair the MEAN of all its readings on the 09-20 zero. The g stays out, as
-    in bench_fit (owner 2026-09-21)."""
-    reads = {p: [d] for p, d in bench_fit.judgments(style, drop).items()}
+def readings(style, drop=("g",)):
+    """{pair: [(d on the 09-20 zero, weight class)]}: the bench (class "bench")
+    plus every ingested row (active_ingest.py), class "skip" for a skipped
+    active row (verdict skipped-ok), "extra" otherwise. g stays out, as in
+    bench_fit (owner 2026-09-21)."""
+    reads = {p: [(d, "bench")] for p, d in bench_fit.judgments(style, drop).items()}
     ex = os.path.join(WS, "bench", "answers", "extra-judgments.json")
     if os.path.exists(ex):
         for r in json.load(open(ex))["rows"]:
             if r["style"] == style and not any(c in drop for c in r["pair"]):
-                reads.setdefault(r["pair"], []).append(r["d0920"])
-    return {p: float(np.mean(v)) for p, v in reads.items()}
+                cls = "skip" if r.get("verdict") == "skipped-ok" else "extra"
+                reads.setdefault(r["pair"], []).append((r["d0920"], cls))
+    return reads
+
+
+def combine(reads, skip_w=1.0):
+    """Each pair: the weighted MEAN of its readings (skip weight skip_w, all
+    others 1) and, as the pair's weight in the fit, its largest reading weight
+    -- a pair he only skipped weighs skip_w, one he touched weighs 1."""
+    J, W = {}, {}
+    for p, rs in reads.items():
+        w = np.array([skip_w if c == "skip" else 1.0 for _, c in rs])
+        J[p] = float(np.average([d for d, _ in rs], weights=w)) if w.sum() else 0.0
+        W[p] = float(w.max())
+    return J, W
+
+
+def with_extra(style, drop=("g",), skip_w=1.0):
+    return combine(readings(style, drop), skip_w)
 
 
 def white_fn(path):

@@ -219,7 +219,8 @@ td, th {{ border-bottom:1px solid var(--line); padding:3px 10px; text-align:left
 </style></head><body><main>
 <h1>B2 Spacing Proof</h1>
 <p>Round 395 as shipped, over the B2 arm (<code>ALBO_SPACING_FIT=b2</code>): the per-glyph ridge plus measured shape
-features, held out at 10.73 units against the shipped fit's 11.66 and his repeatability of 10.83. Rendered as the reader
+features, refit 2026-09-26 on his 370 bench judgments plus the 100 answers since (outlier bench and active session 1).
+Held out on the bench pairs: 10.37 units, against 10.73 before the refit, the shipped fit's 11.66 and his repeatability of 10.83. Rendered as the reader
 renders: FreeType, 2-bit coverage, fractional advances, kerns in 1/16 px.</p>
 <p>Frequency-weighted over his books: roman moves {s['roman']['wabs']:.1f} units per pair on average (mean {s['roman']['wmean']:+.2f}),
 italic {s['italic']['wabs']:.1f} (mean {s['italic']['wmean']:+.2f}). The pairs he set by hand after the bench (rounds 384&ndash;390) are held at round 395's white.</p>

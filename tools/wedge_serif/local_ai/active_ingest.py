@@ -82,7 +82,7 @@ def read_answers(src):
             d = json.load(open(f))
             if d.get("touched"):
                 out.append(dict(style=m[1], id=m[2], delta=d["delta"], at=d.get("at"),
-                                session=d.get("session"), bench=d.get("bench")))
+                                session=d.get("session"), bench=d.get("bench"), verdict=d.get("verdict", "")))
         return (out[0]["bench"] if out else None), out
     text = open(src).read()
     blob = json.loads(text[text.index("{"):text.rindex("}") + 1])
@@ -100,6 +100,7 @@ def active(src):
                          white_zero=r["white0"], white0920=r["white0920"],
                          d0920=int(r["white0"] + a["delta"] - r["white0920"]), d_r395=a["delta"],
                          session=a.get("session"), at=a.get("at"), kind=r["kind"],
+                         verdict=a.get("verdict", "") or "",
                          previous0920=r.get("previous0920")))
     reps = [r for r in rows if r["kind"] == "repeat"]
     if reps:
