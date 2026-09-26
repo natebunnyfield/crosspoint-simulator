@@ -675,3 +675,14 @@ Without it, answers stay in the browser and he uses Copy answers.
 - **The committed B2 arm (§10) was NOT refit with them.** The proof shows the
   arm as fitted on the 370. Folding them in is the first `--extra` refit,
   after session 1.
+
+## 12. Tuning a model: LoRA and the cheaper alternatives (asked 2026-09-26)
+
+Owner: *"explain lora and other options besides qwen, maybe with cheaper models than opus 5.5"*. Recorded so the answer is not re-derived. Status of each line: measured here, or inferred (not yet measured).
+
+- **LoRA** freezes a base model and trains two small low-rank matrices per layer (typically 0.1-1% of the weights), so a vision model can be taught from few examples on the Mac mini (MLX `mlx-vlm`, 4-bit base + adapter, QLoRA). The adapter loads in LM Studio beside its base. Inferred: at 370-420 answers it is unlikely to beat B2; section 4's from-scratch CNN (13.28) is the measured warning, though a pretrained base is far more data-efficient than scratch.
+- **Pretrained image embedding + a small head** (SigLIP / DINOv2 small, 20-90M parameters, frozen; a linear or 2-layer head trained on his pairs). Inferred to be the most data-efficient learned arm: the features are pretrained, only the head learns. Seconds to train on the M4. Not yet measured -- the obvious next probe arm.
+- **B2** (ridge + measured shape features): measured best, 10.73 held-out, CPU, sub-second.
+- **Small local VLMs as judges without training** (Qwen3-VL-8B, Gemma 3, SmolVLM): measured negative for Qwen (position bias, order flips); zero-shot judging is out.
+- **Claude models** cannot be fine-tuned from here. Their role is the ORCHESTRATOR -- running build, gates, score, proof, ingest -- not the judge. Haiku 4.5 or Sonnet 5 are enough for that and far cheaper than Opus; the local Qwen 27B in LM Studio does it for free, slowly (~2 min per turn measured in section 4).
+- **Hosted fine-tuning services** would send rendered bitmaps and his answers off the machine; outlines never leave, but it is a data-leaving step and not needed at this scale.
