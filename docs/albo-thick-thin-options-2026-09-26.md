@@ -545,13 +545,26 @@ problem again (`x_bl_anchor`), now reached from below.
 
 ## 10. Owner picks
 
-*(to be recorded here: one line per group, with the quote)*
+Ruled on 2026-09-26 from the slider page (section 9b), as the JSON
+`{"ALBO_ALD_BOWL_HAIR":"34","ALBO_ALD_A_HAIR":"38","ALBO_ALD_S_PEN_CON":"5.5","ALBO_ALD_Y_TAIL_W":"30","ALBO_ROM_N_JOIN_TAPER":null,"ALBO_ROM_LCX_THIN":"1.00","ALBO_ROM_K_ARM":null,"ALBO_ROM_Y_THIN":"1.00","ALBO_ROM_E_BAR_FLOOR":"0.45","ALBO_E_TAIL_R":null,"ALBO_FIG3_FLOOR":"0.40","ALBO_8_NIB":"1.03,0.30,0","ALBO_ALD_SIX_TAIL_END":"0.60"}`.
+`null` means keep as shipped. Shipped as **round 395**
+(`docs/albo-round-395-2026-09-26.md`).
 
-| group | pick | quote | date |
+| dial | pick | against round 393 | ruling it reverses (his call) |
 |---|---|---|---|
-| A italic bowls | | | |
-| B italic s y | | | |
-| C roman n h m | | | |
-| D roman x k Y | | | |
-| E roman e | | | |
-| F figures 3 / 8 / 6 | | | |
+| A italic bowls q p d b | floor **34** | from 0 | none; lifts round 135's Pagella hairline arm on the b |
+| A italic a | floor **38** | from 0 | **part of CON_A**, the a's contrast (2026-09-15/16) |
+| B italic s | contrast **5.5** | from 7.0 | **part of the 2026-09-17 s pass** ("up its contrast") |
+| B italic y | tail **30** | from 26 | **part of 2026-09-16** ("match y lowest brush stroke to the swoop of cancell"); the tail is now heavier than Cancelleresca's 26 |
+| C roman n h m join | as shipped | — | round 232 kept |
+| D roman x | **1.00** | from 0.72 | none |
+| D roman k | as shipped | — | — |
+| D roman Y | **1.00** | from 0.72 | none |
+| E roman e bar | floor **0.45** | from 0.35, 400 only | none |
+| E roman e exit | as shipped | — | the "lighter tail" asks kept |
+| F roman 3 | floor **0.40** | from 0 | none |
+| F roman 8 | nib thin **0.30**, ROMAN ONLY | from 0.15 | **part of round 373's "cut deeper wins"** |
+| F italic 6 | tail end **0.60** | from the run-out | none |
+
+He made these picks himself on the slider page. Where one reverses part of an
+earlier ruling, the pick is now the ruling.

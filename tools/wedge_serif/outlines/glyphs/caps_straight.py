@@ -1674,7 +1674,7 @@ def g_X(c):
 # right arm carries the same declared 0.72 on a down-left stroke and measures
 # 27 units, -28% of the diagonal capitals and the only capital outlier of the
 # pass. 0.90 would be the X's shipped value. Default 0.72, byte-identical.
-Y_THIN = float(os.environ.get("ALBO_ROM_Y_THIN", 0.72))
+Y_THIN = float(os.environ.get("ALBO_ROM_Y_THIN", 1.00))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0.72 = round 393)
 
 @glyph('Y')
 def g_Y(c):

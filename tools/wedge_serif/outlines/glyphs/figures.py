@@ -1107,7 +1107,7 @@ TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229'
 TWO_OPT_IT['g'] = dict(top_w=_E('ALBO_2G_TOPW_IT', 0.82), slash_k=0.70, slash_w=0.55)
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
-THREE_FLOOR = float(os.environ.get("ALBO_FIG3_FLOOR", 0.0))   # round 394 option (roman 3), x S; 0 ships
+THREE_FLOOR = float(os.environ.get("ALBO_FIG3_FLOOR", 0.40))   # round 394 option (roman 3), x S; # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0 = round 393)
 
 @glyph('3')
 def g_three(c):
@@ -1510,9 +1510,9 @@ SIX_OPT_IT = {k: SIX_OPT[k] for k in ('b', 'c')}
 # SIX_TAIL_END_IT instead (0.30 is the roman's shipped pen cut, arm 'i'). 0,
 # the default, is the shipped run-out, byte for byte. Italic only; the roman
 # 6 ships 'i' and is not in this pass.
-SIX_TAIL_END_IT = float(os.environ.get("ALBO_ALD_SIX_TAIL_END", 0.0))
+SIX_TAIL_END_IT = float(os.environ.get("ALBO_ALD_SIX_TAIL_END", 0.60))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0 = round 393's run-out)
 
-def _six_draw(c, D, o):
+def _six_draw(c, D, o, tail_end=None):
     (solid, oo, i), rx, r, ry = six_bowl(c, D, r_frac=o.get('r', 0.29)); cx = rx + TH_V / 2
     _tx, _ty = o.get('tip', (0.85, -10.0))
     p0 = (cx - rx, r); tip = (cx + rx * _tx, D + _ty)
@@ -1520,8 +1520,9 @@ def _six_draw(c, D, o):
     base = pen_widths(top); prof = widths([(0.0, 0.15), (0.06, 1.0), (0.65, 1.0), (1.0, 0.12)])
     wfun = lambda u: max(base(u), SIX_TAIL_FLOOR * S) * prof(u)   # the floor under the pen, the profile over both
     if pen.ITALIC:
-        if SIX_TAIL_END_IT:     # round 394 option, see SIX_TAIL_END_IT
-            prof_i = widths([(0.0, 0.15), (0.06, 1.0), (0.65, 1.0), (1.0, SIX_TAIL_END_IT)])
+        _te = SIX_TAIL_END_IT if tail_end is None else tail_end
+        if _te:     # round 394 option, see SIX_TAIL_END_IT
+            prof_i = widths([(0.0, 0.15), (0.06, 1.0), (0.65, 1.0), (1.0, _te)])
             return geom.ink([solid, stroke(top, lambda u: max(base(u), SIX_TAIL_FLOOR * S) * prof_i(u))])
         return geom.ink([solid, stroke(top, wfun)])
     # ROUND 233 (R41), owner 2026-09-18: *"correct end of tail."* The profile
@@ -2156,6 +2157,10 @@ EIGHT_OPT_IT = {
 # ALBO_FIG_8=y cannot silently hand the italic option 'a' (a letter with no
 # row in a table resolves to 'a' -- see OPT).
 EIGHT_OPT_IT['y'] = EIGHT_OPT_IT['z'] = EIGHT_OPT_IT['x']
+# ROUND 395, owner pick 2026-09-26 from the slider page: the ROMAN 8's nib thin
+# 0.30 ("ALBO_8_NIB": "1.03,0.30,0" on the roman builds), which is option z
+# exactly. The italic keeps its x -- the pick was roman only.
+FIG_SHIP_ROM.update({'8': 'z'})
 
 @glyph('8')
 def g_eight(c, _ovl=None, _pass=0):
@@ -2200,7 +2205,11 @@ def g_eight(c, _ovl=None, _pass=0):
         # units under the round-233 6 that e/g (True) still aim at; e and g are
         # left on that older line so they build as they did.
         _o6 = _okw('6', SIX_OPT, SIX_OPT_IT) if _o8.get('to_six') == 'shipped' else {}
-        six_top = geom.bbox(_six_draw(_c6, Dr, _o6))[3]
+        # ROUND 395: solved onto the 6 AS OF ROUND 393 (tail_end=0, the run-out).
+        # The owner's italic-6 pick (SIX_TAIL_END_IT 0.60) thickens the tail's
+        # tip and so raises the 6's top by a unit or two; the 8 was ruled on
+        # its own and must not move with it (coordinator brief, round 395).
+        six_top = geom.bbox(_six_draw(_c6, Dr, _o6, tail_end=0.0))[3]
     _uptall = _o8.get('up_tall', 1.0)    # round 255 (o-q): the upper counter's height alone, x this
     cw2, ch2 = bw2 + 2 * sp, bw2 / EIGHT_COUNTER_WH * EIGHT_LOWER_TALL * _tall + 2 * sp     # drawn (pre-spread) targets
     cw1, ch1 = bw1 + 2 * sp, bw1 / EIGHT_COUNTER_WH * _tall * _uptall + 2 * sp

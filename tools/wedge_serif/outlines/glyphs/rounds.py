@@ -229,7 +229,7 @@ E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its b
 # or under stem 84: above it the bar is round 287's E_BAR_HEAVY, and a 0.45
 # floor there thinned the 700's p10 49.7 -> 42.1 (a new sliver, not a lift).
 # 0.35 ships.
-E_BAR_FLOOR = float(os.environ.get("ALBO_ROM_E_BAR_FLOOR", 0.35))
+E_BAR_FLOOR = float(os.environ.get("ALBO_ROM_E_BAR_FLOOR", 0.45))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0.35 = round 393)
 
 # ROUND 287 -- THE HEAVY e's BAR. Owner 2026-09-19: *"that e could be
 # heavier."* Measured against its own CONSTRUCTION family at the 900 (the

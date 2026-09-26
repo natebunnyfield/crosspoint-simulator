@@ -3481,8 +3481,8 @@ if ON:
     # (CON_A, 2026-09-15/16). The g reads A_RING too and is NOT floored --
     # it is an approved letter (approved.py).
     # docs/albo-thick-thin-options-2026-09-26.md.
-    BOWL_HAIR = float(os.environ.get("ALBO_ALD_BOWL_HAIR", 0.0))
-    A_HAIR = float(os.environ.get("ALBO_ALD_A_HAIR", 0.0))
+    BOWL_HAIR = float(os.environ.get("ALBO_ALD_BOWL_HAIR", 34.0))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0 = round 393)
+    A_HAIR = float(os.environ.get("ALBO_ALD_A_HAIR", 38.0))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page; reverses part of CON_A (2026-09-15/16), his call (0 = round 393)
 
     def _hair(keys, floor):
         return [(a_, max(w_, floor)) for a_, w_ in keys] if floor else keys
@@ -4402,7 +4402,7 @@ if ON:
     # where this face's own o runs 4.6. `con` re-spreads a width list about its
     # geometric mean, which is how the rings already take their contrast, so the
     # s can be set to the right weight and then cut to the right ratio.
-    S_PEN_CON = float(os.environ.get("ALBO_ALD_S_PEN_CON", 7.0))
+    S_PEN_CON = float(os.environ.get("ALBO_ALD_S_PEN_CON", 5.5))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page; 7.0 until round 394 (the 2026-09-17 s pass), his call
     # 2026-09-17 -- THE LETTER'S HEIGHT, AND ITS TOP LINE'S WEIGHT. Owner: *"the
     # s is slightly too tall, reduce the top line's visual weight, especially up
     # its contrast"*. Measured, the shipped s's ink topped at 449 units where
@@ -6532,7 +6532,7 @@ if ON:
     #   -- 2.2 x the hairline -- over the last stretch and closes as a rounded
     #   lobe roughly 110 x 56. Albo's ended in a squared face with an upward
     #   flick, which is the shape the old last point (TX, TY+0.055) drew.
-    Y_TAIL_W = d_dial("Y_TAIL_W", 26.0)    # the hairline, units -- the reference's
+    Y_TAIL_W = d_dial("Y_TAIL_W", 30.0)    # the hairline, units -- 26 is the reference's; # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (26 until round 394), his call against part of the 2026-09-16 Cancelleresca ruling
     Y_TAIL_DROP = d_dial("Y_TAIL_DROP", 27.0)   # the terminal drop's radius, units
 
     # Round 177, the owner's: how far the left stroke bows OUT (left), in

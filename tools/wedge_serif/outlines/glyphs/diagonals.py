@@ -179,7 +179,8 @@ X_BL_WIDTH = 1.0    # the width the wedge is sized on: the THICK diagonal's (1.0
 # was not in that round. Default 0.72, byte-identical. At the 400 the bottom
 # left wedge (round 90, X_BL_*) is sized on the THICK diagonal and does not
 # move with this; above stem 84 its anchor interpolates toward it.
-X_BL_THIN = float(os.environ.get("ALBO_ROM_LCX_THIN", 0.72))    # ... and the width the stroke it lands on actually has
+X_BL_THIN = float(os.environ.get("ALBO_ROM_LCX_THIN", 1.00))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0.72 = round 393)
+#    # ... and the width the stroke it lands on actually has
 
 # THE WEDGE'S OVERHANG IS A KNIFE-CUT, NOT A WEIGHT (2026-09-19, the bold
 # masters). `end_wedge` anchors a wedge half of the width it is GIVEN off the
