@@ -615,10 +615,10 @@ _BENCH_PAIRS_ITA = ((('A','n'), 2), (('A','v'), 16), (('C','a'), -1), (('C','h')
                     (('S','h'), 7), (('S','o'), -8), (('S','p'), 10), (('S','t'), 4), (('T','h'), -13),
                     (('T','o'), 9), (('V','i'), -4), (('W','a'), 12), (('W','h'), 7), (('W','i'), 20),
                     (('Y','e'), 42), (('Y','o'), 50))
-# 2026-09-26 -- ALBO_SPACING_FIT=b2 (default off) swaps these pairs for the B2
-# arm's kerns (spacing_b2.json, written by local_ai/b2_fit.py), added to what
-# each pair carries exactly as the bench pairs are. See build.py's SPACING_FIT.
-_SPACING_FIT = os.environ.get("ALBO_SPACING_FIT", "").strip().lower()
+# ROUND 396 -- B2 IS THE DEFAULT (build.py's SPACING_FIT): its kerns
+# (spacing_b2.json) replace these pairs, added to what each pair carries exactly
+# as the bench pairs are. ALBO_SPACING_FIT=bench keeps round 395's pairs.
+_SPACING_FIT = os.environ.get("ALBO_SPACING_FIT", "b2").strip().lower() or "b2"
 _B2 = None
 if _SPACING_FIT == "b2":
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spacing_b2.json")) as _fh:

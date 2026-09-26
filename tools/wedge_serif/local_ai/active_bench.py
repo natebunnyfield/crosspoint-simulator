@@ -43,8 +43,13 @@ import b2_fit  # noqa: E402
 from b2_fit import white_fn, in_scope  # noqa: E402
 
 BENCH = os.path.join(WS, "bench")
-ZERO = {"roman": os.path.join(BENCH, "fonts-2026-09-26", "Albo-Regular.ttf"),
-        "italic": os.path.join(BENCH, "fonts-2026-09-26", "Albo-Italic.ttf")}
+# THE ZERO a new session is answered against: the SHIPPED font. Sessions 1-2
+# were round 395 (fonts-2026-09-26); from round 396 (B2 shipped) it is
+# fonts-2026-09-26-r396. Each key file records its own zero and every row's
+# white there, so active_ingest.py converts each session from ITS zero.
+ZERO_DIR = "fonts-2026-09-26-r396"
+ZERO = {"roman": os.path.join(BENCH, ZERO_DIR, "Albo-Regular.ttf"),
+        "italic": os.path.join(BENCH, ZERO_DIR, "Albo-Italic.ttf")}
 B0920 = FT.FONTS
 QUANTUM = 1.16
 BOOT = 200
@@ -167,7 +172,7 @@ def main():
     summary = dict(candidates=len(allrows), visible=int(vis), sd_min=float(sds.min()), sd_median=float(np.median(sds)),
                    sd_p90=float(np.percentile(sds, 90)), sd_max=float(sds.max()),
                    chosen_sd=[round(r["sd"], 2) for r in items if r["kind"] == "active"])
-    key = dict(bench=tag, seed=a.seed, zero="bench/fonts-2026-09-26 (round 395, 12b75e9)",
+    key = dict(bench=tag, seed=a.seed, zero="bench/" + ZERO_DIR,
                note="Selection evidence and each row's white at both zeros. The page shows none of it.",
                summary=summary, rows=items)
     json.dump(key, open(os.path.join(BENCH, tag + ".key.json"), "w"), indent=1, ensure_ascii=False)

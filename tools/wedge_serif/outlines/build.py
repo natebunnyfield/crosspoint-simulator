@@ -517,13 +517,16 @@ ALD_LC_ADJ = {'g': (-15, -15),   # NOT from the bench: every g row was judged ag
               'e': (+0, -14), 'h': (+4, +0), 'i': (-5, +8), 'l': (+0, +5), 'm': (+6, +7), 'o': (+7, +0), 'p': (+0, +9), 'r': (+10, +0), 't': (+0, -10), 'u': (-5, +10), 'w': (+0, +14), 'y': (+10, +16)}
 ALD_PUNCT_FIT = {"'": (-6, +0), ',': (+2, +0), '.': (-5, +0), ':': (-1, +0)}
 
-# 2026-09-26 -- THE B2 SPACING ARM, BEHIND A FLAG, DEFAULT OFF. ALBO_SPACING_FIT=b2
-# replaces the four tables above (the g and the ligature riders excepted) with
-# the identity + shape-feature ridge of docs/local-ai-spacing-options-2026-09-26.md
-# (held out 10.73 against these tables' 11.66). Unset, nothing below runs and the
-# build is round 395's. The tables are written by local_ai/b2_fit.py; kern.py
-# swaps _BENCH_PAIRS_* for the arm's kerns under the same flag.
-SPACING_FIT = os.environ.get("ALBO_SPACING_FIT", "").strip().lower()
+# ROUND 396 (2026-09-26) -- B2 IS THE DEFAULT SPACING. Owner, decided blind:
+# *"ship B2"*. The four tables above are round 395's bench fit and stay here as
+# the ALBO_SPACING_FIT=bench arm, byte for byte round 395; the default (unset,
+# or =b2) replaces them with the identity + shape-feature ridge of
+# docs/local-ai-spacing-options-2026-09-26.md, refit on 470 answers (held out
+# 10.37 on the bench pairs against these tables' 11.66). The g and the
+# ligature riders are handled as before. Tables: spacing_b2.json, written by
+# local_ai/b2_fit.py; kern.py swaps _BENCH_PAIRS_* under the same switch.
+# docs/albo-round-396-2026-09-26.md.
+SPACING_FIT = os.environ.get("ALBO_SPACING_FIT", "b2").strip().lower() or "b2"
 if SPACING_FIT == "b2":
     import json as _json
     _B2 = _json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spacing_b2.json")))
@@ -536,8 +539,8 @@ if SPACING_FIT == "b2":
     ALD_LC_ADJ = {"g": ALD_LC_ADJ["g"],
                   **{c: tuple(v) for c, v in _B2["italic"]["letters"].items() if c != "g"}}
     ALD_PUNCT_FIT = {c: tuple(v) for c, v in _B2["italic"]["marks"].items()}
-elif SPACING_FIT:
-    raise SystemExit(f"ALBO_SPACING_FIT={SPACING_FIT!r}: the only arm is 'b2'")
+elif SPACING_FIT != "bench":
+    raise SystemExit(f"ALBO_SPACING_FIT={SPACING_FIT!r}: the arms are 'b2' (default) and 'bench' (round 395)")
 
 for _c, _lr in ALD_PUNCT_FIT.items():             # round 308's joint fit
     _b = ALD_PUNCT_ADJ.get(_c, (0, 0))

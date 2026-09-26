@@ -5,9 +5,9 @@ WHAT B2 IS. docs/local-ai-spacing-options-2026-09-26.md §2a: one ridge per
 style over (a) each glyph's two bearings and (b) 38 shape features of the pair,
 measured on the bench's own fonts. Held out on bench_fit's folds it scores
 10.73 against the shipped pipeline's 11.66. This script fits it on ALL 370
-non-g judgments and turns it into what the builder can ship, behind
-ALBO_SPACING_FIT=b2 (default off: the build is round 395's, byte for byte in
-outlines and advances).
+non-g judgments (--extra: plus every later answer) and turns it into what the
+builder ships. Since ROUND 396 it is Albo's DEFAULT spacing;
+ALBO_SPACING_FIT=bench builds round 395's bench-fit tables instead.
 
 HOW A PREDICTION BECOMES A FONT. The prediction for a pair is
     t(a, b) = rsb_id[a] + lsb_id[b] + w . x(a, b) + c

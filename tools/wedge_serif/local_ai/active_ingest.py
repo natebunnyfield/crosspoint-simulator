@@ -37,9 +37,10 @@ BENCH = os.path.join(WS, "bench")
 EXTRA = os.path.join(BENCH, "answers", "extra-judgments.json")
 FN = {"roman": "Albo-Regular.ttf", "italic": "Albo-Italic.ttf"}
 Z0920 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-20", f)) for s, f in FN.items()}
-# the SHIPPED zero (round 395), recorded beside the fit's so a row can be read
+# the shipped zeros (round 395; round 396 = B2), recorded beside the fit's so a row can be read
 # against what he sees today
 Z395 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26", f)) for s, f in FN.items()}
+Z396 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r396", f)) for s, f in FN.items()}
 
 
 def load_extra():
@@ -65,6 +66,7 @@ def outliers():
         rows.append(dict(bench="outliers-2026-09-25", style=a["style"], pair=p, id=a["id"], delta=a["delta"],
                          white_zero=int(w0), white0920=int(w20), d0920=int(w0 + a["delta"] - w20),
                          d_r395=int(w0 + a["delta"] - Z395[a["style"]](p[0], p[1])),
+                         d_r396=int(w0 + a["delta"] - Z396[a["style"]](p[0], p[1])),
                          session="2026-09-25/26", at=a.get("at"), kind="outlier"))
     print(f"outlier answers: {len(rows)}; page-font white matches the key's on {agree}/{len(rows)}")
     shift = [r["d0920"] - r["delta"] for r in rows]
@@ -98,7 +100,10 @@ def active(src):
         r = rows_k[(a["style"], a["id"])]
         rows.append(dict(bench=bench, style=a["style"], pair=r["pair"], id=a["id"], delta=a["delta"],
                          white_zero=r["white0"], white0920=r["white0920"],
-                         d0920=int(r["white0"] + a["delta"] - r["white0920"]), d_r395=a["delta"],
+                         d0920=int(r["white0"] + a["delta"] - r["white0920"]),
+                         d_r395=int(r["white0"] + a["delta"] - Z395[a["style"]](*r["pair"])),
+                         d_r396=int(r["white0"] + a["delta"] - Z396[a["style"]](*r["pair"])),
+                         zero=key.get("zero"),
                          session=a.get("session"), at=a.get("at"), kind=r["kind"],
                          verdict=a.get("verdict", "") or "",
                          previous0920=r.get("previous0920")))
