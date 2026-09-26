@@ -597,15 +597,21 @@ run md5 \
 run letterpress \
   c++ -std=c++17 -Isrc -o "$OUT/letterpress" tests/letterpress_test.cpp
 
-# Raking light (2026-09-25 spike, src/RakingLight.h): the letterpress deboss
-# lit from a direction the phone's tilt sets. Pins that splitting
-# letterpress::multiplierAt into termsAt + a combiner moved no code value
-# (against a frozen copy of the pre-split body, a million windows); that the
-# reference light maps to framebuffer top-left in every orientation; that the
-# light turns the physical way for a roll and is EXACTLY today's at neutral;
-# that flat pixels are untouched and no pixel goes darker than the fixed
-# light's worst case under any of the 16x9 lights; that the edge-only relight
-# equals a full per-pixel lighting; and the quantizer's hysteresis.
+# Raking light (2026-09-25 spike, reworked 2026-09-26, src/RakingLight.h): the
+# letterpress deboss and the sheet itself lit from a direction the phone's tilt
+# sets, under four 0..200 dials. Pins that splitting letterpress::multiplierAt
+# into termsAt + a combiner moved no code value (against a frozen copy of the
+# pre-split body, a million windows); the four dials' mappings (strength 0 is
+# today's depth, lamp height 100 is a rake of EXACTLY 1, tilt range 0 pins the
+# lamp); that the reference light maps to framebuffer top-left in every
+# orientation; that the light turns the physical way for a roll and is EXACTLY
+# today's at neutral; that flat panel pixels are untouched under every light
+# and strength and the deboss is bounded by depth * gain * rake; that the
+# edge-only relight equals a full per-pixel lighting; the quantizer's
+# hysteresis; and the LAMP FIELD: darken-only, never past its per-pixel budget,
+# the bright side is the lamp's side, a slope rising toward the lamp is shaded,
+# and a 7:1 floor sweep over three palettes, every dial extreme and every light
+# with the lamp at its darkest pixel.
 run raking_light \
   c++ -std=c++17 -Isrc -Itests -o "$OUT/raking_light" tests/raking_light_test.cpp
 

@@ -41,6 +41,7 @@
 #include "PageFade.h"
 #include "PaperDefects.h"
 #include "PhosphorGrain.h"
+#include "RakingLight.h"
 #include "ReadingAllowance.h"
 #include "Scanlines.h"
 #include "ShowThrough.h"
@@ -80,6 +81,10 @@ enum Id {
   ReadingAllowanceMinutes,
   SpeedrunOn,
   RakingLightOn,
+  RakingStrengthPercent,
+  RakingLampHeightPercent,
+  RakingTiltRangePercent,
+  RakingPagePercent,
   EinkModeOn,
   SpeedReadOn,
   SpeedReadWpm,
@@ -311,6 +316,27 @@ inline constexpr Dial kDials[kDialCount] = {
   // src/RakingLight.h, docs/raking-light-spike-2026-09-25.md.
   {RakingLightOn, "raking light", "CROSSPOINT_SIM_RAKING_LIGHT",
    "rakingLight", 0, 1, 0, 0, kPlain, RakingLightOn},
+  // ...and its FOUR DIALS (2026-09-26, owner: "improve simulation of raking
+  // to be based on variable settings. it is not visible as is and the page
+  // itself could be light sensitive too"). 0..200 sliders in Settings.app,
+  // the Ink group's shape; 100 each ships, and 100 is the desktop default
+  // too, because none of them draws anything while the switch above is off,
+  // so every capture stays byte-identical. rakinglight::Dials says what each
+  // one does.
+  {RakingStrengthPercent, "raking strength", "CROSSPOINT_SIM_RAKING_STRENGTH",
+   "rakingStrengthPercent", 0, rakinglight::kDialMax, rakinglight::kDialDefault,
+   rakinglight::kDialDefault, kPlain, RakingStrengthPercent},
+  {RakingLampHeightPercent, "raking lamp height",
+   "CROSSPOINT_SIM_RAKING_LAMP_HEIGHT", "rakingLampHeightPercent", 0,
+   rakinglight::kDialMax, rakinglight::kDialDefault, rakinglight::kDialDefault,
+   kPlain, RakingLampHeightPercent},
+  {RakingTiltRangePercent, "raking tilt range",
+   "CROSSPOINT_SIM_RAKING_TILT_RANGE", "rakingTiltRangePercent", 0,
+   rakinglight::kDialMax, rakinglight::kDialDefault, rakinglight::kDialDefault,
+   kPlain, RakingTiltRangePercent},
+  {RakingPagePercent, "raking page", "CROSSPOINT_SIM_RAKING_PAGE",
+   "rakingPagePercent", 0, rakinglight::kDialMax, rakinglight::kDialDefault,
+   rakinglight::kDialDefault, kPlain, RakingPagePercent},
   // E-INK MODE (spike 2026-09-25): the light page as the real e-paper panel,
   // ghosting across FAST refreshes and running the X3's decoded waveform on
   // HALF/FULL. A Settings ROW that ships OFF, and off on the desktop, so every

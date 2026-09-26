@@ -458,6 +458,18 @@ bool rakingLightWanted();
 // light moves.
 void setRakingLightGravity(float gx, float gy, float gz, uint64_t nowMs);
 void resetRakingLightNeutral();
+// THE FOUR DIALS (2026-09-26, owner: "based on variable settings"), 0..200
+// each, 100 shipped. Strength: the deboss shadow's depth over the fixed
+// light's (100 = 3x). Lamp height: the lamp's elevation at the neutral pose
+// (100 = 35 degrees, the fixed light's; lower rakes harder). Tilt range:
+// degrees of lamp per degree of tilt (100 = 2; 0 pins the lamp). Page: how
+// much of the lamp's paper budget the sheet's falloff and relief spend.
+// CROSSPOINT_SIM_RAKING_STRENGTH / _LAMP_HEIGHT / _TILT_RANGE / _PAGE override.
+// Model: src/RakingLight.h Dials.
+void setRakingStrength(int percent);
+void setRakingLampHeight(int percent);
+void setRakingTiltRange(int percent);
+void setRakingPage(int percent);
 
 // SCANLINES: the DARK page's screen texture, replacing the mottled grain
 // (supersedes the 2026-08-18 "no scanlines" ruling -- owner order 2026-08-22).

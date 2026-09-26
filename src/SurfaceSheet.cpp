@@ -231,8 +231,35 @@ static int letterTexRing = -1, letterTexDeboss = -1, letterTexPress = -1;
 // no noise. A content change (a new seq, a dial, the palette) still rebuilds
 // the whole thing, exactly as the fixed light does.
 static std::atomic<bool> rakingOn{false};
+// THE FOUR DIALS (2026-09-26, owner: "based on variable settings"). Percent
+// rows from the dial table, 100 each by default; rakinglight::Dials is what
+// the model reads. Strength and lamp height reach the panel field's relight,
+// lamp height and tilt range the gravity path, page the lamp field.
+static std::atomic<int> rakeStrengthPct{rakinglight::kDialDefault};
+static std::atomic<int> rakeLampHeightPct{rakinglight::kDialDefault};
+static std::atomic<int> rakeTiltRangePct{rakinglight::kDialDefault};
+static std::atomic<int> rakePagePct{rakinglight::kDialDefault};
+
+static rakinglight::Dials rakeDials() {
+  rakinglight::Dials d;
+  d.strengthPct = rakeStrengthPct.load();
+  d.lampHeightPct = rakeLampHeightPct.load();
+  d.tiltRangePct = rakeTiltRangePct.load();
+  d.pagePct = rakePagePct.load();
+  return d;
+}
+
+// Today's azimuth at the dial's elevation: what the switch turns on to, what a
+// new neutral publishes, and what the lamp field draws until the hand moves.
+static rakinglight::Quantized neutralQuantized() {
+  return rakinglight::quantize(rakinglight::neutralLight(rakeDials()), nullptr);
+}
+
 static std::atomic<int> rakingPacked{rakinglight::pack(rakinglight::Quantized{})};
 static int letterTexRaking = -1;
+// The strength dial is a relight key too: a gain change re-lights the edges
+// without a rebuild, exactly as a light change does.
+static int letterTexRakeGain = -1;
 static rakinglight::EdgeField rakeField;
 static bool rakeFieldValid = false;
 // The gravity path's state. MAIN THREAD only (CoreMotion is sampled from the
@@ -250,7 +277,7 @@ static void resetRakeGravityState() {
 // before sleep would light the woken page from a pose the reader has long left.
 const simreset::Registrar gRakeReset{[] {
   resetRakeGravityState();
-  rakingPacked.store(rakinglight::pack(rakinglight::Quantized{}));
+  rakingPacked.store(rakinglight::pack(neutralQuantized()));
 }};
 
 // Move the light; ask for a present only when the quantized light moved, which
@@ -261,8 +288,25 @@ static void publishRakingLight(const rakinglight::Quantized &q) {
   if (std::getenv("CROSSPOINT_SIM_LOG_RAKING"))
     SDL_Log("[raking] light -> dir %d (%+.1f deg), rake %d/%d", q.dir,
             static_cast<double>(q.dir * rakinglight::kStepDeg), q.rake,
-            rakinglight::kRakeLevels);
+            rakinglight::kRakeLevelsPerUnit);
   SimulatorOverlay::requestPresent();
+}
+
+// Re-derive the light from the last gravity sample under the CURRENT dials --
+// a lamp-height or tilt-range change must show without waiting for the hand
+// to cross a hysteresis boundary. With no sample yet, the neutral.
+static void republishRakingLight() {
+  if (!rakingOn.load()) return;
+  if (rakeHaveNeutral && rakeHaveSmoothed) {
+    const rakinglight::Continuous c = rakinglight::lightFromGravity(
+        rakeNeutral, rakeSmoothed,
+        rakinglight::referenceScreenAzimuthDeg(sheetPanelOrientation),
+        rakeDials());
+    const rakinglight::Quantized prev = rakinglight::unpack(rakingPacked.load());
+    publishRakingLight(rakinglight::quantize(c, &prev));
+  } else {
+    publishRakingLight(neutralQuantized());
+  }
 }
 
 static void destroyLetterpressTexture() {
@@ -275,6 +319,7 @@ static void destroyLetterpressTexture() {
   letterTexKey = 0;
   letterTexRing = letterTexDeboss = letterTexPress = -1;
   letterTexRaking = -1;
+  letterTexRakeGain = -1;
   rakeField = rakinglight::EdgeField{};
   rakeFieldValid = false;
 }
@@ -301,8 +346,11 @@ static bool ensureLetterpressTexture() {
   const int ringPct = SimulatorOverlay::pressRingPct.load();
   const int debossPct = SimulatorOverlay::pressDebossPct.load();
   const int pressPct = SimulatorOverlay::pressPressurePct.load();
-  // 0 = the fixed legacy light; otherwise the packed raking light to use.
+  // 0 = the fixed legacy light; otherwise the packed raking light to use, and
+  // the strength dial that lights it (0 when the light is the fixed one).
   const int rakePacked = rakingOn.load() ? rakingPacked.load() : 0;
+  const int rakeGainPct = rakePacked != 0 ? rakeStrengthPct.load() : 0;
+  const float rakeGain = rakinglight::strengthGain(rakeGainPct);
   bool relightOnly = false;
   // Read the frame and its seq together, under the lock, so the key can never
   // describe pixels from a different frame than the ones read.
@@ -339,18 +387,20 @@ static bool ensureLetterpressTexture() {
         letterTexStrength == strength && letterTexKey == palKey &&
         letterTexRing == ringPct && letterTexDeboss == debossPct &&
         letterTexPress == pressPct;
-    if (contentSame && letterTexRaking == rakePacked) {
+    if (contentSame && letterTexRaking == rakePacked &&
+        letterTexRakeGain == rakeGainPct) {
       if (timingLogWanted()) timingFrame.letterpress.served = true;
       return true;
     }
-    // Same page, new light: re-light the edges of the field already built.
+    // Same page, new light or strength: re-light the edges of the field
+    // already built.
     relightOnly = contentSame && rakePacked != 0 && rakeFieldValid &&
                   rakeField.w == w && rakeField.h == h;
   }
   if (relightOnly) {
     const uint64_t t0 = SDL_GetTicksNS();
-    rakeField.relight(
-        rakinglight::shadowFor(rakinglight::unpack(rakePacked)));
+    rakeField.relight(rakinglight::shadowFor(rakinglight::unpack(rakePacked)),
+                      rakeGain);
     const uint64_t tLit = SDL_GetTicksNS();
     if (!SDL_UpdateTexture(letterpressTexture, nullptr, rakeField.field.data(),
                            static_cast<int>(w * sizeof(uint32_t)))) {
@@ -360,6 +410,7 @@ static bool ensureLetterpressTexture() {
       return false;
     }
     letterTexRaking = rakePacked;
+    letterTexRakeGain = rakeGainPct;
     const double ms = static_cast<double>(SDL_GetTicksNS() - t0) / 1.0e6;
     if (timingLogWanted()) {
       timingFrame.letterpress.built = true;
@@ -460,7 +511,8 @@ static bool ensureLetterpressTexture() {
           win[dy + 1][dx + 1] = tAt(x + dx, y + dy);
       return letterpress::termsAt(params, win, x, y, w, h);
     });
-    rakeField.relight(rakinglight::shadowFor(rakinglight::unpack(rakePacked)));
+    rakeField.relight(rakinglight::shadowFor(rakinglight::unpack(rakePacked)),
+                      rakeGain);
     rakeFieldValid = true;
     upload = rakeField.field.data();
   } else {
@@ -502,6 +554,7 @@ static bool ensureLetterpressTexture() {
   letterTexDeboss = debossPct;
   letterTexPress = pressPct;
   letterTexRaking = rakePacked;
+  letterTexRakeGain = rakeGainPct;
   if (timingLogWanted()) {
     timingFrame.letterpress.built = true;
     timingFrame.letterpress.ms =
@@ -564,6 +617,37 @@ static int sheetTexScaleKey = -1;
 static int sheetTexShowThrough = -1;
 static uint64_t sheetTexVersoGen = 0;
 static uint32_t sheetTexKey = 0;
+// Whether the raking light was on when the sheet was built: with it on, the
+// lamp field takes a share of the paper budget and the marks receive less, so
+// the marks baked into this field depend on it.
+static int sheetTexRaking = -1;
+
+// --- THE LAMP FIELD (raking light, 2026-09-26) ----------------------------
+//
+// The sheet under the lamp: the irradiance falloff across the glass and the
+// shading of the sheet's own relief, one MOD texture at HALF resolution over
+// the whole output (src/RakingLight.h LampField). Its gradient is built once
+// per page (the relief is the sheet's identity, like the tooth), and re-lit
+// -- a pass over the lattice plus an upload -- whenever the quantized light,
+// the page dial, the orientation or the budget moves.
+//
+// THE BUDGET COMES FROM THE SHEET PASS. ensureSheetToothTexture computes what
+// the tooth, the wires and the show-through leave the paper, hands the lamp
+// its share (rakinglight::lampBudget) and gives the marks the rest; it runs
+// first in every present, so this static is fresh by the time the lamp pass
+// reads it. A sheet served from cache leaves it as it was, which is right --
+// the same inputs built it.
+static SDL_Texture *lampTexture = nullptr;
+static rakinglight::LampField lampField;
+static int lampTexW = 0, lampTexH = 0;
+static uint32_t lampTexSeed = 0;
+static int lampLitPacked = -1, lampLitPage = -1, lampLitOrient = -1;
+static float lampLitBudget = -1.0f;
+static float lampBudgetLive = 0.0f;
+// Output px per lattice px. 2: the relief's finest octave is tens of px, so a
+// half-resolution lattice loses nothing the eye could see and the relight
+// costs a quarter of a full pass.
+constexpr int kLampCellPx = 2;
 
 // The PRESENTED page rect these invert stayed in HalDisplay.cpp -- see
 // simsheet::panelXRef() and the comment beside the statics there.
@@ -582,6 +666,17 @@ static void destroySheetToothTexture() {
   sheetTexShowThrough = -1;
   sheetTexVersoGen = 0;
   sheetTexKey = 0;
+  sheetTexRaking = -1;
+}
+
+static void destroyLampTexture() {
+  if (lampTexture) SDL_DestroyTexture(lampTexture);
+  lampTexture = nullptr;
+  lampField = rakinglight::LampField{};
+  lampTexW = lampTexH = 0;
+  lampTexSeed = 0;
+  lampLitPacked = lampLitPage = lampLitOrient = -1;
+  lampLitBudget = -1.0f;
 }
 
 // OUTPUT PIXEL -> FRAMEBUFFER PIXEL. The inverse of the presentation, and it is
@@ -681,12 +776,18 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
       static_cast<uint32_t>(live.paper[0]) << 16 |
           static_cast<uint32_t>(live.paper[1]) << 8 | live.paper[2],
       static_cast<uint32_t>(params.paperDarkenBudget * 65535.0f), params.seed);
+  // 0 off; 1 on with Page at 0 (the lamp field is white and takes no budget);
+  // 2 on and spending. The marks' budget below depends on which, so it is a
+  // sheet cache key (adversarial review 2026-09-26: the first cut took the
+  // lamp's share whenever the switch was on, and Page 0 starved the marks for
+  // a field that drew nothing).
+  const int rakingKey = !rakingOn.load() ? 0 : (rakePagePct.load() > 0 ? 2 : 1);
   if (sheetToothTexture && sheetTexW == w && sheetTexH == h &&
       sheetTexStrength == strength && sheetTexTooth == toothPct &&
       sheetTexFormation == formationPct && sheetTexDefects == defectsPct &&
       sheetTexLaid == laidPct && sheetTexScaleKey == scaleKey &&
       sheetTexShowThrough == showPct && sheetTexVersoGen == versoGeneration &&
-      sheetTexKey == key) {
+      sheetTexKey == key && sheetTexRaking == rakingKey) {
     if (timingLogWanted()) timingFrame.sheet.served = true;
     return true;
   }
@@ -844,8 +945,15 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   paperdefects::Params dp;
   dp.dialPercent = defectsPct;
   dp.seed = params.seed;
-  dp.remainingBudget =
-      afterWires - showthrough::meanDarkeningBound(stParams);
+  // ...MINUS THE LAMP'S SHARE when the raking light is on (2026-09-26): the
+  // lamp field darkens every pixel by at most rakinglight::lampBudget of what
+  // the show-through leaves, so that much is taken here before the marks are
+  // sized. With the light off the share is 0 and the marks receive exactly
+  // what they always did.
+  float afterShow = afterWires - showthrough::meanDarkeningBound(stParams);
+  if (afterShow < 0.0f) afterShow = 0.0f;
+  lampBudgetLive = rakingKey == 2 ? rakinglight::lampBudget(afterShow) : 0.0f;
+  dp.remainingBudget = afterShow - lampBudgetLive;
   if (dp.remainingBudget < 0.0f) dp.remainingBudget = 0.0f;
   paperdefects::Mark marks[paperdefects::kMaxMarks];
   const int markCount = paperdefects::generate(dp, w, h, marks);
@@ -894,6 +1002,7 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   sheetTexShowThrough = showPct;
   sheetTexVersoGen = versoGeneration;
   sheetTexKey = key;
+  sheetTexRaking = rakingKey;
   if (timingLogWanted()) {
     timingFrame.sheet.built = true;
     timingFrame.sheet.ms = static_cast<double>(SDL_GetTicksNS() - t0) / 1.0e6;
@@ -915,6 +1024,89 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   return true;
 }
 
+// THE LAMP FIELD's pass. Runs after the sheet pass (which sets the budget) and
+// only while the letterpress is live and the switch is on; anything else
+// drops the texture, so a page with the light off carries no lamp state.
+static bool ensureLampTexture(int w, int h) {
+  if (!rakingOn.load() || w <= 0 || h <= 0 || !sdl_renderer ||
+      SimulatorOverlay::letterpressStrength.load() <= letterpress::kStrengthOff) {
+    destroyLampTexture();
+    return false;
+  }
+  const uint32_t seed = pageSheetSeed();
+  const bool gradSame = lampTexture && lampTexW == w && lampTexH == h &&
+                        lampTexSeed == seed;
+  const uint64_t t0 = SDL_GetTicksNS();
+  if (!gradSame) {
+    // The relief for this leaf: the noise octaves only. The LAID FURROWS ARE
+    // NOT IN IT (adversarial review 2026-09-26): their pitch is ~3.7-4.5
+    // output px, which a 2-px lattice aliases (ST-008 in miniature); their
+    // height would set the gradient's RMS and drown the paper's own relief;
+    // and sampling the two erf combs per lattice point costs ~19M erf per
+    // page turn on the phone. The wires are already drawn, unaliased, by the
+    // sheet field at full resolution.
+    lampField.build(w, h, kLampCellPx, seed, [](float, float) { return 0.0f; });
+    if (!lampTexture || lampTexW != w || lampTexH != h) {
+      if (lampTexture) SDL_DestroyTexture(lampTexture);
+      lampTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                                      SDL_TEXTUREACCESS_STATIC, lampField.lw,
+                                      lampField.lh);
+      if (!lampTexture) {
+        LOG_ERR("DISP", "lamp: no field texture (%s)", SDL_GetError());
+        destroyLampTexture();
+        return false;
+      }
+      SDL_SetTextureBlendMode(lampTexture, SDL_BLENDMODE_MOD);
+      // Drawn at cell x its size: LINEAR, because the field is smooth and a
+      // nearest 2x would draw the lattice as 2 px tiles.
+      SDL_SetTextureScaleMode(lampTexture, SDL_SCALEMODE_LINEAR);
+    }
+    lampTexW = w;
+    lampTexH = h;
+    lampTexSeed = seed;
+    lampLitPacked = -1;  // force the relight below
+  }
+  const int packed = rakingPacked.load();
+  const int page = rakePagePct.load();
+  const int orient = sheetPanelOrientation;
+  const float budget = lampBudgetLive;
+  if (gradSame && packed == lampLitPacked && page == lampLitPage &&
+      orient == lampLitOrient && budget == lampLitBudget) {
+    if (timingLogWanted()) timingFrame.lamp.served = true;
+    return true;
+  }
+  const uint64_t tLit0 = SDL_GetTicksNS();
+  lampField.relight(rakinglight::lightFor(rakinglight::unpack(packed), orient),
+                    rakeDials(), budget);
+  const uint64_t tLit1 = SDL_GetTicksNS();
+  if (!SDL_UpdateTexture(lampTexture, nullptr, lampField.field.data(),
+                         static_cast<int>(lampField.lw * sizeof(uint32_t)))) {
+    LOG_ERR("DISP", "lamp: could not upload the field (%s)", SDL_GetError());
+    destroyLampTexture();
+    return false;
+  }
+  lampLitPacked = packed;
+  lampLitPage = page;
+  lampLitOrient = orient;
+  lampLitBudget = budget;
+  const double ms = static_cast<double>(SDL_GetTicksNS() - t0) / 1.0e6;
+  if (timingLogWanted()) {
+    timingFrame.lamp.built = true;
+    timingFrame.lamp.ms = ms;
+  }
+  if (std::getenv("CROSSPOINT_SIM_LOG_RAKING"))
+    SDL_Log("[raking] lamp field %dx%d lattice (%s) az %.1f elev %.1f page %d "
+            "budget %.3f in %.2f ms (build %.2f, relight %.2f, upload %.2f)",
+            lampField.lw, lampField.lh, gradSame ? "cached" : "BUILT",
+            static_cast<double>(lampField.lastLight.azDeg),
+            static_cast<double>(lampField.lastLight.elevDeg), page,
+            static_cast<double>(budget), ms,
+            static_cast<double>(tLit0 - t0) / 1.0e6,
+            static_cast<double>(tLit1 - tLit0) / 1.0e6,
+            static_cast<double>(SDL_GetTicksNS() - tLit1) / 1.0e6);
+  return true;
+}
+
 // --- THE ENTRY POINTS -------------------------------------------------------
 //
 // Thin, and deliberately named differently from the statics above so that the
@@ -933,7 +1125,7 @@ void destroyLetterpressField() { destroyLetterpressTexture(); }
 // today's direction so its first frame is today's page.
 void stepRakingLight(uint64_t nowMs) {
   static bool latched = false;
-  static bool haveAz = false, haveSweep = false;
+  static bool haveAz = false, haveSweep = false, haveRake = false;
   static float az = 0.0f, rake = 1.0f, sweepSec = 0.0f;
   static uint64_t sweepT0 = 0;
   if (!latched) {
@@ -942,8 +1134,10 @@ void stepRakingLight(uint64_t nowMs) {
       if (e[0]) {
         haveAz = true;
         az = static_cast<float>(std::atof(e));
-        if (const char *comma = std::strchr(e, ','))
+        if (const char *comma = std::strchr(e, ',')) {
+          haveRake = true;
           rake = static_cast<float>(std::atof(comma + 1));
+        }
       }
     }
     if (const char *e = std::getenv("CROSSPOINT_SIM_RAKING_LIGHT_SWEEP")) {
@@ -954,7 +1148,9 @@ void stepRakingLight(uint64_t nowMs) {
   if (!rakingOn.load() || (!haveAz && !haveSweep)) return;
   const float ref = rakinglight::referenceScreenAzimuthDeg(sheetPanelOrientation);
   rakinglight::Continuous c;
-  c.rake = rake;
+  // An explicit rake on the command line wins; otherwise the lamp-height
+  // dial's neutral rake, so the hatch renders what the dial would.
+  c.rake = haveRake ? rake : rakinglight::neutralLight(rakeDials()).rake;
   if (haveSweep) {
     if (sweepT0 == 0) sweepT0 = nowMs ? nowMs : 1;
     const float turns = static_cast<float>(nowMs - sweepT0) / 1000.0f / sweepSec;
@@ -970,6 +1166,16 @@ bool ensureSheetField(int w, int h, float outPxPerSourcePx) {
 }
 SDL_Texture *sheetField() { return sheetToothTexture; }
 void destroySheetField() { destroySheetToothTexture(); }
+
+bool ensureLampField(int w, int h) { return ensureLampTexture(w, h); }
+SDL_Texture *lampField() { return lampTexture; }
+void lampFieldDrawSize(int &w, int &h) {
+  // ::lampField is the file-scope model; lampField() above is this namespace's
+  // accessor for its texture.
+  w = ::lampField.lw * ::lampField.cell;
+  h = ::lampField.lh * ::lampField.cell;
+}
+void destroyLampField() { destroyLampTexture(); }
 
 }  // namespace simsheet
 
@@ -987,10 +1193,11 @@ void setRakingLight(bool enabled) {
       std::getenv("CROSSPOINT_SIM_RAKING_LIGHT_SWEEP"))
     enabled = true;
   if (rakingOn.exchange(enabled) == enabled) return;
-  // Either way the light starts from today's: switching on must not move the
-  // shadow until the phone does, and the neutral pose is re-captured.
+  // Either way the light starts from today's azimuth at the dial's height:
+  // switching on must not swing the shadow until the phone does, and the
+  // neutral pose is re-captured.
   resetRakeGravityState();
-  rakingPacked.store(rakinglight::pack(rakinglight::Quantized{}));
+  rakingPacked.store(rakinglight::pack(neutralQuantized()));
   SDL_Log("[raking] light %s", enabled ? "ON" : "off");
   requestPresent();
 }
@@ -1000,12 +1207,39 @@ bool rakingLightWanted() {
          letterpressStrength.load() > 0;
 }
 
+// THE FOUR DIALS' SETTERS. Same shape as every dial setter: the env var wins
+// last, the value is clamped to the row's range, and only a change presents.
+// Lamp height and tilt range also re-derive the light from the last gravity
+// sample, or nothing would move until the hand crossed a hysteresis band.
+static void setRakingDial(std::atomic<int> &slot, const char *envVar, int pct,
+                          bool relights) {
+  if (const char *env = std::getenv(envVar))
+    if (env[0]) pct = std::atoi(env);
+  pct = rakinglight::clampPct(pct);
+  if (slot.exchange(pct) == pct) return;
+  if (relights) republishRakingLight();
+  requestPresent();
+}
+
+void setRakingStrength(int percent) {
+  setRakingDial(rakeStrengthPct, "CROSSPOINT_SIM_RAKING_STRENGTH", percent, false);
+}
+void setRakingLampHeight(int percent) {
+  setRakingDial(rakeLampHeightPct, "CROSSPOINT_SIM_RAKING_LAMP_HEIGHT", percent, true);
+}
+void setRakingTiltRange(int percent) {
+  setRakingDial(rakeTiltRangePct, "CROSSPOINT_SIM_RAKING_TILT_RANGE", percent, true);
+}
+void setRakingPage(int percent) {
+  setRakingDial(rakePagePct, "CROSSPOINT_SIM_RAKING_PAGE", percent, false);
+}
+
 // A new neutral is a new pose lit as today's, so the light goes back to
 // today's with it -- otherwise a stream restarted after a dark page would hold
 // the last tilt's light until the hand crossed a hysteresis boundary.
 void resetRakingLightNeutral() {
   resetRakeGravityState();
-  publishRakingLight(rakinglight::Quantized{});
+  publishRakingLight(neutralQuantized());
 }
 
 void setRakingLightGravity(float gx, float gy, float gz, uint64_t nowMs) {
@@ -1027,7 +1261,8 @@ void setRakingLightGravity(float gx, float gy, float gz, uint64_t nowMs) {
   }
   const rakinglight::Continuous c = rakinglight::lightFromGravity(
       rakeNeutral, rakeSmoothed,
-      rakinglight::referenceScreenAzimuthDeg(sheetPanelOrientation));
+      rakinglight::referenceScreenAzimuthDeg(sheetPanelOrientation),
+      rakeDials());
   const rakinglight::Quantized prev = rakinglight::unpack(rakingPacked.load());
   publishRakingLight(rakinglight::quantize(c, &prev));
 }

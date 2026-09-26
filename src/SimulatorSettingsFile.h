@@ -327,10 +327,21 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   "speedRead": 0,
   "speedReadWpm": 300,
 
-  // RAKING LIGHT: tilt moves the lamp lighting the letterpress impression.
-  // The Mac has no tilt; CROSSPOINT_SIM_RAKING_LIGHT sets an azimuth.
+  // RAKING LIGHT: tilt moves the lamp lighting the letterpress impression
+  // and the sheet itself. The Mac has no tilt;
+  // CROSSPOINT_SIM_RAKING_LIGHT_AZIMUTH=<deg>[,<rake>] sets the light.
   //   0 = off   1 = on
   "rakingLight": 0,
+  // Its four dials, 0..200, each 100 by default and inert while the switch
+  // above is off. Strength: the deboss shadow's depth over the fixed light's
+  // (100 = 3x). Lamp height: the lamp's elevation at the neutral pose (0 =
+  // 12 degrees, 100 = 35, 200 = 58; lower rakes harder). Tilt range: how far
+  // the lamp swings per degree of tilt (0 pins it). Page: how much the sheet
+  // itself answers -- the falloff across the glass and the shaded relief.
+  "rakingStrengthPercent": 100,
+  "rakingLampHeightPercent": 100,
+  "rakingTiltRangePercent": 100,
+  "rakingPagePercent": 100,
 
   // E-INK MODE: the light page drawn as the real e-paper panel -- ghosts of
   // earlier pages build up across partial refreshes, and the firmware's

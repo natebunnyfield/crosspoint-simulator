@@ -1,58 +1,69 @@
 #pragma once
 
-// RAKING LIGHT -- the letterpress impression lit from a direction the reader's
-// hand sets. Spike, 2026-09-25 (owner ruling: first spike of
-// docs/research-novel-reading-interfaces-2026-09-24.md, idea F28). Design,
-// measurements and what is left: docs/raking-light-spike-2026-09-25.md.
+// RAKING LIGHT -- the light page lit from a direction the reader's hand sets.
+// Spike 2026-09-25 (owner ruling: first spike of
+// docs/research-novel-reading-interfaces-2026-09-24.md, idea F28); reworked
+// 2026-09-26 on the owner's report "improve simulation of raking to be based
+// on variable settings. it is not visible as is and the page itself could be
+// light sensitive too." Design, measurements and what is left:
+// docs/raking-light-spike-2026-09-25.md.
 //
-// WHAT IT CHANGES. src/Letterpress.h lights the deboss from ONE fixed
-// direction: `lightDot = (gx + gy) * 0.707`, i.e. a light from the
-// FRAMEBUFFER's top-left. This header makes that direction live. Tip the phone
-// and the room's lamp, which does not move, arrives at the page from a
-// different side, so the shadowed walls of the impression move round the
-// letters as they do under a real desk lamp.
+// TWO THINGS ANSWER THE LAMP, in two passes:
+//
+//   1. THE INK'S RELIEF (EdgeField, panel space). src/Letterpress.h lights the
+//      deboss from ONE fixed direction, `lightDot = (gx + gy) * 0.707`, a light
+//      from the FRAMEBUFFER's top-left. This makes that direction live, and
+//      gives the shadow a depth the STRENGTH dial can raise well past what the
+//      fixed light draws -- the 2026-09-25 spike kept it capped at today's
+//      depth and the owner could not see it (measured: 1.4-2.6% of pixels
+//      moved, by a mean of 0.16-0.35 levels, across the whole tilt range).
+//
+//   2. THE SHEET'S RELIEF AND THE LAMP'S FALLOFF (LampField, output space, the
+//      whole glass). The paper itself answers the lamp: a lamp at a finite
+//      distance lights the near side of the sheet more than the far side, and
+//      the sheet's own low relief -- the formation clouds the sheet pass already
+//      draws, plus finer fiber-clump octaves (not the laid furrows: tried and
+//      withdrawn, see SurfaceSheet.cpp) -- is shaded on the slopes that face
+//      away from the lamp.
+//      One MOD texture at half resolution (the relief is smooth by
+//      construction; there is nothing at pixel scale for it to lose), drawn
+//      over page, card and pad alike, because it is one sheet under one lamp.
 //
 // WHAT IT DOES NOT CHANGE, and why each is safe:
 //
-//   - FLAT PAPER AND FLAT INK. The deboss and the relief both multiply the
-//     Sobel gradient, which is exactly zero away from an edge, so every pixel
-//     the contrast-floor proofs reason about (flat paper against flat ink) is
-//     bit-identical to the fixed light at every direction. Nothing in
-//     letterpress::paperBudget, fieldselect or the composite moves.
-//   - THE DEEPEST SHADOW. A unit light direction times a rake in [0, 1] can
-//     never push `shade` past the legacy lightDot's own ceiling of 1, so no
-//     pixel under any light is darker than the fixed light's worst case at that
-//     pixel. Tilting redistributes the shadow round the glyph; it never deepens
-//     it. tests/raking_light_test.cpp proves both properties per pixel.
-//   - THE PAPER TOOTH. Uniform per-pixel noise has no slope, so it has no lit
-//     side. Lighting it would need a height field the model does not have; the
-//     spike doc records it as not done rather than faked.
+//   - FLAT PAPER AND FLAT INK, in the PANEL field. The deboss and the relief
+//     both multiply the Sobel gradient, which is exactly zero away from an
+//     edge, so every pixel of the panel field that the contrast-floor proofs
+//     reason about is bit-identical to the fixed light at every direction.
+//   - THE PAPER BUDGET. The lamp field is a fifth consumer of what the tooth
+//     left the paper (after the wires and the show-through, before the marks):
+//     its darkening is capped PER PIXEL at lampBudget() of that remainder, and
+//     the marks receive what it leaves. So the page-mean paper darkening stays
+//     inside letterpress::paperBudget by construction, at every light and every
+//     dial, and the darkest lamp pixel on its own still clears the floor.
+//   - DARKEN-ONLY, both passes. Multipliers in (0, 1]; no lift anywhere. The
+//     ink side of a wall facing the lamp gives back part of its OWN squeeze rim
+//     (kRingReliefAt100), which is the one "brightening" and it is bounded by
+//     what the letterpress itself added.
+//   - THE PAPER TOOTH's per-pixel noise. White noise has no lit side. The
+//     fiber-scale relief the lamp reveals is the LampField's finest octave
+//     (a few px), not the tooth hash.
 //
-// WHAT IT ADDS. The INK side of the edge now catches light too: where the
-// stroke's wall faces the lamp, the ink-squeeze rim is reduced by up to
-// kRingReliefAt100 of itself. That is the only "brightening" in the model and
-// it is bounded twice: relative to the letterpress it removes at most a
-// fraction of the rim it itself added, and the multiplier stays <= 1, so
-// relative to the unpressed page it is still darken-only.
+// THE LAMP. Fixed in the ROOM, not on the phone. At the pose the reader holds
+// when the feature starts (the NEUTRAL, the first CoreMotion gravity sample)
+// the lamp stands at exactly today's azimuth, at the elevation the LAMP HEIGHT
+// dial sets. When the phone tilts, gravity rotates in the phone's frame, and so
+// does the lamp, by the same rotation (no yaw; gravity cannot see yaw) scaled
+// by the TILT RANGE dial. Tilting toward the lamp raises it and the relief
+// fades; tilting away lowers it toward grazing and every shadow lengthens. The
+// RAKE is cot(elevation) against cot(35 degrees), capped at kRakeMax: at the
+// reference lamp it is exactly 1, which is the fixed light's own depth.
 //
-// THE LAMP. A lamp fixed in the ROOM, not on the phone. At the pose the reader
-// holds when the feature starts (the NEUTRAL, captured from CoreMotion's
-// gravity, as ios/TiltGestures.h does) the lamp stands at exactly today's
-// direction, elevation kLampElevationDeg above the page -- so switching the
-// feature on does not move the shadow at all. When the phone tilts, gravity
-// rotates in the phone's frame, and so does the lamp, by the same rotation:
-// the minimal rotation taking the neutral gravity to the current one (no yaw;
-// gravity cannot see yaw, and a reader turns with the phone anyway), scaled by
-// kTiltGain so a wrist's worth of tilt sweeps a useful arc. Tilting TOWARD the
-// lamp raises it overhead and the relief fades; tilting away rakes it and the
-// relief returns to -- never past -- today's depth.
-//
-// QUANTIZED, because the field is CPU-built per page. 16 directions (22.5
-// degrees, the lattice anchored ON today's direction so index 0 is exact) and
-// 9 rake levels, with hysteresis at every boundary so a hand's tremor cannot
-// flip a field every frame. A change of level recomposes only the EDGE pixels
-// of an already-built page (EdgeField below), so a tilt costs a pass over the
-// edges and a texture upload, not a rebuild.
+// QUANTIZED, because both fields are CPU-built. kDirections azimuth steps and
+// kRakeLevelsPerUnit rake levels per unit, with hysteresis at every boundary so
+// a hand's tremor cannot relight a field every frame. A change of level
+// re-lights the edge pixels of the panel field and the lattice of the lamp
+// field and re-uploads both; nothing is rebuilt.
 //
 // Pure and clock-free (the smoothing takes its dt as an argument): every
 // failure mode here is a wrong picture or a field that thrashes, and
@@ -64,24 +75,23 @@
 #include <vector>
 
 #include "Letterpress.h"
+#include "PhosphorGrain.h"  // valueNoise / hash3, all pure
 
 namespace rakinglight {
 
 // --- CHOSEN CONSTANTS (not measured; no lamp was photographed) -------------
-constexpr int kDirections = 16;
-constexpr float kStepDeg = 360.0f / kDirections;  // 22.5
-constexpr int kRakeLevels = 8;                    // rake in 0..8 eighths
+constexpr int kDirections = 32;
+constexpr float kStepDeg = 360.0f / kDirections;  // 11.25
+// Rake levels per unit of rake, and the rake's ceiling (a lamp at grazing).
+constexpr int kRakeLevelsPerUnit = 8;
+constexpr float kRakeMax = 3.0f;
+constexpr int kRakeLevelMax = static_cast<int>(kRakeMax * kRakeLevelsPerUnit);
 // How far past a quantization midpoint the continuous value must travel before
-// the level moves. 0.15 of a step: ~3.4 degrees of azimuth, 1.9% of rake.
+// the level moves. 0.15 of a step: ~1.7 degrees of azimuth, 1.9% of a rake unit.
 constexpr float kHysteresis = 0.15f;
-// Degrees of lamp rotation per degree of phone tilt. Physical is 1; 2 makes a
-// comfortable 20-degree wrist tilt sweep the light through ~40 degrees of
-// elevation change, which is what it takes to see it on a 6-inch page.
-constexpr float kTiltGain = 2.0f;
-// The lamp's elevation above the page at the neutral pose. Low enough that the
-// light rakes, high enough that tilting away from it has somewhere to go
-// before it is at grazing.
-constexpr float kLampElevationDeg = 35.0f;
+// The lamp elevation at which the rake is exactly 1 -- today's fixed light.
+constexpr float kRefElevationDeg = 35.0f;
+constexpr float kMinElevationDeg = 5.0f;
 // The share of the ink-squeeze rim a wall facing the lamp gives back.
 constexpr float kRingReliefAt100 = 0.35f;
 // CoreMotion gravity low-pass, seconds (the research plan's 0.3 s).
@@ -89,6 +99,81 @@ constexpr float kSmoothingTauSec = 0.3f;
 
 constexpr float kPi = 3.14159265358979f;
 constexpr float kDegToRad = kPi / 180.0f;
+
+// --- THE FOUR DIALS ---------------------------------------------------------
+//
+// 0..200 each, Settings.app sliders (the Ink group's shape). 100 is the
+// shipped default on every one, chosen so the effect is plainly visible at
+// default rather than provable-but-invisible, which is what the spike shipped.
+constexpr int kDialMax = 200;
+constexpr int kDialDefault = 100;
+
+struct Dials {
+  int strengthPct = kDialDefault;    // the ink relief's gain over today's
+  int lampHeightPct = kDialDefault;  // the lamp's elevation at the neutral
+  int tiltRangePct = kDialDefault;   // degrees of lamp per degree of tilt
+  int pagePct = kDialDefault;        // how much the sheet itself answers
+};
+
+inline int clampPct(int pct) {
+  if (pct < 0) return 0;
+  if (pct > kDialMax) return kDialMax;
+  return pct;
+}
+
+// STRENGTH: the deboss shadow's depth as a multiple of the fixed light's.
+// 0 is today's depth (the feature adds nothing to the ink), 100 is three times
+// it, 200 five times. Linear above today's so the slider has no dead half.
+constexpr float kStrengthGainAt100 = 2.0f;
+inline float strengthGain(int pct) {
+  return 1.0f + static_cast<float>(clampPct(pct)) / 100.0f * kStrengthGainAt100;
+}
+
+// LAMP HEIGHT: the neutral pose's lamp elevation. 0 is a low desk lamp (12
+// degrees, rake capped at kRakeMax), 100 is today's 35 degrees (rake exactly
+// 1), 200 is 58 degrees (rake 0.44, the relief fades).
+constexpr float kLampElevationMinDeg = 12.0f;
+constexpr float kLampElevationSpanPer100 = 23.0f;
+inline float lampElevationDeg(int pct) {
+  return kLampElevationMinDeg +
+         static_cast<float>(clampPct(pct)) / 100.0f * kLampElevationSpanPer100;
+}
+
+// TILT RANGE: degrees of lamp rotation per degree of phone tilt. Physical is
+// 1; 100 gives 2, so a comfortable 20-degree wrist tilt sweeps ~40 degrees of
+// lamp, which is what it takes to see it on a 6-inch page. 0 pins the lamp:
+// a raking light that does not follow the hand, which is still a raking light.
+constexpr float kTiltGainAt100 = 2.0f;
+inline float tiltGain(int pct) {
+  return static_cast<float>(clampPct(pct)) / 100.0f * kTiltGainAt100;
+}
+
+// PAGE: how much of the lamp's budget the sheet spends. At 100 the far corner
+// of the sheet sits at kPageAt100 of the budget under the reference lamp and
+// the shaded slopes add on top; at 200 the far half clips at the budget.
+constexpr float kPageAt100 = 0.7f;
+inline float pageFactor(int pct) {
+  return static_cast<float>(clampPct(pct)) / 100.0f * kPageAt100;
+}
+
+// The rake for a lamp elevation: cot(e) against the reference, capped. At the
+// reference elevation the two tangents are the same expression, so the
+// quotient is exactly 1.0f -- which is what makes "neutral is today's light"
+// a statement about bytes rather than about rounding.
+inline float rakeForElevation(float elevDeg) {
+  if (!(elevDeg > kMinElevationDeg)) elevDeg = kMinElevationDeg;
+  if (elevDeg > 90.0f) elevDeg = 90.0f;
+  const float r = std::tan(kRefElevationDeg * kDegToRad) / std::tan(elevDeg * kDegToRad);
+  if (!(r > 0.0f)) return 0.0f;
+  return r > kRakeMax ? kRakeMax : r;
+}
+
+// The inverse, for the lamp field: rake 0 is straight overhead.
+inline float elevationForRake(float rake) {
+  if (!(rake > 0.0f)) return 90.0f;
+  const float e = std::atan(std::tan(kRefElevationDeg * kDegToRad) / rake) / kDegToRad;
+  return e < kMinElevationDeg ? kMinElevationDeg : e;
+}
 
 // --- WHERE TODAY'S LIGHT IS, ON THE SCREEN ---------------------------------
 //
@@ -130,21 +215,30 @@ inline Vec3 cross3(const Vec3 &a, const Vec3 &b) {
 inline float len3(const Vec3 &a) { return std::sqrt(dot3(a, a)); }
 
 // Where the light is, relative to today's: `deltaDeg` is the azimuth offset
-// (clockwise on screen, positive) and `rake` the relief's depth as a fraction
-// of today's, in [0, 1].
+// (clockwise on screen, positive) and `rake` cot(elevation) against the
+// reference lamp's, in [0, kRakeMax].
 struct Continuous {
   float deltaDeg = 0.0f;
   float rake = 1.0f;
 };
 
+// The light at the neutral pose: today's azimuth, the dial's elevation.
+inline Continuous neutralLight(const Dials &d) {
+  Continuous c;
+  c.rake = rakeForElevation(lampElevationDeg(d.lampHeightPct));
+  return c;
+}
+
 // `neutral` and `g` are CoreMotion gravity in DEVICE coordinates (+x toward
 // the screen's right edge, +y toward its top, +z out of the glass -- the same
 // axes ios/TiltGestures.h states). `refAzDeg` is referenceScreenAzimuthDeg for
-// the current orientation. At g == neutral the answer is EXACTLY {0, 1}.
+// the current orientation. At g == neutral the answer is EXACTLY
+// neutralLight(d).
 inline Continuous lightFromGravity(const Vec3 &neutral, const Vec3 &g,
-                                   float refAzDeg) {
+                                   float refAzDeg, const Dials &d) {
+  const Continuous rest = neutralLight(d);
   const float ln = len3(neutral), lg = len3(g);
-  if (!(ln > 0.1f) || !(lg > 0.1f)) return {};  // no reading: today's light
+  if (!(ln > 0.1f) || !(lg > 0.1f)) return rest;  // no reading: today's light
   const Vec3 n{neutral.x / ln, neutral.y / ln, neutral.z / ln};
   const Vec3 v{g.x / lg, g.y / lg, g.z / lg};
   Vec3 axis = cross3(n, v);
@@ -155,14 +249,16 @@ inline Continuous lightFromGravity(const Vec3 &neutral, const Vec3 &g,
   const float angle = std::atan2(s, c);
   // Unmoved, or flipped over (antiparallel: the axis is undefined and the
   // page faces the floor) -- neither has a meaningful new light.
-  if (angle < 1e-4f || s < 1e-6f) return {};
+  if (angle < 1e-4f || s < 1e-6f) return rest;
+  const float gain = tiltGain(d.tiltRangePct);
+  if (!(gain > 0.0f)) return rest;  // the lamp is pinned
   axis = {axis.x / s, axis.y / s, axis.z / s};
-  float a = angle * kTiltGain;
+  float a = angle * gain;
   if (a > kPi) a = kPi;
 
   // The lamp at the neutral pose, in device axes: azimuth refAz clockwise
   // from the top, so +x = sin, +y (toward the top) = cos.
-  const float e0 = kLampElevationDeg * kDegToRad;
+  const float e0 = lampElevationDeg(d.lampHeightPct) * kDegToRad;
   const float az0 = refAzDeg * kDegToRad;
   const Vec3 L0{std::cos(e0) * std::sin(az0), std::cos(e0) * std::cos(az0),
                 std::sin(e0)};
@@ -182,12 +278,13 @@ inline Continuous lightFromGravity(const Vec3 &neutral, const Vec3 &g,
   }
   const float az = std::atan2(L.x, L.y) / kDegToRad;
   out.deltaDeg = wrapDeg(az - refAzDeg);
-  // Relief follows the lamp's in-plane reach, CAPPED at today's: at grazing it
-  // is today's depth, never more (the deboss is already budgeted at it).
-  float r = inPlane / std::cos(e0);
-  if (r > 1.0f) r = 1.0f;
-  if (r < 0.0f) r = 0.0f;
-  out.rake = r;
+  // The lamp's elevation in the phone's frame. Below the page's horizon (the
+  // page turned away past grazing) it is held at grazing: the shadows are as
+  // long as they get and stay there, rather than snapping off.
+  float z = L.z;
+  if (z > 1.0f) z = 1.0f;
+  const float elev = z > 0.0f ? std::asin(z) / kDegToRad : 0.0f;
+  out.rake = rakeForElevation(elev);
   return out;
 }
 
@@ -205,8 +302,8 @@ inline Vec3 smooth(const Vec3 &prev, const Vec3 &sample, float dtSec,
 // --- QUANTIZED -------------------------------------------------------------
 
 struct Quantized {
-  int dir = 0;                 // 0..kDirections-1, 0 = today's direction
-  int rake = kRakeLevels;      // 0..kRakeLevels, kRakeLevels = today's depth
+  int dir = 0;                      // 0..kDirections-1, 0 = today's direction
+  int rake = kRakeLevelsPerUnit;    // 0..kRakeLevelMax, 8 = the reference depth
   bool operator==(const Quantized &o) const {
     return dir == o.dir && rake == o.rake;
   }
@@ -228,7 +325,7 @@ inline Quantized quantize(const Continuous &c, const Quantized *prev) {
   Quantized out;
   // Direction: nearest lattice point, unless the previous one is still within
   // half a step plus the hysteresis band (circularly).
-  const float cont = wrapDeg(c.deltaDeg) / kStepDeg;  // (-8, 8]
+  const float cont = wrapDeg(c.deltaDeg) / kStepDeg;  // (-16, 16]
   int nearest = static_cast<int>(std::lround(cont));
   nearest = ((nearest % kDirections) + kDirections) % kDirections;
   out.dir = nearest;
@@ -240,25 +337,17 @@ inline Quantized quantize(const Continuous &c, const Quantized *prev) {
   }
   float r = c.rake;
   if (!(r > 0.0f)) r = 0.0f;
-  if (r > 1.0f) r = 1.0f;
-  const float contR = r * kRakeLevels;
+  if (r > kRakeMax) r = kRakeMax;
+  const float contR = r * kRakeLevelsPerUnit;
   out.rake = static_cast<int>(std::lround(contR));
+  if (out.rake > kRakeLevelMax) out.rake = kRakeLevelMax;
   if (prev && std::fabs(contR - static_cast<float>(prev->rake)) <
                   0.5f + kHysteresis)
     out.rake = prev->rake;
   return out;
 }
 
-// A light straight from a screen azimuth (the desktop's QA hatch): full rake,
-// no hysteresis.
-inline Quantized fromScreenAzimuth(float azDeg, int orientation) {
-  Continuous c;
-  c.deltaDeg = wrapDeg(azDeg - referenceScreenAzimuthDeg(orientation));
-  c.rake = 1.0f;
-  return quantize(c, nullptr);
-}
-
-// --- THE PER-PIXEL LIGHTING ------------------------------------------------
+// --- THE PER-PIXEL LIGHTING OF THE INK -------------------------------------
 
 // The shadow's direction in FRAMEBUFFER space (y down), unit length, and the
 // rake. Rotations commute with the presentation's rotation (all four
@@ -274,7 +363,7 @@ inline Shadow shadowFor(const Quantized &q) {
   const float ang = (45.0f + static_cast<float>(q.dir) * kStepDeg) * kDegToRad;
   s.dx = std::cos(ang);
   s.dy = std::sin(ang);
-  s.rake = static_cast<float>(q.rake) / static_cast<float>(kRakeLevels);
+  s.rake = static_cast<float>(q.rake) / static_cast<float>(kRakeLevelsPerUnit);
   return s;
 }
 
@@ -298,9 +387,12 @@ inline Edge edgeOf(const letterpress::Terms &T) {
   return e;
 }
 
-// THE ANSWER, lit from `S`. Off (strength 0) is the caller's to short-circuit
-// with letterpress::Terms::off, exactly as multiplierAt does.
-inline uint8_t multiplierFor(const Edge &e, const Shadow &S) {
+// THE ANSWER, lit from `S` with the strength dial's `gain`. Off (strength 0)
+// is the caller's to short-circuit with letterpress::Terms::off, exactly as
+// multiplierAt does. At gain 1 and rake <= 1 this is the spike's lighting and
+// no pixel is darker than the fixed light's own worst case; above that the
+// deboss deepens by exactly gain * rake, which is the point.
+inline uint8_t multiplierFor(const Edge &e, const Shadow &S, float gain) {
   const float d = e.gx * S.dx + e.gy * S.dy;
   float shade = d;
   if (shade < 0.0f) shade = 0.0f;
@@ -308,8 +400,9 @@ inline uint8_t multiplierFor(const Edge &e, const Shadow &S) {
   float lit = -d;
   if (lit < 0.0f) lit = 0.0f;
   if (lit > 1.0f) lit = 1.0f;
-  const float deboss = e.depth * shade * S.rake;
-  const float ring = e.ring * (1.0f - kRingReliefAt100 * lit * S.rake);
+  const float deboss = e.depth * shade * S.rake * gain;
+  const float reliefRake = S.rake > 1.0f ? 1.0f : S.rake;
+  const float ring = e.ring * (1.0f - kRingReliefAt100 * lit * reliefRake);
   float m = 1.0f - (ring + deboss + e.rest);
   if (m < letterpress::kMinMultiplier) m = letterpress::kMinMultiplier;
   if (m > 1.0f) m = 1.0f;
@@ -350,16 +443,255 @@ struct EdgeField {
           edges.push_back(e);
           continue;  // written by relight()
         }
-        const uint32_t m = multiplierFor(e, any);
+        const uint32_t m = multiplierFor(e, any, 1.0f);
         field[i] = 0xFF000000u | (m << 16) | (m << 8) | m;
       }
     }
   }
 
-  void relight(const Shadow &S) {
+  void relight(const Shadow &S, float gain) {
     for (size_t k = 0; k < edges.size(); ++k) {
-      const uint32_t m = multiplierFor(edges[k], S);
+      const uint32_t m = multiplierFor(edges[k], S, gain);
       field[edgeIndex[k]] = 0xFF000000u | (m << 16) | (m << 8) | m;
+    }
+  }
+};
+
+// --- THE SHEET UNDER THE LAMP ----------------------------------------------
+//
+// The lamp field's share of what the tooth, the wires and the show-through
+// left the paper. Every pixel of the field darkens by at most this, so the
+// marks (which take the rest) and the floor argument see one number.
+constexpr float kLampShare = 0.75f;
+inline float lampBudget(float paperLeftAfterShowThrough) {
+  const float b = kLampShare * paperLeftAfterShowThrough;
+  return b > 0.0f ? b : 0.0f;
+}
+
+// The lamp's distance from the sheet's center, in half-diagonals of the glass.
+// A desk lamp ~40 cm from a phone: chosen, and it sets how uneven the light
+// across the sheet is (63% corner to corner at the reference elevation).
+constexpr float kLampDistance = 4.0f;
+// A slope of one RMS unit facing squarely away from the reference lamp darkens
+// by this fraction of the budget (times the page factor). Chosen so the
+// shaded slopes read under the falloff rather than as a second noise. It was
+// 0.5 in the first cut and the whole-page render read as hatched plaster.
+constexpr float kReliefAt100 = 0.35f;
+// The relief's octaves: the formation's own 3 cells (the same seed lane and
+// lattice as letterpress::sheetToothMultiplierAt, so the lamp reveals the
+// clouds the sheet already has), then fiber clumps at 12 and 48 cells across
+// the sheet's SHORT side. Amplitudes halve per octave. The clump octaves are
+// ROTATED off the screen's axes: value noise on a square lattice has its
+// ridges along the lattice, and a directional derivative of it draws that
+// lattice as a diagonal hatch (measured on the first cut, 2026-09-26). Two
+// unrelated angles keep the two octaves from lining up with each other too.
+constexpr int kFormationCells = letterpress::kFormationCells;
+constexpr int kClumpCells1 = 12;
+constexpr int kClumpCells2 = 48;
+constexpr float kClumpRotate1Deg = 23.0f;
+constexpr float kClumpRotate2Deg = 61.0f;
+// The gradient is stored as int8 in units of 1/kGradScale RMS: +-4 RMS fits.
+constexpr float kGradScale = 32.0f;
+// The falloff is evaluated on a coarse grid and interpolated -- it is smooth.
+constexpr int kFalloffGrid = 16;
+
+// A light on the SCREEN: where it comes from, and how high it stands.
+struct Light {
+  float azDeg = 45.0f;    // clockwise from the top, the direction it comes FROM
+  float elevDeg = kRefElevationDeg;
+};
+
+inline Light lightFor(const Quantized &q, int orientation) {
+  Light L;
+  L.azDeg = referenceScreenAzimuthDeg(orientation) +
+            static_cast<float>(q.dir) * kStepDeg;
+  L.elevDeg = elevationForRake(static_cast<float>(q.rake) /
+                               static_cast<float>(kRakeLevelsPerUnit));
+  return L;
+}
+
+// Irradiance at a point of the sheet from a lamp at kLampDistance in the
+// direction `L`, relative units. p in half-diagonals, screen axes (y down, z
+// out of the glass).
+inline float irradiance(const Light &L, float px, float py) {
+  const float e = L.elevDeg * kDegToRad, az = L.azDeg * kDegToRad;
+  const float lx = std::cos(e) * std::sin(az), ly = -std::cos(e) * std::cos(az),
+              lz = std::sin(e);
+  const float dx = kLampDistance * lx - px, dy = kLampDistance * ly - py,
+              dz = kLampDistance * lz;
+  const float r2 = dx * dx + dy * dy + dz * dz;
+  const float r = std::sqrt(r2);
+  return dz / (r2 * r);  // cos(incidence) / r^2, with cos = dz / r
+}
+
+struct LampField {
+  int w = 0, h = 0;      // the output it covers
+  int cell = 2;          // output px per lattice px
+  int lw = 0, lh = 0;    // lattice
+  std::vector<int8_t> gx, gy;   // height gradient, kGradScale per RMS
+  std::vector<uint32_t> field;  // ARGB lattice pixels, MOD texture
+  float falloffRef = 1.0f;      // (1 - Emin/Emax) under the reference lamp
+  // What the last relight was asked for, so a caller can see what is live.
+  Light lastLight;
+  float lastBudget = 0.0f;
+
+  // Build the relief's gradient for this output. `extraHeight(x, y)` adds a
+  // caller's own height in OUTPUT pixels (the test's ramp); the shipping
+  // caller passes 0 -- the laid furrows were tried here and withdrawn, see
+  // SurfaceSheet.cpp ensureLampTexture.
+  template <typename ExtraHeight>
+  void build(int outW, int outH, int cellPx, uint32_t seed,
+             ExtraHeight extraHeight) {
+    w = outW;
+    h = outH;
+    cell = cellPx < 1 ? 1 : cellPx;
+    lw = (w + cell - 1) / cell;
+    lh = (h + cell - 1) / cell;
+    const size_t n = static_cast<size_t>(lw) * lh;
+    std::vector<float> height(n);
+    const float shortSide = static_cast<float>(w < h ? w : h);
+    const float c1 = std::cos(kClumpRotate1Deg * kDegToRad),
+                s1 = std::sin(kClumpRotate1Deg * kDegToRad);
+    const float c2 = std::cos(kClumpRotate2Deg * kDegToRad),
+                s2 = std::sin(kClumpRotate2Deg * kDegToRad);
+    for (int j = 0; j < lh; ++j) {
+      for (int i = 0; i < lw; ++i) {
+        const float x = (static_cast<float>(i) + 0.5f) * cell;
+        const float y = (static_cast<float>(j) + 0.5f) * cell;
+        const float nx = x / static_cast<float>(w), ny = y / static_cast<float>(h);
+        float v = phosphorgrain::valueNoise(nx * kFormationCells,
+                                            ny * kFormationCells,
+                                            seed ^ 0x464F524Du);
+        const float u = x / shortSide, vv = y / shortSide;
+        v += 0.5f * phosphorgrain::valueNoise(
+                        (u * c1 - vv * s1) * kClumpCells1,
+                        (u * s1 + vv * c1) * kClumpCells1, seed ^ 0x524C4631u);
+        v += 0.25f * phosphorgrain::valueNoise(
+                         (u * c2 - vv * s2) * kClumpCells2,
+                         (u * s2 + vv * c2) * kClumpCells2, seed ^ 0x524C4632u);
+        v += extraHeight(x, y);
+        height[static_cast<size_t>(j) * lw + i] = v;
+      }
+    }
+    std::vector<float> fx(n), fy(n);
+    double sumSq = 0.0;
+    for (int j = 0; j < lh; ++j) {
+      for (int i = 0; i < lw; ++i) {
+        const int i0 = i > 0 ? i - 1 : i, i1 = i < lw - 1 ? i + 1 : i;
+        const int j0 = j > 0 ? j - 1 : j, j1 = j < lh - 1 ? j + 1 : j;
+        const size_t k = static_cast<size_t>(j) * lw + i;
+        const float dx = (height[static_cast<size_t>(j) * lw + i1] -
+                          height[static_cast<size_t>(j) * lw + i0]) /
+                         static_cast<float>(i1 - i0 > 0 ? i1 - i0 : 1);
+        const float dy = (height[static_cast<size_t>(j1) * lw + i] -
+                          height[static_cast<size_t>(j0) * lw + i]) /
+                         static_cast<float>(j1 - j0 > 0 ? j1 - j0 : 1);
+        fx[k] = dx;
+        fy[k] = dy;
+        sumSq += static_cast<double>(dx) * dx + static_cast<double>(dy) * dy;
+      }
+    }
+    const float rms = n ? static_cast<float>(std::sqrt(sumSq / n)) : 0.0f;
+    gx.assign(n, 0);
+    gy.assign(n, 0);
+    if (rms > 0.0f) {
+      for (size_t k = 0; k < n; ++k) {
+        auto q = [&](float v) {
+          float s = v / rms * kGradScale;
+          if (s > 127.0f) s = 127.0f;
+          if (s < -127.0f) s = -127.0f;
+          return static_cast<int8_t>(std::lround(s));
+        };
+        gx[k] = q(fx[k]);
+        gy[k] = q(fy[k]);
+      }
+    }
+    field.assign(n, 0xFFFFFFFFu);
+    // The reference falloff: the lamp at its reference elevation along the
+    // sheet's diagonal. Normalizes the falloff so the reference lamp spans
+    // exactly [0, 1] of the page factor and a lower lamp spans more.
+    Light ref;
+    ref.azDeg = std::atan2(static_cast<float>(w), static_cast<float>(h)) / kDegToRad;
+    ref.elevDeg = kRefElevationDeg;
+    float emin = 0.0f, emax = 0.0f;
+    falloffRange(ref, emin, emax);
+    falloffRef = emax > 0.0f ? 1.0f - emin / emax : 1.0f;
+    if (!(falloffRef > 1e-6f)) falloffRef = 1.0f;
+  }
+
+  // Min and max irradiance over the sheet, on the falloff grid.
+  void falloffRange(const Light &L, float &emin, float &emax) const {
+    emin = 1e30f;
+    emax = 0.0f;
+    const float halfDiag = 0.5f * std::sqrt(static_cast<float>(w) * w +
+                                            static_cast<float>(h) * h);
+    for (int gj = 0; gj <= kFalloffGrid; ++gj)
+      for (int gi = 0; gi <= kFalloffGrid; ++gi) {
+        const float px = (static_cast<float>(gi) / kFalloffGrid - 0.5f) * w / halfDiag;
+        const float py = (static_cast<float>(gj) / kFalloffGrid - 0.5f) * h / halfDiag;
+        const float e = irradiance(L, px, py);
+        if (e < emin) emin = e;
+        if (e > emax) emax = e;
+      }
+  }
+
+  // Re-light the lattice. `budget` is the per-pixel darkening cap
+  // (lampBudget()); 0 leaves the field white.
+  void relight(const Light &L, const Dials &d, float budget) {
+    lastLight = L;
+    lastBudget = budget;
+    const size_t n = static_cast<size_t>(lw) * lh;
+    const float page = pageFactor(d.pagePct);
+    if (!(budget > 0.0f) || !(page > 0.0f) || n == 0) {
+      field.assign(n, 0xFFFFFFFFu);
+      return;
+    }
+    // The falloff grid for this light, as darkening shape in [0, ~1.1].
+    const int G = kFalloffGrid;
+    std::vector<float> grid(static_cast<size_t>(G + 1) * (G + 1));
+    float emin = 0.0f, emax = 0.0f;
+    falloffRange(L, emin, emax);
+    const float halfDiag = 0.5f * std::sqrt(static_cast<float>(w) * w +
+                                            static_cast<float>(h) * h);
+    for (int gj = 0; gj <= G; ++gj)
+      for (int gi = 0; gi <= G; ++gi) {
+        const float px = (static_cast<float>(gi) / G - 0.5f) * w / halfDiag;
+        const float py = (static_cast<float>(gj) / G - 0.5f) * h / halfDiag;
+        const float e = irradiance(L, px, py);
+        grid[static_cast<size_t>(gj) * (G + 1) + gi] =
+            emax > 0.0f ? (1.0f - e / emax) / falloffRef : 0.0f;
+      }
+    // The relief: slopes rising toward the lamp face away from it.
+    const float az = L.azDeg * kDegToRad;
+    const float fxl = std::sin(az), fyl = -std::cos(az);  // toward the lamp
+    const float rake = rakeForElevation(L.elevDeg);
+    const float reliefK = kReliefAt100 * rake / kGradScale;
+    for (int j = 0; j < lh; ++j) {
+      const float gyf = (static_cast<float>(j) + 0.5f) * cell / h * G;
+      int gj = static_cast<int>(gyf);
+      if (gj > G - 1) gj = G - 1;
+      const float ty = gyf - gj;
+      const float *g0 = grid.data() + static_cast<size_t>(gj) * (G + 1);
+      const float *g1 = g0 + (G + 1);
+      for (int i = 0; i < lw; ++i) {
+        const float gxf = (static_cast<float>(i) + 0.5f) * cell / w * G;
+        int gi = static_cast<int>(gxf);
+        if (gi > G - 1) gi = G - 1;
+        const float tx = gxf - gi;
+        const float a = g0[gi] + (g0[gi + 1] - g0[gi]) * tx;
+        const float b = g1[gi] + (g1[gi + 1] - g1[gi]) * tx;
+        const float fall = a + (b - a) * ty;
+        const size_t k = static_cast<size_t>(j) * lw + i;
+        float relief = (static_cast<float>(gx[k]) * fxl +
+                        static_cast<float>(gy[k]) * fyl) * reliefK;
+        if (relief < 0.0f) relief = 0.0f;
+        float shape = page * (fall + relief);
+        if (shape > 1.0f) shape = 1.0f;
+        if (shape < 0.0f) shape = 0.0f;
+        const float m = 1.0f - budget * shape;
+        const uint32_t v = static_cast<uint32_t>(m * 255.0f + 0.5f);
+        field[k] = 0xFF000000u | (v << 16) | (v << 8) | v;
+      }
     }
   }
 };

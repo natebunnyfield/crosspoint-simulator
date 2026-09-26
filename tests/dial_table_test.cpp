@@ -435,6 +435,34 @@ int main(int argc, char **argv) {
   // getter reads absence as off through -boolForKey:, which agrees.
   pinShipped(simdials::RakingLightOn, plistToggleDefault(plist, "rakingLight"),
              "Settings.bundle/Root.plist");
+  // ...and its four sliders (2026-09-26): LIVE rows, so the shipped value is
+  // the row's DefaultValue, and the getter's absent-key fallback must agree
+  // with it (checked below against CrossPointPrefs.mm's inkSliderPercent
+  // literal, the same way the Ink sliders are).
+  pinShipped(simdials::RakingStrengthPercent,
+             plistNumberDefault(plist, "rakingStrengthPercent"), "Root.plist");
+  pinShipped(simdials::RakingLampHeightPercent,
+             plistNumberDefault(plist, "rakingLampHeightPercent"), "Root.plist");
+  pinShipped(simdials::RakingTiltRangePercent,
+             plistNumberDefault(plist, "rakingTiltRangePercent"), "Root.plist");
+  pinShipped(simdials::RakingPagePercent,
+             plistNumberDefault(plist, "rakingPagePercent"), "Root.plist");
+  for (const char *getter :
+       {"CrossPointPrefs_rakingStrengthPercent",
+        "CrossPointPrefs_rakingLampHeightPercent",
+        "CrossPointPrefs_rakingTiltRangePercent",
+        "CrossPointPrefs_rakingPagePercent"}) {
+    // `inkSliderPercent(kX, N)` -- the absent-key fallback N on the getter's
+    // own line.
+    const size_t at = prefs.find(getter);
+    const size_t call = at == std::string::npos ? at : prefs.find("inkSliderPercent(", at);
+    const size_t comma = call == std::string::npos ? call : prefs.find(", ", call);
+    const int fallback = comma == std::string::npos ? kNotFound
+                                                    : std::atoi(prefs.c_str() + comma + 2);
+    checkEq(fallback, rakinglight::kDialDefault,
+            std::string("absent-key fallback of ") + getter +
+                " is the shipped default");
+  }
   // E-INK MODE (spike 2026-09-25): a toggle row that ships OFF, read through
   // -boolForKey:, whose absent-key answer (NO) agrees.
   pinShipped(simdials::EinkModeOn, plistToggleDefault(plist, "einkMode"),

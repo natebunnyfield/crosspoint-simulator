@@ -1965,6 +1965,18 @@ void applyDialGroup(simdials::Id group, const simdials::Values &v) {
     case RakingLightOn:
       setRakingLight(v[RakingLightOn] != 0);
       break;
+    case RakingStrengthPercent:
+      setRakingStrength(v[RakingStrengthPercent]);
+      break;
+    case RakingLampHeightPercent:
+      setRakingLampHeight(v[RakingLampHeightPercent]);
+      break;
+    case RakingTiltRangePercent:
+      setRakingTiltRange(v[RakingTiltRangePercent]);
+      break;
+    case RakingPagePercent:
+      setRakingPage(v[RakingPagePercent]);
+      break;
     case EinkModeOn:
       setEinkMode(v[EinkModeOn] != 0);
       break;
@@ -4655,6 +4667,35 @@ void HalDisplay::presentIfNeeded() {
     simsheet::destroySheetField();
   }
 
+  // THE LAMP FIELD (raking light, 2026-09-26) -- the sheet under the lamp:
+  // the falloff across the glass and the shading of the sheet's relief, over
+  // the WHOLE output exactly where the sheet's tooth draws, because it is one
+  // sheet under one lamp (the pad and the card are on the paper too). Half
+  // resolution, LINEAR, MOD; its budget was taken out of the marks' by the
+  // sheet pass just above. ensureLampField answers false and drops its
+  // texture whenever the switch is off, so a page without the light carries
+  // no lamp state at all.
+  if (letterpressActive) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    int outW = 0, outH = 0;
+    if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) &&
+        outW > 0 && outH > 0 &&
+        simsheet::ensureLampField(outW, outH)) {
+      int dw = 0, dh = 0;
+      simsheet::lampFieldDrawSize(dw, dh);
+      const SDL_FRect dst = {0.0f, 0.0f, static_cast<float>(dw),
+                             static_cast<float>(dh)};
+      SDL_RenderTexture(sdl_renderer, simsheet::lampField(), nullptr, &dst);
+    }
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  } else if (simsheet::lampField()) {
+    simsheet::destroyLampField();
+  }
+
   if (fields.grain) {
     SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
@@ -4799,7 +4840,7 @@ void HalDisplay::presentIfNeeded() {
     };
     static int n = 0;
     SDL_Log("[timing] #%d total %.2f ms | upload %s %.2f | accum %s %.2f | "
-            "glass %s %.2f | panel %s %.2f | sheet %s %.2f | "
+            "glass %s %.2f | panel %s %.2f | sheet %s %.2f | lamp %s %.2f | "
             "scanlines %s %.2f | grain %s %.2f | readback %s %.2f | "
             "flip %.2f",
             ++n, total, tag(timingFrame.upload), timingFrame.upload.ms,
@@ -4807,7 +4848,8 @@ void HalDisplay::presentIfNeeded() {
             tag(timingFrame.glass), timingFrame.glass.ms,
             tag(timingFrame.letterpress),
             timingFrame.letterpress.ms, tag(timingFrame.sheet),
-            timingFrame.sheet.ms, tag(timingFrame.scanlines),
+            timingFrame.sheet.ms, tag(timingFrame.lamp), timingFrame.lamp.ms,
+            tag(timingFrame.scanlines),
             timingFrame.scanlines.ms, tag(timingFrame.grain),
             timingFrame.grain.ms, timingFrame.readback ? "yes" : "-",
             timingFrame.readbackMs, timingFrame.flipMs);

@@ -25,6 +25,10 @@ struct PassTiming {
 };
 struct PresentTiming {
   PassTiming letterpress, sheet, grain, scanlines;
+  // THE LAMP FIELD (raking light, 2026-09-26): the sheet re-lit on a tilt.
+  // `built` covers a relight (a lattice pass plus an upload) as well as the
+  // rarer gradient rebuild; the [raking] log line says which.
+  PassTiming lamp;
   // THE TWO PER-PRESENT COSTS THE LINE USED TO HIDE, and they are the two that
   // dominate a phosphor trail -- where every field above is cache-served and
   // the readback never runs. `upload` is the panel framebuffer's trip to the

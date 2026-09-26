@@ -124,4 +124,15 @@ bool ensureSheetField(int w, int h, float outPxPerSourcePx);
 SDL_Texture *sheetField();
 void destroySheetField();
 
+// THE LAMP FIELD (raking light, 2026-09-26): the sheet's falloff and relief
+// under the lamp, a half-resolution MOD texture drawn over the whole output
+// right after the sheet field. Off, or a dark page, or letterpress 0: false,
+// and the texture is dropped. lampFieldDrawSize is the dst size in output
+// px (the lattice times its cell), which may overhang the output by under a
+// cell so the lattice maps exactly.
+bool ensureLampField(int w, int h);
+SDL_Texture *lampField();
+void lampFieldDrawSize(int &w, int &h);
+void destroyLampField();
+
 }  // namespace simsheet

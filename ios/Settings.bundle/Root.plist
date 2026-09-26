@@ -1978,6 +1978,86 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>How deep the shadow in the pressed letters is. 0 is the impression's own depth; 100 is three times it.</string>
+			<key>Title</key>
+			<string>Raking: Strength</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>100</real>
+			<key>Key</key>
+			<string>rakingStrengthPercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>How high the lamp stands over the page when you start: low rakes across the sheet with long shadows, high lights it flat.</string>
+			<key>Title</key>
+			<string>Raking: Lamp Height</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>100</real>
+			<key>Key</key>
+			<string>rakingLampHeightPercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>How far the lamp swings for a tilt of the phone. 0 pins it where it is.</string>
+			<key>Title</key>
+			<string>Raking: Tilt Range</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>100</real>
+			<key>Key</key>
+			<string>rakingTiltRangePercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>How much the paper itself answers the lamp: the side nearest it is lit more than the far side, and the sheet's own texture is shaded on the slopes that face away.</string>
+			<key>Title</key>
+			<string>Raking: Page</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>100</real>
+			<key>Key</key>
+			<string>rakingPagePercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>On a light page, the screen behaves like the X3's own e-paper panel: faint ghosts of earlier pages build up as you turn, and the reader's periodic clearing refresh (and a shake bound to Full Refresh) runs the panel's refresh waveform, including its black flash. Experimental.</string>
 			<key>Title</key>
 			<string>E-Ink Mode</string>
