@@ -3255,7 +3255,7 @@ if ON:
         # -8, and correct), and a bowl scaled about its centre would have
         # widened again against the same round's narrowing.
         ry = (A_TOP - A_BOT) * u / 2.0
-        bowl_ = keyed_ring(x0 + A_RX * u, (A_TOP + A_BOT) * u / 2.0, A_RX * u, ry, A_RING,
+        bowl_ = keyed_ring(x0 + A_RX * u, (A_TOP + A_BOT) * u / 2.0, A_RX * u, ry, _hair(A_RING, A_HAIR),
                            k=A_K, skew=A_SKEW, unit=u, hand=A_DROOP_HAND, wscale=ALD_WF_UP,
                            flat=(A_FLAT, A_FLAT_A, A_FLAT_B) if A_FLAT else None)
         # ROUND 170 -- THE STEM'S TOP CUT GOES, AND THE LETTER IS ONE SHAPE.
@@ -3465,6 +3465,28 @@ if ON:
         B_BOWL_RING = [(float(a), float(w)) for a, w in
                        (kv.split(":") for kv in os.environ["ALBO_ALD_B_BOWL_RING"].split(","))]
 
+    # ---------------------------------------------------- ROUND 394, OPTIONS
+    # THE BOWL HAIRLINE. Owner 2026-09-26: *"take passes but show me options
+    # using full words and sentences before committing"* -- the second
+    # thick/thin pass, whose primary scope is round 391's italic q p d b
+    # (docs/albo-round-391-2026-09-25.md section 4). The ridge map puts each
+    # letter's thin at the bowl's CROWN (the ring table's 45-135 keys: A_RING
+    # 22 / 20, B_RING 28, B_BOWL_RING 17 / 18) -- a width table's minimum,
+    # not a stem or a serif. BOWL_HAIR floors every key of the four letters'
+    # own ring tables at this many units (before `wscale`), so only the
+    # hairline moves and everything already carrying weight is untouched.
+    # 0 (the default) returns the table unchanged: a default build is
+    # outline-identical to round 393. A_HAIR is the same floor on the a's
+    # ring, kept separate because the a's contrast is a ruling of its own
+    # (CON_A, 2026-09-15/16). The g reads A_RING too and is NOT floored --
+    # it is an approved letter (approved.py).
+    # docs/albo-thick-thin-options-2026-09-26.md.
+    BOWL_HAIR = float(os.environ.get("ALBO_ALD_BOWL_HAIR", 0.0))
+    A_HAIR = float(os.environ.get("ALBO_ALD_A_HAIR", 0.0))
+
+    def _hair(keys, floor):
+        return [(a_, max(w_, floor)) for a_, w_ in keys] if floor else keys
+
     def bd_head(xl, xr, yt, u=1.0, reach=None, drop=None, foot=None):
         """The Aldine ascender head, reaching LEFT across the stem's top.
 
@@ -3549,7 +3571,7 @@ if ON:
         head = bd_head(xs - sw / 2, xs + sw / 2, asc_b, u)
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + (B_STEM_X + (B_CX - B_STEM_X) * B_COND) * u,
-                           B_CY * u, B_RX * B_COND * u, ry, B_BOWL_RING,
+                           B_CY * u, B_RX * B_COND * u, ry, _hair(B_BOWL_RING, BOWL_HAIR),
                            k=B_K, skew=B_SKEW, unit=u, wscale=ALD_WF_UP)
         # ROUND 343 -- close the crotch. `ink` adds the bowl to the stem and
         # leaves a notch where they meet at a shallow angle: the gate reads a
@@ -3607,7 +3629,7 @@ if ON:
         stem = stroke([(xs, S * 0.10), (xs, c["asc"])], sw)
         head = bd_head(xs - sw / 2, xs + sw / 2, c["asc"], u)
         ry = (xh + OVER * 0.6) / 2.0
-        bowl_ = keyed_ring(x0 + D_RX * u, D_CY * u, D_RX * u, ry, D_RING,
+        bowl_ = keyed_ring(x0 + D_RX * u, D_CY * u, D_RX * u, ry, _hair(D_RING, BOWL_HAIR),
                            k=A_K, skew=D_SKEW, unit=u, wscale=ALD_WF_UP)
         tip = (x0 + D_TAIL_X * u, xh * D_TAIL_Y)
         tp = catmull([(xs, xh * 0.30), (xs + 4 * u, xh * 0.10), (xs + 30 * u, 26 * u),
@@ -3775,7 +3797,7 @@ if ON:
         head = bd_head(xs - sw / 2, xs + sw / 2, xh, u,
                        reach=P_HEAD_R, drop=P_HEAD_D, foot=P_HEAD_F)
         ry = (xh + OVER * 0.6) / 2.0
-        bowl_ = keyed_ring(x0 + P_CX * u, P_CY * u, P_RX * u, ry, B_RING,
+        bowl_ = keyed_ring(x0 + P_CX * u, P_CY * u, P_RX * u, ry, _hair(B_RING, BOWL_HAIR),
                            k=B_K, skew=P_SKEW, unit=u, wscale=ALD_WF_UP)
         # ROUND 343 -- as the b, and this one the gate also calls a REVERSAL:
         # a 4.5-unit spike at (162, 285), arms 4.5 / 148.7.
@@ -3820,7 +3842,7 @@ if ON:
         xs = x0 + Q_STEM_X * u; sw = Q_STEM_W * u; ybot = -c["desc"]
         stem = stroke([(xs, ybot + PQ_FOOT_T * u * 1.30), (xs, xh)], sw, cut1=CUT)
         ry = (xh + OVER * 0.6) / 2.0
-        bowl_ = keyed_ring(x0 + Q_RX * u, Q_CY * u, Q_RX * u, ry, A_RING,
+        bowl_ = keyed_ring(x0 + Q_RX * u, Q_CY * u, Q_RX * u, ry, _hair(A_RING, BOWL_HAIR),
                            k=A_K, skew=Q_SKEW, unit=u, wscale=ALD_WF_UP)
         # ROUND 343 -- the same crotch closing as the b. The q raises no gate
         # finding of its own; it is here because it is the same construction

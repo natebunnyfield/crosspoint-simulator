@@ -1669,11 +1669,18 @@ def g_X(c):
     p0, p1 = (s * 0.3, C), (w - s * 0.3, 0); q0, q1 = (w - s * 0.3, C), (s * 0.3, 0)
     return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1, serif1=1), diagonal(q0, q1, pw(q0, q1, X_THIN), serif0=-1, serif1=-1)])
 
+# ROUND 394 OPTION (docs/albo-thick-thin-options-2026-09-26.md): the Y's light
+# arm, x the pen at its own angle -- round 224's X finding again. The Y's
+# right arm carries the same declared 0.72 on a down-left stroke and measures
+# 27 units, -28% of the diagonal capitals and the only capital outlier of the
+# pass. 0.90 would be the X's shipped value. Default 0.72, byte-identical.
+Y_THIN = float(os.environ.get("ALBO_ROM_Y_THIN", 0.72))
+
 @glyph('Y')
 def g_Y(c):
     C = c["cap"]; s = CS; w = W_(c, 'Y', 540)
     p0, p1 = (s * 0.3, C), (w / 2 + 6, C * 0.45 - 10); q0, q1 = (w - s * 0.3, C), (w / 2 - 6, C * 0.45 - 10)
-    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1),
+    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, Y_THIN), serif0=-1),
                      cstem(w / 2, 0, C * 0.45 + s * 0.3, top=None, foot='both', ent_span=(0, C))])
 
 # owner, verbatim: "cleanup 'Z' ... bottom left and top right." Those are

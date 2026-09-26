@@ -171,7 +171,15 @@ def g_w(c):
 
 X_BL_WEDGE = 1.15   # the x's bottom-left wedge, x the family's diagonal end (0.9 is the family's own)
 X_BL_WIDTH = 1.0    # the width the wedge is sized on: the THICK diagonal's (1.0), not the thin's
-X_BL_THIN = 0.72    # ... and the width the stroke it lands on actually has
+# ROUND 394 OPTION (docs/albo-thick-thin-options-2026-09-26.md): the x's light
+# diagonal, x the pen at its own angle. 0.72 is the family's declared thin
+# factor, and at the x's down-left angle it lands on a nib width already near
+# its minimum -- the two thinnings compound, which is exactly what round 224
+# found on the capital X and cured with ALBO_ROM_X_THIN 0.90. The lowercase x
+# was not in that round. Default 0.72, byte-identical. At the 400 the bottom
+# left wedge (round 90, X_BL_*) is sized on the THICK diagonal and does not
+# move with this; above stem 84 its anchor interpolates toward it.
+X_BL_THIN = float(os.environ.get("ALBO_ROM_LCX_THIN", 0.72))    # ... and the width the stroke it lands on actually has
 
 # THE WEDGE'S OVERHANG IS A KNIFE-CUT, NOT A WEIGHT (2026-09-19, the bold
 # masters). `end_wedge` anchors a wedge half of the width it is GIVEN off the
@@ -358,6 +366,12 @@ def g_k(c):
     join-rule minimum) past that edge, thinning sooner (LEG_TAPER) so the
     join reads as one clean fork instead of an X."""
     ARM_WEIGHT = 1.40 if adj('k') else 1.30   # round 92 (adj 'k'): light beside the stem, band -14% Albertus
+    # ROUND 394 OPTION (docs/albo-thick-thin-options-2026-09-26.md): the arm's
+    # weight, overriding the above when set. The ridge map puts the roman k's
+    # thin on this arm. Unset ships round 92's value, byte for byte. Roman
+    # only: the italic's lambda is drawn through this function and a
+    # ROM-named dial must not move an italic glyph.
+    if os.environ.get("ALBO_ROM_K_ARM") and not pen.ITALIC: ARM_WEIGHT = float(os.environ["ALBO_ROM_K_ARM"])
     K_ARM_WEDGE = 1.35 if adj('k') else 1.15   # round 93 (owner): "the top right serif of 'k' needs more visual weight"
     LEG_EDGE = 1.0            # spring the leg from the arm's lower edge (1.0), not its centerline (0.0)
     LEG_BURY = 0.20           # x stem, past that edge (join rule: a fifth to a third of a stem)

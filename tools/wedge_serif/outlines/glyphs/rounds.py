@@ -220,6 +220,16 @@ def _e_tipy():
 E_TIPDEG_R = float(os.environ.get("ALBO_E_TIPDEG_R", 50.0))# the direction the tail is travelling when it ends
 
 E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its bar -- bar top 0.62 -> 0.58 xh (eye taller), bar 0.72 -> 0.66 of the pen
+# ROUND 394 OPTION (docs/albo-thick-thin-options-2026-09-26.md): the roman e's
+# bar FLOOR, x S. The ridge map puts the e's p10 on the bar, and at the 400 the
+# bar is not the pen at all: pen.th at the bar's 5 degrees x round 92's 0.66
+# is about 20 units, under the S x 0.35 floor below, so the bar ships AT the
+# floor (23.4) and a thicker 0.72 or 0.78 multiplier moves nothing (measured:
+# 0 of 530 outlines). This raises the floor itself. Roman only, and only at
+# or under stem 84: above it the bar is round 287's E_BAR_HEAVY, and a 0.45
+# floor there thinned the 700's p10 49.7 -> 42.1 (a new sliver, not a lift).
+# 0.35 ships.
+E_BAR_FLOOR = float(os.environ.get("ALBO_ROM_E_BAR_FLOOR", 0.35))
 
 # ROUND 287 -- THE HEAVY e's BAR. Owner 2026-09-19: *"that e could be
 # heavier."* Measured against its own CONSTRUCTION family at the 900 (the
@@ -332,7 +342,7 @@ def g_e(c):
     tilt = math.radians(E_DEG_IT if pen.ITALIC else E_DEG); slope = math.tan(tilt)
     e_bar, e_th = (E_BAR_ADJ, E_TH_ADJ) if adj('e') else (E_BAR, E_TH)
     if _heavy() and not pen.ITALIC: e_th *= E_BAR_HEAVY   # round 287, see E_BAR_HEAVY
-    th = max(pen.th(E_DEG_IT if pen.ITALIC else E_DEG) * e_th, S * 0.35)
+    th = max(pen.th(E_DEG_IT if pen.ITALIC else E_DEG) * e_th, S * (0.35 if (pen.ITALIC or _heavy()) else E_BAR_FLOOR))   # round 394: E_BAR_FLOOR, 400-side only
     bar_top = lambda x: xh * e_bar + (x - cx) * slope
     under = lambda x: bar_top(x) - th
     # the bar: from inside the left stroke to inside the right stroke

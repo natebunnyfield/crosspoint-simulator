@@ -1107,6 +1107,8 @@ TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229'
 TWO_OPT_IT['g'] = dict(top_w=_E('ALBO_2G_TOPW_IT', 0.82), slash_k=0.70, slash_w=0.55)
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
+THREE_FLOOR = float(os.environ.get("ALBO_FIG3_FLOOR", 0.0))   # round 394 option (roman 3), x S; 0 ships
+
 @glyph('3')
 def g_three(c):
     _o3 = _okw('3', THREE_OPT, THREE_OPT_IT)
@@ -1133,8 +1135,21 @@ def g_three(c):
         # the letter it is modelled on. Roman only by construction (the
         # italic's 3 cannot select this waist).
         from .rounds import c_top_width
-        t = stroke(top2, PR.finial_widths(pen_widths(top2, widths([(0.0, 1.0), (0.88, 1.0), (0.955, 0.45), (1.0, 0.04)])), True), cut0=PR.finial_cut(top2, True))
-        b = stroke(bot2, PR.finial_widths(pen_widths(bot2, widths([(0.0, 0.04), (0.04, 0.45), (0.1, 1.0), (1.0, 1.0)])), False, floor=c_top_width()), cut1=PR.finial_cut(bot2, False))
+        # ROUND 394 OPTION: THREE_FLOOR, a hairline floor x S under the pen on
+        # both strokes (0 = the pen alone, as shipped), round 391's s/t/y
+        # device. The ridge map puts the 3's thin where each bowl runs along
+        # the pen's thin axis -- the upper bowl's rising top-left and the
+        # lower bowl's bottom -- not at the waist. `pen_widths` applies its
+        # own floor AFTER the profile, which would lift the waist's taper to
+        # 0.04 as well, so the floor goes under the PEN here and the profile
+        # multiplies over it: the waist still runs out to its point.
+        def _pw3(center, prof):
+            if not THREE_FLOOR:
+                return pen_widths(center, prof)
+            f_ = pen_widths(center, floor=S * THREE_FLOOR)
+            return lambda t_: f_(t_) * prof(t_)
+        t = stroke(top2, PR.finial_widths(_pw3(top2, widths([(0.0, 1.0), (0.88, 1.0), (0.955, 0.45), (1.0, 0.04)])), True), cut0=PR.finial_cut(top2, True))
+        b = stroke(bot2, PR.finial_widths(_pw3(bot2, widths([(0.0, 0.04), (0.04, 0.45), (0.1, 1.0), (1.0, 1.0)])), False, floor=c_top_width()), cut1=PR.finial_cut(bot2, False))
         g = geom.ink([t, b])
         if mode == 'point': return g
         Xc = T[0] + THREE_WAIST_FLAT
@@ -1488,6 +1503,15 @@ SIX_OPT = {
 }
 SIX_OPT_IT = {k: SIX_OPT[k] for k in ('b', 'c')}
 
+# ROUND 394 OPTION (docs/albo-thick-thin-options-2026-09-26.md): the ITALIC
+# 6's tail. Its ridge map puts the letter's thin on the tail's run-out, which
+# thins to 0.12 of its width at the tip -- the flick is most of the p10 that
+# reads the italic 6 at -30% of the figures. This ends the same profile on
+# SIX_TAIL_END_IT instead (0.30 is the roman's shipped pen cut, arm 'i'). 0,
+# the default, is the shipped run-out, byte for byte. Italic only; the roman
+# 6 ships 'i' and is not in this pass.
+SIX_TAIL_END_IT = float(os.environ.get("ALBO_ALD_SIX_TAIL_END", 0.0))
+
 def _six_draw(c, D, o):
     (solid, oo, i), rx, r, ry = six_bowl(c, D, r_frac=o.get('r', 0.29)); cx = rx + TH_V / 2
     _tx, _ty = o.get('tip', (0.85, -10.0))
@@ -1496,6 +1520,9 @@ def _six_draw(c, D, o):
     base = pen_widths(top); prof = widths([(0.0, 0.15), (0.06, 1.0), (0.65, 1.0), (1.0, 0.12)])
     wfun = lambda u: max(base(u), SIX_TAIL_FLOOR * S) * prof(u)   # the floor under the pen, the profile over both
     if pen.ITALIC:
+        if SIX_TAIL_END_IT:     # round 394 option, see SIX_TAIL_END_IT
+            prof_i = widths([(0.0, 0.15), (0.06, 1.0), (0.65, 1.0), (1.0, SIX_TAIL_END_IT)])
+            return geom.ink([solid, stroke(top, lambda u: max(base(u), SIX_TAIL_FLOOR * S) * prof_i(u))])
         return geom.ink([solid, stroke(top, wfun)])
     # ROUND 233 (R41), owner 2026-09-18: *"correct end of tail."* The profile
     # above is a smoothstep from 1.0 at 0.65 to 0.12 at 1.0, and a smoothstep
@@ -2087,6 +2114,14 @@ EIGHT_OPT = {
     # 8 at the height it had been ruled SHORT at in round 64 before any
     # reference had been measured.
     'x': dict(floor=0.0, to_six='shipped', nib="1.03,0.15,0", oval=1.0),
+    # ROUND 394 OPTIONS (docs/albo-thick-thin-options-2026-09-26.md): `x` with
+    # the nib's THIN raised, nothing else. The ridge map puts the shipped 8's
+    # thin at the upper ring's 12 o'clock, the waist and the lower ring's 6 --
+    # the nib's own thin, which is what "cut deeper wins" (round 373) bought.
+    # These give some of it back; they reverse part of that ruling and are
+    # offered beside it, not instead of it.
+    'y': dict(floor=0.0, to_six='shipped', nib="1.03,0.22,0", oval=1.0),
+    'z': dict(floor=0.0, to_six='shipped', nib="1.03,0.30,0", oval=1.0),
 }
 EIGHT_OPT_IT = {
     'b': dict(tall=1.16),
@@ -2117,6 +2152,10 @@ EIGHT_OPT_IT = {
     # 1.50 / 1.38. BoldItalic 3.56 / 3.51:1, against its 0's 3.91.
     'x': dict(floor=0.0, to_six='shipped', nib="1.30,0.20,0", con=1.0),
 }
+# ROUND 394: the roman-only 8 options y and z draw the italic's SHIPPED x, so
+# ALBO_FIG_8=y cannot silently hand the italic option 'a' (a letter with no
+# row in a table resolves to 'a' -- see OPT).
+EIGHT_OPT_IT['y'] = EIGHT_OPT_IT['z'] = EIGHT_OPT_IT['x']
 
 @glyph('8')
 def g_eight(c, _ovl=None, _pass=0):
