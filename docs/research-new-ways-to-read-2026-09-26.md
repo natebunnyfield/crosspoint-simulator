@@ -620,3 +620,7 @@ Secondary (abstract, database record or summary):
 - Quotation attribution in novels (LLM): https://arxiv.org/pdf/2408.09452
 - Kindle Recaps / Story So Far (press): https://www.aboutamazon.com/news/books-and-authors/kindle-recaps-feature-ebook-series-refreshers · https://www.bgr.com/2192985/kindle-cool-new-feature-story-so-far-june/
 - Apple Foundation Models framework: https://www.apple.com/newsroom/2025/09/apples-foundation-models-framework-unlocks-new-intelligent-app-experiences/
+
+## Owner rulings, 2026-09-26
+
+- **Cascade (C1): YES**, after seeing the renders. Built **epub side**: claude-tools emits a separate cascaded edition of each generated book, phrases split offline by a real parser; the firmware gets only the markup/spacing fix a cascaded paragraph needs. No reader-side segmenter.
