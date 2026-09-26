@@ -7556,8 +7556,10 @@ if ON:
         # counter's crotch on the inner side is left exactly as drawn, and
         # neither the arc, the spur, the bar nor the terminal moves. Above the
         # Medium only: the 400 reads 2.7 there, under what any size shows.
-        if S > 84.0:
-            g = geom.ease_step(g, ex - CS * 0.10, ex + CS * 0.80, ey - CS * 0.45, ey + CS * 0.35)
+        # ROUND 392 -- AND AT THE 400 TOO. The brief asked for the 2.7-unit
+        # ledge the Italic keeps at (471, 77) to go when the fix is clean; the
+        # same box, scaled in CS, takes it and moves nothing else.
+        g = geom.ease_step(g, ex - CS * 0.10, ex + CS * 0.80, ey - CS * 0.45, ey + CS * 0.35)
         return g
 
     # ROUND 135: THE Q IS THE ONE THAT GOES TO PAGELLA. The owner's first list
@@ -8680,7 +8682,17 @@ if ON:
                 xg = max(xg, _edge(yb, yt))
             cuts.append(geom.poly([(xg, yb), (xg + w, yb),
                                    (xg + w, yt), (xg, yt)]))
-        return geom.ink([st, arm], cuts)
+        g = geom.ink([st, arm], cuts)
+        if S > 84.0:
+            # ROUND 392 -- at the 700 the crown leaves the stem's flat top
+            # 3 units under it (`cmp_jogs.py`, BoldItalic (360, 673)); the
+            # Italic's crown is flush and is not touched. Eased over a band on
+            # the cap line from the stem's right edge, as the roman P's.
+            _b = st.intersection(geom.poly([(x0 - C, C - 60), (x0 + C, C - 60),
+                                            (x0 + C, C - 40), (x0 - C, C - 40)]))
+            xe = _b.bounds[2]
+            g = geom.ease_step(g, xe - 4.0, xe + CS * 1.2, C - 20.0, C + 12.0)
+        return g
 
     # ---------------------------------------------------------------- Z
     # THE Z WAS ALREADY THE CLOSEST OF THE NINE (cap-aligned IoU 0.665 at round
@@ -9195,7 +9207,19 @@ if ON:
         arm = geom.union([asolid] + kser)
         lsolid, Lz, Rz = stroke(lp, lw, sides=True)
         leg = geom.union([lsolid] + _stem_serifs(Lz, Rz, 'both', False))
-        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), arm, leg])
+        g = geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), arm, leg])
+        # ROUND 392 -- THE LEG'S INNER EDGE, ONE LINE. The trace's rows crowd
+        # from 0.12 to 0.14 C (dx per row doubles there) and the width steps
+        # with them, so the leg's left edge carries a notch a fifth of the way
+        # up: 4.3 units at the BoldItalic (453, 128), 2.8 at the Italic
+        # (440, 131), `cmp_jogs.py` -- round 385's small list. Eased over a
+        # band on the left half of the leg only, 0.16-0.225 C: a taller band (0.12-
+        # 0.27, tried first) straightened the leg's curved inner edge into one
+        # chord with a corner at each end. The trace and the foot do not move.
+        _yk = C * 0.19
+        _kx = min(lp, key=lambda q: abs(q[1] - _yk))[0]
+        g = geom.ease_step(g, _kx - CS * 1.0, _kx, C * 0.16, C * 0.225)
+        return g
 
     # ---------------------------------------------------------------- M
     # POETICA'S M IS SPLAYED AND IT IS WIDE. Cap-aligned, its w/h is 1.39

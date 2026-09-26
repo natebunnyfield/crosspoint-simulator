@@ -1305,7 +1305,22 @@ def g_four(c):
             dg = diagonal(q, p1, wd); got = dg.distance(st)
             if abs(got - want) < 0.05: break
             back += (want - got) / max(ux, 0.25)
-    return geom.ink([dg, b, st])
+    g = geom.ink([dg, b, st])
+    if pen.ITALIC:
+        # ROUND 392 -- THE STEM'S RIGHT EDGE RUNS INTO THE EXIT IN ONE LINE.
+        # The italic stem's exit stroke starts wider than the 4's stem, so a
+        # little above the flick's turn the right edge stepped OUT by 5 units
+        # (BoldItalic (348, 95) -> (354, 86) unsheared; `cmp_jogs.py` 4.2 at
+        # TTF (322, -122)): a notch over a shoulder. The step is eased to a
+        # slope over a band on the right edge only, above the flick's turn
+        # (which starts about 0.45 S up), so the turn and its counter-side
+        # curve are untouched.
+        _row = st.intersection(geom.poly([(xs - S * 3, S * 1.6), (xs + S * 3, S * 1.6),
+                                          (xs + S * 3, S * 1.7), (xs - S * 3, S * 1.7)]))
+        if not _row.is_empty:
+            xe = _row.bounds[2]
+            g = geom.ease_step(g, xe - S * 0.10, xe + S * 0.15, S * 0.55, S * 1.35)
+    return g
 
 FOUR_CURVED = True      # the Goudy open 4: a bowed stroke rounding into the bar (owner 2026-09-13)
 FOUR_BOW = 0.10         # how far left of the start the bow's upper control sits, x S

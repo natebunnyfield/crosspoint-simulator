@@ -141,6 +141,14 @@ COMBINING = {'\u0300': '\u0060', '\u0301': '\u00b4', '\u0302': '\u02c6', '\u0303
 # measurement was taken on lowercase and says nothing about them.
 ACC_OPTICAL_ON = float(os.environ.get("ALBO_ACC_OPTICAL", 1.0))
 ACC_OPTICAL = {'a': -0.030, 'e': +0.030}    # x the x-height; + moves the mark RIGHT
+# ROUND 392 -- A MARK OVER THE DOTLESS j SITS OVER ITS STEM, NOT OVER ITS
+# TAIL. The mark is centred on the base's whole ink box, and the j's tail
+# sweeps a long way LEFT under the baseline, so the ĵ's circumflex stood 135
+# units left of the stem's top in the italic (165 once round 392 gave the
+# italic ȷ the italic j's longer tail) -- over the white beside the letter. For
+# the bases named here the mark is centred on the ink between 0.6 x-height and
+# the x-height's overshoot instead: the stem's top, where the j's own dot sits.
+ACC_BAND = {'\u0237'}
 
 ACC_GAP_LC = 0.10 * pen.XH      # the mark's foot over the x-height
 ACC_GAP_CAP = 0.055 * pen.XH
@@ -1103,6 +1111,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     fb.setupCharacterMap({ord(ch): gname(ch) for ch in CHARS} | {ord(ch): gname(ch) for ch in ACC_CHARS} | {ord(ch): gname(ch) for ch in COMB_CHARS} | {32: 'space'})
     glyphs, metrics, report = {}, {}, {}
     ink, advances = {}, {}      # round 99: per-char ink bbox and advance, for the accent composites
+    inkband = {}                # round 392: ACC_BAND's stem-top extent
     for ch in CHARS:
         c = ctx(ch, W)
         if ch in GLYPHS and (only is None or ch in only):
@@ -1164,6 +1173,9 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         if conts:
             xs = [x for pts, _ in conts for x, y in pts]; ys = [y for pts, _ in conts for x, y in pts]
             ink[ch] = (min(xs) + dx, min(ys), max(xs) + dx, max(ys))
+            if ch in ACC_BAND:
+                bxs = [x for pts, _ in conts for x, y in pts if pen.XH * 0.6 <= y <= pen.XH + pen.OVER]
+                if bxs: inkband[ch] = (min(bxs) + dx, max(bxs) + dx)
         advances[ch] = adv
         glyphs[gname(ch)] = _despur(pen_.glyph()); metrics[gname(ch)] = (int(round(adv)), int(round(lsb_ink)))
     # ------------------------------------------------ round 99: the composites
@@ -1186,6 +1198,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         isCap = base.isupper()
         if kind == 'above':
             dx = (bx0 + bx1) / 2 - (mx0 + mx1) / 2
+            if base in inkband: dx = sum(inkband[base]) / 2 - (mx0 + mx1) / 2
             dx += ACC_OPTICAL.get(base, 0.0) * pen.XH * ACC_OPTICAL_ON
             top = max(by1, C if isCap else pen.XH)
             dy = top + (ACC_GAP_CAP if isCap else ACC_GAP_LC) - my0

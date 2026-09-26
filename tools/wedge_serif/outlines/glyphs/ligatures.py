@@ -29,11 +29,28 @@ FF_STEP = float(_os.environ.get("ALBO_FF_STEP", 1.38))   # the second f's stem c
 # stem's top-left, so the calligraphic entry flick `stem` draws there in the
 # italic stood out beside it as a hair (BoldItalic fi and ffi, owner
 # 2026-09-24: "the weirdness and stray hairy mess"). The roman draws none.
+# ROUND 392 -- THE ITALIC EXIT'S SHOULDER. In the italic, `stem(..., foot=
+# 'both')` ends in the calligraphic exit, and that stroke starts wider than
+# the stem, so a little above the flick's turn the stem's right edge steps
+# OUT: 4.2 units in the BoldItalic ﬁ (476, 87), 5.2 in the ﬃ (724, 87),
+# `cmp_jogs.py` -- the same shoulder as the italic 4's. (The italic i and l
+# themselves are aldine's and do not carry it.) Eased on the stem alone over
+# a band on its right edge above the turn, as the 4's is.
+def _exit_shoulder(g, x):
+    from .. import pen as _pen
+    if not _pen.ITALIC:
+        return g
+    import shapely.geometry as _sg
+    row = g.intersection(_sg.box(x - S * 3, S * 1.6, x + S * 3, S * 1.7))
+    if row.is_empty:
+        return g
+    xe = row.bounds[2]
+    return geom.ease_step(g, xe - S * 0.10, xe + S * 0.15, S * 0.55, S * 1.35)
 def _i_stem(x, c):
-    return stem(x, 0, c["xh"], top='left', foot='both', it_entry=False)
+    return _exit_shoulder(stem(x, 0, c["xh"], top='left', foot='both', it_entry=False), x)
 def _l_stem(x, c):
-    if adj('l'): return stem(x, 0, c["asc"], top='left', foot='both', top_len=1.05, foot_len=0.92, it_entry=False)
-    return stem(x, 0, c["asc"], top='left', foot='both', it_entry=False)
+    if adj('l'): return _exit_shoulder(stem(x, 0, c["asc"], top='left', foot='both', top_len=1.05, foot_len=0.92, it_entry=False), x)
+    return _exit_shoulder(stem(x, 0, c["asc"], top='left', foot='both', it_entry=False), x)
 
 def fi_parts(c, x_f_shift=0.0, flush=True):
     """f + i fused: the hook comes over and flows INTO the i's dot, arriving
@@ -121,7 +138,20 @@ def g_fl(c): return geom.ink(fl_parts(c))
 # counter the box must not reach.
 def _second_f_step(g, c, dx):
     x, r, _ = f_geometry(c); x2 = x + dx; top = c["asc"] - r + 30      # f_ink's round-42 stem top
-    return geom.ease_step(g, x2 - S * 0.75, x2, top - S * 0.6, top + S * 0.35)
+    g = geom.ease_step(g, x2 - S * 0.75, x2, top - S * 0.6, top + S * 0.35)
+    # ROUND 392 -- and the RIGHT edge's step, in a band too short to reach
+    # the counter under the hook: the stem's flat top stands 3 units proud
+    # of the hook's start there at the 700 (Bold (454, 623), `cmp_jogs.py`
+    # 3.0; 1 at the 400). The band is 14 units across the edge and runs 40
+    # under the stem top to 25 over it; the hook's counter opens a stem
+    # further up.
+    import shapely.geometry as _sg
+    row = g.intersection(_sg.box(x2 - S * 3, top - S * 1.2, x2 + S * 3, top - S * 1.1))
+    for q in (list(row.geoms) if hasattr(row, 'geoms') else [row]):
+        if not q.is_empty and q.bounds[0] <= x2 <= q.bounds[2]:
+            xr = q.bounds[2]
+            g = geom.ease_step(g, xr - 6.0, xr + 8.0, top - 40.0, top + 25.0)
+    return g
 @glyph('\ufb00')
 def g_ff(c):
     first, dx = ff_first(c); second = [aff.translate(g, dx, 0) for g in f_ink(c, parts=True)]

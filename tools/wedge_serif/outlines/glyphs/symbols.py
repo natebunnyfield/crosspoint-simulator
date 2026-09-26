@@ -651,8 +651,18 @@ def g_sterling(c):
     hook = cubic((XH * 0.30, h * 0.80), (XH * 0.40, h * 1.04), (XH * 0.74, h * 1.02), (XH * 0.78, h * 0.80))
     foot = bar(XH * 0.10, XH * 0.92, 0, TH_H, align='bottom')
     cross = bar(XH * 0.08, XH * 0.66, h * 0.40, MATH)
-    return geom.ink([_s(spine, widths([(0.0, 0.95), (1.0, 0.82)]), cut0=None, cut1=None),
-                     _s(hook, widths([(0.0, 0.82), (1.0, 0.52)]), cut0=None), foot, cross])
+    g = geom.ink([_s(spine, widths([(0.0, 0.95), (1.0, 0.82)]), cut0=None, cut1=None),
+                  _s(hook, widths([(0.0, 0.82), (1.0, 0.52)]), cut0=None), foot, cross])
+    # ROUND 392 -- THE SPINE RUNS INTO THE HOOK IN ONE LINE. The two cubics
+    # meet at (0.30 xh, 0.80 cap) with different tangents (the spine arrives
+    # at 16 degrees off vertical, the hook leaves at 23), so both square end
+    # faces stand at the join and the inner edge carries a V-nick: 3.2 units
+    # at the BoldItalic (311, 533), 2.0 at the Regular (181, 537),
+    # `cmp_jogs.py` -- round 385's small list. Eased over a band a little
+    # more than a stroke wide either side of the join; the hook's counter
+    # starts well above it.
+    jx, jy = XH * 0.30, h * 0.80
+    return geom.ease_step(g, jx - S * 0.7, jx + S * 0.7, jy - S * 0.35, jy + S * 0.35)
 @glyph('¥')      # yen
 def g_yen(c):
     from . import GLYPHS
@@ -663,6 +673,23 @@ def g_yen(c):
     opt = yen_gap_opt()
     if opt != 'a':
         return _yen_gapped(g, opt)
+    if not pen.ITALIC:
+        # ROUND 392 -- THE TRUNK BETWEEN THE BARS IS THE STEM'S OWN COLUMN.
+        # The roman Y's thick left arm meets its stem 28 units LOWER than the
+        # thin right arm does (Regular (380, 292); Bold (338, 295)), so under
+        # the upper bar the arm's outer edge stood out of the trunk's left
+        # side as a slanted ledge -- the notch round 385 reported on the
+        # Regular ¥ ("on the stem's left just under the bars") -- and the
+        # right side met the stem square. Between the two bars' centrelines
+        # the Y is cut back to the stem's column, read off the trunk just
+        # under the arm's join (0.40 cap; read at 0.25, below the lower bar,
+        # the column is a unit narrower and left a 1-unit slant above that
+        # bar); the bars cover both cut lines, so nothing else moves.
+        import shapely.geometry as sg
+        row = g.intersection(sg.LineString([(x0 - 10, CAP * 0.40), (x1 + 10, CAP * 0.40)]))
+        tx0, _, tx1, _ = row.bounds
+        g = g.difference(sg.box(x0 - 50, CAP * 0.34, tx0, CAP * 0.50)).difference(
+            sg.box(tx1, CAP * 0.34, x1 + 50, CAP * 0.50))
     return _fill_cracks(geom.ink([g, bar(x0 - 8, x1 + 8, CAP * 0.34, MATH), bar(x0 - 8, x1 + 8, CAP * 0.50, MATH)]))
 # 2026-09-24 -- OPTIONS: THE YEN CARRIES THE Y's HAIRLINE GAP. Owner: *"give me
 # clever options for the Italic and bold italic yen characters to have a visible
@@ -743,6 +770,30 @@ def _yen_gapped(g, opt):
                     near = sg.Point((qa.x + qb.x) / 2, (qa.y + qb.y) / 2).buffer(14)
                     u = arm.union(p)
                     fills.append(u.intersection(near).convex_hull.difference(u).difference(halo))
+        # ROUND 392 -- AND WHERE A BAR's UNDERSIDE CROSSES THE ARM's UPPER
+        # EDGE A FEW UNITS SHORT OF THE CHANNEL, the white left between them
+        # is a nick, not a designed space: at the BoldItalic the arm rides
+        # higher and the Italic's 50 x 34-unit triangle under the upper bar
+        # closes to a 7 x 6 notch in the channel's right edge (TTF (375, 306),
+        # `cmp_jogs.py` 6.7; the ledge the option doc saw at 6x and left).
+        # Filled by the hull of the ink in a small box there, kept out of the
+        # halo so the channel's width does not move. Where the arm crosses
+        # the bar's underside more than 14 units off the channel (the
+        # Italic's triangle) nothing is done.
+        for b in bars:
+            for p in (list(b.geoms) if b.geom_type == 'MultiPolygon' else [b]):
+                if not arm.intersects(p) or p.bounds[0] < trunk.bounds[0]:
+                    continue
+                yb = p.bounds[1] - 0.5
+                row = sg.LineString([(x0 - 50, yb), (x1 + 400, yb)])
+                ra = arm.intersection(row); rh = trunk.buffer(G, join_style=2).intersection(row)
+                if ra.is_empty or rh.is_empty:
+                    continue
+                xa, xh = ra.bounds[0], rh.bounds[2]
+                if 0.0 < xa - xh < 14.0:
+                    u = geom.ink([arm, p])
+                    box = sg.box(xh - 2.0, yb - 16.0, xa + 6.0, p.bounds[1] + 2.0)
+                    fills.append(u.intersection(box).convex_hull.difference(u).difference(halo))
         g = geom.ink([trunk, arm] + fills)
     return _fill_cracks(geom.ink([g] + bars))
 @glyph('€')      # euro

@@ -279,6 +279,16 @@ def g_beta(c):
     # the step the stem's flat top leaves against the curve, eased to a slope;
     # the band stops at the stem's right edge, short of the upper counter
     g = geom.ease_step(g, x - TH_V * 1.2, x + TH_V * 0.45, 500 - TH_V, 500 + TH_V)
+    # ROUND 392 -- the two joins that band does not reach, both where the
+    # curve leaves or re-enters the stem at the stem's `_ent` width and the
+    # stem's own edge stands a few units off it: the stem's top-RIGHT corner
+    # on the upper counter's wall (3.5 units, Regular (115, 501)), and the
+    # left edge where the lower bowl comes back at y 160 (2.2 drawn, 2.9
+    # built, BoldItalic (47, 160)); `cmp_jogs.py`. Each eased over a band
+    # 22 units across the edge, which reaches neither counter's corners.
+    _sb = st.intersection(sg.box(x - 300, 300, x + 300, 320)).bounds
+    g = geom.ease_step(g, _sb[2] - 8.0, _sb[2] + 14.0, 470.0, 530.0)
+    g = geom.ease_step(g, _sb[0] - 14.0, _sb[0] + 8.0, 130.0, 190.0)
     return _heavy(g)
 
 @glyph('γ')      # gamma
@@ -308,7 +318,21 @@ def g_delta(c):
     neck = _round([(268 * u, XH + OVER - 22), (225 * u, 452), (178 * u, 490), (122 * u, 562), (104 * u, 640),
                    (128 * u, 714), (210 * u, 756), (302 * u, 747), (362 * u, 708), (378 * u, 668)],
                   widths([(0.0, 0.55), (0.10, 1.0)]), fin1=True)
-    return geom.ink([bowl, neck])
+    g = geom.ink([bowl, neck])
+    if pen.ITALIC:
+        # ROUND 392 -- in the italic hand the neck's square start face lands
+        # on the bowl's crown with its right corner standing out of the
+        # bowl's outer edge: a spur 7.1 units proud at the Italic (345, 433),
+        # `cmp_jogs.py`. Round 385 filed it as a designed crotch; the crotch
+        # is the LEFT join (the white between the neck's back and the bowl)
+        # and is left exactly as drawn -- this is the right one, which a
+        # stroke leaving a bowl carries on in one line. Eased over a band on
+        # the right of the neck's root only. The romans are not touched.
+        # The box is held at the 400's size: scaled with S, at the 700 its
+        # hull ran from the neck clear down the bowl's shoulder as one flat.
+        nx, ny = 268 * u, XH + OVER - 22; k = min(S, 66.9)
+        g = geom.ease_step(g, nx - k * 0.05, nx + k * 0.75, ny - k * 0.45, ny + k * 0.35)
+    return g
 
 @glyph('ε')      # epsilon
 def g_epsilon(c):

@@ -383,7 +383,17 @@ def g_D(c):
     # R03, owner 2026-09-18: "straighten" -- the same end taper as the B's,
     # 3 units at the baseline and 3 at the cap line. `_half_bowl_flat`.
     bowl, *_ = (_half_bowl_flat if FIX_ROM else half_bowl)(edge, C, 0, rx + TH_V / 2, open_bottom=0.06)
-    return geom.ink([st, bowl])
+    g = geom.ink([st, bowl])
+    if not FIX_ROM:
+        # ROUND 392 -- the italics keep `half_bowl`'s end taper (R03 flattened
+        # the roman's), so the bowl leaves the stem's top 2-3 units under its
+        # flat and meets its foot 2-3 units over it: a square step at both
+        # corners (BoldItalic (357, 673) and (202, -1), 3.0; Italic 2.0,
+        # `cmp_jogs.py`). Eased at the cap line (the P's and R's band) and
+        # its mirror on the baseline, clear of the counter at both ends.
+        g = _ease_cap_top(g, edge, C)
+        g = geom.ease_step(g, edge - 4.0, edge + CS * 1.2, -12.0, 20.0)
+    return g
 
 # owner, verbatim: "the top right serif of E and F need cleanup." The top
 # arm carried BOTH the family's bar-end wedge (0.85 x 0.9, hanging) and the
@@ -978,7 +988,19 @@ def g_O(c):
 def g_P(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'P', 400); edge = x + CW / 2
     bowl, *_ = half_bowl(edge, C, C * 0.44, w * 0.72 + TH_V / 2, open_bottom=0.06)
-    return geom.ink([cstem(x, 0, C), bowl])
+    return _ease_cap_top(geom.ink([cstem(x, 0, C), bowl]), edge, C)
+
+# ROUND 392 -- THE P's AND THE R's TOP RUN OFF THE STEM IN ONE LINE. The
+# stem's flat top stands at the cap line plus its overshoot (676) and the
+# bowl's top stroke leaves it two units lower and climbs back over the next
+# 80 (`half_bowl`'s end taper): a 2-unit square step at the stem's top-right
+# corner in the Regular (182, 674), 3 in the Bold (240, 673), `cmp_jogs.py`.
+# The ink in a band on the cap line, from just inside the stem's right edge
+# to a stem and a fifth past it, is replaced by its own convex hull
+# (`geom.ease_step`): the dip fills to the straight line, and nothing below
+# C - 20 is reached, so the counter's top (C - 30 at the 400) is untouched.
+def _ease_cap_top(g, edge, C):
+    return geom.ease_step(g, edge - 4.0, edge + CS * 1.2, C - 20.0, C + 12.0)
 
 # owner, verbatim: "the tail on Q needs to lose its bulge." The bulge was
 # DECLARED, not an accident of the union: round 42's profile forced
@@ -1116,6 +1138,16 @@ def g_Q(c):
                 return max(base_(t), floor) * endp(t)
         return tail_, wfn_
     tail, wfn = _tail_for(q_tail_deep(c, solid, _tail_for))
+    if S > 84.0:
+        # ROUND 392 -- THE COUNTER's FLOOR IS THE RING's OWN EDGE. The tail
+        # starts on the ring's centreline with a square face, and at the 700
+        # the tail is wider than the ring there, so the face's inner corner
+        # stood into the counter with a notch beside it: 3.6 units on the
+        # Bold's counter floor (288, 64), `cmp_jogs.py`. The tail is clipped
+        # by the counter's air, as the roman R's leg is (R13); the tail's
+        # path, widths and reach do not move, and the 400 (no notch) is not
+        # touched.
+        return geom.ink([solid, stroke(tail, wfn, cut1=CUT)], [geom.poly(i)])
     return geom.ink([solid, stroke(tail, wfn, cut1=CUT)])
 
 Q_TAIL_OPT = os.environ.get("ALBO_ROM_Q_TAIL_OPT", "d")   # a | b | c | d | e, see g_Q; a is round 232 byte for byte; d ships since round 240 (owner's pick)
@@ -1322,7 +1354,7 @@ def g_R(c):
         # burying the start 14 units lower on its line -- would have moved
         # the whole cubic by a unit or two.
         cutouts.append(leg.intersection(geom.poly(L)))
-    return geom.ink(parts, cutouts)
+    return _ease_cap_top(geom.ink(parts, cutouts), edge, C)
 
 R_LEG_BURY = 0.28
 S_BOTTOM_END = 1.30

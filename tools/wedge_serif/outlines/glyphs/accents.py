@@ -154,9 +154,17 @@ def g_dotlessi(c):
 @glyph('ȷ')      # dotless j
 def g_dotlessj(c):
     from .stems import g_j
-    from .. import geom as _g
+    from .. import geom as _g, pen as _pen
+    from . import GLYPHS as _G
     import shapely.geometry as _sg
-    full = g_j(c)
+    # ROUND 392 -- THE ITALIC's DOTLESS j IS THE ITALIC j. This called the
+    # ROMAN j in both styles, so the italic ȷ and ĵ were the roman letter
+    # sheared -- a different tail from the italic j beside them, and one that
+    # still carried the step R26 fixed on the roman only (5.0 units at the
+    # Italic (59, -191), 6.9 at the BoldItalic, `cmp_jogs.py`, round 385's
+    # small list). In the italic it is now `GLYPHS['j']` (aldine `a_j`) with
+    # its dot taken off, exactly as the roman's is.
+    full = _G['j'](c) if _pen.ITALIC else g_j(c)
     # the dot is the small disjoint piece; keep everything else
     parts = list(full.geoms) if hasattr(full, 'geoms') else [full]
     if len(parts) > 1:
