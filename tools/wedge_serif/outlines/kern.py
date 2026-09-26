@@ -420,6 +420,14 @@ if _ALD is not None and _ALD.ON:
         for _k, _v in ((('f', 'question'), 27), (('q', 'j'), 23), (('four', 'f'), 21), (('q', 'f'), 15),
                        (('f', 'V'), 11), (('f', 'W'), 10), (('f', 'E'), 10), (('f', 'U'), 4)):
             PAIRS[_k] = PAIRS.get(_k, 0) + _v
+        # ROUND 393: the Bold Italic j's head was redrawn at the body's scale
+        # (aldine a_j, J_HEAD_REF_S), and its left nub now stands 10 units off
+        # the stem where the crumpled head stood 23 -- so the fitter, which
+        # reads that nub, moved the whole j 13 units left and its tail in under
+        # the q's descender: qj 0.0150 -> 0.0081 em with tracking c, under the
+        # floor. A descender clash is a pair (round 178); +7 puts it back at
+        # 0.0150.
+        PAIRS[('q', 'j')] = PAIRS.get(('q', 'j'), 0) + 7
 
 
 # ---------------------------------------------------------- round 223, ROMAN

@@ -889,7 +889,9 @@ def _body_edges(conts, q=80.0):
 # bench (docs/albo-kerning-noise-floor-2026-09-25.md, RESULT) found his answers
 # +5.4 units looser than his 09-21 ones on typical rows: lowercase +6.1, marks
 # +6.3, capitals +2.7. That is a global preference no pair fit can express. Owner
-# 2026-09-25, "show me options first": so ALBO_TRACK=a|b|c, a (or unset) = today.
+# 2026-09-25, "show me options first": so ALBO_TRACK=a|b|c. His pick, the same
+# day: *"c . +6 (caps +3)"* -- round 393 made **c the shipped default**; a and b
+# stay selectable (ALBO_TRACK=a is the pre-393 font, byte for byte).
 #
 # Each arm is stated as what a bench PAIR gains, and every side is derived from
 # that. A lowercase pair is rsb(l) + lsb(l), so the lowercase takes half on each
@@ -898,13 +900,17 @@ def _body_edges(conts, q=80.0):
 # lowercase letter (Fi, Ye, Qu ...), so the lowercase letter's own left half
 # already delivers the capital target. The capitals themselves do not move, and
 # neither do the figures, the fences or the Greek, because none was judged.
-#   a  lowercase +0, marks +0, capital pairs +0    (today)
+#   a  lowercase +0, marks +0, capital pairs +0    (rounds 388-392)
 #   b  lowercase +3, marks +3, capital pairs +1.5
-#   c  lowercase +6, marks +6, capital pairs +3
+#   c  lowercase +6, marks +6, capital pairs +3    (SHIPPED since round 393)
 # Applied after fit(), before anything records the advance or the ink, so the
-# accented composites follow their base. docs/albo-round-388-2026-09-25.md.
+# accented composites follow their base. The explicit kerns are NOT re-derived:
+# his bench answers were read against arm a, and c is a uniform shift he asked
+# for on top of them, so every pair's white moves by the same amount and the
+# kerns keep their relation to each other (round 393's doc).
+# docs/albo-round-388-2026-09-25.md, docs/albo-round-393-2026-09-25.md.
 TRACK_ARMS = {'a': 0.0, 'b': 1.5, 'c': 3.0}   # units per SIDE
-ALBO_TRACK = (os.environ.get("ALBO_TRACK", "a").strip().lower() or "a")
+ALBO_TRACK = (os.environ.get("ALBO_TRACK", "c").strip().lower() or "c")
 if ALBO_TRACK not in TRACK_ARMS:
     raise SystemExit(f"ALBO_TRACK={ALBO_TRACK!r}: expected one of {sorted(TRACK_ARMS)}")
 TRACK_MARKS = set(".,:;!?'\"‘’“”…-")   # the bench's MARKS (bench_fit.py), with the curly forms and the ellipsis the stops/quotes fit as
@@ -1137,7 +1143,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         pen_ = TTGlyphPen(None)
         if conts:
             adv, dx, lsb_ink = fit(ch, conts, c)
-            _tk = _track_side(ch)          # round 388b; 0 unless ALBO_TRACK picks an arm
+            _tk = _track_side(ch)          # round 388b; arm c ships (round 393), ALBO_TRACK=a gives 0
             if _tk: adv += 2 * _tk; dx += _tk; lsb_ink += _tk
             for ci, (pts, hole) in enumerate(conts):
                 _obst = [q for cj, (p2, _) in enumerate(conts) if cj != ci for q in p2] if CURVES else None

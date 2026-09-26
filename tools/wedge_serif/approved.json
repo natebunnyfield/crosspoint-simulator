@@ -1,12 +1,12 @@
 {
  "Italic:g": {
-  "outline": "74725dd92b4a8c12b2cfa67c0f4fa95b",
+  "outline": "bcd61b6c24036d8c8044c71902b2eae5",
   "quote": "re-cut only: --nocut proves the drawing is unchanged (only Y + its composites differ)",
-  "round": "354"
+  "round": "354; re-hashed round 393: tracking c moved it +3 units in x and nothing else (shifted back it hashes to the approved outline)"
  },
  "Regular:g": {
-  "outline": "e1fe49903b4c0ebc5391fb46d11e5582",
+  "outline": "03886d84d10a78a79b1da78566b40f7e",
   "quote": "that's the wrong open g use the most recent approved one instead",
-  "round": "336"
+  "round": "336; re-hashed round 393: tracking c moved it +3 units in x and nothing else (shifted back it hashes to the approved outline)"
  }
 }

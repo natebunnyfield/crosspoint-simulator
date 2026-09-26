@@ -693,6 +693,9 @@ alone.
    which lands `lower+lower` on the roman reference median. This is the one
    change that answers the broken words, and it is his call: round 221 put the
    same question for the italic and left it with him.
+   *(2026-09-25: the name was reused for a different dial -- round 388's
+   `ALBO_TRACK=a|b|c`, a uniform LOOSENING from the re-ask bench, both styles.
+   The owner ruled c, which ships from round 393.)*
 5. **`A.SIDE_FRACTION`'s straight-to-round ratio (1.00 / 0.72)** — the excess is
    almost entirely on the straight-sided pairs (`nn` +31%, `oo` +4%), so a
    uniform tracking cut alone would leave the rounds too tight. Measure per

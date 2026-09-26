@@ -1295,11 +1295,45 @@ R_KICK_SPRING = float(os.environ.get("ALBO_ROM_R_KICK_SPRING", 0.42))  # and at 
 R_KICK_FOOT = float(os.environ.get("ALBO_ROM_R_KICK_FOOT", 0.0))     # 0 = the pen's cut (see THE FOOT above); >0 = the family's wedge at x 0.9 of it
 R_KICK_FOOT_SIDE = float(os.environ.get("ALBO_ROM_R_KICK_FOOT_SIDE", 1.0))  # +1 the outer (upper) side, as the A's foot; -1 hangs it below
 
+# ROUND 393 -- THE ROMAN R TAKES THE BOLD R's BALANCE. Owner 2026-09-25: *"The
+# Roman R should match the optical balance of the bold capital R."* Measured on
+# the CENTRELINE (so the weight difference drops out), from the stem's midline,
+# in cap heights:
+#
+#                       bowl reaches   bowl floor   leg tip    leg past bowl
+#   Regular, round 392     0.647         0.483       0.730        0.083
+#   Bold                   0.549         0.500       0.730        0.181
+#
+# The leg is the same letter in both (R_KICK_REACH is absolute). The bowl is
+# not, and the reason is mechanical rather than drawn: `solve_widths` scales
+# W['R'] until the R's INK width reaches its reference, but the R's widest ink
+# is the leg's tip, which does not move with W -- so the solver can never get
+# there and runs W up towards its 1.45 clamp (1.403 at the 400, against the
+# Bold's 1.084), inflating nothing but the bowl. The Regular's bowl was 18%
+# wider than the Bold's and sat lower, so the letter read top-heavy with the leg
+# tucked under it. Under stem 84 the bowl is now placed by these two numbers --
+# the Bold's own, measured off the round-392 build -- instead of by W, and the
+# leg springs from the bowl at the Bold's distance out (R_BAL_JOINX; -63 degrees
+# round the Regular's bowl where R_JOIN's -66 now lands 0.023 cap further in). The Bold
+# (above 84) keeps its drawing, byte for byte; R_BAL=0 is round 392's Regular.
+R_BAL = float(os.environ.get("ALBO_ROM_R_BAL", 1.0))
+R_BAL_REACH = float(os.environ.get("ALBO_ROM_R_BAL_REACH", 0.549))  # x cap: the bowl's centreline right extreme, from the stem's midline
+R_BAL_FLOOR = float(os.environ.get("ALBO_ROM_R_BAL_FLOOR", 0.500))  # x cap: the bowl's lower stroke's centreline at the stem
+R_BAL_JOINX = float(os.environ.get("ALBO_ROM_R_BAL_JOINX", 0.292))  # x cap: where the leg springs off the bowl's centreline, from the stem's midline (the Bold's, at its R_JOIN -66)
+
 @glyph('R')
 def g_R(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'R', 400); edge = x + CW / 2
-    bowl, cx, cy, rx, ry, L, R = half_bowl(edge, C, C * 0.46, w * 0.95 * 0.72 + TH_V / 2, open_bottom=0.06)
-    ang = math.radians(R_JOIN); J = (cx + rx * math.cos(ang), cy + ry * math.sin(ang))
+    b_rx, b_bot = w * 0.95 * 0.72 + TH_V / 2, C * 0.46
+    if R_BAL and S <= 84.0:   # round 393, see R_BAL: the bowl's centreline is the Bold's
+        _hair = S * (PR.BOWL['hair'] if PR.BOWL else PR.BOWL_HAIR); _mx = S * (PR.BOWL['max'] if PR.BOWL else PR.BOWL_MAX)
+        b_rx = (x + R_BAL_REACH * C - edge + _mx / 2) / 1.05     # half_bowl: centreline right = edge + 1.05 rx - mx/2
+        b_bot = R_BAL_FLOOR * C - _hair / 2
+    bowl, cx, cy, rx, ry, L, R = half_bowl(edge, C, b_bot, b_rx, open_bottom=0.06)
+    ang = math.radians(R_JOIN)
+    if R_BAL and S <= 84.0:   # round 393: and the leg springs as far out as the Bold's does
+        ang = -math.acos(max(-1.0, min(1.0, (x + R_BAL_JOINX * C - cx) / rx)))
+    J = (cx + rx * math.cos(ang), cy + ry * math.sin(ang))
     # `foot` is where the straight 60-degree run would MEET the baseline, and it
     # is still computed in both branches: round 225 drew the leg from it, and
     # the kick still takes its ruled width from it (`pw(foot, J, 1.05)`, the

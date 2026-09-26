@@ -573,6 +573,7 @@ HEAD_LEAN = float(os.environ.get("ALBO_ALD_HEAD_LEAN", 0.30))  # fraction of the
 HEAD_FOLLOW = float(os.environ.get("ALBO_ALD_HEAD_FOLLOW", 1.0))  # round 234: the head ends inside the stem, the stem's top follows it (0 = round 233)
 J_HEAD_LEAN = float(os.environ.get("ALBO_ALD_J_HEAD_LEAN", 0.60))  # the j's -- see wedge_head
 J_HEAD_LEN = float(os.environ.get("ALBO_ALD_J_HEAD_LEN", 0.62))   # x I_HEAD_LEN -- shortened WITH the lean; see below
+J_HEAD_REF_S = float(os.environ.get("ALBO_ALD_J_HEAD_REF_S", 66.9))  # round 393: the stem the j head is sized at, x ALD_WF_UP; see a_j
 FOOT_LEN = float(os.environ.get("ALBO_ALD_FOOT", 0.80))       # the foot's outstroke
 BRANCH = float(os.environ.get("ALBO_ALD_BRANCH", 0.34))       # where an arch leaves the stem, x xh
 BOWL_TOP = float(os.environ.get("ALBO_ALD_BOWL_TOP", 0.98))   # a bowl's top, x xh -- they sit LOW
@@ -4260,8 +4261,23 @@ if ON:
         # `stroke` on I_DOT_W / I_DOT_T and rendered 88 x 76 px where the i's
         # rendered 79 x 50 -- two different dots on two letters the module's
         # own comment says must wear the same one. `ij_dot` is that one.
-        return geom.ink([body, wedge_head(xs, xh * 0.875, lean=J_HEAD_LEAN,
-                                          length=I_HEAD_LEN * J_HEAD_LEN), ij_dot(c, xs)])
+        # ROUND 393 -- THE HEAD IS SCALED WITH THE BODY, NOT WITH S. Owner
+        # 2026-09-25 on the Bold Italic j's crumpled head: *"Fix it, just
+        # ship"*. `wedge_head` sizes its length and width off S, while this
+        # body's widths ride ALD_WF_UP -- so from the 400 to the 700 the head
+        # grew 1.73x (width 79 -> 138 units) where the stem it sits on grew
+        # 1.38x. At the 400 the head lies inside the stem on its top and right
+        # and shows only as the entry nub on the left; at the 700 it overran
+        # the stem's cut top (the two slanted edges crossing each other, the
+        # crumple) and its right end stood 8 units out of the stem (the spur).
+        # So the j's head is drawn at the stem the 400 was judged at, times the
+        # body's own growth: J_HEAD_REF_S x ALD_WF_UP. At the 400 that is S
+        # itself (factor exactly 1.0: the Italic j is untouched), and the
+        # head's intent -- J_HEAD_LEAN, J_HEAD_LEN -- is unchanged.
+        _jk = ALD_WF_UP * min(S, J_HEAD_REF_S) / S
+        head = wedge_head(xs, xh * 0.875, lean=J_HEAD_LEAN,
+                          length=I_HEAD_LEN * J_HEAD_LEN * _jk, w=HEAD_W * _jk)
+        return geom.ink([body, head, ij_dot(c, xs)])
 
     # ------------------------------------------------------------ THE s, round 132
     # THE SCAN CROP IS OVERRULED FOR THIS LETTER, and that has to be said out
