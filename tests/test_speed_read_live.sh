@@ -88,11 +88,11 @@ LOG="$CARD/run.log"
 # 150 wpm = 400 ms a plain word, so the 26 words outlast the run. Timeline:
 #   1500 SRTAP  -- mode off: must NOT be taken
 #   ~4 s        -- settings.json: speedRead 1 (the watcher re-reads ~1 Hz)
-#   8000 SRTAP  -- pause
-#   11000 SRTAP -- resume
+#   10000 SRTAP -- pause (was 8000: a slow cold start could land the page after it)
+#   13000 SRTAP -- resume
 CROSSPOINT_SIM_DARK=0 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
 CROSSPOINT_SIM_SPEED_READ_LOG=1 CROSSPOINT_SIM_SPEED_READ_WPM=150 \
-CROSSPOINT_SIM_INPUT_SCRIPT='1500:SRTAP;8000:SRTAP;11000:SRTAP;14000:QUIT' \
+CROSSPOINT_SIM_INPUT_SCRIPT='1500:SRTAP;10000:SRTAP;13000:SRTAP;16000:QUIT' \
 timeout 90 "$BIN" >"$LOG" 2>&1 &
 PID=$!
 for _ in $(seq 1 40); do [[ -f settings.json ]] && break; sleep 0.1; done

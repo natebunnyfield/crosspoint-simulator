@@ -325,6 +325,13 @@ static std::atomic<uint64_t> pixelBufWriteMs{0};
 // lands before the paint, the value read at write time is the one that
 // describes these pixels. Guarded by pixelBufMutex; read only under it.
 static bool pixelBufIsBookPage = false;
+// Set while the MAIN thread reconverts the cached frame (a polarity or palette
+// flip): the pixels are the frame already shown, so its stamp must not be
+// re-read from the live sheet flag -- a flip landing between a reader's
+// identity publish and its paint stamped old menu pixels as a book page
+// (adversarial review, build 217). Thread-local: the render task keeps
+// stamping normally while the main thread reconverts.
+static thread_local bool reconvertingFrame = false;
 // The pixelBufSeq produced by a POLARITY RECONVERT, or 0. A reconvert rewrites
 // every pixel from the cached planes, so it bumps the seq exactly like a new
 // page -- and until 2026-08-30 the CRT beam read that bump as new content and
@@ -1071,7 +1078,7 @@ uint64_t renderBwPixels(const uint8_t *fb,
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const uint64_t seq = ++pixelBufSeq;
   pixelBufWriteMs.store(SDL_GetTicks());
-  pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
+  if (!reconvertingFrame) pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const LevelRamp ramp(pal);
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
@@ -1152,7 +1159,7 @@ uint64_t composeGrayscalePreview() {
   }
   const uint64_t seq = ++pixelBufSeq;
   pixelBufWriteMs.store(SDL_GetTicks());
-  pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
+  if (!reconvertingFrame) pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
     for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool baseWhite = getBit(bwBase, x, y);
@@ -1237,9 +1244,13 @@ uint64_t composeGrayscalePreview() {
 uint64_t reconvertLastFrame() {
   if (!grayscalePreviewState.bwBaseValid)
     return 0; // nothing presented yet; the first real render reads the new flag
-  if (grayscalePreviewState.lsbValid || grayscalePreviewState.msbValid)
-    return composeGrayscalePreview();
-  return renderBwPixels(grayscalePreviewState.bwBase.data());
+  reconvertingFrame = true;
+  const uint64_t produced =
+      (grayscalePreviewState.lsbValid || grayscalePreviewState.msbValid)
+          ? composeGrayscalePreview()
+          : renderBwPixels(grayscalePreviewState.bwBase.data());
+  reconvertingFrame = false;
+  return produced;
 }
 
 } // namespace

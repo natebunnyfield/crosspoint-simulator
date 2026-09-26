@@ -408,3 +408,7 @@ No number in the code came from the memory-sourced list, so nothing in
 ## RULED 2026-09-25 (owner)
 
 *"Leave unbound"*: stepping back a word or a sentence stays built and tested but gets no gesture for now. Pause and resume by tap is the only control.
+
+## Known, not fixed (review before build 217)
+
+Read-aloud can re-speak a page from its first word. This happens when it has finished the page, is waiting for the page turn, and the same page is re-sent: switching speed read on mid-page does this, and so does an appearance change. Ignoring an identical re-send while waiting would stall the hands-free loop whenever two consecutive pages really are identical, such as a blank page or a repeated section break. The channel carries no page identity to tell those cases apart, so a real fix means threading the reader's page position through the publisher. It is low severity and left for now.
