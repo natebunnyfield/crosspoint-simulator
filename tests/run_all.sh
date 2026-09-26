@@ -379,6 +379,19 @@ run http_dispatch \
 run update_trace \
   c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 -o "$OUT/update_trace" tests/update_trace_test.cpp
 
+# The update runs' keep-awake lease (src/SimKeepAwake.h, S-042): the idle
+# timer is held for the run and the OWNER'S value comes back on every exit --
+# done, failed, stopped, Back, sleep, home, a reboot, a trip to the background.
+# Both failure modes are silent (a phone that never locks; a setting flipped).
+run keep_awake \
+  c++ -std=c++20 -Isrc -o "$OUT/keep_awake" tests/keep_awake_test.cpp
+
+# Streaming host HTTP (src/SimHttpStream.h, S-042): bytes reach the reader as
+# they arrive, the producer is held at the cap, abort wakes both sides, and a
+# fixture over the cap does not deadlock the open.
+run http_stream \
+  c++ -std=c++20 -Isrc -o "$OUT/http_stream" tests/http_stream_test.cpp $([ "$(uname)" = Darwin ] && echo -lcurl)
+
 # The host SETTINGS channel -- the wire that carries a GitHub token from a
 # surface the owner can reach to Update Library's fetch. Update Library was
 # unconfigurable on iOS until this existed: the token lives in

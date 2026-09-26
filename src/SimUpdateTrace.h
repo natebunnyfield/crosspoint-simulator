@@ -44,6 +44,7 @@
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 
 namespace sim_update_trace {
 
@@ -215,7 +216,10 @@ inline void declined(const char *why) {
   if (!active()) return;
   if (g_declined.exchange(why) != why) {
     g_declines.fetch_add(1, std::memory_order_relaxed);
-    logf("present declined: %s", why);
+    // The coalescing hold declines ~30 ms on EVERY antialiased frame by design;
+    // a line per frame is noise. It is still recorded, and a STALL line names
+    // it when it is the last thing that held the glass.
+    if (std::strcmp(why, "coalescing hold") != 0) logf("present declined: %s", why);
   }
   g_declinedMs.store(now(), std::memory_order_relaxed);
 }

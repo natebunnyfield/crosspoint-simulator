@@ -100,6 +100,29 @@ update-trace.log from a frozen run.** Candidates recorded, not acted on:
 iOS auto-lock mid-run (the host idle timer ignores `preventAutoSleep()`), and
 the buffered host transport leaving only the clock moving within a file.
 
+**Build 229 (owner, same day: "Fix both") -- both candidates fixed; the recorder
+stays.**
+
+1. **Streaming.** `src/SimHttpStream.h` puts `esp_http_client_open/read` on a
+   producer/consumer stream: NSURLSession delegate on iOS
+   (`ios/CrossPointHttp.mm` `hostOpenStream`), libcurl thread on the Mac. The
+   producer is capped at 1 MB unread, and an early close aborts the transfer.
+   On the iOS Simulator at 200 KB/s the counter now moves within one file
+   (Doves_18 4.6 → 6.1 of 7.1 MB over 9 s; the 6 MB book 0.9 → 5.6 of 6.0).
+   Before, it sat at "0.0 of 8.2 MB" through each file.
+   `tests/http_stream_test.cpp` fails against the old shim.
+2. **Keep awake.** `src/SimKeepAwake.h`: the firmware states whether its run
+   is working; the main loop AND the deep-sleep loop hold
+   `idleTimerDisabled`. The hold is reasserted if the charging preference
+   flips it mid-run, and on release the owner's value is restored and the
+   preference re-applies itself. `tests/keep_awake_test.cpp`.
+   - Found by running it: the sleep loop originally never released, so a
+     power-off mid-run kept a "sleeping" phone awake.
+   - Found by adversarial review: the conflict with the charging preference.
+
+The full record, with every run and the review, is `crosspoint-reader`
+`docs/update-progress-2026-09-26.md` section 8.
+
 ### [S-041] Under iPhone Mirroring the app does not receive clicks or taps — OPEN, cause NOT established; the first hypothesis was refuted and an input trace ships in its place
 **severity: high (owner, 2026-09-20: "iphone mirroring ... is not receiving clicks and taps") · scope: not yet localized; `ios/CrossPointIOSShim.cpp` (`padWatch`, `traceInput`) is where the instrument lives · found 2026-09-20 · NOT reproducible on this Mac: Mirroring needs the owner's phone, and both screen-control requests were declined, so every line below is read off sources rather than measured under Mirroring**
 

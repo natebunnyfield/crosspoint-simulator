@@ -16,10 +16,12 @@
 // regardless.
 
 #include "SimHttpFetch.h"
+#include "SimHttpStream.h"
 
 #import <Foundation/Foundation.h>
 
 #include <cstring>
+#include <memory>
 #include <string>
 
 namespace sim_http_fetch {
@@ -57,6 +59,116 @@ NSString *toNSString(const std::string &value) {
 }
 
 }  // namespace
+
+// The request both transports send, built once so the streaming and the
+// buffered paths cannot drift apart. nil when the URL does not parse.
+NSMutableURLRequest *buildRequest(const std::string &url, const char *method,
+                                  const std::map<std::string, std::string> &headers,
+                                  const std::string &basicAuth, const char *body) {
+  NSURL *nsUrl = [NSURL URLWithString:toNSString(url)];
+  if (!nsUrl) return nil;
+  NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:nsUrl];
+  request.timeoutInterval = 60.0;  // an IDLE timeout; see hostFetch
+  request.HTTPMethod = method && *method ? toNSString(method) : @"GET";
+  for (const auto &header : headers) {
+    [request setValue:toNSString(header.second)
+        forHTTPHeaderField:toNSString(header.first)];
+  }
+  if (!basicAuth.empty()) {
+    NSData *raw = [toNSString(basicAuth) dataUsingEncoding:NSUTF8StringEncoding];
+    [request setValue:[@"Basic " stringByAppendingString:[raw base64EncodedStringWithOptions:0]]
+        forHTTPHeaderField:@"Authorization"];
+  }
+  if (body) request.HTTPBody = [NSData dataWithBytes:body length:std::strlen(body)];
+  return request;
+}
+
+}  // namespace sim_http_fetch
+
+// The streaming delegate. One per request, owning a reference to the stream;
+// the session holds the delegate strongly until it is invalidated, which
+// happens when the task completes (or is cancelled by Stream::abort).
+//
+// Callbacks arrive on the session's own serial delegate queue -- never the
+// main queue -- and didReceiveData BLOCKS there when the reader is
+// kStreamCapBytes behind (Stream::push). That is the only flow control
+// NSURLSession offers a data task, and it stalls only this request's queue.
+@interface CrossPointHttpStreamDelegate : NSObject <NSURLSessionDataDelegate>
+- (instancetype)initWithStream:(std::shared_ptr<sim_http_fetch::Stream>)stream;
+@end
+
+@implementation CrossPointHttpStreamDelegate {
+  std::shared_ptr<sim_http_fetch::Stream> _stream;
+}
+- (instancetype)initWithStream:(std::shared_ptr<sim_http_fetch::Stream>)stream {
+  if ((self = [super init])) _stream = std::move(stream);
+  return self;
+}
+- (void)URLSession:(NSURLSession *)session
+              dataTask:(NSURLSessionDataTask *)dataTask
+    didReceiveResponse:(NSURLResponse *)response
+     completionHandler:(void (^)(NSURLSessionResponseDisposition))completionHandler {
+  // The FINAL response: NSURLSession follows redirects before this, as curl -L.
+  const int status = [response isKindOfClass:[NSHTTPURLResponse class]]
+                         ? static_cast<int>(((NSHTTPURLResponse *)response).statusCode)
+                         : 0;
+  long long len = response.expectedContentLength;  // -1 when undeclared
+  // NSURLSession asks for gzip and DECODES it, while Content-Length (and so
+  // expectedContentLength) counts the ENCODED bytes. Declaring that length
+  // would make every compressed body read as short and fail the download, so
+  // a body with a content coding declares none -- the firmware then reads to
+  // the end, as it does for a chunked body. (GitHub's release JSON measured
+  // arriving without a length on 2026-09-26.)
+  if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
+    NSString *coding = [(NSHTTPURLResponse *)response valueForHTTPHeaderField:@"Content-Encoding"];
+    if (coding.length > 0 && ![coding.lowercaseString isEqualToString:@"identity"]) len = -1;
+  }
+  _stream->setHeaders(status, len >= 0 ? static_cast<int64_t>(len) : -1);
+  completionHandler(NSURLSessionResponseAllow);
+}
+- (void)URLSession:(NSURLSession *)session
+          dataTask:(NSURLSessionDataTask *)dataTask
+    didReceiveData:(NSData *)data {
+  __block bool keep = true;
+  [data enumerateByteRangesUsingBlock:^(const void *bytes, NSRange range, BOOL *stop) {
+    if (!_stream->push(static_cast<const char *>(bytes), range.length)) {
+      keep = false;
+      *stop = YES;
+    }
+  }];
+  if (!keep) [dataTask cancel];
+}
+- (void)URLSession:(NSURLSession *)session
+                    task:(NSURLSessionTask *)task
+    didCompleteWithError:(NSError *)error {
+  _stream->finish(sim_http_fetch::curlCodeForError(error));
+  [session finishTasksAndInvalidate];  // releases this delegate
+}
+@end
+
+namespace sim_http_fetch {
+
+bool hostOpenStream(const std::string &url, const char *method,
+                    const std::map<std::string, std::string> &headers,
+                    const std::string &basicAuth, const char *body,
+                    const std::shared_ptr<Stream> &stream) {
+  NSMutableURLRequest *request = buildRequest(url, method, headers, basicAuth, body);
+  if (!request) return false;
+  NSOperationQueue *queue = [[NSOperationQueue alloc] init];
+  queue.maxConcurrentOperationCount = 1;  // ordered bytes
+  CrossPointHttpStreamDelegate *delegate =
+      [[CrossPointHttpStreamDelegate alloc] initWithStream:stream];
+  NSURLSession *session =
+      [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]
+                                    delegate:delegate
+                               delegateQueue:queue];
+  NSURLSessionDataTask *task = [session dataTaskWithRequest:request];
+  // Stream::abort -> cancel. The delegate's didCompleteWithError then finishes
+  // the stream and invalidates the session. `task` is retained by the block.
+  stream->setCancel([task]() { [task cancel]; });
+  [task resume];
+  return true;
+}
 
 bool hostFetch(const std::string &url, const char *method,
                const std::map<std::string, std::string> &headers,

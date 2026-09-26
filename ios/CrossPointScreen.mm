@@ -16,6 +16,14 @@ void setKeepAwake(bool keepAwake) {
   });
 }
 
+bool idleTimerDisabled() {
+  return UIApplication.sharedApplication.idleTimerDisabled == YES;
+}
+
+void setIdleTimerDisabledNow(bool disabled) {
+  UIApplication.sharedApplication.idleTimerDisabled = disabled ? YES : NO;
+}
+
 int maximumFramesPerSecond() {
   // The window's own screen where there is one, so an app on an external
   // display reports that display rather than the built-in panel. mainScreen is

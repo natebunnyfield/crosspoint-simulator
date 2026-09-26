@@ -191,8 +191,10 @@ int main() {
   t::presented(g_seq);
   t::declined("backgrounded");
   check(count("present declined: backgrounded") == 2, "a new-frame present ends the run: the next decline is logged");
+  t::declined("sleep veto (power-off collapse)");
+  check(count("present declined: sleep veto") == 1, "a new reason is logged");
   t::declined("coalescing hold");
-  check(count("present declined: coalescing hold") == 1, "a new reason is logged");
+  check(count("present declined: coalescing hold") == 0, "the per-frame coalescing hold is not logged");
 
   t::end();
   check(count("END FontUpdateActivity") == 1, "end is logged");

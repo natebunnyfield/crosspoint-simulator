@@ -25,6 +25,8 @@
 #include "SimulatorRebootResets.h"
 #include "SimulatorSettingsWatch.h"
 #include "SimUpdateTrace.h"
+#include "SimKeepAwake.h"
+#include "SimHostScreen.h"
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
@@ -90,6 +92,9 @@ extern HalDisplay display; // defined in main.cpp
 // desktop simulator the firmware row is still the only control and still works.
 static void applyKeepScreenAwake() {
   static int8_t applied = -1;  // -1 = nothing applied yet
+  // An update run's keep-awake lease just ended: re-apply the preference as it
+  // stands NOW (src/SimKeepAwake.h g_reapplyPreference).
+  if (sim_keep_awake::g_reapplyPreference.exchange(false)) applied = -1;
 #if CROSSPOINT_SIM_IOS
   const int8_t want = CrossPointPrefs_wantsScreenAwake() ? 1 : 0;
 #else
@@ -295,6 +300,9 @@ static void installUpdateTraceOnce() {
   // A reboot that lands with an update screen up (the iOS longjmp re-enters
   // setup() without that screen's onExit) must not leave the trace armed.
   simreset::add([] { sim_update_trace::g_active.store(false); });
+  // Likewise the keep-awake request: a reboot mid-run never reaches the
+  // activity's onExit, and the next main-loop pass must restore the timer.
+  simreset::add([] { sim_keep_awake::request(false); });
   std::thread([] {
     for (;;) {
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
@@ -444,6 +452,7 @@ int main(int argc, char **argv) {
     sim_update_trace::mainStage("loop()");
     loop();
     sim_update_trace::mainStage("after loop()");
+    sim_keep_awake::applyOnMainThread();
     // Pick up a mid-run toggle from the Settings screen. No-op unless the value
     // actually changed; see applyKeepScreenAwake().
     applyKeepScreenAwake();
