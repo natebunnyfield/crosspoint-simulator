@@ -972,3 +972,5 @@ B. the pairs first answered after the bench (mean |error| vs his answer, 09-20 z
 - **Candidates:** 705. The sd runs 1.6 to
   16.5, median 3.8.
 - **Rows:** 45 plus 5 repeats; 22 roman, 28 italic.
+
+**Owner ruling, 2026-09-26: NO to the override** (both arms), in his words: *"we are trying to get a strong model not overfitting"*. Pairs he touched stay model-set; his answers are training data, never pinned values. Do not re-propose pinning his answers. Round 399 (the tracking-corrected fit through session 4) becomes the default.
