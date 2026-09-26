@@ -869,6 +869,10 @@ if _B2 is not None:
             for _r in _rs:
                 PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
 
+# RULED OUT 2026-09-26 (owner, both arms): *"we're trying to get a strong model
+# not overfitting"* -- his answers are TRAINING DATA, never pinned values. Kept,
+# unused and OFF for good; its tables in spacing_b2.json were measured against
+# round 398 and are stale from round 399 on. Do not re-propose.
 # 2026-09-26 -- THE OVERRIDE ARM, BEHIND A FLAG, DEFAULT OFF. Owner, on whether a
 # pair he touched should ship at his exact value: *"show me"*.
 # ALBO_SPACING_OVERRIDE=touched moves every pair he has touched to his own

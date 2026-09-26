@@ -517,6 +517,8 @@ ALD_LC_ADJ = {'g': (-15, -15),   # NOT from the bench: every g row was judged ag
               'e': (+0, -14), 'h': (+4, +0), 'i': (-5, +8), 'l': (+0, +5), 'm': (+6, +7), 'o': (+7, +0), 'p': (+0, +9), 'r': (+10, +0), 't': (+0, -10), 'u': (-5, +10), 'w': (+0, +14), 'y': (+10, +16)}
 ALD_PUNCT_FIT = {"'": (-6, +0), ',': (+2, +0), '.': (-5, +0), ':': (-1, +0)}
 
+# ROUND 399: the default tables are the tracking-corrected refit through active
+# session 4 (docs/albo-round-399-2026-09-26.md).
 # ROUND 396 (2026-09-26) -- B2 IS THE DEFAULT SPACING. Owner, decided blind:
 # *"ship B2"*. The four tables above are round 395's bench fit and stay here as
 # the ALBO_SPACING_FIT=bench arm, byte for byte round 395; the default (unset,

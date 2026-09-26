@@ -974,3 +974,5 @@ B. the pairs first answered after the bench (mean |error| vs his answer, 09-20 z
 - **Rows:** 45 plus 5 repeats; 22 roman, 28 italic.
 
 **Owner ruling, 2026-09-26: NO to the override** (both arms), in his words: *"we are trying to get a strong model not overfitting"*. Pairs he touched stay model-set; his answers are training data, never pinned values. Do not re-propose pinning his answers. Round 399 (the tracking-corrected fit through session 4) becomes the default.
+
+**Round 399** (`docs/albo-round-399-2026-09-26.md`): the tracking-corrected refit through session 4 is the default (bench pairs held out 10.03). The override arms are ruled out and stay off. Regularization: the penalties sit in a flat CV valley (best 9.90 at (1, 100) vs 10.02 shipped, chosen on the same rows); train/held-out gap 2.05 overall, largest on rarely judged glyphs.
