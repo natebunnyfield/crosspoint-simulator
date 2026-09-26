@@ -1,0 +1,13 @@
+# Probes for docs/local-ai-spacing-options-2026-09-26.md.
+# The asdf Python here is the free-threaded 3.14t build; scikit-learn and MLX
+# do not install into it. Use a separate venv on a GIL build, e.g.:
+#   uv venv -p /opt/homebrew/bin/python3.12 ~/.venvs/albo-ai
+#   uv pip install -p ~/.venvs/albo-ai/bin/python -r requirements.txt
+numpy
+scipy
+scikit-learn
+fonttools
+freetype-py
+uharfbuzz
+pillow
+mlx

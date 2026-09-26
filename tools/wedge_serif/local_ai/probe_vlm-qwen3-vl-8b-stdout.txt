@@ -1,0 +1,46 @@
+italic St  Steel          his   +9.5 ridge   -4.0  vlm [30, 30]  labels ['B', 'B']  [1.4, 1.3]s
+roman  of  software       his  +27.0 ridge   +5.4  vlm [30, 30]  labels ['B', 'B']  [0.6, 0.5]s
+italic ly  only           his  +15.5 ridge   +5.8  vlm [-30, -30]  labels ['B', 'B']  [1.3, 1.3]s
+italic ul  would          his  +12.0 ridge  +11.2  vlm [-30, -30]  labels ['B', 'B']  [1.4, 1.4]s
+italic o,  to,            his   -9.0 ridge   +2.8  vlm [0, 0]  labels ['B', 'B']  [1.1, 1.1]s
+italic ec  because        his   -9.5 ridge  -13.4  vlm [-30, -30]  labels ['B', 'B']  [1.5, 1.5]s
+roman  ic  which          his   +9.5 ridge   +7.2  vlm [30, 30]  labels ['B', 'B']  [1.5, 1.6]s
+roman  Qu  Quiet          his  +24.0 ridge   +3.0  vlm [0, 0]  labels ['B', 'B']  [1.5, 1.6]s
+italic d,  word,          his  +19.0 ridge   -6.4  vlm [-30, -30]  labels ['B', 'B']  [1.4, 1.4]s
+italic io  relationship   his  +23.0 ridge  +13.4  vlm [0, 0]  labels ['B', 'B']  [2.0, 2.0]s
+roman  re  reading        his   +8.0 ridge   +8.2  vlm [-30, -30]  labels ['B', 'B']  [1.6, 1.6]s
+italic Ye  Yesterday      his  +46.0 ridge   +0.0  vlm [0, 0]  labels ['B', 'B']  [1.8, 1.8]s
+roman  ea  real           his  +12.0 ridge  +20.6  vlm [-30, -30]  labels ['B', 'B']  [1.4, 1.4]s
+italic n.  question.      his   +7.5 ridge   -8.4  vlm [30, 30]  labels ['B', 'B']  [1.6, 1.6]s
+roman  s;  years;         his   -6.0 ridge   +1.6  vlm [0, 0]  labels ['B', 'B']  [1.6, 1.6]s
+italic to  into           his  -18.5 ridge   -1.4  vlm [30, 30]  labels ['B', 'B']  [1.2, 1.2]s
+roman  To  Tomorrow       his  +19.0 ridge   +6.8  vlm [0, 0]  labels ['B', 'B']  [2.0, 2.0]s
+roman  it  with           his  +32.0 ridge  +16.2  vlm [0, 0]  labels ['B', 'B']  [1.4, 1.4]s
+roman  e;  people;        his   -7.5 ridge   +4.2  vlm [30, 30]  labels ['B', 'B']  [1.6, 1.6]s
+roman  's  Suvi's         his  -48.0 ridge   -0.8  vlm [-30, -30]  labels ['B', 'B']  [1.6, 1.6]s
+italic pl  people         his  +12.0 ridge   +8.6  vlm [30, 30]  labels ['B', 'B']  [1.4, 1.4]s
+roman  iv  five           his  -15.0 ridge   +9.2  vlm [0, 0]  labels ['B', 'B']  [1.4, 1.4]s
+italic ap  Chapter        his  +11.0 ridge   +0.0  vlm [0, 0]  labels ['B', 'B']  [1.6, 1.6]s
+roman  ct  actually       his  +20.5 ridge   +8.0  vlm [-30, -30]  labels ['B', 'B']  [1.8, 1.8]s
+roman  r,  her,           his   -3.5 ridge  -11.0  vlm [-30, -30]  labels ['B', 'B']  [1.3, 1.2]s
+italic m.  them.          his   +9.5 ridge   +1.4  vlm [-30, -30]  labels ['B', 'B']  [1.4, 1.4]s
+italic Fo  For            his  -36.5 ridge   +7.8  vlm [-30, -30]  labels ['B', 'B']  [1.2, 1.2]s
+italic Fi  First          his  -39.0 ridge   -4.0  vlm [30, 30]  labels ['B', 'B']  [1.4, 1.4]s
+roman  ll  all            his  +15.5 ridge   +9.0  vlm [-30, -30]  labels ['B', 'B']  [1.2, 1.2]s
+italic ot  not            his   -2.5 ridge   -1.8  vlm [0, 0]  labels ['B', 'B']  [1.2, 1.2]s
+roman  fi  first          his  +21.5 ridge   -1.6  vlm [30, 30]  labels ['B', 'B']  [1.4, 1.4]s
+roman  or  for            his  -14.0 ridge   +6.6  vlm [-30, -30]  labels ['B', 'B']  [1.2, 1.2]s
+roman  Wa  Wayward        his  +40.5 ridge  +16.4  vlm [30, 30]  labels ['B', 'B']  [2.0, 2.0]s
+italic Yo  You            his  +54.5 ridge   +5.8  vlm [-30, -30]  labels ['B', 'B']  [1.2, 1.2]s
+roman  lo  Eursulon       his  +10.0 ridge   +8.8  vlm [-30, -30]  labels ['B', 'B']  [1.8, 1.8]s
+italic Se  See            his   -1.0 ridge   +0.0  vlm [0, 0]  labels ['B', 'B']  [1.2, 1.2]s
+italic Po  Port           his  -18.5 ridge   +6.8  vlm [-30, -30]  labels ['B', 'B']  [1.4, 1.4]s
+roman  't  don't          his  -30.0 ridge  +13.0  vlm [30, 30]  labels ['B', 'B']  [1.4, 1.4]s
+italic do  does           his  +13.5 ridge   +6.2  vlm [-30, -30]  labels ['B', 'B']  [1.4, 1.4]s
+roman  Av  Avenue         his   +7.5 ridge   +0.0  vlm [0, 0]  labels ['B', 'B']  [1.6, 1.7]s
+
+rows scored 40 of 40; calls 80, median 1.4s per call
+MAE vs the mean of his two answers: VLM 28.34  ridge 16.42  nothing 18.46
+order-reversed self-agreement 100%; label counts {'A': 0, 'B': 80, 'C': 0}
+direction right where |his| >= 15 (n=20): VLM 30%  ridge 65%
+correlation with his mean: VLM +0.01  ridge +0.24

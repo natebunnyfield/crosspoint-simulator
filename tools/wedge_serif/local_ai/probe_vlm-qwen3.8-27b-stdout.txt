@@ -1,0 +1,7 @@
+italic St  Steel          his   +9.5 ridge   -4.0  vlm [30, -30]  labels ['B', 'A']  [116.7, 153.9]s
+roman  of  software       his  +27.0 ridge   +5.4  vlm [30, -30]  labels ['B', 'A']  [148.7, 103.5]s
+italic ly  only           his  +15.5 ridge   +5.8  vlm [-30, -30]  labels ['B', 'B']  [101.5, 114.9]s
+italic ul  would          his  +12.0 ridge  +11.2  vlm [0, 30]  labels ['A', 'A']  [120.2, 71.1]s
+italic o,  to,            his   -9.0 ridge   +2.8  vlm [0, 0]  labels ['B', 'B']  [128.8, 175.3]s
+italic ec  because        his   -9.5 ridge  -13.4  vlm [30, -30]  labels ['A', 'B']  [89.1, 152.1]s
+roman  ic  which          his   +9.5 ridge   +7.2  vlm [-30, 0]  labels ['C', 'C']  [99.6, 83.0]s

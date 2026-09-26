@@ -217,3 +217,6 @@ The answers and the full analysis are in `tools/wedge_serif/bench/answers/reask-
 - **Verdict, per his rule of 2026-09-25:** the held-out error (11.66) does NOT beat his repeatability (10.83). Pair-fitting stops. The 73 pending answers stay out and are moot for fitting.
 - **Finding 1 — DRIFT.** On typical rows his new answers are **+5.4 units looser** than his 09-21 answers (sd of the difference 11.5, n = 30, ≈ 2.6 standard errors): lowercase +6.1, marks +6.3, capitals +2.7. This is a global tracking preference that no pair fit can express.
 - **Finding 2 — REAL MISSES.** On the 10 rows the model gets most wrong he is consistent with himself (14.0) and the model is off by 31.9. Those are specific pairs where the model is wrong, not noise.
+
+
+**Follow-up, 2026-09-26:** a hybrid model (glyph identity plus measured shape features) scores **10.73** held-out on the same folds, the first under his 10.83. VLM, CNN and optical-area approaches all measured worse than doing nothing. See [local-ai-spacing-options-2026-09-26.md](local-ai-spacing-options-2026-09-26.md).
