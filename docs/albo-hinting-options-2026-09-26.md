@@ -19,6 +19,30 @@ hints Albo", and records what was checked and found clean.
 - **How sure:** everything here is [measured] unless tagged [inferred].
 - **Code:** `tools/wedge_serif/hinting/` (listed at the foot).
 
+## 0. RULING (2026-09-26): no hinting
+
+Owner, after the proof page: **"no hinting wins"**. Implemented as round 401
+(`docs/albo-round-401-2026-09-26.md`) — a rendering change, no outline moved:
+
+- **Firmware** (`crosspoint-reader` `db8a36a4b`): `sd-fonts.yaml` gains a
+  per-family `hinting: none`; `build-sd-fonts.py` passes `--no-hinting` and
+  `fontconvert_sdcard.py` loads the family's OWN faces with
+  `FT_LOAD_RENDER | FT_LOAD_NO_HINTING` (fallback faces keep default
+  hinting — the exact arm measured below). Exclusive with `force_autohint`.
+  Set on Albo, all four cuts. Other families byte-identical (Edgar and
+  TeXGyreHeros, 12 of 12 .cpfont, before/after); Albo 1x byte-identical to
+  this doc's NO HINTING arm run through the scratch-patched converter (6/6).
+- **Seed tree** rebuilt at 1x and 2x into `crosspoint-reader/fs_/fonts/Albo`;
+  `tools/validate_seed_fonts.py` OK (13 families). The validator reads header
+  metrics only, which come from `face.size` and not from load flags, so it
+  needed no change. `Albo/3x` is stale (hinted, pre-`reading`), not shipped
+  and not checked, as before.
+- **The e gate** (`tools/wedge_serif/etrace/e_hint_gate.py`, in `gates.sh`)
+  now renders the e unhinted, as the converter does. §8.
+
+The rest of this doc is the measurement the ruling was made on, unchanged; its
+§1 recommendation (keep TODAY pending a look) is superseded by the ruling.
+
 ## 1. Answer
 
 **On the device nothing is broken, and no arm changes how well the text reads
@@ -302,3 +326,76 @@ two-line patch described in `validate.py`, then `validate.py`, `measure.py`,
 `reader_read.py`, `cost.sh`, `tables.py`, `proof.py`. Python needs numpy,
 freetype-py, uharfbuzz, Pillow, fontTools; the index needs its Swift reader
 built (`swiftc -O -o ocr/visionocr ocr/visionocr.swift`) and `KLI_DIR`.
+
+## 8. The e under no hinting (round 400, 2026-09-26, after the ruling)
+
+Round 400's Regular (`9e28bb5`, bar top 0.585), built from a `git archive`
+snapshot, 0 of 530 outlines different from `crosspoint-reader`'s
+`local_fonts/Albo` (all four cuts).
+
+**mouth_block, unhinted** (0 = a clear row out of the mouth; the old gate's
+limit 0.15):
+
+| ppem | 8 | 8.25 | 8.5 | 8.75 | 9 | 9.25–12 | every reader size, 1x and 2x, 8-bit and 2-bit |
+|---|---|---|---|---|---|---|---|
+| r399, unhinted | 0.27 | 0.26 | 0.22 | 0.19 | 0.18 | 0.00–0.01 | 0.00 |
+| r400, unhinted | 0.26 | 0.24 | 0.20 | 0.18 | 0.15 | 0.00–0.01 | 0.00 |
+| r400, autohinted (round 400's gate) | 0.02 | 0.04 | 0.05 | 0.07 | 0.09 | 0.00–0.03 | 0.00 |
+
+**Is the unhinted 8 px failure real?** Partly — it is a GREY mouth, not a
+closed one, and it is a property of an unhinted 8 px e, not of round 395's
+knife edge:
+
+- Unhinted, the mouth band (terminal top 83 → bar underside 220 units) is
+  1.1 px tall at 8 ppem and lands across two rows, each about a quarter
+  inked. Nothing hinter-driven: r399 and r400 read the same (0.27 / 0.26).
+- The reference serifs grey theirs too, unhinted, somewhere in 8–12 ppem:
+  worst Georgia 0.31, Times 0.34, Charter 0.26, Palatino 0.20, Hoefler 0.38.
+  The 0.15 limit was calibrated on Albo's HINTED e and does not carry over.
+- **But the reader does see it at 8 px, and nowhere else.** Apple Vision,
+  the index's corpus through the index's renderer with the hinter off
+  (`etrace/size_sweep.py` via `hinting/kli_arms.py --flags 0x2`), 84 e's per
+  cell, e>o clean / blur 0.6:
+
+  | em px | 8 | 8.5 | 9 | 9.5–13 |
+  |---|---|---|---|---|
+  | r400 unhinted | **13 / 5** | 1 / 0 | 0 / 0 | 0 |
+  | r399 unhinted | 14 / 6 | 1 / 0 | 0 / 0 | 0 |
+  | Georgia unhinted | 0 / 1 | 0 | 0 | 0 |
+  | r400 autohinted | 2 / 0 | 0 | 0 | 0 |
+
+  So at exactly 8 px Albo's unhinted e reads as o 15% of the time where
+  Georgia's does not. 8 px is under half the reader's smallest Albo size
+  (16.7 ppem) and is not one of the index's cells.
+- **Kept Legibility Index, round 400, unhinted** (v3.1, `--tess`):
+
+  | cut | grand | crowded | e>o Vision | e>o Tesseract |
+  |---|---|---|---|---|
+  | Regular | 88.7 | 58.0 | **1** | 0 |
+  | Italic | 86.7 | 82.1 | 5 | 3 |
+  | Bold | 88.1 | 34.5 | 9 | 0 |
+  | Georgia (unhinted) | 93.9 | 88.4 | 0 | 0 |
+  | Charter (unhinted) | 95.2 | 99.2 | 0 | 0 |
+  | Regular, autohinted (round 400's own figure, re-run) | 88.3 | 59.0 | 3 | — |
+
+**Verdict: the e needs no outline change for the reader.** At every size the
+reader draws it the mouth is open (0.00) and Vision reads 0 e>o; the index's
+e>o is 1. The one residual is at 8 px, below every size either the device or
+the index uses. If the owner wants the unhinted 8 px e as clean as Georgia's,
+that is an outline question for him (the mouth band is the lever — the bar
+underside or the terminal top), not something the rendering can fix.
+
+**Bold and BoldItalic** (round 400), Vision on converter pixels at every
+reader size: TODAY 99.53–100%, NO HINTING 99.49–100%; colour against the
+outline TODAY 1.02–1.13 (Bold) and 0.99–1.08 (BoldItalic), NO HINTING
+0.99–1.00 for both. `results/reader_bold_summary.json`.
+
+**The gate, rewritten** (`etrace/e_hint_gate.py`): renders with
+`FT_LOAD_NO_HINTING` through the converter's own `set_char_size` and 2-bit
+cut. Hard: mouth_block ≤ 0.15 at all twelve reader slots (1x, 2x; 8-bit and
+2-bit), and ≤ 0.20 over 9–12 ppem. 8–8.75 ppem is printed, not gated.
+Round 400: **ok** (reader 0.000, 9–12 worst 0.149 at 9.0). Proven to fire:
+the bar dropped to 0.52 x-height reads 0.345 at 9 ppem and **FAILS**, 0.48
+fails at 9–10.25. `--autohint` keeps the round-400 check (r400 0.094 ok, r399
+0.243 FAIL — both reproduce round 400's numbers). Results:
+`tools/wedge_serif/hinting/results/{kli_r400_summary,sweep-nohint,sweep-today}.json`.

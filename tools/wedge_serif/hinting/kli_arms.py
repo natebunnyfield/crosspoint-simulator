@@ -15,6 +15,10 @@ Then it hands off to ../etrace/kli_e.py unchanged (the index's own v3.1
 protocol and its own confusion reduction).
 
     KLI_DIR=... python3 kli_arms.py --flags 0x2 -- --font "Albo nohint" F.ttf --out res.json
+    KLI_DIR=... python3 kli_arms.py --flags 0x2 --script size_sweep.py -- --font ... --img DIR --out res.json
+
+`--script` picks another ../etrace tool that renders through the index's
+render.py (size_sweep.py: the same reader over 8-13 px).
 """
 import os, sys, runpy
 
@@ -23,11 +27,16 @@ flags = 0
 if argv[:1] == ["--flags"]:
     flags = int(argv[1], 0)
     argv = argv[2:]
+script = "kli_e.py"
+if argv[:1] == ["--script"]:
+    script = argv[1]
+    argv = argv[2:]
 if argv[:1] == ["--"]:
     argv = argv[1:]
 
 import freetype  # noqa: E402
 freetype.FT_LOAD_TARGET_NORMAL = flags
 here = os.path.dirname(os.path.abspath(__file__))
-sys.argv = ["kli_e.py"] + argv
-runpy.run_path(os.path.join(here, "..", "etrace", "kli_e.py"), run_name="__main__")
+sys.path.insert(0, os.path.join(here, "..", "etrace"))
+sys.argv = [script] + argv
+runpy.run_path(os.path.join(here, "..", "etrace", script), run_name="__main__")
