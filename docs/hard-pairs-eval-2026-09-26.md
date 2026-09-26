@@ -482,25 +482,19 @@ what it did on the five.
 
 ---
 
-## 4. Cheaper Claude models (Haiku 4.5, Sonnet 5): PENDING — judged separately by the orchestrator
+## 4. Cheaper Claude models (Haiku 4.5, Sonnet 5) -- judged 2026-09-26
 
-*To be filled.* The stimuli and `INSTRUCTIONS.md` in §2 are ready for them
-as they stand. Score them with `key.json` as §2 describes, and report the
-same checks as §3f:
+Run by the orchestrator as two blind Claude Code subagents (model overrides `haiku`, `sonnet`), each told to use only `stimuli/` and INSTRUCTIONS.md, never the key; answers in `scratchpad/hard5/judge-{haiku,sonnet}.json`, scored in `results_claude.json`. Ladder estimate = mean of the word and phrase picks, in units.
 
-- the pick in units;
-- the label counts;
-- first-shown share;
-- order-reversal agreement;
-- 2AFC "1"/"2" counts;
-- the 8 identical catch trials.
+| judge | ladder MAE | vs change nothing (32.6) | label bias | stated confidence | 2AFC vs zero chose his | identical catch trials chose his | vs B2-held chose his |
+|---|---|---|---|---|---|---|---|
+| Haiku 4.5 | **62.2** | worse | picked "E" on 6 of 10 ladders | 4/5 on all 10 | 4/10 | 5/8 | 5/10 |
+| Sonnet 5 | **35.1** | no better | picked "A" on 6 of 10 ladders | 2/5 on all 10 | 6/10 | 3/8 | 2/10 |
 
-| judge | ladder MAE (5 pairs) | label bias | 2AFC his-vs-zero | 2AFC his-vs-B2 | catch trials | cost / time |
-|---|---|---|---|---|---|---|
-| Haiku 4.5 | | | | | | |
-| Sonnet 5 | | | | | | |
-
----
+- **Haiku did not look at every rung**: it viewed 74 images of the 120 (all 18 of pair1, 5-8 of each other pair), so most of its ladder picks were made without seeing the options. Confidently wrong (conf 4 throughout) -- e.g. `it` +32 answered -74.
+- **Sonnet looked at all 120** and reported low confidence (2) throughout, which was honest: it lands at change-nothing. It got the direction right on Fo and Wa (-46, +46 vs his -36, +40) and wrong on n', ed, it.
+- **Both lean to the top line** in 2AFC (Haiku 19/30 "1", Sonnet 20/30 "1") and are at chance against the unchanged font and on identical catch trials.
+- **Verdict**: like the local VLMs (section 3), general vision models cannot judge spacing at this grain -- a one-pixel difference at 54 px. They are usable as ORCHESTRATORS of the loop, not as judges. B2 (17.2) remains the best method on the hard five.
 
 ## 5. What follows [inf]
 
