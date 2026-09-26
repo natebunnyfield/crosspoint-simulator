@@ -1,0 +1,355 @@
+{
+ "bench": "outliers-2026-09-25",
+ "answers": [
+  {
+   "style": "italic",
+   "id": "o_456c",
+   "delta": 16,
+   "verdict": "",
+   "at": "2026-09-26T00:39:00.379Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_4573",
+   "delta": -2,
+   "verdict": "",
+   "at": "2026-09-25T23:45:29.794Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_4a6f",
+   "delta": 8,
+   "verdict": "",
+   "at": "2026-09-26T01:20:58.628Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_6379",
+   "delta": 5,
+   "verdict": "",
+   "at": "2026-09-26T01:51:32.010Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_6669",
+   "delta": 9,
+   "verdict": "",
+   "at": "2026-09-25T23:45:35.088Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_6773",
+   "delta": 6,
+   "verdict": "",
+   "at": "2026-09-26T01:19:07.725Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_686d",
+   "delta": 14,
+   "verdict": "",
+   "at": "2026-09-25T23:44:37.893Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_6879",
+   "delta": -11,
+   "verdict": "",
+   "at": "2026-09-25T23:44:26.822Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_6b69",
+   "delta": -21,
+   "verdict": "",
+   "at": "2026-09-26T01:20:38.516Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_6e27",
+   "delta": -23,
+   "verdict": "",
+   "at": "2026-09-26T01:34:30.896Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7175",
+   "delta": -16,
+   "verdict": "",
+   "at": "2026-09-26T01:34:51.144Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_722c",
+   "delta": -3,
+   "verdict": "",
+   "at": "2026-09-25T23:45:12.526Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7266",
+   "delta": 1,
+   "verdict": "",
+   "at": "2026-09-26T01:25:57.971Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7267",
+   "delta": 4,
+   "verdict": "",
+   "at": "2026-09-26T01:20:13.474Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7268",
+   "delta": -16,
+   "verdict": "",
+   "at": "2026-09-25T23:44:23.653Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7275",
+   "delta": 8,
+   "verdict": "",
+   "at": "2026-09-26T01:34:39.947Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7461",
+   "delta": 4,
+   "verdict": "",
+   "at": "2026-09-26T01:20:47.419Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7468",
+   "delta": 2,
+   "verdict": "",
+   "at": "2026-09-25T23:44:33.404Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7472",
+   "delta": 17,
+   "verdict": "",
+   "at": "2026-09-26T01:35:21.650Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_756d",
+   "delta": -16,
+   "verdict": "",
+   "at": "2026-09-26T00:40:11.850Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_792e",
+   "delta": 18,
+   "verdict": "",
+   "at": "2026-09-26T01:19:30.086Z"
+  },
+  {
+   "style": "italic",
+   "id": "o_7974",
+   "delta": 1,
+   "verdict": "",
+   "at": "2026-09-25T23:44:30.195Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_456e",
+   "delta": -5,
+   "verdict": "",
+   "at": "2026-09-26T01:19:48.665Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_4a6f",
+   "delta": -6,
+   "verdict": "",
+   "at": "2026-09-26T00:38:44.599Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_4b61",
+   "delta": 24,
+   "verdict": "",
+   "at": "2026-09-26T01:26:11.719Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_5175",
+   "delta": 10,
+   "verdict": "",
+   "at": "2026-09-26T00:39:27.581Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_5468",
+   "delta": 6,
+   "verdict": "",
+   "at": "2026-09-26T00:39:11.444Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_5665",
+   "delta": 2,
+   "verdict": "",
+   "at": "2026-09-25T23:44:56.775Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_566f",
+   "delta": -4,
+   "verdict": "",
+   "at": "2026-09-26T01:18:53.019Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_5769",
+   "delta": -1,
+   "verdict": "",
+   "at": "2026-09-25T23:45:22.542Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_596f",
+   "delta": 3,
+   "verdict": "",
+   "at": "2026-09-25T23:45:39.223Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6261",
+   "delta": 6,
+   "verdict": "",
+   "at": "2026-09-26T00:39:44.636Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6563",
+   "delta": 36,
+   "verdict": "",
+   "at": "2026-09-26T01:51:47.633Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6564",
+   "delta": 25,
+   "verdict": "",
+   "at": "2026-09-26T00:40:27.399Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6772",
+   "delta": -27,
+   "verdict": "",
+   "at": "2026-09-25T23:44:48.768Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_686d",
+   "delta": -15,
+   "verdict": "",
+   "at": "2026-09-25T23:44:20.245Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6879",
+   "delta": -35,
+   "verdict": "",
+   "at": "2026-09-25T23:43:41.648Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6b61",
+   "delta": 2,
+   "verdict": "",
+   "at": "2026-09-26T01:21:18.801Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6b69",
+   "delta": 8,
+   "verdict": "",
+   "at": "2026-09-26T01:51:51.059Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6e61",
+   "delta": 2,
+   "verdict": "",
+   "at": "2026-09-26T01:36:00.515Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6f63",
+   "delta": -18,
+   "verdict": "",
+   "at": "2026-09-25T23:45:51.678Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_6f66",
+   "delta": -14,
+   "verdict": "",
+   "at": "2026-09-26T01:34:19.209Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_7061",
+   "delta": -13,
+   "verdict": "",
+   "at": "2026-09-26T01:19:40.712Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_7268",
+   "delta": 27,
+   "verdict": "",
+   "at": "2026-09-25T23:43:31.729Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_7279",
+   "delta": -3,
+   "verdict": "",
+   "at": "2026-09-26T01:21:10.104Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_742e",
+   "delta": -3,
+   "verdict": "",
+   "at": "2026-09-26T00:39:57.766Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_7468",
+   "delta": -11,
+   "verdict": "",
+   "at": "2026-09-25T23:44:16.415Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_7479",
+   "delta": -6,
+   "verdict": "",
+   "at": "2026-09-26T01:35:14.763Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_776f",
+   "delta": 3,
+   "verdict": "",
+   "at": "2026-09-26T01:36:09.367Z"
+  },
+  {
+   "style": "roman",
+   "id": "o_7974",
+   "delta": 2,
+   "verdict": "",
+   "at": "2026-09-25T23:43:49.917Z"
+  }
+ ]
+}
