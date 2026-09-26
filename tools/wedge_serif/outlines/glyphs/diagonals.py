@@ -217,6 +217,13 @@ def g_x(c):
 # measurement (outlines/cmp/balance.py) and the eye, round 88.
 Y_LEFT_W = float(__import__('os').environ.get('FJORD_Y_LEFT_W', 0.97))   # owner 2026-09-14, round 90: "0.9 is slightly too thin for 500", then ".97" from the 0.92-0.98 ladder
 
+# ROUND 391 -- THE HAIRLINE FLOOR on the roman y's tail, x S (0 = the pen
+# alone, as to round 390): the tail's lower run heads left along the pen's thin
+# and the y measured p10 18.1 units, -52% of the diagonals (0.49 px at the 1x
+# reading size). Roman only: the italic draws its own y (aldine.py).
+# docs/albo-round-391-2026-09-25.md.
+Y_TAIL_FLOOR = float(os.environ.get("ALBO_ROM_Y_TAIL_FLOOR", 0.33))   # ships 0.33 (round 391; ladder 0.30/0.33/0.36)
+
 @glyph('y')
 def g_y(c):
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]; w = 440 * wf
@@ -256,7 +263,7 @@ def g_y(c):
         # degrees toward the vertical, the upper (inner) corner forward.
         from .rounds import c_top_width
         from .. import primitives as PR
-        wfn = PR.finial_widths(pen_widths(tail, lambda t: 0.72 + 0.28 * min(1.0, t * 2)), False, floor=c_top_width()); tail_cut = PR.finial_cut(tail, False)
+        wfn = PR.finial_widths(pen_widths(tail, lambda t: 0.72 + 0.28 * min(1.0, t * 2), floor=S * Y_TAIL_FLOOR), False, floor=c_top_width()); tail_cut = PR.finial_cut(tail, False)
     t = stroke(tail, wfn, cut1=tail_cut)
     return geom.ink([a, t, end_wedge(tail, wfn(0.0), True, -1)])
 

@@ -289,6 +289,13 @@ def g_f(c):
     if pen.ITALIC: return g_f_italic(c)
     return f_ink(c, flush=True)
 
+# ROUND 391 -- THE HAIRLINE FLOOR on the t's tail, x S (0 = the pen alone, as
+# to round 390). Owner 2026-09-25: *"take a pass at balancing out the thick
+# and thin strokes for better word images"*. The tail's upturn runs along the
+# pen's thin and came out the t's p10 at 20.3 units, -40% of its family, 0.55
+# px at the 1x reading size. docs/albo-round-391-2026-09-25.md.
+T_TAIL_FLOOR = float(os.environ.get("ALBO_ROM_T_TAIL_FLOOR", 0.33))   # ships 0.33 (round 391; ladder 0.30/0.33/0.36)
+
 @glyph('t')
 def g_t(c):
     """Round 51's t, restored (owner 2026-09-13: "revert 't' before the
@@ -299,7 +306,7 @@ def g_t(c):
     t_top = xh + (115 if adj('t') else 95); t_bar = TH_H * (1.15 if adj('t') else 1.0)
     st = stem(x, r * 0.85 - 10, t_top, top=None, foot=None, ent_span=(0, t_top), cut_top=CUT)
     tail = cubic((x, r * 0.85), (x, -OVER * 0.5), (x + r * 0.8, -OVER * 0.5), (x + r * 1.45, r * 0.6))
-    tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)])), cut1=CUT)
+    tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)]), floor=S * T_TAIL_FLOOR), cut1=CUT)
     b = stroke([(x - 100 * wf, xh - t_bar / 2), (x + 150 * wf, xh - t_bar / 2)], t_bar)
     return geom.ink([st, tl, b])
 
@@ -550,6 +557,11 @@ S_SMOOTH = float(os.environ.get("ALBO_ROM_S_SMOOTH", 0.6))   # round 283: the de
 S_HEAD_SPAN = float(os.environ.get("ALBO_S_HEAD_SPAN", PR.FINIAL_SPAN))   # round 284 ladder: the head's taper runs over this fraction of the path (the c's 0.13)
 S_FOOT_SWELL = float(os.environ.get("ALBO_S_FOOT_SWELL", PR.FINIAL_SWELL))  # round 284 ladder: the foot's swell into its face (the c's 1.10)
 S_HEAD_Y = float(os.environ.get("ALBO_ROM_S_HEAD_Y", _SO.get("head", (0.93, 0.82))[1]))   # round 282: the head's height, x the x-height (0.80 before)
+# ROUND 391 -- THE HAIRLINE FLOOR on the s's spine, x S (0 = the pen alone, as
+# to round 390): the shoulder and the lower bowl run along the pen's thin and
+# the s measured p10 17.3 units, the thinnest lowercase in the roman (0.47 px
+# at the 1x reading size). docs/albo-round-391-2026-09-25.md.
+S_FLOOR = float(os.environ.get("ALBO_ROM_S_FLOOR", 0.33))   # ships 0.33 (round 391; ladder 0.30/0.33/0.36)
 @glyph('s')
 def g_s(c):
     """One smooth spine on the pen's own widths (round 51's s: no spine
@@ -615,7 +627,7 @@ def g_s(c):
         prof = widen_terminal(widen_terminal(None, True), False)
         return geom.ink([stroke(spine, pen_widths(spine, prof), cut0=CUT, cut1=CUT)])
     from .rounds import c_top_width
-    fl = c_top_width(); base = pen_widths(spine, None)
+    fl = c_top_width(); base = pen_widths(spine, None, floor=S * S_FLOOR)
     if S > 84.0 and S_SMOOTH > 0.0: base = _smooth_widths(base, spine, S * S_SMOOTH)   # the deburr, see the docstring
     foot = PR.finial_widths(base, False, floor=fl, swell=S_FOOT_SWELL)   # the foot: the c's finial, held to the c's end width
     c0, c1 = PR.finial_cut(spine, True), PR.finial_cut(spine, False)

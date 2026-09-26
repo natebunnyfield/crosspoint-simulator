@@ -1079,7 +1079,15 @@ if ON:
     # letter back on the one shared stroke, which is the round-180 font to the
     # bit -- the arm for judging whether the variety is worth its cost.
     HM_EXIT_VARY = _hm("EXIT_VARY", 1.0)
-    HM_ARCH_T = _hm("ARCH_T", 22.0) * ALD_WF     # the climb's hairline, units
+    # ROUND 391 -- 22 -> 26. Owner 2026-09-25, *"take a pass at balancing out
+    # the thick and thin strokes for better word images"*. 22 was Flanker's
+    # hairline at the Medium's stem of 84 (round 132); ALD_WF then scaled it
+    # with the 400's stem to 17.5 units, 0.47 px at the 1x reading size, and
+    # the arch letters measured the thinnest in the italic (m n r p10 22.5,
+    # -43% of the stem family). 26 puts the 400's hairline at 20.7 and its
+    # stem/hairline ratio at 2.69 (Flanker 3.0, Pagella 3.0). Ladder 22/25/28
+    # in docs/albo-round-391-2026-09-25.md. h m n r u (and eta, mu) follow.
+    HM_ARCH_T = _hm("ARCH_T", 26.0) * ALD_WF     # the climb's hairline, units
     HM_ARCH_TOP = _hm("ARCH_TOP", 0.935)   # the apex's centerline, x xh
     HM_SPRING = _hm("SPRING", 0.355)    # where the arch leaves the stem's center, x xh
     # the i's dot: the scan's is 89 x 64 units at 1.40 x xh, Flanker's 98 x 98
