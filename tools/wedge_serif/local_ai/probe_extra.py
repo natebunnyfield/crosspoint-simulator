@@ -46,9 +46,16 @@ def main():
     for r in ex:
         if r["pair"] in J0[r["style"]] or r["pair"] not in feats[r["style"]]:
             continue
-        lab = ("s1-skipped" if r.get("verdict") == "skipped-ok" else "s1-touched") \
-            if r["bench"].startswith("active") else "outlier"
+        if r["bench"].startswith("active"):
+            sess = r["bench"].rsplit("-", 1)[1]
+            lab = sess + ("-skipped" if r.get("verdict") == "skipped-ok" else "-touched")
+        else:
+            lab = "outlier"
         tag[(r["style"], r["pair"])] = lab
+    bench_of = {}                 # (style, pair) -> bench that FIRST answered it (post-bench pairs)
+    for r in ex:
+        bench_of.setdefault((r["style"], r["pair"]), r["bench"])
+    latest = max((r["bench"] for r in ex if r["bench"].startswith("active")), default=None)
 
     def fit_on(s, reads, skip_w):
         J, W = b2_fit.combine(reads, skip_w)
@@ -89,17 +96,29 @@ def main():
             for k in held:
                 after_cv[sk][k] = preds[k[0]](k[1])
     full = {s: fit_on(s, R[s], 1.0) for s in STYLES}
+    # BEFORE the latest session: the model fit on everything except that
+    # session's readings -- i.e. the default that session was chosen from.
+    prev = {}
+    for s in STYLES:
+        reads = {}
+        for p, v in R[s].items():
+            keep = [x for x in v if not (x[1] != "bench" and (s, p) in tag and bench_of[(s, p)] == latest)]
+            if keep:
+                reads[p] = keep
+        prev[s] = fit_on(s, reads, 1.0)
     print("\nB. the pairs first answered after the bench (mean |error| vs his answer, 09-20 zero)")
-    print(f"   {'subset':12s} {'n':>3s} {'nothing':>8s} {'BEFORE':>7s} " +
+    print(f"   BEFORE = bench-only B2; PREV = fit on all but {latest} (the default it was chosen from)")
+    print(f"   {'subset':12s} {'n':>3s} {'nothing':>8s} {'BEFORE':>7s} {'PREV':>7s} " +
           " ".join(f"{'CV sk' + format(w, 'g'):>8s}" for w in SKIPS) + f" {'in-samp':>8s}")
-    for lab in ("s1-touched", "s1-skipped", "outlier", "ALL"):
+    labs = sorted({v for v in tag.values()}) + ["ALL"]
+    for lab in labs:
         ks = [k for k in keys if lab == "ALL" or tag[k] == lab]
         if not ks:
             continue
         e = lambda pr: np.mean([abs(pr(k) - truth[k]) for k in ks])
         cols = [e(lambda k, w=w: after_cv[w][k]) for w in SKIPS]
         print(f"   {lab:12s} {len(ks):3d} {np.mean([abs(truth[k]) for k in ks]):8.2f} "
-              f"{e(lambda k: before[k[0]](k[1])):7.2f} " + " ".join(f"{c:8.2f}" for c in cols) +
+              f"{e(lambda k: before[k[0]](k[1])):7.2f} {e(lambda k: prev[k[0]](k[1])):7.2f} " + " ".join(f"{c:8.2f}" for c in cols) +
               f" {e(lambda k: full[k[0]](k[1])):8.2f}")
 
 

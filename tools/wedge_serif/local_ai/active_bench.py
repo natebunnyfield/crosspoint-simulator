@@ -12,14 +12,16 @@ SELECTION (per session, deterministic from the seed):
   * UNCERTAINTY: the spread (sd) of the pair's predicted white across B2 fits
     on 200 bootstrap resamples of his 370 judgments. It is large where the
     glyphs were rarely judged or the pair's shape is unlike anything judged.
-  * VISIBILITY: 0 when B2's proposed move from the shipped font (round 395) is
-    under one phone kern quantum (1.16 units); such a pair cannot be seen to
-    change on the phone whatever he answers.
+  * VISIBILITY: 0 when neither B2's proposed move from the zero font NOR its
+    uncertainty reaches one phone kern quantum (1.16 units) -- such a pair
+    cannot be seen to change on the phone. Sessions 1-2 had a round-395 zero,
+    so the proposed move decided it; from round 397 the zero IS the model, the
+    move is ~0 and the uncertainty (sd) decides it.
   * SCORE = sd x count x visibility. The top N go on the page.
   * REPEATS (~10%): pairs he already answered, drawn at random (seeded),
     so every session re-measures his noise and his drift.
-  * THE ZERO is the SHIPPED font, round 395 (bench/fonts-2026-09-26/, built at
-    12b75e9). Every row records its white there AND in the 09-20 bench fonts,
+  * THE ZERO is the SHIPPED font (ZERO_DIR below; round 395 for sessions 1-2,
+    round 397 from session 3). Every row records its white there AND in the 09-20 bench fonts,
     so active_ingest.py can put the answer on the fit's zero.
 
 THE PAGE is build_live.py's live bench (every letter a span placed by the
@@ -44,10 +46,10 @@ from b2_fit import white_fn, in_scope  # noqa: E402
 
 BENCH = os.path.join(WS, "bench")
 # THE ZERO a new session is answered against: the SHIPPED font. Sessions 1-2
-# were round 395 (fonts-2026-09-26); from round 396 (B2 shipped) it is
-# fonts-2026-09-26-r396. Each key file records its own zero and every row's
+# were round 395 (fonts-2026-09-26); round 396 (B2 shipped) is
+# fonts-2026-09-26-r396; session 3 on is round 397 (fonts-2026-09-26-r397). Each key file records its own zero and every row's
 # white there, so active_ingest.py converts each session from ITS zero.
-ZERO_DIR = "fonts-2026-09-26-r396"
+ZERO_DIR = "fonts-2026-09-26-r397"
 ZERO = {"roman": os.path.join(BENCH, ZERO_DIR, "Albo-Regular.ttf"),
         "italic": os.path.join(BENCH, ZERO_DIR, "Albo-Italic.ttf")}
 B0920 = FT.FONTS
@@ -115,7 +117,7 @@ def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1):
         w20 = white_fn(B0920[style])
         for p, s in zip(cand, sd):
             move = w2(p[0], p[1]) - wz(p[0], p[1])
-            vis = 1.0 if abs(move) >= QUANTUM else 0.0
+            vis = 1.0 if max(abs(move), s) >= QUANTUM else 0.0
             rows.append(dict(style=style, pair=p, n=census[p], sd=float(s), move=int(move), visible=vis,
                              score=float(s * census[p] * vis), white0=int(wz(p[0], p[1])),
                              white0920=int(w20(p[0], p[1])), kind="active"))

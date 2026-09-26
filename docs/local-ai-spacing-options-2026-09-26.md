@@ -819,3 +819,5 @@ The largest absolute moves are rare pairs:
 **Owner ruling, 2026-09-26 (decided blind):** SHIP B2 as the default spacing (round 396). A first answer of "keep behind the flag" was a misclick, re-asked, and reversed by him the same minute.
 
 **Shipped as round 396** (`docs/albo-round-396-2026-09-26.md`): B2 is the default; `ALBO_SPACING_FIT=bench` builds round 395.
+
+**Round 397** (`docs/albo-round-397-2026-09-26.md`): refit on 520 answers (bench pairs held out 10.33); session 2's pairs predicted 14.76 by round 396 before he answered, 10.00 held out after; `--consolidate` (per-glyph bearings instead of consistent kerns) measured and offered, not shipped.

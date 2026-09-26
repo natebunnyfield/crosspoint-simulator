@@ -868,14 +868,19 @@ if _B2 is not None:
             for _r in _rs:
                 PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
 
-# B2 + BoldItalic: the refit's italic q right side (-4) takes the 900-weight
+# B2 + BoldItalic (round 396): the refit's italic q right side (-4) takes the 900-weight
 # q's flag against the j's hook to 0.0111 em, under cmp_touch's 0.012 floor
 # (2026-09-26). The pair is round 384's kind -- a heavy-cut clearance, not a
 # spacing judgment -- so it gets round 384's answer: floor plus a few units.
 if _B2 is not None and _ALD is not None and _ALD.ON:
     from . import pen as _pen_b2
     if _pen_b2.S > 84.0:
-        PAIRS[('q', 'j')] = _shipped('q', 'j') + 4
+        # ROUND 397: the refit took the italic q's right side to -9, and six
+        # q pairs fell under the floor in the 900 only (cmp_touch, em):
+        # qC 0.0079, qQ 0.0093, qj 0.0101 (with the +4 above), q4 0.0107,
+        # qg 0.0113, qm 0.0118. Each is lifted to about 0.015 em.
+        for _r, _k in (('C', 7), ('Q', 6), ('j', 9), ('four', 5), ('g', 4), ('m', 4)):
+            PAIRS[('q', _r)] = _shipped('q', _r) + _k
 
 _apply_bench()
 

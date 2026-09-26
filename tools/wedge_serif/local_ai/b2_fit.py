@@ -120,6 +120,9 @@ def main():
     ap.add_argument("--skip-weight", type=float, default=1.0,
                     help="weight of a SKIPPED active-bench row (verdict skipped-ok, delta 0); "
                          "default 1 = a skip counts as a full judgment (owner 2026-09-26)")
+    ap.add_argument("--consolidate", action="store_true",
+                    help="move a glyph side's CONSISTENT kern remainder into its bearing (option, "
+                         "2026-09-26; identical white on every in-scope pair up to rounding)")
     ap.add_argument("--extra", action="store_true",
                     help="also fold in bench/answers/extra-judgments.json (active_ingest.py): "
                          "each pair's judgment becomes the mean of every reading on the fit's zero")
@@ -144,6 +147,8 @@ def main():
             elif c in MARKS and (L or R):
                 marks[c] = [L, R]
         side = {**{c: v for c, v in letters.items()}, **{c: v for c, v in marks.items()}}
+        if args.consolidate:
+            consolidate(side, letters, marks, scope, predict, style)
         kerns = {}
         for p in scope:
             give = side.get(p[0], [0, 0])[1] + side.get(p[1], [0, 0])[0]
@@ -160,6 +165,32 @@ def main():
             st["holds"] = measure_holds(style, *args.holds)
     json.dump(out, open(OUT, "w"), indent=1, ensure_ascii=False, sort_keys=True)
     print("wrote", OUT)
+
+
+def consolidate(side, letters, marks, scope, predict, style, min_n=4, min_v=4):
+    """B2 splits a glyph's own preference between its identity term and the
+    shape features, so a side that wants +28 everywhere (the roman j's left,
+    session 2) can ship as a +8 bearing plus six +24..+32 kerns. This moves the
+    MEDIAN remainder of each lowercase/mark side (>= min_n in-scope pairs,
+    |median| >= min_v) into the bearing; the kerns are then recomputed as
+    usual, so every in-scope pair keeps its predicted white (to rounding) and
+    the side's rarer, out-of-scope pairs now carry it too. Capitals are never
+    bearings (round 308's ruling); the g stays held."""
+    moved = []
+    for pos, idx in ((1, 0), (0, 1)):         # glyph on the RIGHT -> its lsb; on the LEFT -> its rsb
+        glyphs = sorted({p[pos] for p in scope})
+        for c in glyphs:
+            if c == "g" or not (c.islower() or c in MARKS):
+                continue
+            rem = [predict(p) - side.get(p[0], [0, 0])[1] - side.get(p[1], [0, 0])[0]
+                   for p in scope if p[pos] == c]
+            m = int(round(float(np.median(rem)))) if len(rem) >= min_n else 0
+            if abs(m) >= min_v:
+                tbl = letters if c.islower() else marks
+                v = list(tbl.get(c, [0, 0])); v[idx] += m; tbl[c] = v; side[c] = v
+                moved.append((c, "lsb" if idx == 0 else "rsb", m, len(rem)))
+    print(f"  {style}: consolidated {len(moved)} sides: " +
+          ", ".join(f"{c} {s} {m:+d} (n{n})" for c, s, m, n in moved))
 
 
 def readings(style, drop=("g",)):
