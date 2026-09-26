@@ -1,0 +1,8 @@
+roman  ExtraLight  vs Regular: white diff mean -2.0 sd 1.4 units, |diff|>=10 on 0.0% of text pairs; largest (census-weighted): Qu +30, qu +9, in -3, an -3, at -3, he -2, ar -3, is -3
+roman  Bold        vs Regular: white diff mean -2.2 sd 2.2 units, |diff|>=10 on 1.9% of text pairs; largest (census-weighted): fo +11, bj +32, fi +11, fr +11, fe +11, ej +32, in -3, aj +31
+roman  Black       vs Regular: white diff mean -2.2 sd 2.9 units, |diff|>=10 on 1.9% of text pairs; largest (census-weighted): fo +15, bj +49, fi +15, ej +48, fr +15, aj +47, fe +15, oj +48
+italic BoldItalic  vs Italic: white diff mean -0.8 sd 10.5 units, |diff|>=10 on 24.7% of text pairs; largest (census-weighted): qu -90, as +27, is +21, es +18, st -18, us +28, de -19, ns +24
+roman  ExtraLight  ink vs Regular (336 lowercase pairs, n>=300): d2 diff mean -6.1 sd 6.2; band_x_mean diff mean -11.6 sd 9.6; largest x-band: in -25, an -24, he -18, ar -24, on -17, nd -18, al -22, hi -26
+roman  Bold        ink vs Regular (336 lowercase pairs, n>=300): d2 diff mean -2.6 sd 7.4; band_x_mean diff mean -15.2 sd 18.3; largest x-band: es -59, st -51, ct -74, rs -65, re -32, er -27, ca -54, et -59
+roman  Black       ink vs Regular (336 lowercase pairs, n>=300): d2 diff mean -1.7 sd 10.1; band_x_mean diff mean -19.1 sd 27.4; largest x-band: es -91, st -73, ct -107, er -44, et -91, rs -84, ca -73, en -45
+italic BoldItalic  ink vs Italic (336 lowercase pairs, n>=300): d2 diff mean -0.1 sd 8.5; band_x_mean diff mean -6.0 sd 9.0; largest x-band: qu -85, er -21, es -23, en -21, st -19, et -29, ct -26, di -24
