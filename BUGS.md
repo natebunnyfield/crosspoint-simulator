@@ -71,6 +71,35 @@ Both are reachable from the network; neither is a crash by a crafted request
 allocation, the case-only MOVE losing a file — were fixed the same day, see
 the hunt doc). Filed so the next pass starts here rather than re-measuring.
 
+### [S-042] Update Fonts / Update Library freeze the screen on the phone — OPEN, NOT reproduced on the iOS Simulator; a flight recorder ships in its place
+**severity: high (owner, 2026-09-26: "in ios app update library and fonts both freezing screen", a REPEATED report after TestFlight builds 226/227 shipped firmware `a29b432f6`) · scope: not localized · found 2026-09-26 · measured on the iOS Simulator only; no iPhone is paired to this Mac**
+
+The first fix (worker thread per step, heartbeat repaint) was proven on the
+desktop only. Re-traced on the iOS Simulator the same day through the app's
+own SDL3/Metal present path and NSURLSession, in Debug and Release, light and
+dark, against a mock release and the REAL `fonts-latest` / `library-latest`
+releases, on a fresh card, a card seeded as `CrossPointFsPrep` seeds a phone
+(CPZ1, 2x companions, no ledger) and an already-synced card, with the
+experimental toggles on, with every in-app instrument off and the glass sampled
+from outside by `simctl io screenshot`, and with the app backgrounded mid-run:
+the longest gap between presents was 1.0-1.1 s every time and the screen
+changed every second. Build 227's archive does contain the fix. The iOS path
+was read line by line and found clean -- the table and the list are in
+`crosspoint-reader/docs/update-progress-2026-09-26.md` section 7, which is the
+full record.
+
+What ships: `src/SimUpdateTrace.h`, hooked into the two activities
+(`UPD_TRACE_*`), the main loop's stages, `presentIfNeeded`'s early returns and
+`SDL_RenderPresent`, and `sim_http_fetch::fetch`. With Diagnostics Log ON it
+writes `diagnostics/update-trace.log` (flushed per line; previous run in
+`.1`, 1 MB cap): step boundaries, every fetch with duration, every NEW-frame present (keyed on the framebuffer generation, so trail re-presents cannot hide a stuck frame) with its gap,
+every owed present DECLINED and by which gate, and -- from a watchdog thread --
+one STALL line per stall naming the main-loop stage or the last step.
+`tests/update_trace_test.cpp` pins it. **Next action: the owner's
+update-trace.log from a frozen run.** Candidates recorded, not acted on:
+iOS auto-lock mid-run (the host idle timer ignores `preventAutoSleep()`), and
+the buffered host transport leaving only the clock moving within a file.
+
 ### [S-041] Under iPhone Mirroring the app does not receive clicks or taps — OPEN, cause NOT established; the first hypothesis was refuted and an input trace ships in its place
 **severity: high (owner, 2026-09-20: "iphone mirroring ... is not receiving clicks and taps") · scope: not yet localized; `ios/CrossPointIOSShim.cpp` (`padWatch`, `traceInput`) is where the instrument lives · found 2026-09-20 · NOT reproducible on this Mac: Mirroring needs the owner's phone, and both screen-control requests were declined, so every line below is read off sources rather than measured under Mirroring**
 

@@ -4,6 +4,11 @@
 
 #include <cstdlib>
 #include <string>
+#include <thread>
+#include <mutex>
+#include <cstdio>
+#include <cstring>
+#include <sys/stat.h>
 #include <utility>
 #include <vector>
 
@@ -19,6 +24,7 @@
 #include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
 #include "SimulatorSettingsWatch.h"
+#include "SimUpdateTrace.h"
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
@@ -233,6 +239,70 @@ void installLogTeeOnce() {
 }
 }  // namespace
 
+// The update screens' flight recorder (src/SimUpdateTrace.h). Its lines go
+// through SDL_Log, which the firmware-log tee copies into
+// diagnostics/firmware.log; its watchdog is a thread of its own because the
+// thing it watches for is the main thread going quiet. Once per PROCESS: the
+// iOS reboot longjmps back above this, and a second watchdog would double
+// every STALL line.
+static void installUpdateTraceOnce() {
+  static bool installed = false;
+  if (installed) return;
+  installed = true;
+  // Two places. SDL_Log reaches diagnostics/firmware.log through the tee,
+  // interleaved with the firmware's own lines -- but that file rotates at
+  // 256 KB and a run's per-present surface logging fills it in ~20 s, which
+  // measurably lost a run's BEGIN line on the first try. So the trace ALSO goes
+  // to diagnostics/update-trace.log: small, rotated only at a run's BEGIN (the
+  // previous run survives as .1), and flushed per line, because the case it
+  // exists for ends with the owner force-quitting a frozen app.
+  sim_update_trace::g_sink.store(+[](const char *line) {
+    // Nothing at all unless the owner armed the diagnostics log: the lines
+    // exist for that file, and SDL_Log on iOS is an NSLog.
+    if (!firmwarelog::armed()) return;
+    SDL_Log("%s", line);
+    static std::mutex m;
+    static FILE *f = nullptr;
+    constexpr long kRotateBytes = 1024 * 1024;
+    std::lock_guard<std::mutex> lock(m);
+    struct stat st {};
+    // Deleted from the Files app mid-run: reopen rather than write into an
+    // unlinked file (FirmwareLogFile.h's ensureLiveLocked, same reason).
+    if (f && ::stat("diagnostics/update-trace.log", &st) != 0) {
+      std::fclose(f);
+      f = nullptr;
+    }
+    // Rotate at a run's BEGIN (so the previous run survives whole as .1), and
+    // at 1 MB so one very long run cannot grow without bound.
+    const bool rotate = std::strstr(line, " ms BEGIN ") != nullptr ||
+                        (f && std::ftell(f) > kRotateBytes);
+    if (rotate) {
+      if (f) std::fclose(f);
+      f = nullptr;
+      ::remove("diagnostics/update-trace.log.1");
+      ::rename("diagnostics/update-trace.log", "diagnostics/update-trace.log.1");
+    }
+    if (!f) {
+      ::mkdir("diagnostics", 0755);
+      f = std::fopen("diagnostics/update-trace.log", "a");
+    }
+    if (!f) return;
+    std::fputs(line, f);
+    std::fputc('\n', f);
+    std::fflush(f);
+  });
+  sim_update_trace::g_clock.store(+[]() -> uint64_t { return millis(); });
+  // A reboot that lands with an update screen up (the iOS longjmp re-enters
+  // setup() without that screen's onExit) must not leave the trace armed.
+  simreset::add([] { sim_update_trace::g_active.store(false); });
+  std::thread([] {
+    for (;;) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      sim_update_trace::watch();
+    }
+  }).detach();
+}
+
 int main(int argc, char **argv) {
   SimulatorLifecycle::initProcessArgs(argv);
   latchRenderScale();
@@ -280,6 +350,7 @@ int main(int argc, char **argv) {
   // run. installLogTeeOnce() is what makes it safe to sit below the reboot
   // landing point.
   installLogTeeOnce();
+  installUpdateTraceOnce();
   // Before setup(), because a book handed to us by the OS (Finder on desktop,
   // Files/Mail/Share Sheet on iOS) has to be on the card and recorded in
   // APP_STATE before setup() reads that state and picks which activity to
@@ -370,7 +441,9 @@ int main(int argc, char **argv) {
     // The desktop's answer to the iOS Settings app: one stat a second, and a
     // reparse only when the file actually moved.
     simsettings::pollSettingsFile();
+    sim_update_trace::mainStage("loop()");
     loop();
+    sim_update_trace::mainStage("after loop()");
     // Pick up a mid-run toggle from the Settings screen. No-op unless the value
     // actually changed; see applyKeepScreenAwake().
     applyKeepScreenAwake();
@@ -380,6 +453,7 @@ int main(int argc, char **argv) {
     // app presents too rarely to make another by itself). Same shape as
     // applyKeepScreenAwake above and here for the same reason: edge-triggered
     // inside, main thread only, no present forced unless something changed.
+    sim_update_trace::mainStage("harness perFrame");
     CrossPointHarness_perFrame();
 #endif
     // Raise or dismiss the host keyboard on the firmware's text-entry edge.
@@ -387,6 +461,7 @@ int main(int argc, char **argv) {
     // firmware task and this ends in UIKit: on a phone it is what puts the
     // software keyboard on the glass. Edge-triggered inside; a no-op on every
     // frame that is not a transition.
+    sim_update_trace::mainStage("pumpHostTextInput");
     gpio.pumpHostTextInput();
 #if !CROSSPOINT_SIM_IOS
     // Drain and log the capture (flag set before setup(), above — a lazy flag
@@ -412,11 +487,14 @@ int main(int argc, char **argv) {
     // Open a book handed to us by the OS while the app was already running
     // (Finder double-click on desktop, Files/Mail/Share Sheet on iOS).
     // Relaunches when there is one, so this does not return in that case.
+    sim_update_trace::mainStage("pumpPendingOpen");
     SimulatorDocumentOpen::pumpPendingOpen();
     // SDL must be driven from the main thread on macOS.
     // The render task writes pixels and sets pendingPresent; we flush them
     // here.
+    sim_update_trace::mainStage("presentIfNeeded");
     display.presentIfNeeded();
+    sim_update_trace::mainStage("SDL_Delay");
     // Yield to the OS so macOS delivers pending keyboard/window events to SDL.
     // Without this, the tight spin-loop starves the Cocoa event system and key
     // presses are only picked up sporadically. 1 ms also caps the loop at ~1

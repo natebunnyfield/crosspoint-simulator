@@ -12,6 +12,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "SimUpdateTrace.h"
+
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
@@ -408,10 +410,37 @@ inline bool fetchWithLibcurl(const std::string &url, const char *method,
 }
 #endif // CROSSPOINT_SIM_LIBCURL
 
+inline bool fetchUntraced(const std::string &url, const char *method,
+                          const std::map<std::string, std::string> &headers,
+                          const std::string &basicAuth, const char *body,
+                          Response &out);
+
 inline bool fetch(const std::string &url, const char *method,
                   const std::map<std::string, std::string> &headers,
                   const std::string &basicAuth, const char *body,
                   Response &out) {
+  out = Response{};
+  // The update screens' flight recorder: every host fetch while one is up,
+  // with its duration and size (src/SimUpdateTrace.h). The query string is
+  // dropped -- a redirect target can carry a signed one, and a URL is enough.
+  if (sim_update_trace::active()) {
+    const std::string bare = url.substr(0, url.find('?'));
+    sim_update_trace::mark("host fetch", bare.c_str());
+    const uint64_t t0 = sim_update_trace::now();
+    const bool ok = fetchUntraced(url, method, headers, basicAuth, body, out);
+    sim_update_trace::logf("host fetch done in %llu ms: ok=%d status=%d curl=%d bytes=%zu",
+                           static_cast<unsigned long long>(sim_update_trace::now() - t0), ok ? 1 : 0,
+                           out.statusCode, out.curlExitCode, out.body.size());
+    sim_update_trace::mark("host fetch returned");
+    return ok;
+  }
+  return fetchUntraced(url, method, headers, basicAuth, body, out);
+}
+
+inline bool fetchUntraced(const std::string &url, const char *method,
+                          const std::map<std::string, std::string> &headers,
+                          const std::string &basicAuth, const char *body,
+                          Response &out) {
   out = Response{};
   // The mock-root and file:// paths are platform-independent and stay ahead of
   // any real transport: they are how scripted QA feeds fixtures in without a
