@@ -815,3 +815,5 @@ The largest absolute moves are rare pairs:
   30.7, median 4.0.
 - Same zero (round 395), same page, the `db` collection `active`, bench id
   `active-2026-09-26-s2`.
+
+**Owner ruling, 2026-09-26 (decided blind):** B2 stays BEHIND THE FLAG (`ALBO_SPACING_FIT=b2`, default off). Keep refitting from bench sessions; revisit after he has looked at the proof page.
