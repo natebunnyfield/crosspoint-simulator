@@ -1,6 +1,7 @@
 #include "HalGPIO.h"
 
 #include "SimHostBattery.h"
+#include "SimKeepAwake.h"
 
 #include "FirmwareLogFile.h"
 
@@ -1987,6 +1988,9 @@ void HalGPIO::startDeepSleep() {
     // light page, or finished -- and then this is one predictable branch per
     // 10 ms tick for the rest of the sleep.
     SimulatorOverlay::stepPowerOffCollapse();
+    // An update run ended by the power-off releases its keep-awake here: the
+    // main loop that normally applies it does not run while asleep.
+    sim_keep_awake::applyOnMainThread();
 
     SDL_Delay(10);
   }

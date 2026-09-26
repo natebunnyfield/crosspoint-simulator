@@ -36,6 +36,7 @@
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
 #include "SimUpdateTrace.h"
+#include "SimKeepAwake.h"
 
 // PHASE 2's stop switch (docs/reading-experiments.md §7, Decision 1) lives in
 // Settings.app, which is iOS-only -- CrossPointPrefs.mm compiles into the
@@ -2489,6 +2490,7 @@ std::atomic<bool> g_backgrounded{false};
 
 void HalDisplay::setBackgrounded(const bool backgrounded) {
   const bool was = g_backgrounded.exchange(backgrounded);
+  sim_keep_awake::setForeground(!backgrounded);
   if (was == backgrounded)
     return;
   SDL_Log("[DISPLAY] %s -- GPU presents %s", backgrounded ? "backgrounded" : "foregrounded",
