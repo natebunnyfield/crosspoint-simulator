@@ -370,6 +370,15 @@ run wifi_host \
 run http_dispatch \
   c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 -o "$OUT/http_dispatch" tests/http_dispatch_test.cpp
 
+# The update screens' flight recorder (src/SimUpdateTrace.h, S-042). Update
+# Fonts / Update Library were reported frozen on the phone twice and the second
+# report did not reproduce on the iOS Simulator, so this instrument is the whole
+# of what the next report can tell us -- it has to write what it promises, and
+# only once per stall, or the 256 KB firmware.log rotates over the answer.
+# Compiled with the iOS HTTP define so the phone's fetch branch is traced.
+run update_trace \
+  c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 -o "$OUT/update_trace" tests/update_trace_test.cpp
+
 # The host SETTINGS channel -- the wire that carries a GitHub token from a
 # surface the owner can reach to Update Library's fetch. Update Library was
 # unconfigurable on iOS until this existed: the token lives in

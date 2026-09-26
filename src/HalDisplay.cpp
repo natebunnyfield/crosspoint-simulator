@@ -35,6 +35,7 @@
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
+#include "SimUpdateTrace.h"
 
 // PHASE 2's stop switch (docs/reading-experiments.md §7, Decision 1) lives in
 // Settings.app, which is iOS-only -- CrossPointPrefs.mm compiles into the
@@ -1077,6 +1078,7 @@ uint64_t renderBwPixels(const uint8_t *fb,
                         eink::Refresh einkTransition = eink::Refresh::None) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const uint64_t seq = ++pixelBufSeq;
+  sim_update_trace::frameWritten(seq);
   pixelBufWriteMs.store(SDL_GetTicks());
   if (!reconvertingFrame) pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
   const PanelPalette pal = livePanelPalette(display.isInverted());
@@ -1158,6 +1160,7 @@ uint64_t composeGrayscalePreview() {
     return 0;
   }
   const uint64_t seq = ++pixelBufSeq;
+  sim_update_trace::frameWritten(seq);
   pixelBufWriteMs.store(SDL_GetTicks());
   if (!reconvertingFrame) pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
@@ -2490,6 +2493,9 @@ void HalDisplay::setBackgrounded(const bool backgrounded) {
     return;
   SDL_Log("[DISPLAY] %s -- GPU presents %s", backgrounded ? "backgrounded" : "foregrounded",
           backgrounded ? "suspended" : "resumed");
+  // The update trace's watchdog cannot tell a suspended app from a stalled
+  // main loop by itself (millis() keeps counting while iOS has us parked).
+  sim_update_trace::mark(backgrounded ? "app backgrounded" : "app foregrounded");
   // The reading goal's clock: the pass after a return spans the time away,
   // which is not reading (src/ReadingAllowance.h Session::resume). Marked on
   // BOTH edges -- iOS can stop scheduling the process before the background
@@ -3125,8 +3131,10 @@ std::atomic<int> &cornerDefocusStrengthRef() {
 void HalDisplay::presentIfNeeded() {
   // Nothing may touch the GPU while backgrounded. Return BEFORE clearing
   // pendingPresent so the frame stays owed and lands on the way back in.
-  if (g_backgrounded.load())
+  if (g_backgrounded.load()) {
+    if (pendingPresent.load()) sim_update_trace::declined("backgrounded");
     return;
+  }
 
   if (powerLogFirstPresent) {
     powerLogFirstPresent = false;
@@ -3153,6 +3161,7 @@ void HalDisplay::presentIfNeeded() {
   // point of the sleep screen: an e-ink panel holds it with the power off.
   if (displaySleeping.load() && SimulatorOverlay::powerOffCollapse.load() &&
       lastReadingDarkGround.load()) {
+    if (pendingPresent.load()) sim_update_trace::declined("sleep veto (power-off collapse)");
     pendingPresent.store(false);
     presentHoldUntil.store(0);
     if (!powerLogSleepVetoSaid && powerLogWanted()) {
@@ -3194,8 +3203,10 @@ void HalDisplay::presentIfNeeded() {
   // wall-clock instant and must not silently receive a frame from 40 ms later.
   const uint64_t holdUntil = presentHoldUntil.load();
   if (holdUntil != 0 && !screenshotDue) {
-    if (SDL_GetTicks() < holdUntil)
+    if (SDL_GetTicks() < holdUntil) {
+      if (pendingPresent.load()) sim_update_trace::declined("coalescing hold");
       return;  // pendingPresent untouched: still owed, lands next pass
+    }
     presentHoldUntil.store(0);
   }
 
@@ -3256,8 +3267,10 @@ void HalDisplay::presentIfNeeded() {
   if (!pendingPresent.exchange(false) && !screenshotDue)
     return;
 
-  if (!texture || !sdl_renderer)
+  if (!texture || !sdl_renderer) {
+    sim_update_trace::declined("no texture/renderer");
     return;
+  }
 
   // THE POLARITY YOU WERE READING IN, latched on every present that is not part
   // of going to sleep.
@@ -4827,6 +4840,7 @@ void HalDisplay::presentIfNeeded() {
   }
   const uint64_t flipT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
   SDL_RenderPresent(sdl_renderer);
+  sim_update_trace::presented(uploadedSeq);
   if (timingLogWanted()) {
     const uint64_t end = SDL_GetTicksNS();
     timingFrame.flipMs = static_cast<double>(end - flipT0) / 1.0e6;
