@@ -621,6 +621,20 @@ run raking_light \
 run eink_panel \
   c++ -std=c++17 -Isrc -Itests -o "$OUT/eink_panel" tests/eink_panel_test.cpp
 
+# The ghost CALIBRATION tool (tools/eink_calibrate.py, 2026-09-25): reads
+# kResidueToWhite / kResidueToBlack / kKeep off photographs of a real panel.
+# Its selftest photographs a synthetic panel with KNOWN residues -- exposure
+# drift between shots, sensor noise, a 1 px misregistration -- and fails unless
+# all three come back. It caught its own first bug: normalizing by pixels that
+# had just turned ink divided the to-black residue away (0.018 for 0.025).
+if python3 -c 'import numpy, PIL' 2>/dev/null; then
+  run_direct eink_calibrate \
+    python3 tools/eink_calibrate.py --selftest
+else
+  printf '%-22s %s\n' "eink_calibrate" "SKIP (python3 numpy/Pillow not available)"
+  skipped=$((skipped + 1))
+fi
+
 run scanlines \
   c++ -std=c++17 -Isrc -o "$OUT/scanlines" tests/scanlines_test.cpp
 

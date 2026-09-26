@@ -85,10 +85,11 @@ The decoded tables say otherwise, and the simulator follows the tables.
 **FAST** (`_fast`, 19 frames). A changed pixel is driven for 14 + 4 frames. An
 unchanged pixel gets a 2-frame touch.
 
-**Non-X3 builds.** The X4 and X4 Pro (SSD1677) run OTP sequences: `0xD7` for
-HALF and `0xF7` for FULL. No file here holds their frames. On those builds the
-simulator uses the X3 `_full` program for both requests. This stand-in is
-**not measured**.
+**Non-X3 builds.** The X4 (SSD1677) runs OTP sequences: `0xD7` for HALF and
+`0xF7` for FULL. No file here holds their frames — searched for on 2026-09-25,
+§2a below. On those builds the simulator uses the X3 `_full` program for both
+requests. This stand-in is **not measured**, and `tests/eink_panel_test.cpp`
+pins it so a real X4 transcription has to change it on purpose.
 
 ### 1.3 Optics
 
@@ -187,6 +188,37 @@ device, a manual full refresh is the same waveform over the same page. With old
 and new identical, the WB class holds ink and WW goes black. So the glass goes
 fully dark, as the second row of the proof figure shows, and the page returns.
 
+## 2a. The X4's waveform: searched for, not found (2026-09-25)
+
+Searched, read-only, at the firmware checkout's `freeink-sdk` and on the web:
+
+| Where | What is there | BW refresh frames? |
+|---|---|---|
+| `freeink-sdk/.../src/lut/Ssd1677Luts.h` | `lut_grayscale` and `lut_grayscale_sticky` (the X4's 4-level AA waveform, relocated "verbatim from the upstream EInkDisplay monolith"), `lut_factory_quality` (the OEM factory 4-level gray, 50 frames, used only for standalone wallpapers and covers) | **No.** All three are grayscale. The file says the stock X4 has no revert waveform. |
+| `.../driver/Ssd1677Driver.cpp` | Sequences only: `0xF7` full, `0xFC` fast, `0xD7` half, loaded from the panel's OTP with a temperature read | **No.** Line ~413: the OEM firmware's only clean primitive in normal use is the **single-pass HALF** (`0xD7`); the multi-flash OTP full (`0xF7`) is "a dead fallback branch there". |
+| `.../driver/Uc8179Driver.cpp`, `Uc8279X4Driver.cpp` (the X4 Pro's two controller batches) | External AA grayscale banks; BW refreshes run the OTP (`PSR REG` cleared) | **No.** |
+| `.../lut/Uc8279X3Luts.h` | `BW_GC` / `BW_DU` banks, command-prefixed, reverse-engineered from stock X3 firmware | **Yes — but for the X3's newer UC8279d batch, not the X4.** See below. |
+| `freeink-sdk/docs/display-driver-references.md` | X4 = SSD1677 + GDEQ0426T82; points at GxEPD2's GDEQ0426T82 driver | GxEPD2 drives it from OTP too. The doc also rules "waveforms are panel-specific. Never copy them" between panels. |
+| Web: "GDEQ0426T82 SSD1677 waveform LUT OTP" | Good Display's product page (full refresh 1.5 s, partial 0.42 s); papyrix-reader `docs/ssd1677-driver.md` (LUT *layout* only, "full refresh ~1600 ms"); the SSD1677 datasheet (OTP can hold per-temperature LUTs) | **No bytes anywhere.** The panel's OTP contents are not published. |
+
+So the fallback stays. Two things the search did establish, recorded for the
+owner rather than acted on:
+
+- **The X4's periodic HALF is single-pass, not a multi-inversion flash**
+  (`Ssd1677Driver.cpp`, the comment above). The simulator currently runs the X3
+  `_full` — which inverts — for an X4 HALF, so an X4 build flashes where the
+  device probably scrubs. Switching the X4 HALF to the X3 scrub would be closer
+  on that evidence, but it is still a borrowed shape, so it is a proposal.
+- **Durations.** The documented X4 full refresh is 1.5 s (Good Display) to
+  ~1.6–1.7 s (papyrix; the Sticky comment in `Ssd1677Driver.cpp`), against the
+  borrowed program's 1.24 s at 20 ms a frame.
+- **The X3's own UC8279d batch is ALSO borrowing.** `SIMULATOR_DEVICE_X3` with
+  `SIMULATOR_DISPLAY_UC8279` still runs the UC8253 tables, while
+  `Uc8279X3Luts.h` holds that batch's real `BW_GC` (clearing) and `BW_DU`
+  (partial) banks. Transcribing them is the same job as §1.2 and was not done
+  here (outside the X4 ask). Which controller the owner's X3 carries is not
+  recorded anywhere this search looked.
+
 ## 2. Measurements
 
 All on the desktop, with a `simulator_x3` build at `CROSSPOINT_RENDER_SCALE=2`,
@@ -277,11 +309,11 @@ not measured.
 
 ## 6. Left to do
 
-1. **A photograph of the X3 mid-refresh.** It would calibrate three things
-   against the real panel: the frame period, the ghost strengths (0.03, 0.015,
-   0.92) and τ. This is the 2AFC in the research plan.
-2. **The X4's OTP waveforms** (`0xD7`, `0xF7`). They are unknown, and the
-   simulator substitutes the X3 `_full` program.
+1. **Calibrate against the real X3.** The procedure and the tool now exist
+   (§7); what is left is taking the photographs. The frame period and τ need a
+   video (§7.4).
+2. **The X4's OTP waveforms** (`0xD7`, `0xF7`). Searched for and not found
+   (§2a); the simulator still substitutes the X3 `_full` program.
 3. **Partial refreshes are not animated.** A real FAST refresh takes about
    400 ms with visible settling. Animating every page turn would change the
    feel of every turn, so it was not included.
@@ -297,3 +329,83 @@ not measured.
 
 - **E-ink mode is LIGHT PAGE ONLY.** The dark page stays the tube, per the 2026-08-22 doctrine: light is paper and ink, dark is CRT.
 - **Shake stays bound to zen.** Full Refresh stays available in Settings to bind to any gesture. The shipped default does not change.
+
+## 7. Calibrating the ghost against a real X3 (procedure, 2026-09-25)
+
+The three ghost constants in `src/EinkPanel.h` — `residueToWhite()` 0.030,
+`kResidueToBlack` 0.015, `kKeep` 0.92 — are tuned. This is how to replace them
+with numbers read off the owner's own panel. Tool: `tools/eink_calibrate.py`
+(its `--selftest` runs in `tests/run_all.sh`: a synthetic panel with known
+residues, exposure drift, noise and a 1 px misregistration, all three recovered).
+
+### 7.1 Setup
+
+- The X3 on a table, the phone on a tripod or propped **square to the glass**,
+  so the page fills the frame. Do not move either between shots.
+- **Lock exposure and focus** (long-press in the Camera app until
+  *AE/AF LOCK*), flash off, room light steady, no window light moving across
+  the page. The tool normalizes each photo to its own paper and ink, which
+  absorbs a small drift, not a cloud passing.
+- Stock reading settings, the reader's refresh frequency at its default (15):
+  the HALF every 15 pages is what clears the ghost, so count page turns.
+- Three pages **A, B, C** with plenty of text and different line breaks — three
+  consecutive pages of prose do. The ghost is measured where A had ink and B
+  has paper, so they must not line up.
+
+### 7.2 Shots (one set measures all three constants)
+
+1. Go to page A and force a clean refresh (the reader's own HALF: turn to a
+   page just after one, or sleep and wake). Photograph: **`prev.jpg`**.
+2. Turn forward once to B. That is ONE partial. Photograph immediately:
+   **`ghosted.jpg`**.
+3. Turn forward to C and back to B, `M` times (each round trip is two
+   partials, so `M` = 2 × round trips; 4 is a good number). Stop on B.
+   Photograph: **`later.jpg`**. Do not cross a HALF while doing this — keep the
+   count below the refresh frequency.
+4. On B, force a clean refresh (sleep and wake). Photograph: **`clean.jpg`**.
+5. Go to C, clean refresh, photograph: **`third.jpg`** (it keeps pixels C
+   re-inked out of the keep measurement).
+
+### 7.3 Run it
+
+```bash
+tools/eink_calibrate.py prev.jpg clean.jpg ghosted.jpg \
+    --later later.jpg --later-partials 4 --third third.jpg \
+    [--crop x,y,w,h]     # the text block only, same box for every photo
+```
+
+It prints each residue as a fraction of the full ink-to-paper swing and in
+levels, and the three lines to paste into `src/EinkPanel.h`. Read before
+pasting:
+
+- **Fractions are in the photo's encoded (gamma) space**, which is also the
+  space the model's levels live in (0–255 code values through the palette
+  LUT), so they transfer directly. Shoot every frame in the same format;
+  mixing RAW and JPEG breaks that.
+- **A negative residue** means the "ghosted" photo is cleaner than the clean
+  one: the photos are out of order or the exposure moved.
+- **Masks are eroded 2 px.** At a photo of roughly 4× the panel's pixels a
+  stroke is ~8 px wide, so this is safe; a far-away photo (strokes under 5 px)
+  fails with "only N pixels", which is the tool refusing rather than guessing.
+- **The 7:1 cap still wins.** A measured residue larger than the palette's cap
+  (18 levels on the frozen page) is drawn at the cap; the cap is a legibility
+  rule, not a physics claim, and a measurement does not lift it.
+- After pasting, re-run `tests/run_all.sh -k eink` — the floor test runs 14
+  partials on both palettes against the new constants.
+
+### 7.4 What photographs cannot measure: the frame period and τ
+
+`kFramePeriodMs` (20, assumed) and `kTauFrames` (4, assumed) need time, so they
+need **video**: iPhone slow-motion (240 fps) of the X3 through one HALF (the
+scrub, 25 frames) and one host-requested FULL (62 frames), same tripod.
+
+- **Frame period**: count video frames from the first visible change to the
+  last, divide by the bank's frame count (25 or 62). A full that takes 1.24 s is
+  20 ms a frame; 1.5 s would be 24 ms.
+- **τ**: on the FULL, pick a paper pixel region and plot its brightness through
+  the first segment (24 frames driving black). The fall to 1/e of the swing,
+  in panel frames, is τ. Set `kTauFrames`.
+
+No tool for the video yet: a per-frame mean over a crop (`ffmpeg -vf crop,...`
+into PNGs, then a mean per frame) is all it needs, and it should be written
+when there is a video to test it on.
