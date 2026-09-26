@@ -7,6 +7,7 @@ answer only counts once it is moved there:
 
     target white = white(pair, page's font) + his delta
     d on the fit's zero = target white - white(pair, bench/fonts-2026-09-20)
+                          - tracking c, when the page's font carried it (see TRACKED_ZEROS)
 
 White = rsb + kern + lsb (HarfBuzz), the measure every page's key file uses.
 The conversion is exact for spacing. It is NOT exact where an outline changed
@@ -43,6 +44,28 @@ Z395 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26", f)) for s, f in FN.i
 Z396 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r396", f)) for s, f in FN.items()}
 Z397 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r397", f)) for s, f in FN.items()}
 Z398 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r398", f)) for s, f in FN.items()}
+
+
+# TRACKING c (round 393, owner "c . +6 (caps +3)") is applied by build.py ON TOP
+# of the spacing tables, so the fit's zero must NOT contain it. Every page
+# served from round 395 on (these zero dirs) DID contain it, so a reading taken
+# there carries it and must give it back, or the build adds it twice. Tracking
+# c is +3 on each side of every lowercase letter and every mark, 0 on a
+# capital: verified against a round-395 build at ALBO_TRACK=a on all 1,486
+# census pairs in both styles, 0 mismatches (2026-09-26). Found building the
+# override arm: before this, sessions 1-3 were fitted 6 units loose (3 on
+# capital pairs) -- round 397 and 398 carry that.
+TRACKED_ZEROS = {"fonts-2026-09-26", "fonts-2026-09-26-r396", "fonts-2026-09-26-r397",
+                 "fonts-2026-09-26-r398"}
+
+
+def track_c(pair):
+    return sum(3 for c in pair if c.islower() or c in "'.,:;\"-!?")
+
+
+def zero_dir(zero):
+    """'bench/fonts-2026-09-26 (round 395, 12b75e9)' -> 'fonts-2026-09-26'."""
+    return (zero or "").split("/")[-1].split(" ")[0]
 
 
 def load_extra():
@@ -104,7 +127,9 @@ def active(src):
         r = rows_k[(a["style"], a["id"])]
         rows.append(dict(bench=bench, style=a["style"], pair=r["pair"], id=a["id"], delta=a["delta"],
                          white_zero=r["white0"], white0920=r["white0920"],
-                         d0920=int(r["white0"] + a["delta"] - r["white0920"]),
+                         d0920=int(r["white0"] + a["delta"] - r["white0920"]
+                                   - (track_c(r["pair"]) if zero_dir(key.get("zero")) in TRACKED_ZEROS else 0)),
+                         track_removed=(track_c(r["pair"]) if zero_dir(key.get("zero")) in TRACKED_ZEROS else 0),
                          d_r395=int(r["white0"] + a["delta"] - Z395[a["style"]](*r["pair"])),
                          d_r396=int(r["white0"] + a["delta"] - Z396[a["style"]](*r["pair"])),
                          d_r397=int(r["white0"] + a["delta"] - Z397[a["style"]](*r["pair"])),

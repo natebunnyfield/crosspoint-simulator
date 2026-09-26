@@ -823,3 +823,152 @@ The largest absolute moves are rare pairs:
 **Round 397** (`docs/albo-round-397-2026-09-26.md`): refit on 520 answers (bench pairs held out 10.33); session 2's pairs predicted 14.76 by round 396 before he answered, 10.00 held out after; `--consolidate` (per-glyph bearings instead of consistent kerns) measured and offered, not shipped.
 
 **Round 398** (`docs/albo-round-398-2026-09-26.md`): refit on 570 answers (bench pairs held out 10.12); a single touched answer is only ~21% realized, while his repeat error (6.4) now beats the model on his touched rows (9.02), so a literal-override option for touched answers is offered, not shipped. Also the Bold Italic g put on the weight axis.
+
+
+---
+
+## 13. The override question, a tracking bug, and the round-399 candidate (2026-09-26)
+
+**Owner:** should a pair he touched ship at his exact value instead of the
+ridge's blend? *"show me"*.
+
+### 13a. A bug found while building it: tracking c was counted twice [verified]
+
+- **What happened.**
+  - Round 393's tracking c is applied by `build.py` **on top of** the spacing
+    tables: +3 on each side of every lowercase letter and every mark, 0 on a
+    capital.
+  - Every active-bench page from round 395 on was rendered **with** it.
+  - `active_ingest.py` converted each answer to the fit's zero by absolute
+    white, so each active reading carried the tracking.
+  - The build then added it again.
+- **The effect.** Rounds 397 and 398 were fitted with sessions 1–3 **6 units
+  too loose** on lowercase and mark pairs and 3 on capital pairs.
+- **The formula is verified.** `track_c(pair)` = 3 × (lowercase or mark
+  sides), checked against a round-395 build at `ALBO_TRACK=a` on all 1,486
+  census pairs in both styles, 0 mismatches.
+- **Fix.** `active_ingest.py` subtracts it for every page whose zero is a
+  tracked font (`TRACKED_ZEROS`) and records `track_removed`. Sessions 1–3
+  were re-ingested; session 4 was ingested with the fix.
+- **What it changes in the default** (a refit on sessions 1–3 alone, before
+  session 4, against round 398): frequency-weighted net **−1.2 units** in
+  both styles, mean |Δ| 1.7. Examples: roman `he` −4, `in` −4, `ou` −5,
+  italic `de` −5.
+- **Round 398's shipped tables still carry the double count.** The
+  round-399 candidate below is the fix.
+
+**His repeats, recomputed honestly** (fit zero, tracking removed; a skip
+counts as 0):
+
+| | n (touched / skipped) | mean \|new − previous\| | drift | as displayed on the page |
+|---|---|---|---|---|
+| re-ask | 30 typical | 10.83 | +5.43 | (no tracking on that page) |
+| session 1 | 5 (1 / 4) | 11.00 | −4.60 | 12.20 / +1.40 |
+| session 2 | 5 (3 / 2) | 11.80 | −9.40 | 8.00 / −4.00 |
+| session 3 | 5 (1 / 4) | 7.20 | −3.20 | 6.40 / +2.80 |
+| session 4 | 5 (2 / 3) | 12.80 | +7.20 | 16.40 / +13.20 |
+
+- **There is no improving trend.** The four sessions average about 10.7,
+  the same as the re-ask.
+- **Correction to round 398's doc:** it said his repeats had tightened
+  (12.2 → 8.0 → 6.4) and now beat the model. That was the uncorrected
+  numbers and a mismatched comparison. It is withdrawn; see 13b.
+
+### 13b. Which predicts his next answer: his first answer, or the model? [measured, `local_ai/override.py check`]
+
+The test: every pair he answered twice (touched; 60 pairs). Compare his first
+answer with his second, and B2 (refit per pair with his first reading, not his
+second) with his second.
+
+| second answer from | n | his first | the model |
+|---|---|---|---|
+| re-ask | 39 | 11.49 | 9.45 |
+| outlier bench | 15 | 14.00 | 9.69 |
+| active repeats (s1–s4) | 6 | 13.33 | 8.40 |
+| **all** | **60** | **12.30** | **9.41** |
+
+**The model was closer on 39 of 60.** On held-out evidence, **shipping his
+single answer is worse than the ridge blend, by about 3 units.** This does not
+say which one looks better to him; that is what the proof is for.
+
+### 13c. The arms (behind flags, default off; round 398 unchanged)
+
+| arm | what ships | pairs that change (roman / italic) | weighted mean \|Δwhite\| | net | max |
+|---|---|---|---|---|---|
+| `ALBO_SPACING_OVERRIDE=touched` | every pair he moved a slider on, at the mean of his readings (plus tracking c); B2 the rest | 225 / 202 | 6.40 / 6.01 | +0.25 / -0.33 | 37 / 33 |
+| `ALBO_SPACING_OVERRIDE=consistent` (the middle arm) | his value only where he answered 2+ times and every reading lies within 11 units (his repeatability) | 12 / 13 | 0.15 / 0.35 | +0.05 / +0.05 | 10 / 16 |
+
+- **Scope.** Touched means the 370 bench judgments, the 40 re-ask answers,
+  the 50 outlier answers and the active rows he moved, through session 4.
+  Skips are excluded, and the g stays out.
+- **Implementation.** `local_ai/override.py write` puts both tables into
+  `spacing_b2.json` (`overrides`, `overrides_consistent`), and `kern.py`
+  applies them under the flag.
+- **The default is untouched:** outlines, advances and GPOS are identical
+  to round 398 ×4.
+- **Gates, both arms:**
+  - `gates.sh` UNCHANGED;
+  - `cmp_touch` 0/0 ×4, so no new clearance was needed;
+  - hairs full sweep and `--letters` clean ×4;
+  - approved glyphs 2/2;
+  - outlines and advances identical to round 398, since kerns only moved.
+- **Proof** (not published): `override/index.html` in the scratchpad, made by
+  `local_ai/override_proof.py`.
+  - The 12 most-changed pairs per style in their words at 108 px.
+  - The paragraphs at 27 px ×2 and 54 px, with the difference view.
+  - The numbers above.
+
+### 13d. The round-399 candidate (NOT default until he rules on the override)
+
+- **The refit.** The tracking fix plus session 4: 620 readings. Written to
+  `outlines/spacing_b2_r399.json`. It is built with
+  `ALBO_SPACING_TABLES=spacing_b2_r399.json`, a new switch that names a
+  candidate table file; unset is the shipped `spacing_b2.json`.
+- **In-sample:** roman 7.19, italic
+  6.3. Kerns: 417 roman,
+  435 italic.
+- **Against round 398:** net -1.15 / -0.85,
+  mean |Δ| 1.77 / 1.57.
+  Examples: roman `in` −7, `nt` −5, `ur ns rs` −6.
+- **Gates:** `gates.sh` UNCHANGED, `cmp_touch` 0/0 ×4 (no new Bold Italic q
+  clearance needed), hairs clean ×4, approved 2/2, dents at 700 0/0.
+
+**Held out** (same folds):
+
+```
+A. the 370 bench pairs, held out on bench_fit's folds, scored against his bench number
+   bench only (B2 as proofed)        10.73
+   + extras, skip weight 1           10.03
+   + extras, skip weight 0.5         10.16
+   + extras, skip weight 0.25        10.27
+   + extras, skip weight 0           10.44
+
+B. the pairs first answered after the bench (mean |error| vs his answer, 09-20 zero)
+   BEFORE = bench-only B2; PREV = fit on all but active-2026-09-26-s4 (the default it was chosen from)
+   subset         n  nothing  BEFORE    PREV   CV sk1 CV sk0.5 CV sk0.25   CV sk0  in-samp
+   outlier       29    12.93   13.28    6.96     9.94    10.23    10.52    11.08     7.12
+   s1-skipped    28     7.57    8.80    3.69     5.68     6.14     6.44     6.83     4.25
+   s1-touched    17    12.47    8.69    7.11     9.06     8.85     8.76     8.75     7.00
+   s2-skipped    26     6.92    5.13    3.36     4.60     4.72     4.80     4.90     3.68
+   s2-touched    19    16.68   14.57    6.84     9.84     9.80     9.80     9.80     7.24
+   s3-skipped    19     5.79    2.74    1.64     1.81     1.78     1.76     1.77     1.65
+   s3-touched    26     9.35   10.85    6.16     7.39     7.57     7.76     8.23     5.97
+   s4-skipped    28     7.50    3.29    2.66     2.96     3.09     3.20     3.45     2.33
+   s4-touched    17    21.35   13.79   12.83    11.96    11.76    11.63    11.40     9.16
+   ALL          209    10.63    8.85    5.39     6.80     6.91     7.02     7.24     5.19
+```
+
+- **Bench pairs: 10.03** (round 398's data gave 10.12).
+- **Session 4's touched pairs:** 12.83 before (PREV), 11.96 after. Doing
+  nothing scores 21.35 on them.
+
+### 13e. Session 5
+
+- **Key:** `bench/active-2026-09-26-s5.key.json`. The page is in
+  `activebench5/` in the scratchpad.
+- **Zero:** round 398, the shipped default.
+- **Uncertainty** comes from the corrected readings through session 4.
+  Moves are measured against the round-399 candidate build.
+- **Candidates:** 705. The sd runs 1.6 to
+  16.5, median 3.8.
+- **Rows:** 45 plus 5 repeats; 22 roman, 28 italic.

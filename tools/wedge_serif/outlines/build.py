@@ -529,7 +529,10 @@ ALD_PUNCT_FIT = {"'": (-6, +0), ',': (+2, +0), '.': (-5, +0), ':': (-1, +0)}
 SPACING_FIT = os.environ.get("ALBO_SPACING_FIT", "b2").strip().lower() or "b2"
 if SPACING_FIT == "b2":
     import json as _json
-    _B2 = _json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spacing_b2.json")))
+    # ALBO_SPACING_TABLES names a CANDIDATE table file beside this one (e.g. a
+    # refit awaiting a ruling); unset is the shipped spacing_b2.json.
+    _B2 = _json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                       os.environ.get("ALBO_SPACING_TABLES", "spacing_b2.json"))))
     ROM_LC_ADJ = {c: tuple(v) for c, v in _B2["roman"]["letters"].items() if c != "g"}
     if "i" in ROM_LC_ADJ:
         ROM_LC_ADJ["ﬁ"] = ROM_LC_ADJ["ﬃ"] = (0, ROM_LC_ADJ["i"][1])

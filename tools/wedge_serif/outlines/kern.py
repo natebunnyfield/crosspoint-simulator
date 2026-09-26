@@ -621,7 +621,8 @@ _BENCH_PAIRS_ITA = ((('A','n'), 2), (('A','v'), 16), (('C','a'), -1), (('C','h')
 _SPACING_FIT = os.environ.get("ALBO_SPACING_FIT", "b2").strip().lower() or "b2"
 _B2 = None
 if _SPACING_FIT == "b2":
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spacing_b2.json")) as _fh:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           os.environ.get("ALBO_SPACING_TABLES", "spacing_b2.json"))) as _fh:
         _B2 = json.load(_fh)["italic" if (_ALD is not None and _ALD.ON) else "roman"]
 _B2_NAMES = {'.': ['period'], ',': ['comma'], ':': ['colon'], ';': ['semicolon'],
              "'": ['quotesingle', 'quoteright'], '\u2019': ['quoteright'], '"': ['quotedbl'],
@@ -866,6 +867,24 @@ if _B2 is not None:
         _rs = ['quoteright'] if _k[1] == '\u2019' else (['quotesingle'] if _k[1] == "'" else _b2_names(_k[1]))
         for _l in _ls:
             for _r in _rs:
+                PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
+
+# 2026-09-26 -- THE OVERRIDE ARM, BEHIND A FLAG, DEFAULT OFF. Owner, on whether a
+# pair he touched should ship at his exact value: *"show me"*.
+# ALBO_SPACING_OVERRIDE=touched moves every pair he has touched to his own
+# number (the mean of his readings, on the current zero): each value in
+# spacing_b2.json's "overrides" is his target white minus the B2 build's,
+# written by local_ai/override.py. Unset, nothing here runs.
+_OVERRIDE = os.environ.get("ALBO_SPACING_OVERRIDE", "").strip().lower()
+# =consistent is the middle arm: his value only where he has answered the pair
+# at least twice and his answers agree (spread within his own repeatability);
+# B2 everywhere else ("overrides_consistent").
+if _OVERRIDE and _OVERRIDE not in ("touched", "consistent"):
+    raise SystemExit(f"ALBO_SPACING_OVERRIDE={_OVERRIDE!r}: the arms are 'touched' and 'consistent'")
+if _OVERRIDE and _B2 is not None:
+    for _k, _d in sorted(_B2.get("overrides" if _OVERRIDE == "touched" else "overrides_consistent", {}).items()):
+        for _l in _b2_names(_k[0]):
+            for _r in _b2_names(_k[1]):
                 PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
 
 # B2 + BoldItalic (round 396): the refit's italic q right side (-4) takes the 900-weight

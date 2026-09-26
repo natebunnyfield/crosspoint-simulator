@@ -45,7 +45,7 @@ sys.path.insert(0, HERE); sys.path.insert(0, WS)
 import bench_fit  # noqa: E402
 import features as FT  # noqa: E402
 
-OUT = os.path.join(WS, "outlines", "spacing_b2.json")
+OUT = os.path.join(WS, "outlines", os.environ.get("ALBO_SPACING_TABLES", "spacing_b2.json"))
 MARKS = set("'.,:;\"-!?")
 ALPHA_ID, ALPHA_F = 1.0, 30.0
 MIN_KERN = 4

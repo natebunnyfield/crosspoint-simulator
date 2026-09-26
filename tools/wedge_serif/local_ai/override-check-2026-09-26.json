@@ -1,0 +1,602 @@
+[
+ {
+  "style": "roman",
+  "pair": "'s",
+  "first": -42.0,
+  "second": -54.0,
+  "src": "reask",
+  "model": -39.13164433899311,
+  "e_first": 12.0,
+  "e_model": 14.868355661006888
+ },
+ {
+  "style": "roman",
+  "pair": "'t",
+  "first": -23.0,
+  "second": -37.0,
+  "src": "reask",
+  "model": -23.590536637380552,
+  "e_first": 14.0,
+  "e_model": 13.409463362619448
+ },
+ {
+  "style": "roman",
+  "pair": "Av",
+  "first": 12.0,
+  "second": 3.0,
+  "src": "reask",
+  "model": 3.7467067947215624,
+  "e_first": 9.0,
+  "e_model": 0.7467067947215624
+ },
+ {
+  "style": "roman",
+  "pair": "Qu",
+  "first": 37.0,
+  "second": 11.0,
+  "src": "reask",
+  "model": 37.116223918127794,
+  "e_first": 26.0,
+  "e_model": 26.116223918127794
+ },
+ {
+  "style": "roman",
+  "pair": "To",
+  "first": 24.0,
+  "second": 14.0,
+  "src": "reask",
+  "model": 17.69713697765453,
+  "e_first": 10.0,
+  "e_model": 3.69713697765453
+ },
+ {
+  "style": "roman",
+  "pair": "Wa",
+  "first": 41.0,
+  "second": 40.0,
+  "src": "reask",
+  "model": 28.49861397111585,
+  "e_first": 1.0,
+  "e_model": 11.501386028884149
+ },
+ {
+  "style": "roman",
+  "pair": "ct",
+  "first": 30.0,
+  "second": 11.0,
+  "src": "reask",
+  "model": 15.991824174071596,
+  "e_first": 19.0,
+  "e_model": 4.991824174071596
+ },
+ {
+  "style": "roman",
+  "pair": "e;",
+  "first": -5.0,
+  "second": -10.0,
+  "src": "reask",
+  "model": -0.13184840470064962,
+  "e_first": 5.0,
+  "e_model": 9.86815159529935
+ },
+ {
+  "style": "roman",
+  "pair": "ea",
+  "first": 19.0,
+  "second": 5.0,
+  "src": "reask",
+  "model": 20.72015168020795,
+  "e_first": 14.0,
+  "e_model": 15.720151680207952
+ },
+ {
+  "style": "roman",
+  "pair": "ec",
+  "first": 17.0,
+  "second": 36.0,
+  "src": "outliers-2026-09-25",
+  "model": 9.260243800482026,
+  "e_first": 19.0,
+  "e_model": 26.739756199517974
+ },
+ {
+  "style": "roman",
+  "pair": "ed",
+  "first": 28.0,
+  "second": 33.0,
+  "src": "outliers-2026-09-25",
+  "model": 16.652886279293433,
+  "e_first": 5.0,
+  "e_model": 16.347113720706567
+ },
+ {
+  "style": "roman",
+  "pair": "ha",
+  "first": 14.0,
+  "second": 9.0,
+  "src": "active-2026-09-26-s2",
+  "model": 8.16713128105944,
+  "e_first": 5.0,
+  "e_model": 0.8328687189405599
+ },
+ {
+  "style": "roman",
+  "pair": "ic",
+  "first": 11.0,
+  "second": 8.0,
+  "src": "reask",
+  "model": 7.754528079881412,
+  "e_first": 3.0,
+  "e_model": 0.24547192011858776
+ },
+ {
+  "style": "roman",
+  "pair": "it",
+  "first": 30.0,
+  "second": 34.0,
+  "src": "reask",
+  "model": 18.176663136603963,
+  "e_first": 4.0,
+  "e_model": 15.823336863396037
+ },
+ {
+  "style": "roman",
+  "pair": "iv",
+  "first": -26.0,
+  "second": -4.0,
+  "src": "reask",
+  "model": -1.0899558515020633,
+  "e_first": 22.0,
+  "e_model": 2.9100441484979367
+ },
+ {
+  "style": "roman",
+  "pair": "li",
+  "first": 11.0,
+  "second": 21.0,
+  "src": "active-2026-09-26-s4",
+  "model": 5.62124519319615,
+  "e_first": 10.0,
+  "e_model": 15.378754806803851
+ },
+ {
+  "style": "roman",
+  "pair": "ll",
+  "first": 19.0,
+  "second": 12.0,
+  "src": "reask",
+  "model": 11.762629483949388,
+  "e_first": 7.0,
+  "e_model": 0.23737051605061232
+ },
+ {
+  "style": "roman",
+  "pair": "lo",
+  "first": 5.0,
+  "second": 15.0,
+  "src": "reask",
+  "model": 11.480901869685754,
+  "e_first": 10.0,
+  "e_model": 3.519098130314246
+ },
+ {
+  "style": "roman",
+  "pair": "na",
+  "first": 29.0,
+  "second": 7.0,
+  "src": "outliers-2026-09-25",
+  "model": 1.9697718911243391,
+  "e_first": 22.0,
+  "e_model": 5.030228108875661
+ },
+ {
+  "style": "roman",
+  "pair": "of",
+  "first": 11.0,
+  "second": 43.0,
+  "src": "reask",
+  "model": 10.957489413571404,
+  "e_first": 32.0,
+  "e_model": 32.0425105864286
+ },
+ {
+  "style": "roman",
+  "pair": "or",
+  "first": -26.0,
+  "second": -2.0,
+  "src": "reask",
+  "model": -5.5844812164061395,
+  "e_first": 24.0,
+  "e_model": 3.5844812164061395
+ },
+ {
+  "style": "roman",
+  "pair": "pa",
+  "first": 48.0,
+  "second": 19.0,
+  "src": "outliers-2026-09-25",
+  "model": 30.240866822454635,
+  "e_first": 29.0,
+  "e_model": 11.240866822454635
+ },
+ {
+  "style": "roman",
+  "pair": "r,",
+  "first": -11.0,
+  "second": 4.0,
+  "src": "reask",
+  "model": -5.692032868292216,
+  "e_first": 15.0,
+  "e_model": 9.692032868292216
+ },
+ {
+  "style": "roman",
+  "pair": "re",
+  "first": -1.0,
+  "second": 17.0,
+  "src": "reask",
+  "model": 6.682141716782153,
+  "e_first": 18.0,
+  "e_model": 10.317858283217847
+ },
+ {
+  "style": "roman",
+  "pair": "ry",
+  "first": -12.0,
+  "second": -3.0,
+  "src": "outliers-2026-09-25",
+  "model": -3.261753934186781,
+  "e_first": 9.0,
+  "e_model": 0.26175393418678095
+ },
+ {
+  "style": "roman",
+  "pair": "s;",
+  "first": -5.0,
+  "second": -7.0,
+  "src": "reask",
+  "model": -1.8362888352989568,
+  "e_first": 2.0,
+  "e_model": 5.163711164701043
+ },
+ {
+  "style": "roman",
+  "pair": "su",
+  "first": 5.0,
+  "second": 13.0,
+  "src": "active-2026-09-26-s1",
+  "model": 7.9234514668455684,
+  "e_first": 8.0,
+  "e_model": 5.0765485331544316
+ },
+ {
+  "style": "roman",
+  "pair": "t,",
+  "first": -17.0,
+  "second": -44.0,
+  "src": "active-2026-09-26-s2",
+  "model": -26.244990534299852,
+  "e_first": 27.0,
+  "e_model": 17.755009465700148
+ },
+ {
+  "style": "roman",
+  "pair": "t.",
+  "first": -4.0,
+  "second": -26.0,
+  "src": "outliers-2026-09-25",
+  "model": -23.592583449214743,
+  "e_first": 22.0,
+  "e_model": 2.407416550785257
+ },
+ {
+  "style": "roman",
+  "pair": "th",
+  "first": -13.0,
+  "second": -26.0,
+  "src": "outliers-2026-09-25",
+  "model": -10.545637811541736,
+  "e_first": 13.0,
+  "e_model": 15.454362188458264
+ },
+ {
+  "style": "roman",
+  "pair": "wo",
+  "first": -11.0,
+  "second": 10.0,
+  "src": "outliers-2026-09-25",
+  "model": -0.37027592907800333,
+  "e_first": 21.0,
+  "e_model": 10.370275929078003
+ },
+ {
+  "style": "italic",
+  "pair": "Fi",
+  "first": -41.0,
+  "second": -37.0,
+  "src": "reask",
+  "model": -39.227036159199216,
+  "e_first": 4.0,
+  "e_model": 2.2270361591992156
+ },
+ {
+  "style": "italic",
+  "pair": "Fo",
+  "first": -40.0,
+  "second": -33.0,
+  "src": "reask",
+  "model": -26.670816517767324,
+  "e_first": 7.0,
+  "e_model": 6.329183482232676
+ },
+ {
+  "style": "italic",
+  "pair": "Po",
+  "first": -25.0,
+  "second": -12.0,
+  "src": "reask",
+  "model": -11.8361703909027,
+  "e_first": 13.0,
+  "e_model": 0.16382960909730038
+ },
+ {
+  "style": "italic",
+  "pair": "Se",
+  "first": -7.0,
+  "second": 5.0,
+  "src": "reask",
+  "model": -2.5457049547623916,
+  "e_first": 12.0,
+  "e_model": 7.545704954762392
+ },
+ {
+  "style": "italic",
+  "pair": "St",
+  "first": 4.0,
+  "second": 15.0,
+  "src": "reask",
+  "model": -3.233812539276596,
+  "e_first": 11.0,
+  "e_model": 18.233812539276595
+ },
+ {
+  "style": "italic",
+  "pair": "Ye",
+  "first": 42.0,
+  "second": 50.0,
+  "src": "reask",
+  "model": 38.69237894227787,
+  "e_first": 8.0,
+  "e_model": 11.30762105772213
+ },
+ {
+  "style": "italic",
+  "pair": "Yo",
+  "first": 57.0,
+  "second": 52.0,
+  "src": "reask",
+  "model": 47.73931865131314,
+  "e_first": 5.0,
+  "e_model": 4.260681348686859
+ },
+ {
+  "style": "italic",
+  "pair": "ap",
+  "first": 7.0,
+  "second": 15.0,
+  "src": "reask",
+  "model": 10.090039185525322,
+  "e_first": 8.0,
+  "e_model": 4.909960814474678
+ },
+ {
+  "style": "italic",
+  "pair": "d,",
+  "first": 28.0,
+  "second": 10.0,
+  "src": "reask",
+  "model": 1.0282984749141884,
+  "e_first": 18.0,
+  "e_model": 8.971701525085813
+ },
+ {
+  "style": "italic",
+  "pair": "do",
+  "first": 5.0,
+  "second": 22.0,
+  "src": "reask",
+  "model": 6.092270641153572,
+  "e_first": 17.0,
+  "e_model": 15.907729358846428
+ },
+ {
+  "style": "italic",
+  "pair": "ec",
+  "first": -12.0,
+  "second": -7.0,
+  "src": "reask",
+  "model": -11.762618955831805,
+  "e_first": 5.0,
+  "e_model": 4.762618955831805
+ },
+ {
+  "style": "italic",
+  "pair": "ed",
+  "first": -15.0,
+  "second": -10.0,
+  "src": "active-2026-09-26-s3",
+  "model": -11.985349344371262,
+  "e_first": 5.0,
+  "e_model": 1.9853493443712615
+ },
+ {
+  "style": "italic",
+  "pair": "io",
+  "first": 18.0,
+  "second": 28.0,
+  "src": "reask",
+  "model": 16.767531175948456,
+  "e_first": 10.0,
+  "e_model": 11.232468824051544
+ },
+ {
+  "style": "italic",
+  "pair": "iv",
+  "first": -6.0,
+  "second": 19.0,
+  "src": "active-2026-09-26-s4",
+  "model": 9.612320339172609,
+  "e_first": 25.0,
+  "e_model": 9.387679660827391
+ },
+ {
+  "style": "italic",
+  "pair": "ly",
+  "first": 7.0,
+  "second": 24.0,
+  "src": "reask",
+  "model": 10.846243485502168,
+  "e_first": 17.0,
+  "e_model": 13.153756514497832
+ },
+ {
+  "style": "italic",
+  "pair": "m.",
+  "first": 3.0,
+  "second": 16.0,
+  "src": "reask",
+  "model": 5.511990545989063,
+  "e_first": 13.0,
+  "e_model": 10.488009454010937
+ },
+ {
+  "style": "italic",
+  "pair": "n'",
+  "first": -18.0,
+  "second": -29.0,
+  "src": "outliers-2026-09-25",
+  "model": -10.749900483995964,
+  "e_first": 11.0,
+  "e_model": 18.250099516004035
+ },
+ {
+  "style": "italic",
+  "pair": "n.",
+  "first": 1.0,
+  "second": 14.0,
+  "src": "reask",
+  "model": -7.713604928589173,
+  "e_first": 13.0,
+  "e_model": 21.713604928589174
+ },
+ {
+  "style": "italic",
+  "pair": "o,",
+  "first": -11.0,
+  "second": -7.0,
+  "src": "reask",
+  "model": -8.302403405076785,
+  "e_first": 4.0,
+  "e_model": 1.3024034050767845
+ },
+ {
+  "style": "italic",
+  "pair": "ot",
+  "first": -8.0,
+  "second": 3.0,
+  "src": "reask",
+  "model": -6.0180498245761145,
+  "e_first": 11.0,
+  "e_model": 9.018049824576114
+ },
+ {
+  "style": "italic",
+  "pair": "pl",
+  "first": 10.0,
+  "second": 14.0,
+  "src": "reask",
+  "model": 10.312394814793738,
+  "e_first": 4.0,
+  "e_model": 3.6876051852062623
+ },
+ {
+  "style": "italic",
+  "pair": "qu",
+  "first": -18.0,
+  "second": -20.0,
+  "src": "outliers-2026-09-25",
+  "model": -9.12979298101967,
+  "e_first": 2.0,
+  "e_model": 10.87020701898033
+ },
+ {
+  "style": "italic",
+  "pair": "r,",
+  "first": 21.0,
+  "second": -1.0,
+  "src": "outliers-2026-09-25",
+  "model": 4.4278290074432824,
+  "e_first": 22.0,
+  "e_model": 5.4278290074432824
+ },
+ {
+  "style": "italic",
+  "pair": "ta",
+  "first": -35.0,
+  "second": -7.0,
+  "src": "outliers-2026-09-25",
+  "model": -11.51984436710874,
+  "e_first": 28.0,
+  "e_model": 4.519844367108741
+ },
+ {
+  "style": "italic",
+  "pair": "th",
+  "first": 2.0,
+  "second": -4.0,
+  "src": "outliers-2026-09-25",
+  "model": -5.504623069679729,
+  "e_first": 6.0,
+  "e_model": 1.5046230696797291
+ },
+ {
+  "style": "italic",
+  "pair": "to",
+  "first": -13.0,
+  "second": -24.0,
+  "src": "reask",
+  "model": -2.3175917621753297,
+  "e_first": 11.0,
+  "e_model": 21.68240823782467
+ },
+ {
+  "style": "italic",
+  "pair": "tr",
+  "first": 16.0,
+  "second": 17.0,
+  "src": "outliers-2026-09-25",
+  "model": 4.91978755809253,
+  "e_first": 1.0,
+  "e_model": 12.08021244190747
+ },
+ {
+  "style": "italic",
+  "pair": "ul",
+  "first": 7.0,
+  "second": 17.0,
+  "src": "reask",
+  "model": 9.645041560356749,
+  "e_first": 10.0,
+  "e_model": 7.3549584396432515
+ },
+ {
+  "style": "italic",
+  "pair": "y.",
+  "first": 29.0,
+  "second": 29.0,
+  "src": "outliers-2026-09-25",
+  "model": 24.108042613671124,
+  "e_first": 0.0,
+  "e_model": 4.891957386328876
+ }
+]
