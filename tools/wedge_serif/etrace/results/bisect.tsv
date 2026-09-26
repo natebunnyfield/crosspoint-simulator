@@ -1,0 +1,118 @@
+commit	date	subject	e_hash	e_adv	gate	worst
+8ce01d5	2026-09-20	albo: the TestFlight refresh was called and shipped as build 205	78e559c32c	484	ok	0.051
+2bd4f9d	2026-09-20	albo: round 298 -- the entry becomes a per-letter table (owner: "vary the entry	78e559c32c	484	ok	0.051
+21f5fe3	2026-09-20	albo: round 299 -- the owner's bench values, and the kern quantum corrected 16x	78e559c32c	484	ok	0.051
+1a7cf31	2026-09-20	albo: round 301 -- every common pair, measured off his own books (owner: "give 	78e559c32c	484	ok	0.051
+2228735	2026-09-20	albo: round 302 -- 189 bench judgments, decomposed (owner: "updated", 2026-09-2	78e559c32c	484	ok	0.051
+9938146	2026-09-20	albo: round 303 -- the bench applied as bearings, six letters and twelve pairs 	78e559c32c	495	ok	0.051
+f9bd06a	2026-09-20	albo: round 304 -- the italic lowercase tracking withdrawn on 37 more judgments	78e559c32c	495	ok	0.051
+6136fd5	2026-09-20	albo: ruling recorded -- no TestFlight until the spacing bench is finished (own	78e559c32c	495	ok	0.051
+634e5ac	2026-09-20	albo: round 305 -- the roman 8's contrast, and why it cannot have one alone (ow	78e559c32c	495	ok	0.051
+41aca6b	2026-09-20	albo: round 308 -- the bench solved as ONE system, both sides of every glyph (o	74322b2665	499	ok	0.118
+23b03d9	2026-09-20	albo: round 309 -- italic ligatures removed, roman set chosen on the corpus (ow	74322b2665	499	ok	0.118
+d16c272	2026-09-20	albo: round 310 -- the Th ligature withdrawn (owner: "Th ligature is worse", 20	74322b2665	499	ok	0.118
+3173b07	2026-09-20	albo: the md files catch up with rounds 298-310 (owner: "update md files", 2026	74322b2665	499	ok	0.118
+29280ac	2026-09-20	albo: round 311 -- four chancery ampersands for the italic, none default (owner	74322b2665	499	ok	0.118
+f5a8c13	2026-09-20	albo: round 312 -- alt051 traced into the face's metrics (owner: "trace alt051 	74322b2665	499	ok	0.118
+985872e	2026-09-20	albo: round 313 -- alt051's form drawn with the Albo nib (owner: "make that let	74322b2665	499	ok	0.118
+2d02697	2026-09-20	albo: round 314 -- coverage against the source, and the compact et dropped (own	74322b2665	499	ok	0.118
+f6ee562	2026-09-21	albo: round 315 -- more of the line, then the width itself (owner: "trace more 	74322b2665	499	ok	0.118
+78d57e9	2026-09-21	albo: round 316 -- the ampersand balanced against the face (owner: "make variat	74322b2665	499	ok	0.118
+8947694	2026-09-21	albo: round 317 -- the squeeze holds the left side (owner: "keep the left side 	74322b2665	499	ok	0.118
+3de1886	2026-09-21	albo: round 318 -- the ampersand's top-right curl damped (owner: "squeeze 0.38 	74322b2665	499	ok	0.118
+d82e186	2026-09-21	albo: round 319 -- the ampersand gets the italic lean and the face's finials (o	74322b2665	499	ok	0.118
+9c156be	2026-09-21	albo: round 321 -- the ampersand's right-side path (owner: "c wins", 2026-09-21	74322b2665	499	ok	0.118
+81f3dbd	2026-09-21	albo: round 323 -- the italic g goes back to the bent cursive arm (owner, 2026-	74322b2665	499	ok	0.118
+80fbb78	2026-09-21	albo: round 324 -- a bent roman g, with the loop's shoulder cut back (owner, 20	74322b2665	499	ok	0.118
+4104dd5	2026-09-21	albo: round 325 -- the bent roman g ships (owner: "please do what I keep asking	74322b2665	499	ok	0.118
+836cf76	2026-09-21	albo: round 326 -- the roman g gets the italic's reverse bend (owner, 2026-09-2	74322b2665	499	ok	0.118
+8815bb9	2026-09-21	albo: round 327 -- the g's connector is two cubics through a waist (owner, 2026	74322b2665	499	ok	0.118
+782b0e5	2026-09-21	albo: an open-loop roman g, ten options, none shipped (owner asked for variety,	74322b2665	499	ok	0.118
+f6d8849	2026-09-21	albo: round 328 -- the open g's tail is traced, not dialled (owner, 2026-09-21)	74322b2665	499	ok	0.118
+67c0aaa	2026-09-21	albo: round 329 -- bpqd serifs for the open g, instead of the ear (owner, 2026-	74322b2665	499	ok	0.118
+3b6fd03	2026-09-21	albo: round 330 -- the open g's stem aligned as b d p q align theirs (owner, 20	74322b2665	499	ok	0.118
+af0b1c3	2026-09-21	albo: round 331 -- the open g rebuilt as a q with a hooked foot (owner, 2026-09	74322b2665	499	ok	0.118
+bc3c71d	2026-09-21	albo: round 332 -- the open g's counter to the owner's dialled numbers (2026-09	74322b2665	499	ok	0.118
+1e2d4ba	2026-09-21	albo: rounds 333-334 -- the right stroke measured, the hook extended (owner, 20	74322b2665	499	ok	0.118
+facbd6e	2026-09-21	albo: the open g's hook ships at TRACE_X 1.14 (owner: "ship 1.14", 2026-09-21)	74322b2665	499	ok	0.118
+872456b	2026-09-21	albo: round 335 -- the roman g ships open (owner, 2026-09-21)	74322b2665	499	ok	0.118
+5995a58	2026-09-21	albo: round 336 -- ship the open g the owner approved, not the table's first ro	74322b2665	499	ok	0.118
+8168314	2026-09-21	albo: round 337 -- the italic g's bottom loop lightened (owner, 2026-09-21)	74322b2665	499	ok	0.118
+cf39224	2026-09-21	albo: round 338 -- the italic g's contrast and ear (owner, 2026-09-21)	74322b2665	499	ok	0.118
+2c79672	2026-09-21	albo: rounds 339-340 -- the loop's bottom right, and the g's fitting	74322b2665	499	ok	0.118
+19ffdb9	2026-09-21	albo: a retrospective on the process, and the four false statements it found	74322b2665	499	ok	0.118
+439224a	2026-09-21	albo: build all five of the retrospective's fixes (owner: "all five", 2026-09-2	74322b2665	499	ok	0.118
+6fbb104	2026-09-21	albo: round 342 -- the italic loop's axis ruled at 45 (owner: "try 35 or a bett	74322b2665	499	ok	0.118
+523ec46	2026-09-21	albo: round 343 -- the three crotch notches closed, the y's gap protected	74322b2665	499	ok	0.118
+6460bd0	2026-09-21	albo: round 344 -- the bench refitted on 384 judgments, the g excluded	7c1cb659eb	491	ok	0.110
+968c712	2026-09-21	albo: round 345 -- the italic loop's local cut, built inert, awaiting a ruling	7c1cb659eb	491	ok	0.110
+43a2cd5	2026-09-21	albo: round 346 -- the loop lobe's depth is signed, so it can FILL	7c1cb659eb	491	ok	0.110
+ccb45a5	2026-09-21	albo: round 347 -- F ships, the italic loop's bottom right filled	7c1cb659eb	491	ok	0.110
+9f835f4	2026-09-21	albo: round 348 -- the roman Q kerned, and the gate that cannot see the fix	7c1cb659eb	491	ok	0.110
+0e1d4ee	2026-09-21	albo: round 349 -- the ampersand closed: the roman is clean, the italic is not	7c1cb659eb	491	ok	0.110
+6698a66	2026-09-21	albo: round 350 -- the ruled italic ampersand ships, and two bugs under it	7c1cb659eb	491	ok	0.110
+d247fca	2026-09-21	albo: round 351 -- the contour census, so the cut ripple cannot surprise anyone	7c1cb659eb	491	ok	0.110
+d91fe0b	2026-09-21	albo: round 352 -- the ampersand's curl ruled as drawn; the thread is closed	7c1cb659eb	491	ok	0.110
+e183170	2026-09-21	albo: round 354 -- the italic Y's spine at 1.1, and a false FLAT in ladder.py	7c1cb659eb	491	ok	0.110
+d0c78be	2026-09-21	albo: round 354b -- the italic g re-approved, on proof its drawing did not move	7c1cb659eb	491	ok	0.110
+773a7d7	2026-09-21	albo: round 355 -- the italic Y's hairline gap at 14.3 units	7c1cb659eb	491	ok	0.110
+23c10f0	2026-09-21	albo: round 357 -- the bold italic's q pairs, found by gating all four cuts	7c1cb659eb	491	ok	0.110
+7658d72	2026-09-22	albo: round 358 -- the italic's word space matches the roman's ratio; the roman	7c1cb659eb	491	ok	0.110
+30fe6bb	2026-09-22	albo: round 359 -- the word space at his 2.55, both styles	7c1cb659eb	491	ok	0.110
+c49dd2e	2026-09-23	albo: round 360 -- the Bold's four collisions were all the gate's own	7c1cb659eb	491	ok	0.110
+5a2aa98	2026-09-23	albo: round 361 -- two more 7s, so the five he asked for exist	7c1cb659eb	491	ok	0.110
+47909fa	2026-09-23	albo: the roman 7 ships as j (owner 2026-09-23, "j wins")	7c1cb659eb	491	ok	0.110
+ad2db26	2026-09-23	albo: round 362 -- four dials for the marks, all inert, and two of them were ha	7c1cb659eb	491	ok	0.110
+f67938e	2026-09-23	albo: round 363 -- the middle dot is a Trajan triangle	7c1cb659eb	491	ok	0.110
+7d250e8	2026-09-23	albo: round 364 -- three dials for the exclamation, all inert	7c1cb659eb	491	ok	0.110
+f163183	2026-09-23	albo: round 365 -- the exclamation thickened, and its dot cut with a nib	7c1cb659eb	491	ok	0.110
+fa46063	2026-09-23	albo: round 366 -- the punch mechanisms made laddering-capable, and measured	7c1cb659eb	491	ok	0.110
+fcbb818	2026-09-23	albo: round 367 -- the filed flat ships, and every dot files its own	7c1cb659eb	491	ok	0.110
+4f42beb	2026-09-23	albo: rounds 368-369 -- the Trajan wedge, and the marks measured against six re	7c1cb659eb	491	ok	0.110
+3af8d5d	2026-09-23	albo: round 370 -- the X's splay and the I's left serif, both as dials	7c1cb659eb	491	ok	0.110
+157aadd	2026-09-23	albo: round 370b -- the italic f's thinness, and a gate claim this file had bac	7c1cb659eb	491	ok	0.110
+b89be44	2026-09-23	albo: round 371 -- the Greek, and an epsilon that was a digit 3	7c1cb659eb	491	ok	0.110
+6addf63	2026-09-23	albo: round 372 -- the figures, where two of three premises did not survive mea	7c1cb659eb	491	ok	0.110
+05527e2	2026-09-23	albo: round 373 -- the X, the I and the italic f ship at the owner's numbers	7c1cb659eb	491	ok	0.110
+abdcf69	2026-09-23	albo: round 373b -- the 8 cut deeper, every figure on the baseline, the italic 	7c1cb659eb	491	ok	0.110
+217d675	2026-09-23	albo: round 374 -- the Greek, traced	7c1cb659eb	491	ok	0.110
+3e2a226	2026-09-24	albo: round 374b -- every numeral issue, both styles	7c1cb659eb	491	ok	0.110
+c87068a	2026-09-24	albo: round 375 -- punctuation seated on the baseline, quotes smaller, the Bold	7c1cb659eb	491	ok	0.110
+8789371	2026-09-24	albo: round 376 -- straight quotes match the curly, the ? narrower, the italic 	7c1cb659eb	491	ok	0.110
+8c2fddc	2026-09-24	albo: round 377 -- the italic ampersand redrawn on the italic's own pen	7c1cb659eb	491	ok	0.110
+091ad7f	2026-09-24	albo: round 378 -- Bold figure widths know the weight, the italic 4 heavier, ev	7c1cb659eb	491	ok	0.110
+364e950	2026-09-24	albo: round 379 -- the full Greek alphabet, a cursive italic Greek, and Greek s	7c1cb659eb	491	ok	0.110
+160f67f	2026-09-24	albo: round 380 -- italic punctuation sized from italic references, the ? given	7c1cb659eb	491	ok	0.110
+f8b66f1	2026-09-24	albo: round 381 -- the italic ampersand heavier, with its contrast	7c1cb659eb	491	ok	0.110
+16e4769	2026-09-24	albo: round 382 -- the italic ? carries its weight at the top left, as the refe	7c1cb659eb	491	ok	0.110
+64c7c23	2026-09-24	albo: round 383 -- the italic ampersand's top-right stroke shorter and lower	7c1cb659eb	491	ok	0.110
+7138a96	2026-09-24	albo: round 384 -- three passes over all four cuts	7c1cb659eb	491	ok	0.110
+41b7024	2026-09-24	albo: yen gap and quote symmetry options (env-selectable, defaults unchanged)	7c1cb659eb	491	ok	0.110
+fbbd93f	2026-09-24	albo: round 385 -- the pictographs redrawn	7c1cb659eb	491	ok	0.110
+20b38a8	2026-09-24	Merge: yen gap and quote symmetry options (env-selectable, defaults unchanged)	7c1cb659eb	491	ok	0.110
+dd450e7	2026-09-24	albo: round 386 -- the italic yen's channel and the straighter straight quotes	7c1cb659eb	491	ok	0.110
+dbe49da	2026-09-25	albo: round 387 -- the italic eth redrawn, the bold italic Y's gap opened, four	7c1cb659eb	491	ok	0.110
+8130edd	2026-09-25	albo: kerning noise floor -- cross-validated bench error and a blind re-ask ben	7c1cb659eb	491	ok	0.110
+b32a361	2026-09-25	albo: kerning noise floor -- his re-ask answers and the verdict (pair fitting s	7c1cb659eb	491	ok	0.110
+c63d792	2026-09-25	albo: round 388 -- six kerns from the re-ask bench	7c1cb659eb	491	ok	0.110
+733cc8a	2026-09-25	albo: tracking options for the owner (defaults unchanged)	7c1cb659eb	491	ok	0.110
+971723f	2026-09-25	albo: round 389 -- fortune, rhythm, Yesterday, and the italic capital pairs	7c1cb659eb	491	ok	0.110
+49deaff	2026-09-25	albo: round 389 correction -- rt, st, te withdrawn; rd and es on his eye alone	7c1cb659eb	491	ok	0.110
+99dfaa8	2026-09-25	albo: round 389 -- the outlier bench (50 pairs for his eye) and its doc	7c1cb659eb	491	ok	0.110
+bd1e322	2026-09-25	bench: the live outlier bench and a hundred long words to flag	7c1cb659eb	491	ok	0.110
+59836cc	2026-09-25	bench: his 50 outlier answers (live bench), no gaps flagged	7c1cb659eb	491	ok	0.110
+0c02ee9	2026-09-25	albo: round 390 -- his fifty outlier answers as kerns	7c1cb659eb	491	ok	0.110
+80d8e74	2026-09-25	albo: round 391 -- thick and thin balanced	7c1cb659eb	491	ok	0.110
+6ec8517	2026-09-25	albo: round 392 -- the reported leftovers	7c1cb659eb	491	ok	0.110
+6ce1562	2026-09-25	albo: round 393 -- the bold italic j head, and tracking c ships	295ee74ca9	497	ok	0.106
+03945f1	2026-09-25	albo: round 394 -- thick/thin second pass as OPTIONS (defaults unchanged)	295ee74ca9	497	ok	0.106
+b3afa44	2026-09-25	albo: round 394 rework -- visibility, strong arms, revised picks	295ee74ca9	497	ok	0.106
+66da73a	2026-09-26	albo: round 394 slider page generator (no default change)	295ee74ca9	497	ok	0.106
+95bf547	2026-09-26	albo: round 395 -- the owner's thick/thin picks ship	c73847ca0e	497	FAIL	0.259
+5887e16	2026-09-26	local AI spacing options: measured probes and an options doc (2026-09-26)	c73847ca0e	497	FAIL	0.259
+bc0b5fb	2026-09-26	albo: B2 spacing arm behind ALBO_SPACING_FIT=b2 (default off)	c73847ca0e	497	FAIL	0.259
+6173767	2026-09-26	albo: active-learning spacing bench, session 1 (owner: "Build it")	c73847ca0e	497	FAIL	0.259
+e2b13e8	2026-09-26	albo: B2 refit on 470 answers, session 1 ingested, session 2 built	c73847ca0e	497	FAIL	0.259
+ab2c054	2026-09-26	albo: round 396 -- B2 is the default spacing (owner: ship B2)	eabb6d504c	495	FAIL	0.235
+3b02bed	2026-09-26	albo: active bench session 2 ingested (22 touched, 28 skipped = 0)	eabb6d504c	495	FAIL	0.235
+c25375b	2026-09-26	albo: round 397 -- B2 refit on session 2 is the default	5e93b1f217	494	FAIL	0.235

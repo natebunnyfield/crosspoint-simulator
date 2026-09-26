@@ -1,0 +1,39 @@
+--- a/tools/wedge_serif/outlines/glyphs/rounds.py	2026-09-26 13:26:33
++++ b/tools/wedge_serif/outlines/glyphs/rounds.py	2026-09-26 13:26:33
+@@ -230,6 +230,17 @@
+ # floor there thinned the 700's p10 49.7 -> 42.1 (a new sliver, not a lift).
+ # 0.35 ships.
+ E_BAR_FLOOR = float(os.environ.get("ALBO_ROM_E_BAR_FLOOR", 0.45))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0.35 = round 393)
++# ETRACE 2026-09-26 (docs/albo-e-legibility-2026-09-26.md): two OPTION dials
++# for the e->o confusion the 0.45 floor set off under FreeType's autohinter.
++# Both default to today's drawing (0 of 530 outlines move) and both apply to
++# the ROMAN at or under stem 84 only, as E_BAR_FLOOR does.
++# E_BAR_TOP_R: the bar's top, x the x-height (round 92's adj 'e' 0.58). The
++#   floor grows the bar DOWNWARD from here, into the mouth; raising the top
++#   by the floor's extra moves the underside back to where 0.35 had it.
++# E_BAR_TAPER_R: the bar's underside rises toward its right (mouth) end by
++#   this fraction of its thickness; the left end keeps the full floor.
++E_BAR_TOP_R = float(os.environ.get("ALBO_ROM_E_BAR_TOP", E_BAR_ADJ))
++E_BAR_TAPER_R = float(os.environ.get("ALBO_ROM_E_BAR_TAPER", 0.0))
+ 
+ # ROUND 287 -- THE HEAVY e's BAR. Owner 2026-09-19: *"that e could be
+ # heavier."* Measured against its own CONSTRUCTION family at the 900 (the
+@@ -343,10 +354,17 @@
+     e_bar, e_th = (E_BAR_ADJ, E_TH_ADJ) if adj('e') else (E_BAR, E_TH)
+     if _heavy() and not pen.ITALIC: e_th *= E_BAR_HEAVY   # round 287, see E_BAR_HEAVY
+     th = max(pen.th(E_DEG_IT if pen.ITALIC else E_DEG) * e_th, S * (0.35 if (pen.ITALIC or _heavy()) else E_BAR_FLOOR))   # round 394: E_BAR_FLOOR, 400-side only
++    if adj('e') and not pen.ITALIC and not _heavy(): e_bar = E_BAR_TOP_R   # ETRACE option dial, default = E_BAR_ADJ
++    taper = 0.0 if (pen.ITALIC or _heavy()) else E_BAR_TAPER_R
++    xL, xR = cx - rx + 8, cx + rx - 42
+     bar_top = lambda x: xh * e_bar + (x - cx) * slope
+-    under = lambda x: bar_top(x) - th
++    under = lambda x: bar_top(x) - th * (1.0 - taper * min(1.0, max(0.0, (x - xL) / (xR - xL))))
+     # the bar: from inside the left stroke to inside the right stroke
+     b = stroke([(cx - rx + 8, bar_top(cx - rx + 8) - th / 2), (cx + rx - 42, bar_top(cx + rx - 42) - th / 2)], th)
++    if taper:   # ETRACE: cut the bar's underside back to the rising line
++        _far = 3 * rx
++        _xs = [cx - _far + k * (2 * _far) / 64 for k in range(65)]
++        b = b.difference(geom.poly([(x, under(x)) for x in _xs] + [(cx + _far, -_far), (cx - _far, -_far)]))
+     # the aperture: between the arm's end face (radial at E_END) and the bar's underside
+     a = math.radians(E_END_IT if pen.ITALIC else E_END_R); far = 3 * rx
+     if pen.ITALIC:
