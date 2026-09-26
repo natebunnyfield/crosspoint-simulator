@@ -13,7 +13,7 @@ dial, and its default draws round 393's letter.
   `build_env.sh albo_build_all`.
 - **Units:** font units (x-height 429, cap 674). Italic numbers are measured
   unsheared.
-- **Status:** OPTIONS, awaiting the owner's picks. Record them in section 9.
+- **Status:** OPTIONS, awaiting the owner's picks. Record them in section 10.
 
 ## 1. The instrument, and what it can and cannot see
 
@@ -147,7 +147,8 @@ to +0.012.
 **The p barely moves.** It moves little because its p10 is shared with the
 foot's tips (`PQ_FOOT_T` 21), which this dial does not touch.
 
-**Recommended: c.** It is the smallest floor that clears q, p and d under the
+**Recommended (revised, section 9): d.** Arm c, recommended first, is barely
+visible at reading size (1.06% of pixels at 54 px). Originally: c is the smallest floor that clears q, p and d under the
 25% line at the 400. The bowl's cut stays at 2.0–2.3, above the roman's
 round-family 2.07, so the italic stays the more contrasted style. Arm d makes
 the bowls read as monoline (b cut 1.86).
@@ -200,8 +201,9 @@ round.
 Arm b's shorter span measures the m **thinner** (−20%). Arm c keeps round
 232's longer span and changes only the start width.
 
-**Recommended: c**, the smallest move that clears the n. Arm a, keeping his
-ruling, is a sound pick too.
+**Recommended (revised, section 9): a, as shipped.** No arm of this lever
+moves the n, h or m by 1% of its ink on the outline; the p10 lift was the
+crotch, not a visible stroke. (First recommendation was c.)
 
 ### D. Roman x, k, and the capital Y
 
@@ -228,7 +230,8 @@ ruling, is a sound pick too.
 - **Y:** there is no ruling on the thin arm. 0.90 is the value round 224 gave
   the capital X for the same fault.
 
-**Recommended: c.** It puts the Y and the x on the X's 0.90.
+**Recommended (revised, section 9): f.** Arms b and c are sub-pixel at the
+phone's 2x. (First recommendation was c, which puts the Y and the x on the X's 0.90.)
 
 ### E. Roman e bar
 
@@ -255,7 +258,8 @@ ruling, is a sound pick too.
   to lighten the e's bottom-right stroke (round 94, then 2026-09-14, which is
   `E_ARM_THIN` 0.92).
 
-**Recommended: b.** The e was not flagged (−20%), so the smallest arm.
+**Recommended (revised, section 9): c.** Arm b, first recommended as the
+smallest, is sub-pixel at 2x (0.72%).
 
 ### F. Figures: roman 3 and 8, italic 6
 
@@ -291,10 +295,10 @@ proven to leave the italic identical.
 
 **Recommended, per figure (the dials are independent):**
 
-- the **3 at b** (floor 0.33);
+- the **3 at c** (floor 0.40; revised from b, which is sub-pixel at 2x, section 9);
 - the **8 as shipped** (a), keeping his ruling and not darkening the darkest
   figure further;
-- the **italic 6 at b** (0.45).
+- the **italic 6 at c** (0.60; revised from b, section 9).
 
 ## 5. Gates, every arm, all four cuts
 
@@ -390,7 +394,108 @@ tenths of a pixel, as round 391 found, and the zoom row is where they show.
 - **The italic 6's ring.** Its thin is `FIG_CON`, which is shared with the
   italic 0 and 9 (section 4F).
 
-## 9. Owner picks
+## 9. Rework: "i dont see differences in thick thin" (2026-09-26)
+
+Owner, on the published page: *"i dont see differences in thick thin"*. Taken
+at face value, and he was right. The first page compared stacked sentence
+rows, and most arms change a fraction of a pixel.
+
+**The mechanism.**
+
+- The p10 moves are real on the outline, but small in ink. On arm c, the q's
+  hairline goes from 27 to 32 units, which is 0.14 px at a 27 px em.
+- The renderer then quantizes it. On this font, FreeType's default load, as
+  used by PIL and by the reader's converter (`fontconvert_sdcard.py`
+  `FT_LOAD_RENDER`, read, not changed), behaves exactly like
+  `FT_LOAD_FORCE_AUTOHINT`: stems snap to the pixel grid. A sub-pixel change
+  therefore either vanishes or jumps a whole pixel column.
+- Measured on the roman n (arm C b): the outline's ink moves +0.4%. The
+  FreeType 54 px render moves +10.2%, because one column of the right stem
+  flips. The hinted 27 px render moves +0.2%.
+
+**The new instrument.** `tools/wedge_serif/instruments/r394_visibility.py`
+reports both numbers per letter: `geo` (outline ink, unhinted) and `ft`
+(FreeType at 27 px and 54 px).
+
+**Visibility per arm.** Two measures, both against arm a:
+
+- **27 px / 54 px:** pixels changed by more than 8 levels, as a share of the
+  whole sentence block. The block is FreeType-rendered, with every glyph at
+  arm a's positions so spacing shifts do not count. The measure is diluted by
+  the letters an arm does not touch.
+- **letter ink (geo):** each affected letter's ink change on the outline.
+
+Under 1% at 54 px is called **sub-pixel at reading size**.
+
+| arm | 27 px | 54 px | letter ink (geo) | verdict |
+|---|---|---|---|---|
+| A b | 0.25% | 0.23% | q +1.1, p +0.2, d +1.1, b +1.6 | sub-pixel |
+| A c | 0.80% | 1.06% | q +2.7, p +2.1, d +2.4, b +2.7 | barely |
+| A d | 0.94% | 1.61% | q +4.2, p +4.2, d +3.6, b +4.3 | visible |
+| A e | 0.92% | 1.15% | as c, plus a +2.2 | barely |
+| **A f (strong, floor 44)** | 1.49% | 1.01% | q +9.4, p +10.5, d +8.4, b +10.1 | visible in the close-up and the difference figure; cut 1.55–1.8 |
+| B b | 1.94% | 1.55% | s +4.7, y +2.8 | visible |
+| B c | 3.56% | 1.89% | s +7.2, y +5.5 | visible |
+| **B f (strong: s 4.5, y tail 42)** | 3.52% | 1.94% | s +7.2, y +10.8 | visible |
+| C b | 0.39% | 1.04% | n +0.4, h +0.6, m +0.6 | sub-pixel (the 54 px figure is grid snapping, not ink) |
+| C c | 0.44% | 1.18% | n −0.1, h +0.9, m 0.0 | sub-pixel |
+| C d | 0.59% | 1.02% | n +0.3, h +0.1, m +0.1 | sub-pixel |
+| C strong | — | — | taper 1.0 (the lever's maximum): n +0.05%, h +1.0% | **none possible**, skipped |
+| D b | 1.03% | 0.70% | x +2.0, k +0.1, Y +1.3 | sub-pixel |
+| D c | 1.16% | 0.98% | x +4.3, k +0.9, Y +3.2 | sub-pixel |
+| **D f (strong: x 1.0, k arm 2.5, Y 1.0)** | 1.23% | 1.04% | x +6.5, k +5.5, Y +5.4 | visible at 27 px ×2 (Y's arm and k's arm plainly heavier) |
+| E b | 0.49% | 0.72% | e +2.1 | sub-pixel |
+| E c | 0.77% | 2.18% | e +3.9 | visible |
+| E d | 0.93% | 2.22% | e +4.6 | visible |
+| **E f (strong, bar floor 0.60)** | 0.82% | 2.15% | e +9.7 | visible |
+| F b | 1.42% | 1.08% | 3 +1.4, 8 +4.2, 6 +1.8 | small |
+| F c | 2.05% | 1.41% | 3 +2.6, 8 +7.9, 6 +2.4 | visible |
+| **F f (strong: 3 floor 0.55, 8 nib thin 0.45, 6 ends 0.90)** | 2.11% | 1.58% | 3 +6.0, 8 +15.5, 6 +4.0 | visible |
+
+A block-level number can read lower for a stronger arm (A f at 54 px),
+because an arm can also move a glyph's outline position by a fraction of a
+pixel. The fitter then snaps differently. The per-letter `geo` column is the
+thickness.
+
+**The strong arms, all gates green.** For every f arm on all four cuts:
+
+- `cmp_touch` 0 / 0;
+- hairs `--letters` exit 0;
+- counter dents as shipped;
+- `approved.py` unchanged;
+- glitch finding set identical to round 393's.
+
+They use existing dials only, so there are no code changes and the defaults
+are still outline-identical: re-proven, 0 of 530 on all four cuts.
+
+The F strong arm sets the 8 through the existing `ALBO_8_NIB`
+(`"1.03,0.45,0"`) on the **roman builds only**, because that env var would
+also reach the italic 8.
+
+**Skipped, and why:**
+
+- **The s past arm c's 4.5:1.** At `S_PEN_CON` 4.0 the Bold Italic `st`
+  (U+FB06) PINCHes to 2.2 units, and at 3.0 it SPLITs. Both are new glitch
+  findings. B f keeps the s at 4.5 and strengthens only the y.
+- **A strong C.** The join lever has no visible range at all, because the
+  arch starts inside the stem. Making the n's join heavier would take a
+  different model (the crotch, not the taper), against the round-232 ruling.
+  It is not built.
+
+**The page, reworked in place** (scratch `tt2/index.html`). Each group now
+has:
+
+- a visibility table, then the recommendation;
+- a 160 px close-up: each arm's letters filled, then overlaid on arm a, with
+  ink added in blue and arm a's outline in red;
+- the key-word zoom;
+- each arm's sentence image with a **difference figure directly under it**:
+  27 px ×3, arm a in gray, ink the arm adds in blue, ink it removes in red.
+  Any change over about 2% coverage is drawn at full strength.
+
+Group C's strong arm is absent by the finding above.
+
+## 10. Owner picks
 
 *(to be recorded here: one line per group, with the quote)*
 
