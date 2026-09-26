@@ -353,9 +353,15 @@ at 2x is narrower still.
   already lists measure among the levers "large enough to see" only as a
   hope, not a measurement.
 
-**Cost here: none new.** The orientation setting exists
-(`CrossPointSettings.h:350`) and the ledger already records `pw`/`ph` on
-every `cfg` line, so every page ever logged says which measure it was.
+**Cost here: CORRECTED 2026-09-26 -- NOT zero.** The orientation setting
+was REMOVED by firmware commit `3b30b5316` (2026-08-01): `GfxRenderer.h:74`
+is `static constexpr Orientation orientation = Portrait` and
+`CrossPointSettings.h:350` is a comment with no field under it. The renderer
+still draws landscape correctly when that constant is changed (a scratch build
+rendered 14 lines of ~55 cpl for a 21-line portrait paragraph), so the cost is
+restoring a runtime choice, not new layout. The ledger does record `pw`/`ph`
+on every `cfg` line, so once restored every page would say which measure it
+was.
 Landscape on the X3 changes the grip and which way the rocker turns pages;
 a stand helps.
 
@@ -510,8 +516,9 @@ gap ≥ 12 h, one press to skip, never on the X3's routine sleeps. Run it as
 a session-level on/off arm; the transfer from lab prose to a resumed novel
 is exactly the thing unmeasured, and this is the cheapest way to measure it.
 
-**2. The measure at 55 cpl (C6).** Zero build. Two arms already exist as an
-orientation setting, every logged page already says which it was, the
+**2. The measure at 55 cpl (C6).** NOT zero build (corrected 2026-09-26:
+the orientation setting was removed in `3b30b5316`; restoring the runtime
+choice is firmware work). Once restored, every logged page says which it was, the
 contrast is large, and chars/min is immune to the page-count change. It is
 the Phase 2 arm the ledger doc should have ranked and did not, because it
 was thinking in fonts. Needs the Phase 2 ruling and a way to hold the X3
