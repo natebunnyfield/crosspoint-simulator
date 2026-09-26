@@ -1,0 +1,2469 @@
+{
+"pairs": {
+"roman": [
+"'s",
+"'t",
+"Av",
+"Co",
+"En",
+"Ja",
+"Jo",
+"Ka",
+"Qu",
+"Sp",
+"Th",
+"To",
+"Ve",
+"Vi",
+"Vo",
+"Wa",
+"Wh",
+"Wi",
+"Ye",
+"Yo",
+"a,",
+"a.",
+"ab",
+"ac",
+"ad",
+"ai",
+"aj",
+"ak",
+"al",
+"am",
+"an",
+"ap",
+"ar",
+"as",
+"at",
+"av",
+"ay",
+"ba",
+"be",
+"bi",
+"bj",
+"bl",
+"bo",
+"bu",
+"ca",
+"ce",
+"ch",
+"ci",
+"ck",
+"cl",
+"co",
+"cr",
+"ct",
+"d,",
+"d.",
+"da",
+"de",
+"di",
+"do",
+"e'",
+"e,",
+"e.",
+"e:",
+"e;",
+"ea",
+"ec",
+"ed",
+"ee",
+"ef",
+"ei",
+"ej",
+"el",
+"em",
+"en",
+"ep",
+"er",
+"es",
+"et",
+"ev",
+"ex",
+"fa",
+"fe",
+"fi",
+"fo",
+"fr",
+"ft",
+"ha",
+"he",
+"hi",
+"hm",
+"ho",
+"hr",
+"ht",
+"hy",
+"ia",
+"ic",
+"id",
+"ie",
+"if",
+"il",
+"im",
+"in",
+"io",
+"ip",
+"ir",
+"is",
+"it",
+"iv",
+"ja",
+"ju",
+"ka",
+"ke",
+"ki",
+"ks",
+"l,",
+"l.",
+"la",
+"ld",
+"le",
+"li",
+"ll",
+"lo",
+"ls",
+"ly",
+"m,",
+"m.",
+"ma",
+"me",
+"mi",
+"mo",
+"mp",
+"n'",
+"n,",
+"n.",
+"n:",
+"na",
+"nc",
+"nd",
+"ne",
+"ni",
+"no",
+"ns",
+"nt",
+"o,",
+"o.",
+"oc",
+"od",
+"of",
+"ol",
+"om",
+"on",
+"oo",
+"op",
+"or",
+"os",
+"ot",
+"ou",
+"ov",
+"ow",
+"pa",
+"pe",
+"ph",
+"pi",
+"pl",
+"po",
+"pr",
+"qu",
+"r'",
+"r,",
+"r.",
+"r:",
+"ra",
+"rc",
+"rd",
+"re",
+"rh",
+"ri",
+"ro",
+"rp",
+"rr",
+"rs",
+"rt",
+"ru",
+"ry",
+"s,",
+"s.",
+"s:",
+"s;",
+"sa",
+"sc",
+"se",
+"sh",
+"si",
+"so",
+"sp",
+"ss",
+"st",
+"su",
+"sw",
+"sy",
+"t'",
+"t,",
+"t.",
+"t:",
+"t;",
+"ta",
+"te",
+"th",
+"ti",
+"to",
+"tr",
+"ts",
+"tt",
+"tu",
+"tw",
+"ty",
+"ue",
+"ui",
+"ul",
+"um",
+"un",
+"up",
+"ur",
+"us",
+"ut",
+"va",
+"ve",
+"vi",
+"wa",
+"we",
+"wh",
+"wi",
+"wo",
+"xp",
+"y'",
+"y,",
+"y.",
+"ye",
+"yo",
+"yp",
+"ys",
+"yt"
+],
+"italic": [
+"'s",
+"Am",
+"An",
+"Av",
+"Ca",
+"Ch",
+"Co",
+"El",
+"Es",
+"Fi",
+"Fo",
+"Gr",
+"Jo",
+"Pa",
+"Po",
+"Pr",
+"Qu",
+"Re",
+"Sa",
+"Se",
+"Sh",
+"So",
+"Sp",
+"St",
+"Su",
+"Th",
+"To",
+"Vi",
+"Wa",
+"Wh",
+"Wi",
+"Ye",
+"Yo",
+"a,",
+"a.",
+"ab",
+"ac",
+"ad",
+"ai",
+"al",
+"am",
+"an",
+"ap",
+"ar",
+"as",
+"at",
+"ay",
+"ba",
+"be",
+"bi",
+"bl",
+"bo",
+"br",
+"bu",
+"ca",
+"ce",
+"ch",
+"ci",
+"ck",
+"cl",
+"co",
+"cr",
+"ct",
+"cu",
+"cy",
+"d,",
+"d.",
+"da",
+"de",
+"di",
+"do",
+"dr",
+"ds",
+"e'",
+"e,",
+"e.",
+"e:",
+"e;",
+"ea",
+"ec",
+"ed",
+"ee",
+"ef",
+"el",
+"em",
+"en",
+"ep",
+"er",
+"es",
+"et",
+"ev",
+"ex",
+"fa",
+"fe",
+"fi",
+"fo",
+"ft",
+"ha",
+"he",
+"hi",
+"hm",
+"ho",
+"hr",
+"ht",
+"hy",
+"ia",
+"ic",
+"id",
+"ie",
+"if",
+"il",
+"im",
+"in",
+"io",
+"ip",
+"ir",
+"is",
+"it",
+"iv",
+"je",
+"ju",
+"ke",
+"ki",
+"ks",
+"l,",
+"la",
+"ld",
+"le",
+"li",
+"ll",
+"lo",
+"ls",
+"ly",
+"m.",
+"ma",
+"me",
+"mi",
+"mo",
+"mp",
+"n'",
+"n,",
+"n.",
+"na",
+"nc",
+"nd",
+"ne",
+"ni",
+"no",
+"ns",
+"nt",
+"o,",
+"o.",
+"ob",
+"oc",
+"od",
+"of",
+"ol",
+"om",
+"on",
+"oo",
+"op",
+"or",
+"os",
+"ot",
+"ou",
+"ow",
+"pa",
+"pe",
+"pl",
+"po",
+"pp",
+"pr",
+"pt",
+"qu",
+"r,",
+"r.",
+"r:",
+"ra",
+"rd",
+"re",
+"rf",
+"rh",
+"ri",
+"rm",
+"rn",
+"ro",
+"rr",
+"rs",
+"rt",
+"ru",
+"ry",
+"s,",
+"s.",
+"s:",
+"s;",
+"sa",
+"sc",
+"se",
+"sh",
+"si",
+"so",
+"sp",
+"ss",
+"st",
+"su",
+"sy",
+"t,",
+"t.",
+"t:",
+"ta",
+"te",
+"th",
+"ti",
+"tl",
+"to",
+"tr",
+"ts",
+"tt",
+"tu",
+"tw",
+"ty",
+"ua",
+"ub",
+"uc",
+"ue",
+"ul",
+"um",
+"un",
+"ur",
+"us",
+"ut",
+"va",
+"ve",
+"vi",
+"vo",
+"wa",
+"we",
+"wh",
+"wi",
+"wn",
+"wo",
+"y'",
+"y,",
+"y.",
+"ye",
+"yo",
+"yt"
+]
+},
+"fonts": {
+"0920": {
+"roman": "/Users/natebunnyfield/src/crosspoint-simulator/tools/wedge_serif/bench/fonts-2026-09-20/Albo-Regular.ttf",
+"italic": "/Users/natebunnyfield/src/crosspoint-simulator/tools/wedge_serif/bench/fonts-2026-09-20/Albo-Italic.ttf"
+},
+"r397": {
+"roman": "/Users/natebunnyfield/src/crosspoint-simulator/tools/wedge_serif/bench/fonts-2026-09-26-r397/Albo-Regular.ttf",
+"italic": "/Users/natebunnyfield/src/crosspoint-simulator/tools/wedge_serif/bench/fonts-2026-09-26-r397/Albo-Italic.ttf"
+}
+},
+"words": {
+"roman": {
+"'s": [
+"Suvi's",
+4
+],
+"'t": [
+"don't",
+3
+],
+"Av": [
+"Avenue",
+0
+],
+"Co": [
+"Costa",
+0
+],
+"En": [
+"English",
+0
+],
+"Ja": [
+"Japanese",
+0
+],
+"Jo": [
+"John",
+0
+],
+"Ka": [
+"Kasov",
+0
+],
+"Qu": [
+"Quiet",
+0
+],
+"Sp": [
+"Spanish",
+0
+],
+"Th": [
+"The",
+0
+],
+"To": [
+"Tomorrow",
+0
+],
+"Ve": [
+"Verification",
+0
+],
+"Vi": [
+"Victory",
+0
+],
+"Vo": [
+"Vos",
+0
+],
+"Wa": [
+"Wayward",
+0
+],
+"Wh": [
+"What",
+0
+],
+"Wi": [
+"Witch",
+0
+],
+"Ye": [
+"Yesterday",
+0
+],
+"Yo": [
+"You",
+0
+],
+"a,": [
+"Rica,",
+3
+],
+"a.": [
+"ana.",
+2
+],
+"ab": [
+"about",
+0
+],
+"ac": [
+"each",
+1
+],
+"ad": [
+"had",
+1
+],
+"ai": [
+"against",
+2
+],
+"aj": [
+"trabaja",
+4
+],
+"ak": [
+"takes",
+1
+],
+"al": [
+"all",
+0
+],
+"am": [
+"same",
+1
+],
+"an": [
+"and",
+0
+],
+"ap": [
+"Chapter",
+2
+],
+"ar": [
+"are",
+0
+],
+"as": [
+"was",
+1
+],
+"at": [
+"that",
+2
+],
+"av": [
+"have",
+1
+],
+"ay": [
+"away",
+2
+],
+"ba": [
+"back",
+0
+],
+"be": [
+"because",
+0
+],
+"bi": [
+"hubiera",
+2
+],
+"bj": [
+"subjunctive",
+2
+],
+"bl": [
+"problem",
+3
+],
+"bo": [
+"about",
+1
+],
+"bu": [
+"but",
+0
+],
+"ca": [
+"can",
+0
+],
+"ce": [
+"Success:",
+3
+],
+"ch": [
+"which",
+3
+],
+"ci": [
+"specific",
+3
+],
+"ck": [
+"back",
+2
+],
+"cl": [
+"claim",
+0
+],
+"co": [
+"comes",
+0
+],
+"cr": [
+"across",
+1
+],
+"ct": [
+"actually",
+1
+],
+"d,": [
+"word,",
+3
+],
+"d.": [
+"instead.",
+6
+],
+"da": [
+"day",
+0
+],
+"de": [
+"under",
+2
+],
+"di": [
+"did",
+0
+],
+"do": [
+"does",
+0
+],
+"e'": [
+"Ame's",
+2
+],
+"e,": [
+"time,",
+3
+],
+"e.": [
+"one.",
+2
+],
+"e:": [
+"use:",
+2
+],
+"e;": [
+"people;",
+5
+],
+"ea": [
+"real",
+1
+],
+"ec": [
+"because",
+1
+],
+"ed": [
+"named",
+3
+],
+"ee": [
+"three",
+3
+],
+"ef": [
+"before",
+1
+],
+"ei": [
+"their",
+2
+],
+"ej": [
+"mejor",
+1
+],
+"el": [
+"relationship",
+1
+],
+"em": [
+"them",
+2
+],
+"en": [
+"when",
+2
+],
+"ep": [
+"kept,",
+1
+],
+"er": [
+"her",
+1
+],
+"es": [
+"does",
+2
+],
+"et": [
+"something",
+3
+],
+"ev": [
+"every",
+0
+],
+"ex": [
+"exactly",
+0
+],
+"fa": [
+"family",
+0
+],
+"fe": [
+"different",
+3
+],
+"fi": [
+"first",
+0
+],
+"fo": [
+"for",
+0
+],
+"fr": [
+"from",
+0
+],
+"ft": [
+"often",
+1
+],
+"ha": [
+"that",
+1
+],
+"he": [
+"the",
+1
+],
+"hi": [
+"this",
+1
+],
+"hm": [
+"rhythm",
+4
+],
+"ho": [
+"who",
+1
+],
+"hr": [
+"three",
+1
+],
+"ht": [
+"right",
+3
+],
+"hy": [
+"rhythm",
+1
+],
+"ia": [
+"imperial",
+5
+],
+"ic": [
+"which",
+2
+],
+"id": [
+"did",
+1
+],
+"ie": [
+"carries",
+4
+],
+"if": [
+"different",
+1
+],
+"il": [
+"will",
+1
+],
+"im": [
+"times",
+1
+],
+"in": [
+"into",
+0
+],
+"io": [
+"relationship",
+5
+],
+"ip": [
+"relationship",
+10
+],
+"ir": [
+"first",
+1
+],
+"is": [
+"this",
+2
+],
+"it": [
+"with",
+1
+],
+"iv": [
+"five",
+1
+],
+"ja": [
+"trabaja",
+5
+],
+"ju": [
+"just",
+0
+],
+"ka": [
+"checkable",
+4
+],
+"ke": [
+"like",
+2
+],
+"ki": [
+"kink",
+0
+],
+"ks": [
+"asks",
+2
+],
+"l,": [
+"all,",
+2
+],
+"l.": [
+"all.",
+2
+],
+"la": [
+"relationship",
+2
+],
+"ld": [
+"would",
+3
+],
+"le": [
+"people",
+4
+],
+"li": [
+"English",
+3
+],
+"ll": [
+"all",
+1
+],
+"lo": [
+"Eursulon",
+5
+],
+"ls": [
+"also",
+1
+],
+"ly": [
+"only",
+2
+],
+"m,": [
+"them,",
+3
+],
+"m.": [
+"them.",
+3
+],
+"ma": [
+"made",
+0
+],
+"me": [
+"Ame",
+1
+],
+"mi": [
+"Shortcoming:",
+7
+],
+"mo": [
+"most",
+0
+],
+"mp": [
+"amp;",
+1
+],
+"n'": [
+"don't",
+2
+],
+"n,": [
+"person,",
+5
+],
+"n.": [
+"question.",
+7
+],
+"n:": [
+"section:",
+6
+],
+"na": [
+"name",
+0
+],
+"nc": [
+"evidence",
+5
+],
+"nd": [
+"and",
+1
+],
+"ne": [
+"one",
+1
+],
+"ni": [
+"Spanish",
+3
+],
+"no": [
+"not",
+0
+],
+"ns": [
+"relationship",
+7
+],
+"nt": [
+"into",
+1
+],
+"o,": [
+"to,",
+1
+],
+"o.": [
+"do.",
+1
+],
+"oc": [
+"vocabulary",
+1
+],
+"od": [
+"model",
+1
+],
+"of": [
+"software",
+1
+],
+"ol": [
+"whole",
+2
+],
+"om": [
+"from",
+2
+],
+"on": [
+"one",
+0
+],
+"oo": [
+"book",
+1
+],
+"op": [
+"people",
+2
+],
+"or": [
+"for",
+1
+],
+"os": [
+"most",
+1
+],
+"ot": [
+"not",
+1
+],
+"ou": [
+"you",
+1
+],
+"ov": [
+"over",
+0
+],
+"ow": [
+"own",
+0
+],
+"pa": [
+"past",
+0
+],
+"pe": [
+"people",
+0
+],
+"ph": [
+"phrase",
+0
+],
+"pi": [
+"spirit",
+1
+],
+"pl": [
+"people",
+3
+],
+"po": [
+"poly",
+0
+],
+"pr": [
+"present",
+0
+],
+"qu": [
+"que",
+0
+],
+"r'": [
+"partner's",
+6
+],
+"r,": [
+"her,",
+2
+],
+"r.": [
+"answer.",
+5
+],
+"r:": [
+"owner:",
+4
+],
+"ra": [
+"rather",
+0
+],
+"rc": [
+"research",
+5
+],
+"rd": [
+"word",
+2
+],
+"re": [
+"reading",
+0
+],
+"rh": [
+"rhythm",
+0
+],
+"ri": [
+"right",
+0
+],
+"ro": [
+"rough",
+0
+],
+"rp": [
+"corpus",
+2
+],
+"rr": [
+"carries",
+2
+],
+"rs": [
+"first",
+2
+],
+"rt": [
+"partner",
+2
+],
+"ru": [
+"rule",
+0
+],
+"ry": [
+"every",
+3
+],
+"s,": [
+"years,",
+4
+],
+"s.": [
+"answers.",
+6
+],
+"s:": [
+"Success:",
+6
+],
+"s;": [
+"years;",
+4
+],
+"sa": [
+"same",
+0
+],
+"sc": [
+"scale",
+0
+],
+"se": [
+"phase",
+3
+],
+"sh": [
+"she",
+0
+],
+"si": [
+"design",
+2
+],
+"so": [
+"person",
+3
+],
+"sp": [
+"specific",
+0
+],
+"ss": [
+"glass",
+3
+],
+"st": [
+"first",
+3
+],
+"su": [
+"Eursulon",
+3
+],
+"sw": [
+"answer",
+2
+],
+"sy": [
+"system",
+0
+],
+"t'": [
+"It's",
+1
+],
+"t,": [
+"it,",
+1
+],
+"t.": [
+"it.",
+1
+],
+"t:": [
+"cult:",
+3
+],
+"t;": [
+"it;",
+1
+],
+"ta": [
+"Citadel",
+2
+],
+"te": [
+"after",
+2
+],
+"th": [
+"the",
+0
+],
+"ti": [
+"relationship",
+4
+],
+"to": [
+"into",
+2
+],
+"tr": [
+"true",
+0
+],
+"ts": [
+"its",
+1
+],
+"tt": [
+"written",
+3
+],
+"tu": [
+"actually",
+2
+],
+"tw": [
+"two",
+0
+],
+"ty": [
+"community",
+7
+],
+"ue": [
+"que",
+1
+],
+"ui": [
+"built",
+1
+],
+"ul": [
+"would",
+2
+],
+"um": [
+"number",
+1
+],
+"un": [
+"under",
+0
+],
+"up": [
+"couple",
+2
+],
+"ur": [
+"your",
+2
+],
+"us": [
+"because",
+4
+],
+"ut": [
+"about",
+3
+],
+"va": [
+"values:",
+0
+],
+"ve": [
+"very",
+0
+],
+"vi": [
+"Suvi",
+2
+],
+"wa": [
+"wander",
+0
+],
+"we": [
+"were",
+0
+],
+"wh": [
+"what",
+0
+],
+"wi": [
+"twice",
+1
+],
+"wo": [
+"two",
+1
+],
+"xp": [
+"expected",
+1
+],
+"y'": [
+"story's",
+4
+],
+"y,": [
+"day, night",
+2
+],
+"y.": [
+"wrongly.",
+6
+],
+"ye": [
+"yellow",
+0
+],
+"yo": [
+"you",
+0
+],
+"yp": [
+"type",
+1
+],
+"ys": [
+"says",
+2
+],
+"yt": [
+"rhythm",
+2
+]
+},
+"italic": {
+"'s": [
+"Suvi's",
+4
+],
+"Am": [
+"Ame",
+0
+],
+"An": [
+"And",
+0
+],
+"Av": [
+"Avenue",
+0
+],
+"Ca": [
+"Caesar",
+0
+],
+"Ch": [
+"Chapter",
+0
+],
+"Co": [
+"Costa",
+0
+],
+"El": [
+"El",
+0
+],
+"Es": [
+"Est",
+0
+],
+"Fi": [
+"First",
+0
+],
+"Fo": [
+"For",
+0
+],
+"Gr": [
+"Great",
+0
+],
+"Jo": [
+"John",
+0
+],
+"Pa": [
+"Part",
+0
+],
+"Po": [
+"Port",
+0
+],
+"Pr": [
+"Present",
+0
+],
+"Qu": [
+"Quiet",
+0
+],
+"Re": [
+"Return",
+0
+],
+"Sa": [
+"Same",
+0
+],
+"Se": [
+"See",
+0
+],
+"Sh": [
+"Shortcoming:",
+0
+],
+"So": [
+"Some",
+0
+],
+"Sp": [
+"Spanish",
+0
+],
+"St": [
+"Steel",
+0
+],
+"Su": [
+"Suvi",
+0
+],
+"Th": [
+"The",
+0
+],
+"To": [
+"Tomorrow",
+0
+],
+"Vi": [
+"Victory",
+0
+],
+"Wa": [
+"Wayward",
+0
+],
+"Wh": [
+"What",
+0
+],
+"Wi": [
+"Witch",
+0
+],
+"Ye": [
+"Yesterday",
+0
+],
+"Yo": [
+"You",
+0
+],
+"a,": [
+"Rica,",
+3
+],
+"a.": [
+"ana.",
+2
+],
+"ab": [
+"about",
+0
+],
+"ac": [
+"each",
+1
+],
+"ad": [
+"had",
+1
+],
+"ai": [
+"against",
+2
+],
+"al": [
+"all",
+0
+],
+"am": [
+"same",
+1
+],
+"an": [
+"and",
+0
+],
+"ap": [
+"Chapter",
+2
+],
+"ar": [
+"are",
+0
+],
+"as": [
+"was",
+1
+],
+"at": [
+"that",
+2
+],
+"ay": [
+"away",
+2
+],
+"ba": [
+"back",
+0
+],
+"be": [
+"because",
+0
+],
+"bi": [
+"hubiera",
+2
+],
+"bl": [
+"problem",
+3
+],
+"bo": [
+"about",
+1
+],
+"br": [
+"habr",
+2
+],
+"bu": [
+"but",
+0
+],
+"ca": [
+"can",
+0
+],
+"ce": [
+"Success:",
+3
+],
+"ch": [
+"which",
+3
+],
+"ci": [
+"specific",
+3
+],
+"ck": [
+"back",
+2
+],
+"cl": [
+"claim",
+0
+],
+"co": [
+"comes",
+0
+],
+"cr": [
+"across",
+1
+],
+"ct": [
+"actually",
+1
+],
+"cu": [
+"cult:",
+0
+],
+"cy": [
+"latency",
+5
+],
+"d,": [
+"word,",
+3
+],
+"d.": [
+"instead.",
+6
+],
+"da": [
+"day",
+0
+],
+"de": [
+"under",
+2
+],
+"di": [
+"did",
+0
+],
+"do": [
+"does",
+0
+],
+"dr": [
+"drop",
+0
+],
+"ds": [
+"words",
+3
+],
+"e'": [
+"Ame's",
+2
+],
+"e,": [
+"time,",
+3
+],
+"e.": [
+"one.",
+2
+],
+"e:": [
+"use:",
+2
+],
+"e;": [
+"people;",
+5
+],
+"ea": [
+"real",
+1
+],
+"ec": [
+"because",
+1
+],
+"ed": [
+"named",
+3
+],
+"ee": [
+"three",
+3
+],
+"ef": [
+"before",
+1
+],
+"el": [
+"relationship",
+1
+],
+"em": [
+"them",
+2
+],
+"en": [
+"when",
+2
+],
+"ep": [
+"kept,",
+1
+],
+"er": [
+"her",
+1
+],
+"es": [
+"does",
+2
+],
+"et": [
+"something",
+3
+],
+"ev": [
+"every",
+0
+],
+"ex": [
+"exactly",
+0
+],
+"fa": [
+"family",
+0
+],
+"fe": [
+"different",
+3
+],
+"fi": [
+"first",
+0
+],
+"fo": [
+"for",
+0
+],
+"ft": [
+"often",
+1
+],
+"ha": [
+"that",
+1
+],
+"he": [
+"the",
+1
+],
+"hi": [
+"this",
+1
+],
+"hm": [
+"rhythm",
+4
+],
+"ho": [
+"who",
+1
+],
+"hr": [
+"three",
+1
+],
+"ht": [
+"right",
+3
+],
+"hy": [
+"rhythm",
+1
+],
+"ia": [
+"imperial",
+5
+],
+"ic": [
+"which",
+2
+],
+"id": [
+"did",
+1
+],
+"ie": [
+"carries",
+4
+],
+"if": [
+"different",
+1
+],
+"il": [
+"will",
+1
+],
+"im": [
+"times",
+1
+],
+"in": [
+"into",
+0
+],
+"io": [
+"relationship",
+5
+],
+"ip": [
+"relationship",
+10
+],
+"ir": [
+"first",
+1
+],
+"is": [
+"this",
+2
+],
+"it": [
+"with",
+1
+],
+"iv": [
+"five",
+1
+],
+"je": [
+"subject",
+3
+],
+"ju": [
+"just",
+0
+],
+"ke": [
+"like",
+2
+],
+"ki": [
+"kink",
+0
+],
+"ks": [
+"asks",
+2
+],
+"l,": [
+"all,",
+2
+],
+"la": [
+"relationship",
+2
+],
+"ld": [
+"would",
+3
+],
+"le": [
+"people",
+4
+],
+"li": [
+"English",
+3
+],
+"ll": [
+"all",
+1
+],
+"lo": [
+"Eursulon",
+5
+],
+"ls": [
+"also",
+1
+],
+"ly": [
+"only",
+2
+],
+"m.": [
+"them.",
+3
+],
+"ma": [
+"made",
+0
+],
+"me": [
+"Ame",
+1
+],
+"mi": [
+"Shortcoming:",
+7
+],
+"mo": [
+"most",
+0
+],
+"mp": [
+"amp;",
+1
+],
+"n'": [
+"don't",
+2
+],
+"n,": [
+"person,",
+5
+],
+"n.": [
+"question.",
+7
+],
+"na": [
+"name",
+0
+],
+"nc": [
+"evidence",
+5
+],
+"nd": [
+"and",
+1
+],
+"ne": [
+"one",
+1
+],
+"ni": [
+"Spanish",
+3
+],
+"no": [
+"not",
+0
+],
+"ns": [
+"relationship",
+7
+],
+"nt": [
+"into",
+1
+],
+"o,": [
+"to,",
+1
+],
+"o.": [
+"do.",
+1
+],
+"ob": [
+"nobody",
+1
+],
+"oc": [
+"vocabulary",
+1
+],
+"od": [
+"model",
+1
+],
+"of": [
+"software",
+1
+],
+"ol": [
+"whole",
+2
+],
+"om": [
+"from",
+2
+],
+"on": [
+"one",
+0
+],
+"oo": [
+"book",
+1
+],
+"op": [
+"people",
+2
+],
+"or": [
+"for",
+1
+],
+"os": [
+"most",
+1
+],
+"ot": [
+"not",
+1
+],
+"ou": [
+"you",
+1
+],
+"ow": [
+"own",
+0
+],
+"pa": [
+"past",
+0
+],
+"pe": [
+"people",
+0
+],
+"pl": [
+"people",
+3
+],
+"po": [
+"poly",
+0
+],
+"pp": [
+"appears",
+1
+],
+"pr": [
+"present",
+0
+],
+"pt": [
+"Chapter",
+3
+],
+"qu": [
+"que",
+0
+],
+"r,": [
+"her,",
+2
+],
+"r.": [
+"answer.",
+5
+],
+"r:": [
+"owner:",
+4
+],
+"ra": [
+"rather",
+0
+],
+"rd": [
+"word",
+2
+],
+"re": [
+"reading",
+0
+],
+"rf": [
+"perfect",
+2
+],
+"rh": [
+"rhythm",
+0
+],
+"ri": [
+"right",
+0
+],
+"rm": [
+"form",
+2
+],
+"rn": [
+"turns",
+2
+],
+"ro": [
+"rough",
+0
+],
+"rr": [
+"carries",
+2
+],
+"rs": [
+"first",
+2
+],
+"rt": [
+"partner",
+2
+],
+"ru": [
+"rule",
+0
+],
+"ry": [
+"every",
+3
+],
+"s,": [
+"years,",
+4
+],
+"s.": [
+"answers.",
+6
+],
+"s:": [
+"Success:",
+6
+],
+"s;": [
+"years;",
+4
+],
+"sa": [
+"same",
+0
+],
+"sc": [
+"scale",
+0
+],
+"se": [
+"phase",
+3
+],
+"sh": [
+"she",
+0
+],
+"si": [
+"design",
+2
+],
+"so": [
+"person",
+3
+],
+"sp": [
+"specific",
+0
+],
+"ss": [
+"glass",
+3
+],
+"st": [
+"first",
+3
+],
+"su": [
+"Eursulon",
+3
+],
+"sy": [
+"system",
+0
+],
+"t,": [
+"it,",
+1
+],
+"t.": [
+"it.",
+1
+],
+"t:": [
+"cult:",
+3
+],
+"ta": [
+"Citadel",
+2
+],
+"te": [
+"after",
+2
+],
+"th": [
+"the",
+0
+],
+"ti": [
+"relationship",
+4
+],
+"tl": [
+"exactly",
+4
+],
+"to": [
+"into",
+2
+],
+"tr": [
+"true",
+0
+],
+"ts": [
+"its",
+1
+],
+"tt": [
+"written",
+3
+],
+"tu": [
+"actually",
+2
+],
+"tw": [
+"two",
+0
+],
+"ty": [
+"community",
+7
+],
+"ua": [
+"actually",
+3
+],
+"ub": [
+"subjunctive",
+1
+],
+"uc": [
+"Success:",
+1
+],
+"ue": [
+"que",
+1
+],
+"ul": [
+"would",
+2
+],
+"um": [
+"number",
+1
+],
+"un": [
+"under",
+0
+],
+"ur": [
+"your",
+2
+],
+"us": [
+"because",
+4
+],
+"ut": [
+"about",
+3
+],
+"va": [
+"values:",
+0
+],
+"ve": [
+"very",
+0
+],
+"vi": [
+"Suvi",
+2
+],
+"vo": [
+"vos",
+0
+],
+"wa": [
+"wander",
+0
+],
+"we": [
+"were",
+0
+],
+"wh": [
+"what",
+0
+],
+"wi": [
+"twice",
+1
+],
+"wn": [
+"own",
+1
+],
+"wo": [
+"two",
+1
+],
+"y'": [
+"story's",
+4
+],
+"y,": [
+"day, night",
+2
+],
+"y.": [
+"wrongly.",
+6
+],
+"ye": [
+"yellow",
+0
+],
+"yo": [
+"you",
+0
+],
+"yt": [
+"rhythm",
+2
+]
+}
+}
+}
