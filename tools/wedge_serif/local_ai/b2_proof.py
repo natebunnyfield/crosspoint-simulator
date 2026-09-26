@@ -3,8 +3,8 @@
 
     $VENV/bin/python b2_proof.py BASE_DIR B2_DIR MOVED_JSON OUT_DIR
 
-RENDERING (as the reader does, fontconvert_sdcard.py): FreeType, FT_LOAD_RENDER
-with default flags (the auto-hinter on these unhinted TTFs), coverage cut to
+RENDERING (as the reader does, fontconvert_sdcard.py): FreeType, FT_LOAD_RENDER |
+FT_LOAD_NO_HINTING (round 401; before it the reader auto-hinted), coverage cut to
 the reader's four levels (2-bit), pen advanced by the glyph's LINEAR advance
 (fractional) plus the GPOS kern quantized to 1/16 px (the reader's 4.4 fixed
 point), each bitmap placed at the pen rounded to a whole pixel. Kerns and
@@ -49,7 +49,8 @@ class Setter:
 
     def glyph(self, gid):
         if gid not in self.cache:
-            self.face.load_glyph(gid, freetype.FT_LOAD_RENDER)
+            # ROUND 401: the reader loads Albo with FT_LOAD_NO_HINTING, so do we
+            self.face.load_glyph(gid, freetype.FT_LOAD_RENDER | freetype.FT_LOAD_NO_HINTING)
             g = self.face.glyph
             bm = g.bitmap
             a = np.array(bm.buffer, np.uint8).reshape(bm.rows, bm.width) if bm.rows else np.zeros((0, 0), np.uint8)

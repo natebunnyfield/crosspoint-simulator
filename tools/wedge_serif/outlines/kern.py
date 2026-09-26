@@ -623,7 +623,8 @@ _B2 = None
 if _SPACING_FIT == "b2":
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            os.environ.get("ALBO_SPACING_TABLES", "spacing_b2.json"))) as _fh:
-        _B2 = json.load(_fh)["italic" if (_ALD is not None and _ALD.ON) else "roman"]
+        _B2_ALL = json.load(_fh)
+    _B2 = _B2_ALL["italic" if (_ALD is not None and _ALD.ON) else "roman"]
 _B2_NAMES = {'.': ['period'], ',': ['comma'], ':': ['colon'], ';': ['semicolon'],
              "'": ['quotesingle', 'quoteright'], '\u2019': ['quoteright'], '"': ['quotedbl'],
              '-': ['hyphen'], '!': ['exclam'], '?': ['question']}
@@ -905,6 +906,19 @@ if _B2 is not None and _ALD is not None and _ALD.ON:
         # ROUND 398: qt 0.0122 -> 0.0107 as the italic t's left side went -2 -> -3; +5.
         for _r, _k in (('C', 7), ('Q', 6), ('j', 9), ('four', 5), ('g', 4), ('m', 4), ('t', 5)):
             PAIRS[('q', _r)] = _shipped('q', _r) + _k
+
+# ROUND 402 -- CLEARANCE, MEASURED PER CUT (local_ai/clearance.py). After a B2
+# refit, every pair cmp_touch finds under its 0.012 em floor in a built cut gets
+# the kern that lifts it to 0.015 em, written into the table file's
+# "clearance" block and applied here last. Replaces hand-typing the list every
+# round (the q's right side moved in three refits running).
+if _B2 is not None:
+    from . import pen as _pen_cl
+    _cut = ("Bold" if _pen_cl.S > 84.0 else "") + ("Italic" if (_ALD is not None and _ALD.ON) else "")
+    _cut = _cut or "Regular"
+    for _k, _d in sorted(_B2_ALL.get("clearance", {}).get(_cut, {}).items()):
+        _l, _r = _k.split(" ")
+        PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
 
 _apply_bench()
 

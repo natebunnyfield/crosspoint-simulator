@@ -106,5 +106,56 @@ def main():
               open(os.path.join(HERE, "probe_alpha-2026-09-26.json"), "w"), indent=1)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--nested" not in sys.argv:
     main()
+
+
+def nested():
+    """NESTED CV: does choosing the penalties by CV beat the fixed (1, 30)?
+    Outer: bench_fit's folds, first shuffle (10 folds). Inner: 5 folds over
+    the outer training bench pairs pick (ALPHA_ID, ALPHA_F) from the grid;
+    the pick is scored on the outer fold it never saw, beside (1, 30)."""
+    fonts = {s: FT.Font(p) for s, p in FT.FONTS.items()}
+    R = {s: b2_fit.readings(s) for s in STYLES}
+    J0 = {s: bench_fit.judgments(s) for s in STYLES}
+    feats = {s: {p: FT.pair_features(fonts[s], p[0], p[1], s == "italic")[0]
+                 for p in R[s] if b2_fit.in_scope(p) or p in J0[s]} for s in STYLES}
+    FO = PF.folds()
+
+    def fit_on(s, reads, a, f):
+        b2_fit.ALPHA_ID, b2_fit.ALPHA_F = a, f
+        J, W = b2_fit.combine(reads, 1.0)
+        J = {p: v for p, v in J.items() if p in feats[s]}
+        return b2_fit.fit(s, J, feats[s], W)[2]
+
+    e_fixed, e_nested, picks = [], [], []
+    for i in range(PF.K):
+        held = {s: FO[s][i][2] for s in STYLES}
+        train_pairs = {s: sorted(p for p in J0[s] if p not in held[s]) for s in STYLES}
+        rng = np.random.default_rng(i)
+        inner = {s: np.array_split(rng.permutation(len(train_pairs[s])), 5) for s in STYLES}
+        score = {}
+        for a in A_ID:
+            for f in A_F:
+                errs = []
+                for k in range(5):
+                    for s in STYLES:
+                        ih = {train_pairs[s][j] for j in inner[s][k]}
+                        pred = fit_on(s, {p: v for p, v in R[s].items() if p not in held[s] and p not in ih}, a, f)
+                        errs += [abs(pred(p) - J0[s][p]) for p in ih]
+                score[(a, f)] = np.mean(errs)
+        pick = min(score, key=score.get); picks.append(pick)
+        for s in STYLES:
+            base = {p: v for p, v in R[s].items() if p not in held[s]}
+            pf, pn = fit_on(s, base, 1.0, 30.0), fit_on(s, base, *pick)
+            e_fixed += [abs(pf(p) - J0[s][p]) for p in held[s]]
+            e_nested += [abs(pn(p) - J0[s][p]) for p in held[s]]
+    b2_fit.ALPHA_ID, b2_fit.ALPHA_F = 1.0, 30.0
+    d = np.array(e_fixed) - np.array(e_nested)
+    print(f"NESTED CV (outer = bench_fit's first shuffle, inner 5-fold): fixed (1, 30) {np.mean(e_fixed):.2f}, "
+          f"CV-chosen {np.mean(e_nested):.2f}  (gain {d.mean():+.2f}, paired se {d.std(ddof=1) / np.sqrt(len(d)):.2f})")
+    print("   picks per outer fold:", ", ".join(f"({a:g},{f:g})" for a, f in picks))
+
+
+if __name__ == "__main__" and "--nested" in sys.argv:
+    nested()
