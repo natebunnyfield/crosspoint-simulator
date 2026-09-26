@@ -816,4 +816,4 @@ The largest absolute moves are rare pairs:
 - Same zero (round 395), same page, the `db` collection `active`, bench id
   `active-2026-09-26-s2`.
 
-**Owner ruling, 2026-09-26 (decided blind):** B2 stays BEHIND THE FLAG (`ALBO_SPACING_FIT=b2`, default off). Keep refitting from bench sessions; revisit after he has looked at the proof page.
+**Owner ruling, 2026-09-26 (decided blind):** SHIP B2 as the default spacing (round 396). A first answer of "keep behind the flag" was a misclick, re-asked, and reversed by him the same minute.
