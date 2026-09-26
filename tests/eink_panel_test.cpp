@@ -240,6 +240,25 @@ int main() {
     check(exact, "cap 0: the ghost plane is not drawn");
   }
 
+  // WHICH PROGRAM RUNS WHERE (2026-09-25). The X3 has its own decoded banks;
+  // every other build still BORROWS the X3 _full program for both HALF and
+  // FULL, because the X4's SSD1677 runs OTP sequences (0xD7 / 0xF7) whose
+  // frames exist in no file the search found (docs/eink-mode-spike-2026-09-25.md
+  // §2a). Pinned so that a real X4 transcription has to change this on purpose.
+  {
+    using eink::Refresh;
+    check(&eink::programFor(Refresh::Half, true) == &eink::kX3HalfScrub,
+          "X3 HALF is the decoded scrub");
+    check(&eink::programFor(Refresh::Full, true) == &eink::kX3Full,
+          "X3 FULL is the decoded _full");
+    check(&eink::programFor(Refresh::Half, false) == &eink::kX3Full &&
+              &eink::programFor(Refresh::Full, false) == &eink::kX3Full,
+          "non-X3 builds borrow the X3 _full for both (no X4 frames found)");
+    check(eink::totalFrames(eink::kX3Full) == 62 &&
+              eink::totalFrames(eink::kX3HalfScrub) == 25,
+          "frame counts match Uc8253X3Luts.h (62 / 25)");
+  }
+
   if (failures) {
     std::printf("eink_panel_test: %d FAILED\n", failures);
     return 1;

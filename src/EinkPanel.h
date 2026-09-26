@@ -47,7 +47,8 @@
 //
 // The X4 (SSD1677) runs OTP sequences (0xD7 half, 0xF7 full) whose frames are
 // not in any file here, so a non-X3 build uses the X3 _full program for both
-// HALF and FULL. Documented, not measured.
+// HALF and FULL. Documented, not measured; the search that found no X4 frames
+// is docs/eink-mode-spike-2026-09-25.md §2a.
 //
 // --- THE OPTICS ---------------------------------------------------------------
 //

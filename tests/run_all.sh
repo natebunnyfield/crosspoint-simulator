@@ -10,10 +10,10 @@
 #   tests/run_all.sh          # build and run everything
 #   tests/run_all.sh -k wifi  # only tests whose name matches
 #
-# The eight shell tests (test_sleep_wake.sh, test_foreground_wake.sh,
+# The nine shell tests (test_sleep_wake.sh, test_foreground_wake.sh,
 # test_queued_tap_wake.sh, test_text_entry.sh, test_read_aloud_capture.sh,
-# test_note_editor_repaint.sh, test_manage_files_and_wifi_nav.sh,
-# test_web_server_hardening.sh) run at the end via
+# test_speed_read_live.sh, test_note_editor_repaint.sh,
+# test_manage_files_and_wifi_nav.sh, test_web_server_hardening.sh) run at the end via
 # run_shell_skip, against CROSSPOINT_FIRMWARE_DIR (default ~/src/
 # crosspoint-reader, the same default tools/fw_include_flags.py uses). Each
 # needs a desktop binary built from that checkout and a seeded fs_/.crosspoint/
@@ -621,6 +621,20 @@ run raking_light \
 run eink_panel \
   c++ -std=c++17 -Isrc -Itests -o "$OUT/eink_panel" tests/eink_panel_test.cpp
 
+# The ghost CALIBRATION tool (tools/eink_calibrate.py, 2026-09-25): reads
+# kResidueToWhite / kResidueToBlack / kKeep off photographs of a real panel.
+# Its selftest photographs a synthetic panel with KNOWN residues -- exposure
+# drift between shots, sensor noise, a 1 px misregistration -- and fails unless
+# all three come back. It caught its own first bug: normalizing by pixels that
+# had just turned ink divided the to-black residue away (0.018 for 0.025).
+if python3 -c 'import numpy, PIL' 2>/dev/null; then
+  run_direct eink_calibrate \
+    python3 tools/eink_calibrate.py --selftest
+else
+  printf '%-22s %s\n' "eink_calibrate" "SKIP (python3 numpy/Pillow not available)"
+  skipped=$((skipped + 1))
+fi
+
 run scanlines \
   c++ -std=c++17 -Isrc -o "$OUT/scanlines" tests/scanlines_test.cpp
 
@@ -942,7 +956,7 @@ else
   skipped=$((skipped + 3))
 fi
 
-# The eight end-to-end shell tests. Each needs a firmware CHECKOUT (not just
+# The nine end-to-end shell tests. Each needs a firmware CHECKOUT (not just
 # the include set the block above wants) with a desktop binary already built
 # and, for three of them, a card that has been run once so
 # fs_/.crosspoint/settings.json exists -- see each script's own header for
@@ -962,6 +976,14 @@ run_shell_skip test_foreground_wake tests/test_foreground_wake.sh "$FW_CHECKOUT"
 run_shell_skip test_queued_tap_wake tests/test_queued_tap_wake.sh "$FW_CHECKOUT"
 run_shell_skip test_text_entry tests/test_text_entry.sh "$FW_CHECKOUT"
 run_shell_skip test_read_aloud_capture tests/test_read_aloud_capture.sh "$FW_CHECKOUT"
+# SPEED READ live (2026-09-25): turned on mid-page through the settings.json
+# watcher it must start on the page already shown (a firmware re-render,
+# HalDisplay.cpp requestFirmwareRender -- before it the run showed NOTHING
+# until the next page turn, measured), and SRTAP -- the call the iOS tap makes
+# -- must pause without a word advancing and resume on the held word's
+# successor. One launch, ~15 s, generated book on a scratch card. SKIPs on a
+# binary built before the re-render existed.
+run_shell_skip test_speed_read_live tests/test_speed_read_live.sh "$FW_CHECKOUT"
 # A note repaints while a HOST keyboard types (the split-screen editor's
 # panel-hidden path drains consumeTypedText above its repaint guard). Also the
 # test that was blamed on a firmware keyboard gate on 2026-09-11 when what had

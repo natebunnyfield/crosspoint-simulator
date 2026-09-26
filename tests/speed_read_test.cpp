@@ -223,6 +223,58 @@ int main() {
     CHECK(rd.index() == 0);
   }
   {
+    // PAUSE AND RESUME, the only control the owner bound (2026-09-25). A tap
+    // mid-word holds THAT word however long the pause lasts; resume gives it
+    // its full time again and then continues in order -- it neither skips the
+    // word it was on nor replays the ones before it.
+    Cap c;
+    c.word("aa", 20, 10, 40);
+    c.word("bb", 70, 10, 40);
+    c.word("cc", 120, 10, 40);
+    Reader rd;
+    rd.setWpm(600); // 100 ms a word
+    rd.pageArrived(speedread::wordsFromPage(c.text, c.rects), 0, false);
+    CHECK(rd.step(100).changed && rd.index() == 1);
+    rd.togglePause(160); // 60 ms into "bb"
+    CHECK(rd.paused());
+    for (uint64_t t = 160; t < 60000; t += 997)
+      CHECK(!rd.step(t).changed && !rd.step(t).requestTurn && rd.index() == 1);
+    rd.togglePause(60000);
+    CHECK(!rd.paused());
+    CHECK(!rd.step(60099).changed && rd.index() == 1); // full 100 ms again
+    CHECK(rd.step(60100).changed && rd.index() == 2);  // then the next word
+    CHECK(rd.step(60200).requestTurn);                 // and the turn, once
+    // setPaused is idempotent (a double tap delivered twice is not a resume)
+    rd.setPaused(true, 60200);
+    rd.setPaused(true, 60200);
+    CHECK(rd.paused());
+    rd.setPaused(false, 60200);
+    CHECK(!rd.paused());
+  }
+  {
+    // A pause taken while a TURN is pending must not come back to a timeout
+    // that ran on through the pause: resume after longer than the turn
+    // timeout used to read as the end of the book at once.
+    Cap c;
+    c.word("aa", 20, 10, 40);
+    Reader rd;
+    rd.setWpm(600);
+    rd.pageArrived(speedread::wordsFromPage(c.text, c.rects), 0, false);
+    CHECK(rd.step(100).requestTurn && rd.awaitingTurn());
+    rd.togglePause(150);
+    rd.togglePause(150 + 10 * speedread::kTurnTimeoutMs);
+    const uint64_t back = 150 + 10 * speedread::kTurnTimeoutMs;
+    CHECK(!rd.step(back + 1).changed && !rd.finished());
+    CHECK(rd.step(back + speedread::kTurnTimeoutMs).changed && rd.finished());
+    // ...and an empty page's dwell restarts on resume too.
+    Reader em;
+    em.pageArrived({}, 0, false);
+    em.togglePause(10);
+    em.togglePause(100000);
+    CHECK(!em.step(100001).requestTurn);
+    CHECK(em.step(100000 + speedread::kEmptyPageDwellMs).requestTurn);
+  }
+  {
     // A loop that notices late keeps the schedule: the next word is timed
     // from when this one was DUE, so a 30 ms-late step does not slow the page.
     Cap c;

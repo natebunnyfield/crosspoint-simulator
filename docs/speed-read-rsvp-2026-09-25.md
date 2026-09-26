@@ -75,8 +75,10 @@ matters because an absent key read as 0 would mean one word per forever.
   closing quotes and brackets) multiplies it by 2.0. A clause end (`, ; :` or a
   dash) multiplies it by 1.5. Each letter past 8 adds 0.1, up to +0.8. A
   paragraph end adds +1.5. OpenSpritz simply shows a word twice (×2) if it
-  contains `, : - (` or has more than 8 letters. Spritz never published its own
-  pauses.
+  contains `, : - (` or has more than 8 characters (punctuation counted) and
+  no `.`: it splices the word in **twice more**, so it is up three times as
+  long (×3, re-fetched and corrected 2026-09-25; this line said ×2). Spritz
+  never published its own pauses.
 - **Paragraph ends are inferred from the layout**, because the capture carries
   no markers. A word ends a paragraph if it is the last on its line and one of
   these holds:
@@ -136,22 +138,80 @@ The fan-out adds three things and changes nothing that existed:
 A re-render of the same page, with the same text and rects, **keeps the
 position**. The firmware re-publishes on every render, not only on a page turn.
 
-**Capture timing:** the phone captures always (`CrossPointReadAloud_perFrame`),
-so turning speed read on mid-page shows that page at once. The cursor is reset
-on enable, so the page the channel already holds is re-read. On the desktop,
-`setSpeedRead(true)` sets the peeker flag, and the env var is applied by the
-dial seed in `HalDisplay::begin()`, before the first `loop()`. A desktop toggle
-made mid-page through `settings.json` starts at the **next page render**.
+**Capture timing — turning it on mid-page starts on the page already shown**
+(fixed 2026-09-25, after the spike). The phone captures always
+(`CrossPointReadAloud_perFrame`), but the desktop captures only while someone
+asks, so the page on the glass when the mode is turned on was rendered with
+nobody asking for its words, and the spike's desktop toggle showed nothing
+until the next page render. The off→on edge in `HalDisplay.cpp setSpeedRead`
+now asks the firmware to **re-render** (`SimulatorOverlay::requestFirmwareRender`);
+the re-render publishes the same page, which speed read takes as the page it
+is on, and the cursor reset on enable lets the channel's held page be re-read
+too.
 
-Asking the firmware to re-render (`crosspointRequestRender`) was tried and
-refused:
+The call that re-renders is the firmware's `crosspointRequestRender()` (the
+owner's `src/SimulatorRenderRequest.cpp`, deferred: it sets a flag the activity
+manager reads at the end of its loop, so it is safe from the settings watcher
+and before `setup()`). Upstream has no such symbol, so this library still
+cannot name it, and it is reached two ways:
 
-- Upstream firmware has no `SimulatorRenderRequest.cpp`. Checked with
-  `gh api` against `crosspoint-reader/crosspoint-reader@develop`: 404.
-- A weak *reference* does not link on Mach-O. Measured: `Undefined symbols`.
-- A weak *definition* here could keep the strong one from being pulled out of
-  the iOS static archive, which would silently break the appearance re-render
-  that relies on it.
+- **iOS** — the harness, which already calls it for the appearance re-render
+  and so already links it, registers its address at begin
+  (`SimulatorOverlay::setFirmwareRenderRequester(&crosspointRequestRender)`,
+  `CrossPointIOSShim.cpp`). Proven by reading the path, not by a phone run:
+  `pollSpeedRead` → `setSpeedRead(true)` → `simspeedread::setEnabled` returns
+  the edge → `requestFirmwareRender()` → the registered pointer.
+- **Desktop** — looked up at run time with `dlsym(RTLD_DEFAULT,
+  "_Z23crosspointRequestRenderv")`. A macOS executable exports its globals
+  (`nm -g` shows `T __Z23crosspointRequestRenderv` in the X3 binary), so there
+  is no link-time dependency. On upstream firmware, or a Linux build without
+  `-rdynamic`, the lookup finds nothing and the log says
+  `re-render requested: unavailable (starts at the next render)` — the old
+  behavior, honestly reported.
+
+Rejected: the USB-edge repaint (`main.cpp`'s `wasUsbStateChanged()` →
+`requestUpdate()`, the one HAL lever that re-renders). Upstream gates it on
+`!isReaderActivity()`, so it cannot reach the reader, and faking a USB edge
+lies to the firmware.
+
+**Proven headless** (X3, desktop, the owner's book, 150 wpm, mode OFF at
+launch, `"speedRead": 1` written into `settings.json` at 6 s):
+
+| Binary | After the toggle |
+|---|---|
+| before the fix | `[speedread] on`, then nothing for the remaining 8 s |
+| after | `on` → `re-render requested: yes` → `page gen=1: 54 words` **121 ms later**, no page forward between; word 2 "Engineering" at +0.5 s |
+
+`tests/test_speed_read_live.sh` (in `run_all.sh`) pins it on a generated book:
+the toggle through the watcher, a re-render requested, the page's words
+arriving with no page-forward in between.
+
+### Pause and resume, exercised
+
+The spike never sent a tap. There is now a script verb, `SRTAP`, that makes
+the exact call the iOS harness makes for a zen deliberate tap or an off-pad
+tap (`SimulatorOverlay::speedReadTakeTap`); a tap with no word up is logged
+`tap not taken` and dropped.
+
+- **Model** (`tests/speed_read_test.cpp`): a pause 60 ms into a word holds that
+  word through 60 s of steps; resume gives it its full time again and then
+  moves to the NEXT word (no skip, no replay) and turns the page once;
+  `setPaused` is idempotent.
+- **A bug the test found:** a pause taken while a page turn was pending came
+  back to a turn timeout that had run on through the pause, so resuming after
+  more than 4 s read as the end of the book at once. Resume now restarts the
+  turn clock and the empty-page dwell as well as the word's. Pinned.
+- **Headless** (light, 150 wpm, `SRTAP` at 3000 and 7000 ms): paused on word 4
+  "your"; captures at 4000 and 6500 ms are **byte-identical**
+  (`c4fdcc74…` both); after resume the next word logged is 5/54 "first", 400 ms
+  after the resume — its full time. `tests/test_speed_read_live.sh` asserts that
+  no word advances between `paused` and `resumed`, that the first word after is
+  the held word's successor, and that a tap with the mode off is NOT taken.
+
+**OFF is byte-identical**, md5-gated against a baseline build of `59836cc`
+with speed read unset, two captures (book open, after a page turn) in each of
+two arms: as-shipped light `50b9bcc1…` / `4841a1ec…`, and dark `bddb6059…` /
+`2581ec15…` — identical in both builds.
 
 ### Proof that read-aloud still works
 
@@ -252,10 +312,15 @@ structure.
 
 ## What is left
 
-- **Device feel: UNCONFIRMED.** That covers the tap, the size (2.25× of the
+- **Device feel: UNCONFIRMED.** That covers the tap (now exercised headlessly
+  through the same call, but not with a finger), the size (2.25× of the
   reading size), the frame's position (38%/42%), and the readout's size.
-- **Step back a word or a sentence** exists in the model and is tested, but no
-  gesture or button is bound to it. Ask which gesture before binding one.
+- ~~Turning it on mid-page waits for the next page render~~ — fixed
+  2026-09-25 (see "Capture timing").
+- ~~The pause tap was never exercised~~ — exercised 2026-09-25 (model test,
+  headless `SRTAP`, the live shell test).
+- **Step back a word or a sentence** exists in the model and is tested, and
+  stays UNBOUND by the owner's ruling (below).
 - **Swipes and pad buttons still reach the firmware** while words are up. A
   page turn by hand restarts the reader at the new page's first word, and
   Back leaves the book, which hides the frame.
@@ -278,32 +343,67 @@ structure.
   the delay rule (a word containing `, : - (` or longer than 8, and without a
   `.`, is spliced in twice) are quoted from it.
 
-The following are **from memory and were NOT re-fetched this session.** Verify
-them before quoting outside this repo:
+**Re-checked 2026-09-25** (web, after the spike wrote them from memory). Each
+is marked VERIFIED (read at the URL given), VERIFIED-SECONDARY (the reference
+confirmed from search results or a citing paper, the source itself not
+opened), or CORRECTED.
 
-- Spritz Inc., "The Science" (spritzinc.com, 2014): the ORP and the fixed
-  "redicle" frame.
-- O'Regan, J. K. (1981), the convenient/optimal viewing position; Brysbaert, M.
-  & Nazir, T. (2005), "Visual constraints in written word recognition:
-  evidence from the optimal viewing-position effect", *Journal of Research in
-  Reading* 28(3). Words are recognized fastest when fixated slightly left of
-  centre, which is the basis of the ORP table.
-- Forster, K. I. (1970), *Perception & Psychophysics*; Potter, M. C. (1984):
-  the origin of the RSVP paradigm.
-- Rayner, K., Schotter, E. R., Masson, M. E. J., Potter, M. C. & Treiman, R.
-  (2016), "So much to read, so little time: How do we read, and can speed
-  reading help?", *Psychological Science in the Public Interest* 17(1). Its
-  review conclusion: RSVP apps trade comprehension for speed, and removing
-  regressions (re-reading) is part of the cost.
-- Schotter, E. R., Tran, R. & Rayner, K. (2014), "Don't believe what you read
-  (only once)", *Psychological Science* 25(6). When regressions are prevented,
-  comprehension drops for sentences that need them. That is the reason to bind
-  step back.
-- Benedetto, S., Carbone, A., Pedrotti, M., Le Fevre, K., Bey, L. A. Y. &
-  Baccino, T. (2015), "Rapid serial visual presentation in reading: The case of
-  Spritz", *Computers in Human Behavior* 45. It reported comparable literal
-  comprehension to normal reading, with more visual fatigue: fewer blinks under
-  RSVP.
+- **Spritz Inc., "The Science"** (spritzinc.com). VERIFIED-SECONDARY: the page
+  itself would not load from the Wayback Machine. Spritz's launch release (PR
+  Newswire, 2014-02-23) names the "Redicle" and the "Optimal Recognition Point"
+  (prnewswire.com/news-releases/spritz-reinvents-reading-on-mobile-devices-one-word-at-a-time-246756751.html),
+  and Rayner et al. 2016 quote the page's ORP passage, citing it as
+  "The Science, 2015".
+- **O'Regan, J. K. (1981).** The convenient viewing position hypothesis. In
+  D. F. Fisher, R. A. Monty & J. W. Senders (Eds.), *Eye Movements: Cognition
+  and Visual Perception* (pp. 289–298). Erlbaum. VERIFIED-SECONDARY.
+- **Brysbaert, M. & Nazir, T. (2005).** Visual constraints in written word
+  recognition: evidence from the optimal viewing-position effect. *Journal of
+  Research in Reading*, 28(3), 216–228. doi:10.1111/j.1467-9817.2005.00266.x.
+  VERIFIED-SECONDARY; the claim holds — words are processed most easily when
+  fixated just left of centre, the basis of the ORP table.
+- **Forster, K. I. (1970).** Visual perception of rapidly presented word
+  sequences of varying complexity. *Perception & Psychophysics*, 8(4), 215–221.
+  doi:10.3758/BF03210208. VERIFIED (link.springer.com/article/10.3758/BF03210208).
+- **Potter, M. C. (1984).** Rapid serial visual presentation (RSVP): A method
+  for studying language processing. In D. E. Kieras & M. A. Just (Eds.), *New
+  Methods in Reading Comprehension Research* (pp. 91–118). Erlbaum.
+  VERIFIED-SECONDARY. Potter named the method; Forster 1970 is the earlier use
+  for reading.
+- **Rayner, K., Schotter, E. R., Masson, M. E. J., Potter, M. C. & Treiman, R.
+  (2016).** So much to read, so little time: How do we read, and can speed
+  reading help? *Psychological Science in the Public Interest*, 17(1), 4–34.
+  doi:10.1177/1529100615623267. VERIFIED (read at
+  faculty.cas.usf.edu/eschotter/papers/Rayner_Schotter_Masson_Potter_Treiman_2016_PSPI.pdf).
+  The claim holds: a trade-off between speed and comprehension, with regressions
+  supporting comprehension and RSVP removing them. It also notes saccades take
+  only about 10% of reading time, against the 80% Spritz's marketing implied.
+- **Schotter, E. R., Tran, R. & Rayner, K. (2014).** Don't believe what you read
+  (only once): Comprehension is supported by regressions during reading.
+  *Psychological Science*, 25(6), 1218–1226. doi:10.1177/0956797614531148.
+  VERIFIED, **claim CORRECTED**: this doc said comprehension dropped "for
+  sentences that need them". The abstract says preventing regressions hurt
+  comprehension and that the effect "was not confined to ambiguous sentences" —
+  it dropped generally, which is a stronger reason for the step-back the owner
+  has left unbound.
+- **Benedetto, S., Carbone, A., Pedrotti, M., Le Fevre, K., Bey, L. A. Y. &
+  Baccino, T. (2015).** Rapid serial visual presentation in reading: The case of
+  Spritz. *Computers in Human Behavior*, 45, 352–358.
+  doi:10.1016/j.chb.2014.12.043. VERIFIED, **claim CORRECTED**: this doc said
+  Spritz gave "comparable literal comprehension". The paper found literal
+  comprehension **lower** with Spritz, inferential comprehension no different,
+  and blinks strongly reduced, which the authors tie to more visual fatigue
+  (read at tsw.it/wp-content/uploads/Rapid-serial-visual-presentation-in-reading-The-case-of-Spritz-1.pdf).
+- **Brysbaert, M. (2019).** How many words do we read per minute? A review and
+  meta-analysis of reading rate. *Journal of Memory and Language*, 109, 104047.
+  VERIFIED-SECONDARY. Adult silent reading in English averages **238 wpm for
+  non-fiction and 260 wpm for fiction**. For scale: the shipped 300 wpm row
+  measured an effective 257.5 wpm on a non-fiction page, so the default runs at
+  about ordinary silent-reading speed, not above it.
+
+No number in the code came from the memory-sourced list, so nothing in
+`src/SpeedRead.h` changed from this check except one comment (the OpenSpritz
+×3, above).
 
 ## RULED 2026-09-25 (owner)
 

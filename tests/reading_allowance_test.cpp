@@ -69,6 +69,71 @@ int main() {
     check(near(z.seconds, 0.25), "re-entering zen starts from zero");
     check(!z.step(true, true, 0.25), "staying in zen is not a restart");
   }
+  // A RETURN FROM THE BACKGROUND OR FROM SLEEP counts nothing: the first step
+  // after resume() spans the time away. The cap used to credit up to a second
+  // of it (pre-ship review, "left as is", fixed 2026-09-25). Only that one step
+  // is discarded -- the reading after it counts again -- and a resume() does
+  // not restart the session.
+  {
+    Session z;
+    z.step(true, true, 0.0);
+    z.step(true, true, 0.5);
+    check(near(z.seconds, 0.5), "resume: baseline");
+    z.resume();
+    check(!z.step(true, true, 3600.0), "resume is not a restart");
+    check(near(z.seconds, 0.5), "the gap across a background/sleep counts 0");
+    z.step(true, true, 0.5);
+    check(near(z.seconds, 1.0), "reading after the return counts again");
+    // without resume() the same gap is the capped stall (the old behavior)
+    Session y;
+    y.step(true, true, 0.0);
+    y.step(true, true, 3600.0);
+    check(near(y.seconds, kMaxStepSeconds), "an unannounced stall is still capped");
+    // a resume that arrives while not reading is spent on the next step
+    // anyway, so it cannot eat a later, real reading step
+    Session x;
+    x.step(true, true, 0.0);
+    x.resume();
+    x.step(true, false, 5.0);
+    x.step(true, true, 0.5);
+    check(near(x.seconds, 0.5), "resume is one step, not a latch");
+  }
+  // THE DECAY LANDS ON THE PAINTED SCREEN, not the announced one. Modeled on
+  // the firmware's real order (identity published, THEN pixels written) for a
+  // navigation menu -> book and book -> menu, keyed the old way (live flag) and
+  // the new way (the writer's stamp). The old way decays the menu for a
+  // present; the new way never decays a pixel that is not a book page.
+  {
+    struct Glass {
+      bool announcedBook = false;  // sheetIsReaderPage()
+      bool pixelsAreBook = false;  // what is actually in pixelBuf
+      bool stampedBook = false;    // pixelBufIsBookPage
+      void announce(bool book) { announcedBook = book; }
+      void paint(bool book) {
+        pixelsAreBook = book;
+        stampedBook = announcedBook;  // read under the writer's lock
+      }
+    };
+    const double decay = 0.8;
+    Glass g;
+    g.announce(false);
+    g.paint(false);  // a menu on the glass
+    g.announce(true);  // the reader publishes its page identity...
+    // ...one present lands here, before the book is painted
+    const double oldWay = g.announcedBook ? decay : 0.0;
+    check(oldWay > 0.0 && !g.pixelsAreBook,
+          "the old keying decays the MENU for a present (the defect)");
+    check(decayOnGlass(decay, g.stampedBook) == 0.0,
+          "keyed on the stamp, a menu is never decayed");
+    g.paint(true);
+    check(decayOnGlass(decay, g.stampedBook) == decay,
+          "once the book is painted the decay is drawn");
+    g.announce(false);  // back to a menu: onEnter publishes first
+    check(decayOnGlass(decay, g.stampedBook) == decay && g.pixelsAreBook,
+          "the book still on the glass keeps its decay until the menu paints");
+    g.paint(false);
+    check(decayOnGlass(decay, g.stampedBook) == 0.0, "the painted menu is clean");
+  }
   // THE BOOK DOES NOT MATTER: there is no key to switch on. A spent session
   // stays spent across a book change, which is the point of the ruling.
   {
