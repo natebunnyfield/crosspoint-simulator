@@ -314,6 +314,17 @@ static uint64_t pixelBufSeq = 0;
 // Speed read waits for a write newer than a read-aloud publish before it cuts
 // words out of the buffer (src/SurfaceSpeedRead.h).
 static std::atomic<uint64_t> pixelBufWriteMs{0};
+// WHETHER THE PIXELS IN pixelBuf ARE A BOOK PAGE, stamped by the same writer,
+// under pixelBufMutex, at the moment it writes them. The live
+// sheetIsReaderPage() flag cannot answer that: the reader publishes its page
+// identity BEFORE it paints (EpubReaderActivity captures, publishes, then
+// renders) and every other screen publishes in onEnter, also before it
+// paints -- so at a navigation the flag names the NEXT screen while the buffer
+// still holds the last one, and the reading goal's decay was drawn over a menu
+// for a present (pre-ship review, 2026-09-24). Because the identity always
+// lands before the paint, the value read at write time is the one that
+// describes these pixels. Guarded by pixelBufMutex; read only under it.
+static bool pixelBufIsBookPage = false;
 // The pixelBufSeq produced by a POLARITY RECONVERT, or 0. A reconvert rewrites
 // every pixel from the cached planes, so it bumps the seq exactly like a new
 // page -- and until 2026-08-30 the CRT beam read that bump as new content and
@@ -1060,6 +1071,7 @@ uint64_t renderBwPixels(const uint8_t *fb,
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const uint64_t seq = ++pixelBufSeq;
   pixelBufWriteMs.store(SDL_GetTicks());
+  pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const LevelRamp ramp(pal);
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
@@ -1140,6 +1152,7 @@ uint64_t composeGrayscalePreview() {
   }
   const uint64_t seq = ++pixelBufSeq;
   pixelBufWriteMs.store(SDL_GetTicks());
+  pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
     for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool baseWhite = getBit(bwBase, x, y);
@@ -2454,11 +2467,21 @@ void HalDisplay::setBackgrounded(const bool backgrounded) {
     return;
   SDL_Log("[DISPLAY] %s -- GPU presents %s", backgrounded ? "backgrounded" : "foregrounded",
           backgrounded ? "suspended" : "resumed");
+  // The reading goal's clock: the pass after a return spans the time away,
+  // which is not reading (src/ReadingAllowance.h Session::resume). Marked on
+  // BOTH edges -- iOS can stop scheduling the process before the background
+  // edge is delivered, so the foreground edge is the one that must not miss.
+  simallowance::resume();
   if (!backgrounded) {
     // Whatever the firmware drew while we were away is still owed.
     SimulatorOverlay::requestPresent();
   }
 }
+// ...and the same across a sleep. The sleep loop never presents, and the iOS
+// wake is a longjmp in which the clock's statics survive, so without this the
+// first pass after a wake counted up to a second of the sleep. (The desktop
+// wake is execvp: a fresh clock whose first step is already 0.)
+const simreset::Registrar gAllowanceResumeReset{[] { simallowance::resume(); }};
 
 // The ghost is created lazily and matches the panel texture's format and size.
 // Lazy because the glow is off by default and every desktop build would
@@ -3905,6 +3928,25 @@ void HalDisplay::presentIfNeeded() {
   // the un-swept half got any. The old picture is now the composed GLASS and
   // already has its letterpress in it, so an unclipped pass would print the
   // squeeze twice below the beam line.
+  // THE READING GOAL'S DECAY, as far as the pixels on the glass are concerned:
+  // the tick answers for the screen the firmware has ANNOUNCED, the stamp for
+  // the screen it has PAINTED, and the decay belongs to the painted one.
+  double decayOnGlass = 0.0;
+  if (allowanceDecay > 0.0) {
+    bool painted;
+    {
+      const std::lock_guard<std::mutex> lock(pixelBufMutex);
+      painted = pixelBufIsBookPage;
+    }
+    decayOnGlass = readingallowance::decayOnGlass(allowanceDecay, painted);
+    // One line per episode: the headless proof that the case happens and is
+    // held back (it lasts one present or two, at a navigation into a book).
+    static bool withheld = false;
+    if (!painted && !withheld)
+      SDL_Log("[allowance] decay %.2f withheld: the glass still shows the "
+              "previous (non-book) screen", allowanceDecay);
+    withheld = !painted;
+  }
   if (fields.letterpress) {
     if (simsheet::ensureLetterpressField()) {
       SDL_ScaleMode panelMode = kPanelScaleMode;
@@ -3914,12 +3956,12 @@ void HalDisplay::presentIfNeeded() {
       // pressure, so the field is drawn at a fading weight while the page
       // starves (src/SurfaceAllowance.h drawFadedField).
       const bool faded =
-          allowanceDecay > 0.0 &&
+          decayOnGlass > 0.0 &&
           simallowance::drawFadedField(
               sdl_renderer, simsheet::letterpressField(), activeWidth(),
               activeHeight(),
               readingallowance::picture::pressLeft(
-                  static_cast<float>(allowanceDecay)),
+                  static_cast<float>(decayOnGlass)),
               panelMode, drawPanel);
       if (!faded) drawPanel(simsheet::letterpressField());
     }
@@ -3932,7 +3974,7 @@ void HalDisplay::presentIfNeeded() {
   // ink the press put down is what starves. Book pages in zen only: the tick
   // returns 0 anywhere else, so a menu is never decayed and leaving zen shows
   // the page clean. src/SurfaceAllowance.h.
-  if (allowanceDecay > 0.0) {
+  if (decayOnGlass > 0.0) {
     const bool dark = display.isInverted();
     const PanelPalette pal = livePanelPalette(dark);
     // A COPY per page, taken under the lock and worked on outside it: the veil
@@ -3951,14 +3993,14 @@ void HalDisplay::presentIfNeeded() {
     }
     if (dark) {
       simallowance::drawDark(sdl_renderer, pageCopy.data(), w, h,
-                             cp::renderScale(), pageCopySeq, allowanceDecay,
+                             cp::renderScale(), pageCopySeq, decayOnGlass,
                              pal, drawPanel);
     } else {
       SDL_ScaleMode panelMode = kPanelScaleMode;
       SDL_GetTextureScaleMode(texture, &panelMode);
       simallowance::drawLight(sdl_renderer, pageCopy.data(), w, h,
                               cp::renderScale(), pageCopySeq, pageSheetSeed(),
-                              allowanceDecay, pal, panelMode, drawPanel);
+                              decayOnGlass, pal, panelMode, drawPanel);
     }
   } else {
     // Clean page: release everything, the page copy included (6.7 MB at 2x

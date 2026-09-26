@@ -79,15 +79,29 @@ inline double decayFraction(double usedSeconds, int allowanceMinutes) {
 struct Session {
   double seconds = 0.0;
   bool lastZen = false;
+  // Set by resume(): the NEXT step's dt is the gap across a background or a
+  // sleep, not reading, and counts nothing.
+  bool discardNext = false;
   // True when this step restarted the clock -- the caller's cue to re-seed a
   // QA preset and to present the page clean.
   bool step(bool zen, bool reading, double dt) {
     const bool restarted = zen && !lastZen;
     if (restarted) seconds = 0.0;
     lastZen = zen;
+    if (discardNext) {
+      discardNext = false;
+      dt = 0.0;
+    }
     if (reading && dt > 0.0) seconds += dt > kMaxStepSeconds ? kMaxStepSeconds : dt;
     return restarted;
   }
+  // THE APP CAME BACK (from the background, or from sleep through the iOS
+  // in-process reboot): the first step after it spans the time away. The step
+  // cap used to let up to kMaxStepSeconds of that gap count -- a second of
+  // "reading" credited on every return (pre-ship review, 2026-09-24). The cap
+  // stays for stalls the host does not announce (iOS may stop scheduling the
+  // process before the background edge arrives).
+  void resume() { discardNext = true; }
 };
 
 // IS THIS READING? Every condition as one predicate so it cannot be
@@ -98,6 +112,17 @@ struct Session {
 inline bool counts(bool zen, bool readerPageOnGlass, bool asleep,
                    bool sleepScreen, bool inactive) {
   return zen && readerPageOnGlass && !asleep && !sleepScreen && !inactive;
+}
+
+// WHICH SCREEN THE DECAY LANDS ON. The clock answers for the screen the
+// firmware has ANNOUNCED (its sheet identity), but the identity is published
+// before the paint -- a reader before it draws its page, every other screen in
+// onEnter -- so at a navigation the announcement runs one paint ahead of the
+// pixels. The decay belongs to the PAINTED screen: the pixel writer stamps
+// whether it wrote a book page, and only a stamped book page is decayed. A
+// book page not yet stamped shows clean for a present, which fails safe.
+inline double decayOnGlass(double decay, bool paintedIsBookPage) {
+  return paintedIsBookPage ? decay : 0.0;
 }
 
 // The decay drives a picture that only changes when a present happens, and an

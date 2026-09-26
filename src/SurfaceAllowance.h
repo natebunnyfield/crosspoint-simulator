@@ -66,6 +66,12 @@ inline Clock &clock() {
   return c;
 }
 
+// The app returned from the background, or is about to reboot out of sleep:
+// the next tick's gap is time away, not reading (readingallowance::Session::
+// resume). Main thread (setBackgrounded) or the reboot boundary, never
+// concurrently with tick().
+inline void resume() { clock().session.resume(); }
+
 // CROSSPOINT_SIM_READING_ALLOWANCE_USED=<seconds>: every zen start begins that
 // far into the session. The headless way to render the decay at a chosen
 // instant without waiting four minutes.

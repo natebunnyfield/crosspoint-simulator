@@ -82,9 +82,54 @@ The pre-ship adversarial review found no ship-blockers. Its should-fixes:
 - **Zen was published a frame late** from Settings. `setZenActive` is now called right after `pollZenMode`.
 - **Nits fixed:** the render target restores the draw color, the glows rebuild on a size change, and the dead branch is gone.
 - **Left as is, and recorded:**
-  - A scene that resigns active and never returns (S-041) keeps the clock paused. It fails toward a clean page.
-  - Up to 1 s is counted after a background or sleep return (the step cap).
-  - For one present at a navigation, the decay can land on the wrong screen.
+  - A scene that resigns active and never returns (S-041) keeps the clock paused. It fails toward a clean page. **Still left, confirmed 2026-09-25**: `counts()` is false while `appInactive` is set, and only a forward edge clears it.
+  - ~~Up to 1 s is counted after a background or sleep return (the step cap).~~ **Fixed 2026-09-25**, below.
+  - ~~For one present at a navigation, the decay can land on the wrong screen.~~ **Fixed 2026-09-25**, below.
+
+### The two review leftovers, fixed (2026-09-25)
+
+**The second after a return.** `readingallowance::Session::resume()` makes the
+next step's dt count nothing; the stall cap stays for gaps nobody announces.
+It is called from `HalDisplay::setBackgrounded` on BOTH edges (iOS can stop
+scheduling the process before the background edge arrives, so the foreground
+edge is the one that must not miss), and from a `simreset::Registrar`, because
+the iOS wake is a longjmp in which the clock's statics survive (the desktop
+wake is `execvp`, whose fresh clock already starts at 0).
+`tests/reading_allowance_test.cpp` pins it: the gap after `resume()` counts 0,
+reading after it counts again, `resume()` is not a restart, it is one step and
+not a latch, and an unannounced stall is still capped. Proven by the model
+test and by reading the two call paths; no headless run times the gap, because
+the clock logs nothing per step.
+
+**The wrong screen for a present.** The cause, read from the firmware: every
+screen announces itself BEFORE it paints. `EpubReaderActivity` publishes its
+page identity beside the read-aloud capture and then renders
+(`EpubReaderActivity.cpp:1702`); every other screen publishes in
+`Activity::onEnter` (`Activity.cpp:33`). So at a navigation the live
+`sheetIsReaderPage()` names the NEXT screen while `pixelBuf` still holds the
+last one, and a present in that window decayed a menu. The pixel writers now
+stamp `pixelBufIsBookPage` from that flag under `pixelBufMutex` as they write —
+correct precisely because the announcement always lands first — and the decay
+(the veil or glow, and the receding letterpress) is drawn only when the
+painted page is a book page (`readingallowance::decayOnGlass`). The tick still
+counts on the announced screen, which is right for the clock. The reverse
+direction changed too: a book page still on the glass after a menu announced
+itself keeps its decay until the menu paints, instead of flashing clean.
+
+- Model: `reading_allowance_test.cpp` replays the firmware's order (announce,
+  then paint) both ways; the live-flag keying decays the menu, the stamp never
+  does.
+- Headless (X3, light, zen, 5 min preset to 285 s, 12 round trips book →
+  Select Chapter → book): the book decays, the menu is clean, and the
+  `[allowance] decay … withheld` line — logged once per occurrence of the
+  window — never fired. **The window is rare on the desktop**: it needs a present
+  between a screen's announcement and its paint, and the goal only asks for one
+  every half second of a decaying minute. So the headless run shows the fix
+  costs nothing, not that it catches the case; the model test is the proof of
+  the case.
+- ON unchanged: the spent page at 4 s is byte-identical before and after
+  (`6cc6ffd3…`, both builds). OFF unchanged: the dial at 0 draws nothing
+  (md5 gates in `docs/speed-read-rsvp-2026-09-25.md`, same build).
 
 ## The light decay, v2: viscous, incidental, physical (2026-09-24, fourth ruling — five passes)
 
