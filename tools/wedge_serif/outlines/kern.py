@@ -800,6 +800,37 @@ else:
     for _p, _d in ((('o', 'r'), -20), (('r', 'd'), 20)):
         PAIRS[_p] = _shipped(*_p) + _d
 
+# ROUND 390 -- HIS FIFTY OUTLIER ANSWERS, AS EXPLICIT KERNS. Owner 2026-09-25
+# answered every row of the live outlier bench (bench/answers/outliers-2026-
+# 09-25-answers.json; zero = the pair's white as round 389 shipped it, the
+# bench's own fonts bench/fonts-2026-09-25). `bench_outliers.py kerns` gives
+# add = (page white + his delta) - white now; this build is outline-identical
+# to the page's fonts, so add = his delta exactly. Answers under 3 units are
+# within his noise and write NO kern (roman Ve +2 Wi -1 ka +2 na +2 yt +2;
+# italic Es -2 rf +1 yt +1 th +2). The rhythm pairs (rh hy yt th hm) are in.
+# The italic n' row was judged on quotesingle; quoteright carries it too
+# (round 388 precedent). docs/albo-round-390-2026-09-25.md.
+if _ALD is not None and _ALD.ON:
+    for _p, _d in ((('r', 'comma'), -3), (('f', 'i'), 9), (('g', 's'), 6), (('y', 'period'), 18),
+                   (('E', 'l'), 16), (('u', 'm'), -16), (('r', 'g'), 4), (('k', 'i'), -21),
+                   (('t', 'a'), 4), (('J', 'o'), 8), (('n', 'quotesingle'), -23), (('n', 'quoteright'), -23),
+                   (('r', 'u'), 8), (('q', 'u'), -16), (('t', 'r'), 17), (('c', 'y'), 5),
+                   (('r', 'h'), -16), (('h', 'y'), -11), (('h', 'm'), 14)):
+        if _p == ('q', 'u') and _pen_4.S > 84.0:
+            # BoldItalic: qu measures 14.9 units of white (cmp_touch); the
+            # 400's -16 closes it to -1.1, TOUCHING. -2 is the most it takes
+            # and stay above the 0.012 em floor (12.9 after).
+            _d = -2
+        PAIRS[_p] = _shipped(*_p) + _d
+else:
+    for _p, _d in ((('g', 'r'), -27), (('V', 'o'), -4), (('Y', 'o'), 3), (('o', 'c'), -18),
+                   (('J', 'o'), -6), (('T', 'h'), 6), (('Q', 'u'), 10), (('b', 'a'), 6),
+                   (('t', 'period'), -3), (('e', 'd'), 25), (('p', 'a'), -13), (('E', 'n'), -5),
+                   (('r', 'y'), -3), (('K', 'a'), 24), (('o', 'f'), -14), (('t', 'y'), -6),
+                   (('w', 'o'), 3), (('k', 'i'), 8), (('e', 'c'), 36), (('r', 'h'), 27),
+                   (('h', 'y'), -35), (('t', 'h'), -11), (('h', 'm'), -15)):
+        PAIRS[_p] = _shipped(*_p) + _d
+
 _apply_bench()
 
 
