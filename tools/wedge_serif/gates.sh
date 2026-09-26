@@ -71,6 +71,20 @@ CONTOUR_OUT="$(PYTHON_GIL=0 python3 cmp_contours.py --check \
 CONTOUR_RC=$?
 echo "$CONTOUR_OUT"
 
+# The e's hinting window (round 400, docs/albo-e-legibility-2026-09-26.md).
+# Albo carries no hinting bytecode, so FreeType's AUTOHINTER draws it for the
+# firmware's converter and every other default consumer, and one exact e
+# outline (round 395's bar floor 0.45) made it ink the e's mouth at 8-9.75
+# ppem: Apple Vision read e as o 131 times. The window is 0.13 units wide in
+# the floor alone, so no dial can promise to stay out of it and only a gate
+# can notice. A hard pass/fail rather than a baseline row: the Regular is
+# clean as of round 400 and must stay clean. REGULAR ONLY -- the gate's 0.15
+# limit is calibrated on the 400's e; the Bold's heavier e reads 0.51 on it
+# while Vision reads 7 e>o there (a false positive, measured round 400).
+EHINT_OUT="$(PYTHON_GIL=0 python3 etrace/e_hint_gate.py "$OUT/Albo-Regular.ttf" 2>&1)"
+EHINT_RC=$?
+echo "e hinting window: $EHINT_OUT"
+
 if [ "$ACCEPT" = "1" ]; then
   cp "$REP" "$BASE"; echo "baseline written to $BASE:"; cat "$BASE"; exit 0
 fi
@@ -84,6 +98,11 @@ if diff -u "$BASE" "$REP" >"$OUT/diff"; then
   if [ "$BENCH_RC" != "0" ]; then
     echo "GATES unchanged, but build.py no longer matches the BENCH (above)."
     echo "Run ./bench_fit.py and paste its tables, or refresh bench_values.json."; exit 1
+  fi
+  if [ "$EHINT_RC" != "0" ]; then
+    echo "GATES unchanged, but the roman e falls in an AUTOHINTER WINDOW (above):"
+    echo "its mouth inks at small sizes and machine readers take it for o."
+    echo "Move the e's outline off the window (round 400: ALBO_ROM_E_BAR_TOP)."; exit 1
   fi
   if [ "$CONTOUR_RC" != "0" ]; then
     echo "GATES unchanged, but a glyph's CONTOUR COUNT moved (above), which"

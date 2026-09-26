@@ -230,6 +230,24 @@ E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its b
 # floor there thinned the 700's p10 49.7 -> 42.1 (a new sliver, not a lift).
 # 0.35 ships.
 E_BAR_FLOOR = float(os.environ.get("ALBO_ROM_E_BAR_FLOOR", 0.45))   # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0.35 = round 393)
+# ROUND 400 (owner 2026-09-26, "Ship A"; docs/albo-e-legibility-2026-09-26.md,
+# docs/albo-round-400-2026-09-26.md). Two dials from the e->o trace. The 0.45
+# floor above put the e's outline in a window where FreeType's AUTOHINTER
+# (Albo carries no bytecode) pulls the bar down 0.23-0.34 px at 8-9.75 ppem
+# and inks the mouth: Apple Vision read e as o 131 times in the Kept
+# Legibility Index. Floors 0.449/0.45 fail, 0.448/0.451 pass -- a knife edge,
+# so the guard is etrace/e_hint_gate.py in gates.sh, not this number.
+# Both apply to the ROMAN at or under stem 84 only, as E_BAR_FLOOR does; the
+# Bold keeps round 92's 0.58 and is byte-identical.
+# E_BAR_TOP_R: the bar's top, x the x-height. The floor grows the bar
+#   DOWNWARD from here, into the mouth. 0.585 SHIPS (arm A: +2.1 units; his
+#   0.45 thickness is kept exactly; eye 159 -> 157, mouth 141 -> 144 units).
+#   0.58 (round 92's E_BAR_ADJ) reproduces round 399 and FAILS the gate.
+# E_BAR_TAPER_R: the bar's underside rises toward its right (mouth) end by
+#   this fraction of its thickness. 0 ships; 0.5 was measured and does NOT
+#   fix the e (Vision 76), recorded so it is not re-tried.
+E_BAR_TOP_R = float(os.environ.get("ALBO_ROM_E_BAR_TOP", 0.585))   # ROUND 400: owner "Ship A" (0.58 = round 399)
+E_BAR_TAPER_R = float(os.environ.get("ALBO_ROM_E_BAR_TAPER", 0.0))
 
 # ROUND 287 -- THE HEAVY e's BAR. Owner 2026-09-19: *"that e could be
 # heavier."* Measured against its own CONSTRUCTION family at the 900 (the
@@ -343,10 +361,17 @@ def g_e(c):
     e_bar, e_th = (E_BAR_ADJ, E_TH_ADJ) if adj('e') else (E_BAR, E_TH)
     if _heavy() and not pen.ITALIC: e_th *= E_BAR_HEAVY   # round 287, see E_BAR_HEAVY
     th = max(pen.th(E_DEG_IT if pen.ITALIC else E_DEG) * e_th, S * (0.35 if (pen.ITALIC or _heavy()) else E_BAR_FLOOR))   # round 394: E_BAR_FLOOR, 400-side only
+    if adj('e') and not pen.ITALIC and not _heavy(): e_bar = E_BAR_TOP_R   # ROUND 400, see E_BAR_TOP_R
+    taper = 0.0 if (pen.ITALIC or _heavy()) else E_BAR_TAPER_R
+    xL, xR = cx - rx + 8, cx + rx - 42
     bar_top = lambda x: xh * e_bar + (x - cx) * slope
-    under = lambda x: bar_top(x) - th
+    under = lambda x: bar_top(x) - th * (1.0 - taper * min(1.0, max(0.0, (x - xL) / (xR - xL))))
     # the bar: from inside the left stroke to inside the right stroke
     b = stroke([(cx - rx + 8, bar_top(cx - rx + 8) - th / 2), (cx + rx - 42, bar_top(cx + rx - 42) - th / 2)], th)
+    if taper:   # round 400 option dial (0 ships): cut the bar's underside back to the rising line
+        _far = 3 * rx
+        _xs = [cx - _far + k * (2 * _far) / 64 for k in range(65)]
+        b = b.difference(geom.poly([(x, under(x)) for x in _xs] + [(cx + _far, -_far), (cx - _far, -_far)]))
     # the aperture: between the arm's end face (radial at E_END) and the bar's underside
     a = math.radians(E_END_IT if pen.ITALIC else E_END_R); far = 3 * rx
     if pen.ITALIC:

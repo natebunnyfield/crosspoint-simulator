@@ -1,5 +1,15 @@
 # Albo's roman e read as o: traced (2026-09-26)
 
+> **RULING, 2026-09-26: "Ship A".** Arm A is the default as of round 400
+> (`docs/albo-round-400-2026-09-26.md`).
+> - **The change:** `ALBO_ROM_E_BAR_TOP` 0.585 in `rounds.py`; his 0.45 floor
+>   is kept. The dials from `etrace/e_arms.patch` are now in the live tree.
+> - **The gate:** `etrace/e_hint_gate.py` runs on the Regular in `gates.sh`.
+> - **Round 400 Regular:** Vision **3** e>o (round 399: 136), Tesseract 0.
+>   Only `e ae oe` moved; advances and kerning are unchanged.
+> - **The Bold does not take the dial:** its e is unchanged, reads 7 e>o, and
+>   is not gated (the limit is calibrated on the 400).
+
 Owner, on the finding in `docs/spacing-tools-survey-2026-09-26.md` §4b:
 *"Trace it, show options."* The Kept Legibility Index's reader (Apple Vision)
 reads Albo's roman **e as o 131 times in round 397** and 117 in round 395,
@@ -263,8 +273,8 @@ exceeds 0.15.
 - **Not a general legibility measure.** It is calibrated on Albo's e only.
   Georgia and Times FAIL it while reading 0 e>o, because their e's mouth is
   not in Albo's place.
-- **Proposed:** wire it into `gates.sh`. That was not done here, because
-  `gates.sh` is live and another agent is editing the tree.
+- **Wired into `gates.sh` in round 400** (Regular only). The gate was
+  rewritten there to need only numpy and freetype.
 
 ## 7. Checked and found clean
 
