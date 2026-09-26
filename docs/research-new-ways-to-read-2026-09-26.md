@@ -624,3 +624,4 @@ Secondary (abstract, database record or summary):
 ## Owner rulings, 2026-09-26
 
 - **Cascade (C1): YES**, after seeing the renders. Built **epub side**: claude-tools emits a separate cascaded edition of each generated book, phrases split offline by a real parser; the firmware gets only the markup/spacing fix a cascaded paragraph needs. No reader-side segmenter.
+- **Cascade editions ACCEPTED 2026-09-26** ("yes to cascade") after the proof page: firmware `12f1c852d` (cascade-join / cascade-line) ships in TestFlight build 223, and the 28 editions were published in claude-tools `library-latest` (2026-09-26T17:17:01Z, 58 books). Sentence starts stay flush left and verbs are not colored, as built.
