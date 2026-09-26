@@ -495,6 +495,54 @@ has:
 
 Group C's strong arm is absent by the finding above.
 
+## 9b. The slider page (2026-09-26)
+
+Owner: *"present this in an interactive way so i can slide between full
+range"*.
+
+**The generator.** `tools/wedge_serif/instruments/r394_slider_frames.py`
+builds one slider per independent dial:
+
+- every step is built at the 400 and the 700, gated, measured and rendered by
+  FreeType;
+- each step becomes one composite PNG: the sentence at 27 px shown 2×, the
+  same at 54 px, the key-word difference against as shipped, and a 220 px
+  overlay of the affected letters;
+- the data are inlined into `index.html`.
+
+A step that fails a gate is kept and flagged. **Copy picks** emits
+`{env var: value}`, where `null` means as shipped. The page has 124 files
+(123 frames and the HTML) and weighs 13 MB.
+
+**The dials.** Each row gives the dial's environment variable, its steps, the
+shipped step (S) and the recommended step (R). A floor cannot go lighter than
+shipped, so a floor slider starts at its shipped 0.
+
+| slider | env | steps | S | R | gate edge found |
+|---|---|---|---|---|---|
+| A bowls q p d b | `ALBO_ALD_BOWL_HAIR` | 0 22 26 30 34 38 42 46 50 | 0 | 34 | none |
+| A the a | `ALBO_ALD_A_HAIR` | 0 22 26 30 34 38 42 46 50 | 0 | 0 | none |
+| B s contrast | `ALBO_ALD_S_PEN_CON` | 9 8 7 6.5 6 5.5 5 4.5 4 3.5 3 | 7.0 | 5.5 | 4.0 and 3.5: Bold Italic st PINCH; 3.0: SPLIT |
+| B y tail | `ALBO_ALD_Y_TAIL_W` | 18 22 26 30 34 38 42 46 50 | 26 | 30 | none. The thin stroke stops rising past 38, because the p10 moves off the tail |
+| C join | `ALBO_ROM_N_JOIN_TAPER` | 0.10 0.16 0.22 0.26 0.30 0.40 0.55 0.75 1.00 | 0.22 | 0.22 | none. The n's ink moves under ±0.2% over the whole range |
+| D x | `ALBO_ROM_LCX_THIN` | 0.56 0.60 0.66 0.72 0.80 0.90 1.00 1.10 1.20 | 0.72 | 1.00 | 0.56 to 0.66: the Bold x SPLITs (its bottom-left serif detaches) |
+| D k arm | `ALBO_ROM_K_ARM` | 1.10 1.25 1.40 1.55 1.70 1.85 2.00 2.25 2.50 2.75 | 1.40 | 2.50 | none |
+| D Y | `ALBO_ROM_Y_THIN` | 0.56 0.60 0.66 0.72 0.80 0.90 1.00 1.10 1.20 | 0.72 | 1.00 | none |
+| E bar | `ALBO_ROM_E_BAR_FLOOR` | 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 | 0.35 | 0.45 | none |
+| E exit | `ALBO_E_TAIL_R` | 0.25 0.30 0.35 0.40 0.45 0.55 0.65 0.75 0.85 | 0.40 | 0.40 | none. The e's ink moves at most ±2% over the whole range |
+| F 3 | `ALBO_FIG3_FLOOR` | 0 0.25 0.30 0.33 0.36 0.40 0.45 0.50 0.55 0.60 | 0 | 0.40 | none |
+| F 8 | `ALBO_8_NIB` (thin in `"1.03,t,0"`, roman builds only) | 0.08 0.11 0.15 0.19 0.22 0.26 0.30 0.35 0.40 0.45 0.50 | 0.15 | 0.15 | none |
+| F italic 6 | `ALBO_ALD_SIX_TAIL_END` | 0.06 0.12 0.20 0.30 0.45 0.60 0.75 0.90 1.00 | 0.12 (unset) | 0.60 | none |
+
+**Reading the pixel figures.** The pixels-changed numbers are over the whole
+sentence block, so a dial whose letter is rare there reads low. The Y is the
+clearest case: its arm at 1.20 adds 9.4% to the letter's ink, and the block
+still reads 0.1%. The per-letter ink change is the figure to judge by.
+
+**Bold x at 0.56 to 0.66 is a new negative result.** Under 0.72 the Bold x's
+bottom-left serif separates from its thin stroke. That is round 90's anchor
+problem again (`x_bl_anchor`), now reached from below.
+
 ## 10. Owner picks
 
 *(to be recorded here: one line per group, with the quote)*
