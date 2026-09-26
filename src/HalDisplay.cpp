@@ -49,6 +49,9 @@
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+#include <dlfcn.h> // requestFirmwareRender's desktop lookup
+#endif
 #if defined(__APPLE__) && TARGET_OS_IPHONE
 #include "CrossPointPrefs.h"
 #define CROSSPOINT_HAL_READING_EXPERIMENT_GATE 1
@@ -1762,10 +1765,51 @@ void requestEinkFullRefresh() {
   requestDirtyPresent();
 }
 
+// ASK THE FIRMWARE TO RE-RENDER the current activity. The one call that does it
+// is crosspointRequestRender(), defined in the owner's firmware
+// (src/SimulatorRenderRequest.cpp) and ABSENT upstream, so this library cannot
+// name it: a strong reference breaks every upstream link, and a weak reference
+// does not link on Mach-O (measured, 2026-09-25). Two routes instead:
+//   - a host REGISTERS it: the iOS harness, which already calls it for the
+//     appearance re-render and so already requires it, hands its address over
+//     at begin (ios/CrossPointIOSShim.cpp);
+//   - the desktop LOOKS IT UP at run time. A macOS executable exports its
+//     global symbols (nm shows __Z23crosspointRequestRenderv in `T`), so
+//     dlsym(RTLD_DEFAULT) finds it with no link-time dependency; upstream, or
+//     a Linux build without -rdynamic, finds nothing and this returns false.
+// The USB-edge repaint (main.cpp, wasUsbStateChanged) was considered and
+// rejected: upstream gates it on !isReaderActivity(), so it cannot reach the
+// one screen this is for, and faking a USB edge would lie to the firmware.
+static std::atomic<void (*)()> g_renderRequester{nullptr};
+void setFirmwareRenderRequester(void (*fn)()) { g_renderRequester.store(fn); }
+bool requestFirmwareRender() {
+  void (*fn)() = g_renderRequester.load();
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+  if (!fn) {
+    fn = reinterpret_cast<void (*)()>(
+        dlsym(RTLD_DEFAULT, "_Z23crosspointRequestRenderv"));
+    if (fn) g_renderRequester.store(fn);
+  }
+#endif
+  if (!fn) return false;
+  fn();
+  return true;
+}
+
 void setSpeedRead(bool on) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_SPEED_READ"))
     if (env[0]) on = env[0] == '1';
-  simspeedread::setEnabled(on);
+  // START ON THE PAGE ALREADY SHOWN. Turning the mode on sets the peeker flag,
+  // but the page on the glass was rendered before anyone asked for its words,
+  // so the channel holds nothing for it (on the desktop; the phone captures
+  // always). A re-render is what makes the reader capture and publish that
+  // page -- the same text, so speed read takes it as the page it is on.
+  // Deferred inside the firmware (a flag the activity manager reads at the end
+  // of its loop), so it is safe from the settings watcher and before setup().
+  if (simspeedread::setEnabled(on) && on)
+    SDL_Log("[speedread] re-render requested: %s",
+            requestFirmwareRender() ? "yes"
+                                    : "unavailable (starts at the next render)");
   requestDirtyPresent();
 }
 
