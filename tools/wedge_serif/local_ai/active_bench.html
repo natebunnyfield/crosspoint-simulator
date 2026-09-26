@@ -1,0 +1,169 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Albo Active Bench</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  @font-face{font-family:"AlboR";src:url("data:font/ttf;base64,__ROMAN__") format("truetype");font-display:block}
+  @font-face{font-family:"AlboI";src:url("data:font/ttf;base64,__ITALIC__") format("truetype");font-display:block}
+  :root{--paper:#F6F6F4;--ink:#17181C;--soft:#4A4D55;--rule:#D9D9D4;--card:#FFF;--accent:#2F5872;--accent-soft:#E7EDF2;
+    --good:#2D6A4A;--good-soft:#E3EFE8;--hot:#9A3B1C;--sans:"IBM Plex Sans",system-ui,-apple-system,Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--paper:#131418;--ink:#E9E9E5;--soft:#A3A7AF;--rule:#2C2E35;--card:#1B1D22;--accent:#8FB6D1;--accent-soft:#1E2A33;--good:#7FC3A0;--good-soft:#17251E;--hot:#E08B66}}
+  :root[data-theme="dark"]{color-scheme:dark;--paper:#131418;--ink:#E9E9E5;--soft:#A3A7AF;--rule:#2C2E35;--card:#1B1D22;--accent:#8FB6D1;--accent-soft:#1E2A33;--good:#7FC3A0;--good-soft:#17251E;--hot:#E08B66}
+  *{box-sizing:border-box} body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5}
+  .wrap{max-width:880px;margin:0 auto;padding:0 16px;padding-block:28px 90px;display:flex;flex-direction:column;gap:16px}
+  h1{margin:0;font-size:clamp(25px,4.5vw,33px);line-height:1.12} .lede{margin:0;color:var(--soft);max-width:64ch}
+  .live{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--rule);padding:10px 0;display:flex;flex-direction:column;gap:6px}
+  .live .t{font-size:var(--psize);line-height:1.45;font-kerning:none;font-variant-ligatures:none;white-space:normal}
+  .roman{font-family:"AlboR",Georgia,serif}.italic{font-family:"AlboI",Georgia,serif}
+  .bar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--soft)}
+  .seg{display:flex;border:1px solid var(--rule);border-radius:5px;overflow:hidden}
+  .seg button{font:inherit;font-size:13px;padding:5px 10px;background:transparent;color:var(--ink);border:0;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  .status{font-family:var(--mono);font-size:12px;margin-left:auto}
+  .card{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+  .card.done{border-color:var(--good)}
+  .cardhead{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+  .pair{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--accent);background:var(--accent-soft);padding:3px 8px;border-radius:3px}
+  .freq,.other{font-family:var(--mono);font-size:11.5px;color:var(--soft)} .other{margin-left:auto}
+  .big{font-size:clamp(34px,7vw,54px);line-height:1.2;white-space:nowrap;overflow-x:auto;font-kerning:none;font-variant-ligatures:none;display:block}
+  .extra{font-size:var(--psize);color:var(--soft);font-kerning:none;font-variant-ligatures:none;display:flex;gap:1.1em;flex-wrap:wrap}
+  .extra .w{color:var(--ink)}
+  .ctl{display:flex;gap:11px;align-items:center;flex-wrap:wrap}
+  input[type=range]{flex:1 1 200px;min-width:160px;accent-color:var(--accent)}
+  .val{font-family:var(--mono);font-size:12.5px;min-width:6ch;text-align:right}
+  .reset{margin-left:auto;font-size:12px;background:none;border:0;color:var(--soft);cursor:pointer;text-decoration:underline}
+  .hl{box-shadow:inset 0 -2px 0 var(--hot)}
+  footer{border-top:1px solid var(--rule);padding-top:14px;color:var(--soft);font-size:13.5px;display:flex;flex-direction:column;gap:10px}
+  textarea{width:100%;min-height:110px;font-family:var(--mono);font-size:11.5px;background:var(--card);color:var(--ink);border:1px solid var(--rule);border-radius:5px;padding:8px}
+  .more{font:inherit;font-size:14px;padding:8px 14px;border-radius:5px;border:1px solid var(--rule);background:var(--card);color:var(--ink);cursor:pointer}
+</style></head><body>
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>Where should the letters sit? — next pairs</h1>
+    <p class="lede">These pairs were picked because the spacing model is least sure about them, weighted by how often your books use them. A few are pairs you've answered before. Zero is the font as it ships now. Every text is set letter by letter from the font's own kerning plus your answers, so moving one slider re-sets that pair everywhere on the page as you drag. The pair you're moving is underlined wherever it appears.</p>
+  </header>
+  <div class="live">
+    <div class="bar"><span>paragraphs</span>
+      <div class="seg" id="size"><button data-v="15">15</button><button data-v="19" aria-pressed="true">19</button><button data-v="24">24</button></div>
+      <span class="status" id="status">local only</span></div>
+    <div class="t roman" id="pr"></div>
+    <div class="t italic" id="pi"></div>
+  </div>
+  <div id="list" style="display:flex;flex-direction:column;gap:10px"></div>
+  <footer>
+    <div>Ligatures are off on this page, because each letter is placed separately. A number you leave is a correction to the shipped white, in thousandths of an em. Every answer is stamped with this sitting's id: <span class="freq" id="sess"></span>.</div>
+    <div style="display:flex;gap:9px;align-items:center"><button class="more" id="copy">Copy answers</button><span id="copied" class="freq"></span></div>
+    <textarea id="export" readonly aria-label="answers as JSON"></textarea>
+  </footer>
+</div>
+<script>
+const BENCH = "__BENCH__";
+const SESSION = (() => { const d = new Date(); return d.toISOString().slice(0,16).replace(/[:]/g,"") + "-" + Math.random().toString(36).slice(2,6); })();
+const ITEMS = __ITEMS__;
+const KERN = __KERNS__;
+const PARA = __PARA__;
+const gaps = {};   // "style|word|i" -> "tight" | "loose"
+const LS = "albo-" + BENCH;
+const state = {v:{}, size:19, hot:null};
+const $ = s => document.querySelector(s);
+const key = it => it.style + "_" + it.id;
+const pairOf = it => it.pair.replace(" ", "");
+const cell = it => (state.v[key(it)] ||= {d:0, verdict:""});
+const isSet = it => !!(state.v[key(it)] && state.v[key(it)].touched);
+let db = null;
+// adj[style][pair] -> his current delta (live, including an unsaved drag)
+function adj(style){ const m = {}; for (const it of ITEMS) if (it.style === style){ const c = state.v[key(it)]; if (c && (c.touched || c.live)) m[pairOf(it)] = c.d; } return m; }
+// Set `text` into `el`, one span per letter, each letter placed by the kern
+// for the pair it closes plus his delta for that pair.
+function setText(el, text, style, gapKeyBase){
+  const k = KERN[style] || {}, a = adj(style); el.textContent = "";
+  for (let i = 0; i < text.length; i++){
+    const s = document.createElement("span"); s.textContent = text[i];
+    if (i > 0 && text[i] !== " " && text[i-1] !== " "){
+      const p = text[i-1] + text[i];
+      const u = (k[p] || 0) + (a[p] || 0);
+      if (u) s.style.marginLeft = (u / 1000) + "em";
+      if (state.hot && state.hot.style === style && state.hot.pair === p){ s.classList.add("hl"); if (el.lastChild) el.lastChild.classList.add("hl"); }
+      if (gapKeyBase){
+        const gk = gapKeyBase + "|" + i, g = gaps[gk];
+        if (g) s.style.boxShadow = "inset 2px 0 0 " + (g === "tight" ? "var(--hot)" : "var(--accent)");
+        s.dataset.gap = gk; s.style.cursor = "pointer";
+      }
+    }
+    el.appendChild(s);
+  }
+}
+const texts = [];  // {el, text, style}
+function reflow(style){ for (const t of texts) if (!style || t.style === style) setText(t.el, t.text, t.style, t.gap); }
+function exportJSON(){
+  return JSON.stringify({bench:BENCH, answers: ITEMS.filter(isSet).map(it => { const c = cell(it);
+    return {style:it.style, id:it.id, pair:pairOf(it), delta:c.d, verdict:c.verdict||"", at:c.at||null, session:c.session||SESSION}; }),});
+}
+function setStatus(extra){
+  $("#status").textContent = (extra ? extra + " · " : "") + ITEMS.filter(isSet).length + "/" + ITEMS.length + " answered";
+  $("#export").value = exportJSON();
+}
+function card(it){
+  const cur = cell(it);
+  const c = document.createElement("div"); c.className = "card" + (isSet(it) ? " done" : "");
+  const head = document.createElement("div"); head.className = "cardhead";
+  const pair = document.createElement("span"); pair.className = "pair"; pair.textContent = it.pair;
+  const freq = document.createElement("span"); freq.className = "freq"; freq.textContent = it.n.toLocaleString() + " in your books";
+  const other = document.createElement("span"); other.className = "other";
+  const label = () => other.textContent = it.style + " · " + (isSet(it) ? "saved" : "not saved"); label();
+  head.append(pair, freq, other);
+  const big = document.createElement("span"); big.className = "big " + it.style;
+  texts.push({el: big, text: it.word, style: it.style});
+  const ex = document.createElement("div"); ex.className = "extra " + it.style;
+  for (const w of it.extra || []){ const s = document.createElement("span"); s.className = "w"; ex.appendChild(s); texts.push({el: s, text: w, style: it.style}); }
+  const ctl = document.createElement("div"); ctl.className = "ctl";
+  const range = document.createElement("input"); range.type = "range"; range.min = "-60"; range.max = "60"; range.step = "1"; range.value = cur.d;
+  range.setAttribute("aria-label", "spacing for " + it.pair + ", " + it.style);
+  const val = document.createElement("span"); val.className = "val";
+  const show = () => val.textContent = (cur.d > 0 ? "+" : "") + cur.d; show();
+  const commit = () => { cur.touched = true; cur.live = false; cur.at = new Date().toISOString(); cur.session = SESSION; c.classList.add("done"); label(); setStatus(); save(it); };
+  range.addEventListener("pointerdown", () => { state.hot = {style: it.style, pair: pairOf(it)}; reflow(it.style); });
+  range.addEventListener("focus", () => { state.hot = {style: it.style, pair: pairOf(it)}; reflow(it.style); });
+  range.addEventListener("input", () => { cur.d = parseInt(range.value, 10); cur.live = true; show(); reflow(it.style); });
+  range.addEventListener("change", commit);
+  const reset = document.createElement("button"); reset.className = "reset"; reset.textContent = "shipped";
+  reset.addEventListener("click", () => { cur.d = 0; range.value = 0; show(); commit(); reflow(it.style); });
+  ctl.append(range, val, reset);
+  c.append(head, big, ex, ctl);
+  return c;
+}
+function render(){
+  texts.length = 0;
+  texts.push({el: $("#pr"), text: PARA, style: "roman"}, {el: $("#pi"), text: PARA, style: "italic"});
+  const list = $("#list"); list.innerHTML = "";
+  for (const it of ITEMS) list.appendChild(card(it));
+  document.documentElement.style.setProperty("--psize", state.size + "px");
+  reflow(); setStatus();
+}
+function keepLocal(){ try { localStorage.setItem(LS, JSON.stringify(state.v)); } catch(e){} }
+let pending = new Set(), timer = null;
+function save(it){
+  keepLocal(); if (!db) return;
+  pending.add(key(it)); clearTimeout(timer);
+  timer = setTimeout(async () => {
+    for (const k of [...pending]){ pending.delete(k); const v = state.v[k];
+      try { const it = ITEMS.find(x => key(x) === k); await db.doc("active/" + k).set({delta:v.d, verdict:v.verdict||"", touched:true, style:k.split("_")[0], pair: it ? pairOf(it) : "", bench:BENCH, session:v.session||SESSION, at:v.at||new Date().toISOString()}); setStatus("saved"); }
+      catch(e){ setStatus("not saved (" + ((e && e.code) || "error") + ")"); } }
+  }, 350);
+}
+$("#size").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+  state.size = parseInt(b.dataset.v, 10); for (const x of $("#size").children) x.setAttribute("aria-pressed", String(x === b));
+  document.documentElement.style.setProperty("--psize", state.size + "px"); });
+$("#copy").addEventListener("click", async () => { const t = $("#export"); t.value = exportJSON();
+  try { await navigator.clipboard.writeText(t.value); $("#copied").textContent = "copied"; } catch(e){ t.select(); $("#copied").textContent = "selected, copy it by hand"; } });
+try { const s = JSON.parse(localStorage.getItem(LS) || "null"); if (s) state.v = s; } catch(e){}
+render();
+$("#sess").textContent = SESSION;
+(async () => {
+  db = await (window.claude?.use?.("db") ?? Promise.resolve(null));
+  if (!db){ setStatus("local only, use Copy answers"); return; }
+  try { const snap = await db.collection("active").get();
+    for (const d of snap.docs){ const b = d.data() || {}; if (!ITEMS.some(it => key(it) === d.id)) continue;
+      state.v[d.id] = {d: b.delta || 0, verdict: b.verdict || "", touched: true, at: b.at, session: b.session}; } } catch(e){}
+  render();
+})();
+</script></body></html>

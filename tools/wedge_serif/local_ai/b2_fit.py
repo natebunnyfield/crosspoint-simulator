@@ -115,12 +115,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--census", required=True)
     ap.add_argument("--holds", nargs=2, metavar=("BASE_DIR", "B2_DIR"))
+    ap.add_argument("--extra", action="store_true",
+                    help="also fold in bench/answers/extra-judgments.json (active_ingest.py): "
+                         "each pair's judgment becomes the mean of every reading on the fit's zero")
     args = ap.parse_args()
     census = {p: n for p, n in json.load(open(args.census))["pairs"]}
     fonts = {s: FT.Font(p) for s, p in FT.FONTS.items()}
     out = json.load(open(OUT)) if (args.holds and os.path.exists(OUT)) else {}
     for style in ("roman", "italic"):
-        J = bench_fit.judgments(style)
+        J = with_extra(style) if args.extra else bench_fit.judgments(style)
         scope = sorted({p for p in J if in_scope(p)} |
                        {p for p, n in census.items() if in_scope(p) and
                         (n >= CENSUS_MIN or (n >= CENSUS_MIN_MARK and any(c in MARKS for c in p)))})
@@ -152,6 +155,19 @@ def main():
             st["holds"] = measure_holds(style, *args.holds)
     json.dump(out, open(OUT, "w"), indent=1, ensure_ascii=False, sort_keys=True)
     print("wrote", OUT)
+
+
+def with_extra(style, drop=("g",)):
+    """The bench judgments plus every ingested reading (active_ingest.py), each
+    pair the MEAN of all its readings on the 09-20 zero. The g stays out, as
+    in bench_fit (owner 2026-09-21)."""
+    reads = {p: [d] for p, d in bench_fit.judgments(style, drop).items()}
+    ex = os.path.join(WS, "bench", "answers", "extra-judgments.json")
+    if os.path.exists(ex):
+        for r in json.load(open(ex))["rows"]:
+            if r["style"] == style and not any(c in drop for c in r["pair"]):
+                reads.setdefault(r["pair"], []).append(r["d0920"])
+    return {p: float(np.mean(v)) for p, v in reads.items()}
 
 
 def white_fn(path):

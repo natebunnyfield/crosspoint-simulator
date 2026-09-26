@@ -574,3 +574,104 @@ the proof exists:
 - Rendering: FreeType as the reader renders (default load flags, 2-bit
   coverage, linear advances, kerns in 1/16 px).
 - Lossless PNG. No image is sized by CSS.
+
+---
+
+## RULED 2026-09-26 (owner)
+
+- **Decision 3, the active-learning bench:** *"Build it."* Built as §11.
+  Decisions 1 (B2 as the fit), 2 (the 73 pending answers) and 4 (a dial bench
+  for shape) are still open.
+
+## 11. The active-learning bench (2026-09-26)
+
+### Files
+
+- **Selection and page:** `tools/wedge_serif/local_ai/active_bench.py`, with
+  its template `active_bench.html`. The template is `bench/build_live.py`'s
+  live bench with the long-word and gap-flag sections removed.
+- **Ingest:** `local_ai/active_ingest.py`.
+- **Zero font:** `bench/fonts-2026-09-26/`. These are the shipped round-395
+  fonts, built at `12b75e9` (sha256 `d2128b34…` Regular, `64aaa471…` Italic).
+- **Session key:** `bench/active-2026-09-26-s1.key.json`. It holds the
+  selection evidence and each row's white at both zeros. The page shows none
+  of it.
+- **Converted answers:** `bench/answers/extra-judgments.json`.
+
+### How rows are chosen, per session
+
+Seeded, so a run can be reproduced.
+
+- **Candidates.** Every pair in B2's scope that he has never answered on any
+  bench in that style: **885**.
+- **Uncertainty.** The sd of B2's predicted white for the pair, across 200
+  fits on bootstrap draws of his 370 judgments. Each draw keeps its unique
+  rows, about 63%, so this is a resample spread, not a strict bootstrap.
+  - Spread over the candidates: **min 2.0, median 4.5, p90 7.0, max 40.3
+    units**.
+  - The top of the range is every pair with a glyph he has never judged: `j`,
+    `J`, and the italic `pp`.
+- **Visibility.** 0 when B2's proposed move from the shipped font is under the
+  phone's kern quantum (1.16 units). This removes 136 candidates, leaving 749.
+- **Score** = sd × count in his books × visibility.
+- **Session 1** has **50 rows**: the top 45 by score plus **5 repeats** (10%),
+  drawn at random from bench pairs he has already answered. That is 21 roman
+  and 29 italic.
+  - The 45 chosen rows' sd runs 3.5 to 40.3, median 5.3.
+  - Most are common pairs never put on a bench: `cr hr pi mp ef cl fe ld ep ci
+    ck`.
+  - A few are high-uncertainty rare ones: `Ja ja ju pp`.
+
+### What the page stores
+
+It uses the **`db` capability**, the same as the outlier and re-ask benches.
+Without it, answers stay in the browser and he uses Copy answers.
+
+- **Collection:** `active`, one document per row, `<style>_<id>`.
+- **Fields:** `{delta, verdict, touched, style, pair, bench, session, at}`.
+  - `bench` names the page (`active-2026-09-26-s1`).
+  - `session` is minted when the page opens (the time plus 4 random
+    characters), so every **sitting** is distinguishable. That is what lets a
+    later fit carry one offset per sitting for his +5.4 drift.
+- **localStorage** holds the same answers under `albo-<bench>`.
+- **Copy answers** exports `{bench, answers: [{style, id, pair, delta,
+  verdict, at, session}]}`.
+
+### Ingest
+
+`active_ingest.py <answers.json | ArtifactData dir>`.
+
+- It puts every answer on the fit's zero:
+  `d = white(page font) + delta − white(09-20 bench font)`.
+  - It also records `d_r395`, the same answer read against the shipped font.
+  - White is `rsb + kern + lsb` from HarfBuzz, the measure every key file
+    uses.
+- It reports the session's repeats (mean |new − previous| and drift) against
+  the re-ask's 10.83 / +5.4.
+- It writes the rows to `extra-judgments.json`, replacing any earlier rows
+  from the same bench.
+- `b2_fit.py --census … --extra` then refits B2 with each pair's judgment as
+  the mean of all its readings. A 0 from these pages counts as an answer, per
+  the 2026-09-25 ruling.
+- **Tested end to end on a synthetic 20-answer file** (3 of them repeats),
+  then removed. **Not yet run on real answers.**
+
+### The 50 outlier-bench answers, converted [measured]
+
+- **`active_ingest.py --outliers`** moves them from `fonts-2026-09-25` to the
+  fit's zero.
+- **The white read on the page's font matches the outlier key's recorded white
+  on 50 of 50 rows.**
+- **The shift between the two zeros:** median +2, range −23 to +52 units.
+- **Against the shipped font** the mean |answer| is 5.3 units, against 10.8 as
+  answered. Round 390 already shipped most of them as kerns, and the rest is
+  mostly round 393's tracking.
+- **They are in `extra-judgments.json`**, so they count in any `--extra` fit
+  and are excluded from future selection as answered.
+- **Limits.**
+  - The conversion is exact for spacing. It is not exact where an outline
+    changed between the two fonts (the round 391–395 thick/thin re-cuts).
+  - Their g pairs stay out of the fit, as in `bench_fit`.
+- **The committed B2 arm (§10) was NOT refit with them.** The proof shows the
+  arm as fitted on the 370. Folding them in is the first `--extra` refit,
+  after session 1.
