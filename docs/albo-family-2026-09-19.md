@@ -3136,6 +3136,12 @@ of them should ship once drawn. Round 304 learned the same shape of thing about
 a group mean. Measure to choose what to attempt; render to decide what ships.
 
 
+
+**Owner ruling, 2026-09-26: st and ct are DROPPED.** Offered a redraw of the
+join as options; he chose "Drop them". The glyphs stay drawn at U+FB06 / U+E004
+with nothing substituting into them, and they are no longer candidates -- do
+not re-propose them.
+
 ## 49. Round 311 — the italic ampersand, four chancery arms
 
 Owner 2026-09-21: *"an italic ampersand as previously requested"*. The request
