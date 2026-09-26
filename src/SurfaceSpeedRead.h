@@ -99,9 +99,10 @@ inline void destroyTexture() {
 // the read-aloud consumer's own -- never written over it.
 inline void setReadAloudTurns(bool on) { st().readAloudTurns.store(on); }
 
-inline void setEnabled(bool on) {
+// True on an EDGE (the state changed), false on a repeat.
+inline bool setEnabled(bool on) {
   State &s = st();
-  if (s.enabled.exchange(on) == on) return;
+  if (s.enabled.exchange(on) == on) return false;
   gpio.setReadAloudPeekerWanted(on);
   if (on) {
     // Re-read the page the channel already holds: the cursor still names it
@@ -109,14 +110,9 @@ inline void setEnabled(bool on) {
     // generation, so without this an off->on on one page would show nothing
     // until the next page turn.
     s.lastGen = 0;
-    // NO RE-RENDER IS ASKED FOR. The phone captures every page anyway
-    // (CrossPointReadAloud_perFrame), and the desktop seeds this before the
-    // first loop(). A desktop toggle made mid-page therefore starts at the next
-    // page render. Asking the firmware directly (crosspointRequestRender) was
-    // tried and refused: upstream firmware has no such symbol, a weak
-    // reference does not link on Mach-O, and a weak DEFINITION here could
-    // stop the strong one being pulled out of the iOS static archive, silently
-    // breaking the appearance re-render that depends on it.
+    // The caller (HalDisplay.cpp setSpeedRead) asks the firmware to re-render
+    // on this edge, so a toggle made mid-page starts on the page already
+    // shown rather than at the next page turn.
   } else {
     s.reader.clear();
     s.hasPending = false;
@@ -125,6 +121,7 @@ inline void setEnabled(bool on) {
     destroyTexture();  // nothing to show; do not hold the word crop
   }
   SDL_Log("[speedread] %s", on ? "on" : "off");
+  return true;
 }
 
 inline void setWpm(int wpm) {

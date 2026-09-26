@@ -302,6 +302,12 @@ enum class SyntheticAction {
   // "Full Refresh" gesture action makes -- so e-ink mode's host-side full
   // refresh is provable headlessly (src/EinkPanel.h).
   EinkFullRefresh,
+  // SRTAP calls SimulatorOverlay::speedReadTakeTap -- the exact call the iOS
+  // harness makes for a zen deliberate tap or an off-pad tap -- so speed
+  // read's pause and resume are provable headlessly. The desktop has no glass
+  // tap of its own; a tap the mode does not take (no word up) is logged and
+  // dropped, never turned into a button press.
+  SpeedReadTap,
   // RawKey* push a REAL SDL key event instead of writing
   // syntheticButtonDown[], so a script can exercise the scancode->button map
   // and the text-entry gate that sits in front of it. Everything else here
@@ -768,6 +774,8 @@ void initializeSyntheticEvents() {
         syntheticEvents.push_back({atMs, SyntheticAction::OpenActionMenu});
       } else if (key == "EINKFULL") {
         syntheticEvents.push_back({atMs, SyntheticAction::EinkFullRefresh});
+      } else if (key == "SRTAP") {
+        syntheticEvents.push_back({atMs, SyntheticAction::SpeedReadTap});
       } else if (key == "S" || key == "SLEEP") {
         syntheticEvents.push_back({atMs, SyntheticAction::Sleep});
       } else if (key == "RESIGN") {
@@ -915,6 +923,10 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::EinkFullRefresh:
       SimulatorOverlay::requestEinkFullRefresh();
+      break;
+    case SyntheticAction::SpeedReadTap:
+      if (!SimulatorOverlay::speedReadTakeTap())
+        SDL_Log("[speedread] tap not taken (no word up)");
       break;
     case SyntheticAction::RawKeyDown:
       pushRawKey(event.scancode, event.keymod, /*down=*/true);

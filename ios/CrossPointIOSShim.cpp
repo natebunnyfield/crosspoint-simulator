@@ -4039,6 +4039,11 @@ void CrossPointHarness_begin() {
   // torn down, so it is safe here on every wake as well as the first boot.
   CrossPointHostBattery_start();
 
+  // The firmware's re-render request, handed to the HAL so a mode turned on
+  // mid-page (speed read) can re-capture the page already shown. The shim can
+  // name the symbol; the library cannot (SimulatorOverlay.h).
+  SimulatorOverlay::setFirmwareRenderRequester(&crosspointRequestRender);
+
   SimulatorOverlay::requestPresent();
 
   if (!s_watchesInstalled) {

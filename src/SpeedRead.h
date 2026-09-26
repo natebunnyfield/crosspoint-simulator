@@ -154,8 +154,10 @@ inline bool endsClause(const std::string &w) {
 }
 
 // HOW LONG A WORD STAYS UP, in ms. The base interval is 60000 / wpm; the
-// multipliers are the standard RSVP ones (OpenSpritz shows a word with , : -
-// ( or over 8 letters twice as long; Spritz's own pauses are unpublished), made
+// multipliers are the standard RSVP ones (OpenSpritz splices a word with , : -
+// ( or over 8 characters -- punctuation counted -- and no '.' in TWICE more, so
+// it is up three times as long: re-fetched 2026-09-25; Spritz's own pauses are
+// unpublished), made
 // gentler for clauses and length and stronger at a sentence's end, with an
 // extra beat at a paragraph break:
 //   sentence end . ! ? ...   x2.0
@@ -424,6 +426,13 @@ public:
     paused_ = !paused_;
     if (!paused_) {
       shownAt_ = now; // the current word gets its full time again
+      // ...and so do the two other clocks a pause stopped. Without these a
+      // pause taken while a turn was pending (or on an empty page) came back
+      // to a timeout that had run on through the pause: resume after 4 s on a
+      // pending turn read as the end of the book (2026-09-25, found writing
+      // the pause test).
+      arrivedAt_ = now;
+      turnAskedAt_ = now;
       if (finished_) finished_ = false, awaitingTurn_ = false;
     }
   }

@@ -566,6 +566,12 @@ bool speedReadTakeTap();
 // Read-aloud is on and turns pages itself at the end of its speech: speed read
 // then leaves page turns to it, so a page end is never pressed twice.
 void setSpeedReadDefersTurns(bool readAloudOn);
+// Ask the firmware to re-render the current activity (deferred; safe from any
+// thread and before setup()). A host that can name the firmware's
+// crosspointRequestRender registers it; the desktop finds it at run time.
+// False when no route exists (upstream firmware), which the caller logs.
+void setFirmwareRenderRequester(void (*fn)());
+bool requestFirmwareRender();
 
 // Advance the collapse by one frame and present it. Called from the deep-sleep
 // loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying
