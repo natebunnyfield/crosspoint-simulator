@@ -1,0 +1,79 @@
+{
+ "today": {
+  "worst8": 0.243,
+  "worst8_at": 9.0,
+  "worst2": 0.333,
+  "worst2_at": 9.25,
+  "fails_at": [
+   8.0,
+   8.25,
+   8.5,
+   8.75,
+   9.0,
+   9.25,
+   9.5,
+   9.75
+  ],
+  "verdict": "FAIL"
+ },
+ "ttfa-q": {
+  "worst8": 0.255,
+  "worst8_at": 9.0,
+  "worst2": 0.333,
+  "worst2_at": 8.0,
+  "fails_at": [
+   8.0,
+   8.25,
+   8.5,
+   8.75,
+   9.0,
+   9.25
+  ],
+  "verdict": "FAIL"
+ },
+ "ttfa-n": {
+  "worst8": 0.141,
+  "worst8_at": 9.0,
+  "worst2": 0.0,
+  "worst2_at": 8.0,
+  "fails_at": [],
+  "verdict": "ok"
+ },
+ "ttfa-s": {
+  "worst8": 0.263,
+  "worst8_at": 9.0,
+  "worst2": 0.333,
+  "worst2_at": 9.0,
+  "fails_at": [
+   8.0,
+   8.25,
+   8.5,
+   8.75,
+   9.0,
+   9.25
+  ],
+  "verdict": "FAIL"
+ },
+ "light": {
+  "worst8": 0.118,
+  "worst8_at": 9.0,
+  "worst2": 0.0,
+  "worst2_at": 8.0,
+  "fails_at": [],
+  "verdict": "ok"
+ },
+ "nohint": {
+  "worst8": 0.267,
+  "worst8_at": 8.0,
+  "worst2": 0.333,
+  "worst2_at": 8.0,
+  "fails_at": [
+   8.0,
+   8.25,
+   8.5,
+   8.75,
+   9.0
+  ],
+  "verdict": "FAIL"
+ }
+}

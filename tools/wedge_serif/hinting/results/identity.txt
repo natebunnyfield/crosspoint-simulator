@@ -1,0 +1,17 @@
+pair                 style         9px      8pt     10pt     12pt     14pt     16pt     18pt  10pt@2x  12pt@2x  14pt@2x  16pt@2x  18pt@2x
+today:ttfa-q         Regular        29       15       13       12        4        9        3        6        3        6        1        2
+today:ttfa-q         Italic         66       41       43       22       22       19       20       24       13       10       15       10
+today:light          Regular        34       29       27       24       22       17       16       18       18       17       17       18
+today:light          Italic        100      100      100      100      100      100      100      100      100      100      100      100
+today:nohint         Regular        11        0        2        2        0        1        0        0        0        1        0        0
+today:nohint         Italic         17        3        5        4        1        0        0        2        0        0        1        0
+ttfa-q:light         Regular        60       28       30       29       29       16       16       11       10       11        3        4
+ttfa-q:light         Italic         66       41       43       22       22       19       20       24       13       10       15       10
+ttfa-q:nohint        Regular        27       21       22       22       21       21       21       21       22       21       21       22
+ttfa-q:nohint        Italic         29       21       21       22       21       21       21       21       21       21       21       22
+light:nohint         Regular        19        0        3        3        2        1        0        0        0        1        0        0
+light:nohint         Italic         17        3        5        4        1        0        0        2        0        0        1        0
+ttfa-q:ttfa-n        Regular        78       76       80       90       86       78       68       70       70       70       65       62
+ttfa-q:ttfa-n        Italic         97       95      100       97       97       97       94       97       98       97       97       97
+ttfa-q:ttfa-s        Regular        78       78       78       77       76       70       70       74       74       76       77       78
+ttfa-q:ttfa-s        Italic         70       72       72       74       72       69       69       70       70       71       70       71
