@@ -517,6 +517,28 @@ ALD_LC_ADJ = {'g': (-15, -15),   # NOT from the bench: every g row was judged ag
               'e': (+0, -14), 'h': (+4, +0), 'i': (-5, +8), 'l': (+0, +5), 'm': (+6, +7), 'o': (+7, +0), 'p': (+0, +9), 'r': (+10, +0), 't': (+0, -10), 'u': (-5, +10), 'w': (+0, +14), 'y': (+10, +16)}
 ALD_PUNCT_FIT = {"'": (-6, +0), ',': (+2, +0), '.': (-5, +0), ':': (-1, +0)}
 
+# 2026-09-26 -- THE B2 SPACING ARM, BEHIND A FLAG, DEFAULT OFF. ALBO_SPACING_FIT=b2
+# replaces the four tables above (the g and the ligature riders excepted) with
+# the identity + shape-feature ridge of docs/local-ai-spacing-options-2026-09-26.md
+# (held out 10.73 against these tables' 11.66). Unset, nothing below runs and the
+# build is round 395's. The tables are written by local_ai/b2_fit.py; kern.py
+# swaps _BENCH_PAIRS_* for the arm's kerns under the same flag.
+SPACING_FIT = os.environ.get("ALBO_SPACING_FIT", "").strip().lower()
+if SPACING_FIT == "b2":
+    import json as _json
+    _B2 = _json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spacing_b2.json")))
+    ROM_LC_ADJ = {c: tuple(v) for c, v in _B2["roman"]["letters"].items() if c != "g"}
+    if "i" in ROM_LC_ADJ:
+        ROM_LC_ADJ["ﬁ"] = ROM_LC_ADJ["ﬃ"] = (0, ROM_LC_ADJ["i"][1])
+    if "l" in ROM_LC_ADJ:
+        ROM_LC_ADJ["ﬂ"] = ROM_LC_ADJ["ﬄ"] = (0, ROM_LC_ADJ["l"][1])
+    ROM_PUNCT_FIT = {c: tuple(v) for c, v in _B2["roman"]["marks"].items()}
+    ALD_LC_ADJ = {"g": ALD_LC_ADJ["g"],
+                  **{c: tuple(v) for c, v in _B2["italic"]["letters"].items() if c != "g"}}
+    ALD_PUNCT_FIT = {c: tuple(v) for c, v in _B2["italic"]["marks"].items()}
+elif SPACING_FIT:
+    raise SystemExit(f"ALBO_SPACING_FIT={SPACING_FIT!r}: the only arm is 'b2'")
+
 for _c, _lr in ALD_PUNCT_FIT.items():             # round 308's joint fit
     _b = ALD_PUNCT_ADJ.get(_c, (0, 0))
     ALD_PUNCT_ADJ[_c] = (_b[0] + _lr[0], _b[1] + _lr[1])

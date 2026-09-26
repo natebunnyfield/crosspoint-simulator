@@ -615,8 +615,27 @@ _BENCH_PAIRS_ITA = ((('A','n'), 2), (('A','v'), 16), (('C','a'), -1), (('C','h')
                     (('S','h'), 7), (('S','o'), -8), (('S','p'), 10), (('S','t'), 4), (('T','h'), -13),
                     (('T','o'), 9), (('V','i'), -4), (('W','a'), 12), (('W','h'), 7), (('W','i'), 20),
                     (('Y','e'), 42), (('Y','o'), 50))
-for _p, _d in (_BENCH_PAIRS_ITA if (_ALD is not None and _ALD.ON) else _BENCH_PAIRS_ROM):
-    PAIRS[_p] = _shipped(*_p) + _d
+# 2026-09-26 -- ALBO_SPACING_FIT=b2 (default off) swaps these pairs for the B2
+# arm's kerns (spacing_b2.json, written by local_ai/b2_fit.py), added to what
+# each pair carries exactly as the bench pairs are. See build.py's SPACING_FIT.
+_SPACING_FIT = os.environ.get("ALBO_SPACING_FIT", "").strip().lower()
+_B2 = None
+if _SPACING_FIT == "b2":
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spacing_b2.json")) as _fh:
+        _B2 = json.load(_fh)["italic" if (_ALD is not None and _ALD.ON) else "roman"]
+_B2_NAMES = {'.': ['period'], ',': ['comma'], ':': ['colon'], ';': ['semicolon'],
+             "'": ['quotesingle', 'quoteright'], '\u2019': ['quoteright'], '"': ['quotedbl'],
+             '-': ['hyphen'], '!': ['exclam'], '?': ['question']}
+def _b2_names(ch):
+    return _B2_NAMES.get(ch, [ch])
+if _B2 is not None:
+    for _k, _d in sorted(_B2["kerns"].items()):
+        for _l in _b2_names(_k[0]):
+            for _r in _b2_names(_k[1]):
+                PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
+else:
+    for _p, _d in (_BENCH_PAIRS_ITA if (_ALD is not None and _ALD.ON) else _BENCH_PAIRS_ROM):
+        PAIRS[_p] = _shipped(*_p) + _d
 
 # ROUND 373 -- HOLD THE OWNER'S XI AND XY WHERE HE SET THEM, ROMAN ONLY. The
 # roman X's right bearing came in 18 units (build.ROM_CAP_ADJ, "adjust spacing
@@ -838,6 +857,16 @@ else:
                    (('w', 'o'), 3), (('k', 'i'), 8), (('e', 'c'), 36), (('r', 'h'), 27),
                    (('h', 'y'), -35), (('t', 'h'), -11), (('h', 'm'), -15)):
         PAIRS[_p] = _shipped(*_p) + _d
+
+# B2 HOLDS: the pairs he set explicitly after the bench (rounds 384-390, above)
+# keep round 395's white; each value is measured by b2_fit.py --holds.
+if _B2 is not None:
+    for _k, _d in sorted(_B2.get("holds", {}).items()):
+        _ls = ['quoteright'] if _k[0] == '\u2019' else (['quotesingle'] if _k[0] == "'" else _b2_names(_k[0]))
+        _rs = ['quoteright'] if _k[1] == '\u2019' else (['quotesingle'] if _k[1] == "'" else _b2_names(_k[1]))
+        for _l in _ls:
+            for _r in _rs:
+                PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
 
 _apply_bench()
 

@@ -1,0 +1,322 @@
+{
+ "summary": {
+  "roman": {
+   "pairs": 1486,
+   "moved": 995,
+   "moved4": 636,
+   "wmean": 0.46199639986824026,
+   "wabs": 3.415294482224068,
+   "maxabs": 36
+  },
+  "italic": {
+   "pairs": 1486,
+   "moved": 984,
+   "moved4": 578,
+   "wmean": 0.6307846531440375,
+   "wabs": 3.6629982539586066,
+   "maxabs": 73
+  }
+ },
+ "top": [
+  {
+   "style": "roman",
+   "pair": "he",
+   "n": 68121,
+   "d": -5,
+   "score": 340605,
+   "word": "the",
+   "before": 95,
+   "after": 90
+  },
+  {
+   "style": "italic",
+   "pair": "in",
+   "n": 54252,
+   "d": 6,
+   "score": 325512,
+   "word": "in",
+   "before": 45,
+   "after": 51
+  },
+  {
+   "style": "roman",
+   "pair": "es",
+   "n": 38079,
+   "d": 8,
+   "score": 304632,
+   "word": "does",
+   "before": 88,
+   "after": 96
+  },
+  {
+   "style": "italic",
+   "pair": "ve",
+   "n": 23953,
+   "d": 11,
+   "score": 263483,
+   "word": "have",
+   "before": 52,
+   "after": 63
+  },
+  {
+   "style": "roman",
+   "pair": "re",
+   "n": 43721,
+   "d": -6,
+   "score": 262326,
+   "word": "are",
+   "before": 99,
+   "after": 93
+  },
+  {
+   "style": "roman",
+   "pair": "st",
+   "n": 32597,
+   "d": 8,
+   "score": 260776,
+   "word": "first",
+   "before": 108,
+   "after": 116
+  },
+  {
+   "style": "italic",
+   "pair": "an",
+   "n": 46222,
+   "d": 5,
+   "score": 231110,
+   "word": "and",
+   "before": 87,
+   "after": 92
+  },
+  {
+   "style": "roman",
+   "pair": "in",
+   "n": 54252,
+   "d": 4,
+   "score": 217008,
+   "word": "in",
+   "before": 114,
+   "after": 118
+  },
+  {
+   "style": "italic",
+   "pair": "at",
+   "n": 31840,
+   "d": -6,
+   "score": 191040,
+   "word": "that",
+   "before": 103,
+   "after": 97
+  },
+  {
+   "style": "italic",
+   "pair": "ne",
+   "n": 21599,
+   "d": -8,
+   "score": 172792,
+   "word": "one",
+   "before": 84,
+   "after": 76
+  },
+  {
+   "style": "roman",
+   "pair": "ti",
+   "n": 27278,
+   "d": -6,
+   "score": 163668,
+   "word": "times",
+   "before": 70,
+   "after": 64
+  },
+  {
+   "style": "italic",
+   "pair": "ed",
+   "n": 25402,
+   "d": 6,
+   "score": 152412,
+   "word": "usted",
+   "before": 78,
+   "after": 84
+  },
+  {
+   "style": "italic",
+   "pair": "de",
+   "n": 20917,
+   "d": -7,
+   "score": 146419,
+   "word": "de",
+   "before": 31,
+   "after": 24
+  },
+  {
+   "style": "italic",
+   "pair": "is",
+   "n": 28567,
+   "d": 5,
+   "score": 142835,
+   "word": "is",
+   "before": -15,
+   "after": -10
+  },
+  {
+   "style": "italic",
+   "pair": "it",
+   "n": 28566,
+   "d": -5,
+   "score": 142830,
+   "word": "it",
+   "before": 61,
+   "after": 56
+  },
+  {
+   "style": "italic",
+   "pair": "th",
+   "n": 68240,
+   "d": 2,
+   "score": 136480,
+   "word": "the",
+   "before": 39,
+   "after": 41
+  },
+  {
+   "style": "italic",
+   "pair": "pp",
+   "n": 2392,
+   "d": -57,
+   "score": 136344,
+   "word": "appears",
+   "before": -58,
+   "after": -115
+  },
+  {
+   "style": "italic",
+   "pair": "re",
+   "n": 43721,
+   "d": -3,
+   "score": 131163,
+   "word": "are",
+   "before": 47,
+   "after": 44
+  },
+  {
+   "style": "roman",
+   "pair": "se",
+   "n": 21583,
+   "d": 6,
+   "score": 129498,
+   "word": "because",
+   "before": 109,
+   "after": 115
+  },
+  {
+   "style": "italic",
+   "pair": "on",
+   "n": 42190,
+   "d": 3,
+   "score": 126570,
+   "word": "on",
+   "before": 80,
+   "after": 83
+  },
+  {
+   "style": "roman",
+   "pair": "hi",
+   "n": 15576,
+   "d": -8,
+   "score": 124608,
+   "word": "which",
+   "before": 94,
+   "after": 86
+  },
+  {
+   "style": "roman",
+   "pair": "ar",
+   "n": 29741,
+   "d": -4,
+   "score": 118964,
+   "word": "are",
+   "before": 95,
+   "after": 91
+  },
+  {
+   "style": "roman",
+   "pair": "ha",
+   "n": 23757,
+   "d": -5,
+   "score": 118785,
+   "word": "that",
+   "before": 111,
+   "after": 106
+  },
+  {
+   "style": "italic",
+   "pair": "nt",
+   "n": 23307,
+   "d": -5,
+   "score": 116535,
+   "word": "into",
+   "before": 103,
+   "after": 98
+  },
+  {
+   "style": "roman",
+   "pair": "ra",
+   "n": 19362,
+   "d": -6,
+   "score": 116172,
+   "word": "rather",
+   "before": 115,
+   "after": 109
+  },
+  {
+   "style": "italic",
+   "pair": "of",
+   "n": 10429,
+   "d": 11,
+   "score": 114719,
+   "word": "of",
+   "before": -177,
+   "after": -166
+  },
+  {
+   "style": "roman",
+   "pair": "ng",
+   "n": 28537,
+   "d": 4,
+   "score": 114148,
+   "word": "English",
+   "before": 75,
+   "after": 79
+  },
+  {
+   "style": "roman",
+   "pair": "ll",
+   "n": 14102,
+   "d": 8,
+   "score": 112816,
+   "word": "all",
+   "before": 97,
+   "after": 105
+  },
+  {
+   "style": "italic",
+   "pair": "vi",
+   "n": 6870,
+   "d": 16,
+   "score": 109920,
+   "word": "Suvi",
+   "before": 51,
+   "after": 67
+  },
+  {
+   "style": "italic",
+   "pair": "ti",
+   "n": 27278,
+   "d": 4,
+   "score": 109112,
+   "word": "times",
+   "before": 53,
+   "after": 57
+  }
+ ]
+}

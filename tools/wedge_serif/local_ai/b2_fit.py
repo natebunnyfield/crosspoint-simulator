@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""Write the B2 spacing arm: glyph-identity + shape-feature ridge, as tables.
+
+WHAT B2 IS. docs/local-ai-spacing-options-2026-09-26.md §2a: one ridge per
+style over (a) each glyph's two bearings and (b) 38 shape features of the pair,
+measured on the bench's own fonts. Held out on bench_fit's folds it scores
+10.73 against the shipped pipeline's 11.66. This script fits it on ALL 370
+non-g judgments and turns it into what the builder can ship, behind
+ALBO_SPACING_FIT=b2 (default off: the build is round 395's, byte for byte in
+outlines and advances).
+
+HOW A PREDICTION BECOMES A FONT. The prediction for a pair is
+    t(a, b) = rsb_id[a] + lsb_id[b] + w . x(a, b) + c
+  * LOWERCASE and MARK bearings = the identity coefficients, rounded, NO
+    reading floor (the 4-reading / 4-unit floors are part of what B2 beat).
+    They REPLACE ROM_LC_ADJ / ALD_LC_ADJ / *_PUNCT_FIT one for one, the same
+    semantics bench_fit.py's tables have. The g is held at round 340's value
+    (owner 2026-09-21), and the fi/ffi ligatures ride the i's right side as
+    they do today.
+  * CAPITALS never become bearings (round 308's ruling stands); their identity
+    term goes into kerns.
+  * KERNS = round(t - what the new bearings already give), for every pair in
+    SCOPE whose remainder is at least 4 units (the shipped letter floor).
+    They REPLACE _BENCH_PAIRS_ROM / _BENCH_PAIRS_ITA and are added to what
+    the pair already carries, exactly as those were.
+  * SCOPE: every non-g bench pair, plus every census pair (pair_census.py, his
+    books) seen >= 200 times (>= 10 when it carries a mark) whose right glyph is lowercase or a mark and whose
+    left is a letter or a mark -- the classes the bench trained on. No g, no
+    cap+cap, no mark+mark, no pair a ligature swallows (fi fl ff).
+  * HOLDS: the pairs he set EXPLICITLY after the bench (rounds 384, 388, 389,
+    390 in kern.py) keep round 395's white. `--holds A.ttf B.ttf` measures, on
+    a first B2 build, how far each moved and writes the compensating kern.
+
+    $VENV/bin/python b2_fit.py --census bigrams.json          # pass 1
+    (build with ALBO_SPACING_FIT=b2)
+    $VENV/bin/python b2_fit.py --census bigrams.json --holds BASE_DIR B2_DIR
+"""
+import argparse, json, os, sys
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+WS = os.path.dirname(HERE)
+sys.path.insert(0, HERE); sys.path.insert(0, WS)
+import bench_fit  # noqa: E402
+import features as FT  # noqa: E402
+
+OUT = os.path.join(WS, "outlines", "spacing_b2.json")
+MARKS = set("'.,:;\"-!?")
+ALPHA_ID, ALPHA_F = 1.0, 30.0
+MIN_KERN = 4
+CENSUS_MIN = 200
+CENSUS_MIN_MARK = 10       # a mark's bearing reaches every letter beside it, so
+                           # its rarer pairs must be in scope too (first build:
+                           # h' m' c' opened ~30 units while e' n' t' were kerned)
+AGL = {'.': 'period', ',': 'comma', ':': 'colon', ';': 'semicolon', "'": 'quotesingle',
+       '"': 'quotedbl', '-': 'hyphen', '!': 'exclam', '?': 'question'}
+
+# The pairs set by hand after the bench, per style (kern.py rounds 384-390).
+HOLD = {
+    "roman": ["fT", "'s", "'t", "or", "rd", "gr", "Vo", "Yo", "oc", "Jo", "Th", "Qu", "ba", "t.",
+              "ed", "pa", "En", "ry", "Ka", "of", "ty", "wo", "ki", "ec", "rh", "hy", "th", "hm"],
+    "italic": ["q'", "q\"", "Fi", "Fo", "Ye", "Yo", "Pa", "Po", "Pr", "Wa", "Wh", "Wi", "Am", "An",
+               "Av", "or", "es", "r,", "fi", "gs", "y.", "El", "um", "rg", "ki", "ta", "Jo", "n'",
+               "ru", "qu", "tr", "cy", "rh", "hy", "hm"],
+}
+
+
+def gnames(ch):
+    """Glyph names a character's kern must be written on."""
+    if ch == "'":
+        return ["quotesingle", "quoteright"]      # round 388 precedent
+    return [AGL.get(ch, ch)]
+
+
+def in_scope(p):
+    a, b = p
+    if "g" in p or p in ("fi", "fl", "ff"):
+        return False
+    if a in MARKS and b in MARKS:
+        return False
+    return (a.isalpha() or a in MARKS) and (b.islower() or b in MARKS)
+
+
+def fit(style, J, feats):
+    pairs = sorted(J)
+    glyphs = sorted({c for p in pairs for c in p})
+    gi = {c: i for i, c in enumerate(glyphs)}
+    G = len(glyphs)
+    names = sorted(feats[pairs[0]])
+    Xf = np.array([[feats[p][n] for n in names] for p in pairs])
+    sc = StandardScaler().fit(Xf)
+    A = np.zeros((len(pairs), 2 * G))
+    for r, p in enumerate(pairs):
+        A[r, 2 * gi[p[0]] + 1] = 1; A[r, 2 * gi[p[1]]] = 1
+    Z = np.hstack([A, sc.transform(Xf), np.ones((len(pairs), 1))])
+    pen = np.r_[np.full(2 * G, ALPHA_ID), np.full(len(names), ALPHA_F), 0.0]
+    y = np.array([J[p] for p in pairs])
+    w = np.linalg.solve(Z.T @ Z + np.diag(pen), Z.T @ y)
+    lsb = {c: w[2 * gi[c]] for c in glyphs}
+    rsb = {c: w[2 * gi[c] + 1] for c in glyphs}
+    wf, c0 = w[2 * G:-1], w[-1]
+
+    def feat_term(p):
+        x = sc.transform(np.array([[feats[p][n] for n in names]]))[0]
+        return float(x @ wf + c0)
+
+    def predict(p):
+        return lsb.get(p[1], 0.0) + rsb.get(p[0], 0.0) + feat_term(p)
+    ins = float(np.mean(np.abs(Z @ w - y)))
+    return lsb, rsb, predict, ins
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--census", required=True)
+    ap.add_argument("--holds", nargs=2, metavar=("BASE_DIR", "B2_DIR"))
+    args = ap.parse_args()
+    census = {p: n for p, n in json.load(open(args.census))["pairs"]}
+    fonts = {s: FT.Font(p) for s, p in FT.FONTS.items()}
+    out = json.load(open(OUT)) if (args.holds and os.path.exists(OUT)) else {}
+    for style in ("roman", "italic"):
+        J = bench_fit.judgments(style)
+        scope = sorted({p for p in J if in_scope(p)} |
+                       {p for p, n in census.items() if in_scope(p) and
+                        (n >= CENSUS_MIN or (n >= CENSUS_MIN_MARK and any(c in MARKS for c in p)))})
+        feats = {}
+        for p in scope:
+            feats[p] = FT.pair_features(fonts[style], p[0], p[1], style == "italic")[0]
+        lsb, rsb, predict, ins = fit(style, {p: J[p] for p in J if p in feats}, feats)
+        letters, marks = {}, {}
+        for c in sorted(set(lsb) | set(rsb)):
+            L, R = int(round(lsb.get(c, 0))), int(round(rsb.get(c, 0)))
+            if c.islower() and (L or R):
+                letters[c] = [L, R]
+            elif c in MARKS and (L or R):
+                marks[c] = [L, R]
+        side = {**{c: v for c, v in letters.items()}, **{c: v for c, v in marks.items()}}
+        kerns = {}
+        for p in scope:
+            give = side.get(p[0], [0, 0])[1] + side.get(p[1], [0, 0])[0]
+            k = int(round(predict(p) - give))
+            if abs(k) >= MIN_KERN and p not in HOLD[style]:
+                kerns[p] = k
+        st = out.setdefault(style, {})
+        if not args.holds:
+            st.update(letters=letters, marks=marks, kerns=kerns, holds={},
+                      scope=len(scope), in_sample=round(ins, 2))
+        print(f"{style}: {len(J)} judgments, in-sample {ins:.2f}; {len(letters)} letters, "
+              f"{len(marks)} marks, {len(st['kerns'])} kerns over {len(scope)} pairs in scope")
+        if args.holds:
+            st["holds"] = measure_holds(style, *args.holds)
+    json.dump(out, open(OUT, "w"), indent=1, ensure_ascii=False, sort_keys=True)
+    print("wrote", OUT)
+
+
+def white_fn(path):
+    """white(a, b) = rsb(a) + kern + lsb(b), kern by HarfBuzz, glyphs by char."""
+    F = FT.Font(path)
+
+    def white(a, b):
+        names, adv, kern = F.shape(a, b)
+        g = F.tt["glyf"][names[0]]; h = F.tt["glyf"][names[1]]
+        rsb = adv - (g.xMax if g.numberOfContours else 0)
+        lsb = h.xMin if h.numberOfContours else 0
+        return rsb + kern + lsb
+    return white
+
+
+def measure_holds(style, base_dir, b2_dir):
+    fn = "Albo-Regular.ttf" if style == "roman" else "Albo-Italic.ttf"
+    wb, w2 = white_fn(os.path.join(base_dir, fn)), white_fn(os.path.join(b2_dir, fn))
+    holds = {}
+    for p in HOLD[style]:
+        chars = [("'" if c == "'" else c) for c in p]
+        for a in (["'", "’"] if chars[0] == "'" else [chars[0]]):
+            for b in (["'", "’"] if chars[1] == "'" else [chars[1]]):
+                d = wb(a, b) - w2(a, b)
+                if d:
+                    holds[a + b] = int(d)
+    print(f"  {style}: {len(holds)} held pairs compensated: {holds}")
+    return holds
+
+
+if __name__ == "__main__":
+    main()

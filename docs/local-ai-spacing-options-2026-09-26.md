@@ -368,7 +368,8 @@ cd tools/wedge_serif
 
 ## 6. Recommendation
 
-1. **Adopt B2 as the fit**, in `bench_fit.py`, behind a flag first. Replace the
+1. **Adopt B2 as the fit**, behind a flag first (built 2026-09-26 as
+   `ALBO_SPACING_FIT=b2`, §10). Replace the
    4-reading floors with the continuous hybrid, and re-run `--cv` to reproduce
    10.73. Ship integers only where the change is at least one phone quantum.
    This is a spacing round, and it needs his ruling (§7).
@@ -418,3 +419,158 @@ on his answers.
   optical probe implements HT Letterspacer's *premise*, not its code.
 - B2 has not been rendered into word images for him. It is a held-out number,
   and "render to decide what ships" still applies.
+
+
+---
+
+## 10. The B2 arm, built behind a flag (2026-09-26)
+
+Built so the owner can judge decision 1 by eye. **Default off.** Nothing ships
+until he rules on it.
+
+### How to build it
+
+```bash
+cd tools/wedge_serif && source build_env.sh
+ALBO_SPACING_FIT=b2 albo_build_all OUTDIR   # the arm
+albo_build_all OUTDIR                       # unset: round 395, unchanged
+```
+
+- `outlines/build.py` (`SPACING_FIT`) swaps `ROM_LC_ADJ`, `ALD_LC_ADJ` and
+  both `*_PUNCT_FIT` tables for the arm's tables. The g stays at round 340's
+  fit, and the fi/ffi/fl/ffl ligatures ride their last letter as before.
+- `outlines/kern.py` swaps `_BENCH_PAIRS_*` for the arm's kerns and applies
+  the holds.
+- Any value other than `b2` refuses to build.
+- The tables are `outlines/spacing_b2.json`, written by `local_ai/b2_fit.py`
+  in two passes: fit, then build, then measure the holds.
+
+### What the arm is
+
+- **One ridge per style, fitted on all 370 non-g judgments.** Inputs: glyph
+  identity (α 1) plus the 38 shape features (α 30). In-sample error: roman
+  8.01, italic 7.04.
+- **Lowercase and mark bearings** are the identity coefficients, rounded, with
+  no reading floor:
+  - roman letters: a (+12, -6), b (-3, -6), c (-4, +7), d (+3, -7), e (+1, +6), f (+1, +2), h (+0, +1), i (-5, +5), k (+0, -10), l (+5, +3), m (-5, -2), n (+7, -9), o (+2, +4), p (-3, +10), r (-5, +0), s (-3, +4), t (+9, -11), u (+2, -1), v (-7, +4), w (+7, -2), x (-8, +0), y (-1, -4)
+  - roman marks: ' (-9, -3), , (-2, +0), : (+4, +0), ; (+3, +0)
+  - italic letters: a (-7, -4), b (+4, -1), c (-1, +7), d (+0, -6), e (-5, -8), f (-1, +1), h (-3, -1), i (-5, +0), k (+0, -13), l (+0, +2), m (-1, +7), n (+1, -3), o (+1, -11), p (+5, +2), q (+0, -2), r (+9, +2), s (+2, +3), t (-2, -6), u (-4, +6), v (+0, +7), w (+6, +8), y (+0, +9)
+  - italic marks: ' (+3, -1), , (+4, +0), . (-3, +0), : (+3, +0), ; (-6, +0)
+- **Kerns.** For each pair in scope: the model's prediction minus what the new
+  bearings already give, kept at 4 units or more.
+  - Scope is every bench pair, plus every census pair seen at least 200 times,
+    or at least 10 times when it carries a mark.
+  - The census has grown to **41 books, 2,665,458 pairs**.
+  - The first build used the 200 threshold for marks too. It opened `h'`,
+    `m'` and `c'` about 30 units, because the apostrophe's bearing moved while
+    only its common pairs were kerned.
+  - Excluded from scope: pairs with a g, cap+cap, mark+mark, and pairs a
+    ligature swallows.
+  - Count: roman 428 kerns, italic 438.
+  - Reader limit: its limit is on kern CLASSES (255 per side,
+    `fontconvert_sdcard.py:552`), not on pairs. With about 100 codepoints a
+    side it cannot bind.
+- **Holds.** Every pair he set by hand after the bench (the kerns of rounds
+  384, 388, 389 and 390) keeps **round 395's white exactly**:
+  - roman: 25 glyph pairs compensated;
+  - italic: 36;
+  - verified afterwards: 0 units moved on every held pair checked (roman
+    `Qu ki ba t. 's or rd gr Yo`, italic `Fi Fo Ye Yo Pa Wa or es hy um`).
+
+### Proof that the default is untouched [measured]
+
+- **Outlines and advances:** `cmp_outlines.py --advances` against round 395
+  (`12b75e9`, built before any edit) is **IDENTICAL on all four cuts**.
+- **GPOS:** the full table's XML is also identical on all four cuts.
+
+### Gates on the arm [measured]
+
+- **`ALBO_SPACING_FIT=b2 ./gates.sh`:** exit 0, `GATES UNCHANGED`, 2 approved
+  glyphs unchanged, contour census unchanged.
+  - `bench_fit.py --check` reads `build.py`'s TEXT tables, so under the flag
+    it passes trivially. It gates the default, not the arm.
+- **`cmp_touch.py`, four cuts:** 0 touching and 0 below the floor, the same as
+  round 395.
+- **`cmp_contour_hairs.py`:** `--letters` exits 0 and the full sweep passes on
+  all four cuts.
+- **Outlines:** they move only by their sidebearing. The accented composites
+  carry their accent with the base (checked on a/aacute, e/egrave,
+  c/ccedilla). The Greek follows the Latin bearings, as it already does under
+  the shipped tables.
+
+### What moved [measured, `local_ai/b2_moved.py`; summary and top 30 in `local_ai/b2_moved-2026-09-26.json`]
+
+White = rsb + kern + lsb (HarfBuzz), on all 1,486 census pairs.
+
+| | pairs moved | by 4+ units | frequency-weighted mean Δ | mean \|Δ\| | largest \|Δ\| |
+|---|---|---|---|---|---|
+| roman | 995 | 611 | +0.43 | 3.42 | 45 |
+| italic | 983 | 587 | +0.62 | 3.67 | 73 |
+
+- **The average move is about 3.5 units per pair.** That is 3 phone quanta and
+  a tenth of an X3 pixel.
+- **The net is near zero** (+0.4 to +0.6), so this is not a tracking move.
+
+The top 30 by |Δ| × count:
+
+| style | pair | count | r395 | B2 | Δ | word |
+|---|---|---|---|---|---|---|
+| roman | `he` | 68,121 | 95 | 90 | -5 | the |
+| italic | `in` | 54,252 | 45 | 51 | +6 | in |
+| roman | `es` | 38,079 | 88 | 96 | +8 | does |
+| italic | `ve` | 23,953 | 52 | 63 | +11 | have |
+| roman | `re` | 43,721 | 99 | 93 | -6 | are |
+| roman | `st` | 32,597 | 108 | 116 | +8 | first |
+| italic | `an` | 46,222 | 87 | 92 | +5 | and |
+| roman | `in` | 54,252 | 114 | 118 | +4 | in |
+| italic | `at` | 31,840 | 103 | 97 | -6 | that |
+| italic | `ne` | 21,599 | 84 | 76 | -8 | one |
+| roman | `ti` | 27,278 | 70 | 64 | -6 | times |
+| italic | `ed` | 25,402 | 78 | 84 | +6 | usted |
+| italic | `de` | 20,917 | 31 | 24 | -7 | de |
+| italic | `is` | 28,567 | -15 | -10 | +5 | is |
+| italic | `it` | 28,566 | 61 | 56 | -5 | it |
+| italic | `th` | 68,240 | 39 | 41 | +2 | the |
+| italic | `pp` | 2,392 | -58 | -115 | -57 | appears |
+| italic | `re` | 43,721 | 47 | 44 | -3 | are |
+| roman | `se` | 21,583 | 109 | 115 | +6 | because |
+| italic | `on` | 42,190 | 80 | 83 | +3 | on |
+| roman | `hi` | 15,576 | 94 | 86 | -8 | which |
+| roman | `ar` | 29,741 | 95 | 91 | -4 | are |
+| roman | `ha` | 23,757 | 111 | 106 | -5 | that |
+| italic | `nt` | 23,307 | 103 | 98 | -5 | into |
+| roman | `ra` | 19,362 | 115 | 109 | -6 | rather |
+| italic | `of` | 10,429 | -177 | -166 | +11 | of |
+| roman | `ng` | 28,537 | 75 | 79 | +4 | English |
+| roman | `ll` | 14,102 | 97 | 105 | +8 | all |
+| italic | `vi` | 6,870 | 51 | 67 | +16 | Suvi |
+| italic | `ti` | 27,278 | 53 | 57 | +4 | times |
+
+**Look at these first** [inf]. They are the model's largest calls on pairs he
+**never judged**. They are extrapolations of the shape features, and the reason
+the proof exists:
+
+- **Italic descender-against-descender:** `fy` −73, `py` −69, `pp` −57
+  (`appears`, 2,392), `yp` −56. None touches, per `cmp_touch`.
+- **Italic mark pairs:** `y;` `p;` `k;` about −40.
+- **Italic F:** `Fr` `Fa` `Fe` about −35 to −38.
+- **Roman apostrophe + letter:** `'v` `'d` `'r` `'m` about −34 to −45. This
+  follows his own `'s` and `'t` judgments.
+- **`Op`:** +30 roman, +40 italic.
+- **Roman `g'` +29:** the g is out of kern scope by ruling, so it follows the
+  apostrophe's new bearing uncorrected.
+
+### The proof page (not published)
+
+- Location: `/private/tmp/claude-501/-Users-natebunnyfield-src-crosspoint-simulator/c03d2901-2d80-4074-84f8-7539dfb0f2e2/scratchpad/b2proof/index.html`. Generated by
+  `local_ai/b2_proof.py BASE B2 moved.json OUT`.
+- Content: two English paragraphs plus long words, roman and italic, round 395
+  over B2.
+  - 27 px enlarged 2× with nearest-neighbor.
+  - 54 px native, both arms on round 395's line breaks.
+  - A 54 px difference view: gray = both, blue = round 395 only, red = B2
+    only.
+  - The 15 most-moved pairs per style in their words at 108 px.
+- Rendering: FreeType as the reader renders (default load flags, 2-bit
+  coverage, linear advances, kerns in 1/16 px).
+- Lossless PNG. No image is sized by CSS.
