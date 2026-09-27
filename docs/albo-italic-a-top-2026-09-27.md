@@ -50,3 +50,24 @@ What the measurements above got wrong was the premise: "left top being the talle
 | rnd | 0.82 xh | 0.13 xh | 0.34 xh |
 
 All touch 0, hairs PASS in both italics. Moves a and every a-built glyph (accents, ae, ordfeminine). Not done: the scan's stem top rises to the right (a flag); Albo's stays flat. `dro` sits low enough on its stem to start reading as a d.
+
+## Three passes on the teardrop: fit, counter, contrast (same day)
+
+Owner: *"take three passes and increase the fit and style. adjust size of counter and contrast. give me as many options as will likely help."* Instrument: `instruments/a_fit.py` -- from the builders, upright: colour (ink inside the x-height band / (ink width x xh)), counter (area of the holes), and a round letter's contrast (the heaviest run on a horizontal cut through the counter's centroid over the lightest run on a vertical cut through it).
+
+**Pass 1, the finding.** `mid` (join 0.85), Italic: colour 0.379 against the d's 0.349 and the o's 0.344 (too dark); counter 38,258 against the d's 57,678 (0.66 -- a third too small; today's a is 50,282); contrast **0.91** against the o's 1.30 and the d's 1.95 -- INVERTED: the family's 50-degree nib puts the weight on the bottom and the hairline on the sides, where the d and q (their widths keyed by angle off Flanker) are heavy at the sides and thin at top and bottom.
+
+**Pass 2, contrast.** `A_TRI_PHI`, the stress the widths are read at: 15 degrees gives 1.49 at the same weight; 0 and -15 are no better (1.49, 1.44) and darker.
+
+**Pass 3, colour and counter together.** Thinner broad and hairline open the counter and lighten the letter at once; the round's width alone barely moves the counter, because the stem caps it. The Bold Italic needs its own values: the Italic's carried to it read colour 0.540 (d 0.481) and counter 0.69 of the d's.
+
+| preset | Italic: colour / counter (x d) / contrast | BoldItalic: colour / counter (x d) / contrast |
+|---|---|---|
+| today | 0.398 / 0.87 / 1.64 | 0.527 / 0.82 / 1.60 |
+| mid (last round) | 0.379 / 0.66 / 0.91 | 0.589 / 0.42 / 1.43 (at phi 15) |
+| **fit** | 0.348 / 0.85 / 1.58 | 0.494 / 0.94 / 1.90 |
+| opn | 0.361 / 0.90 / 1.55 | 0.507 / 0.98 / 1.98 |
+| con | 0.364 / 0.82 / 1.67 | 0.514 / 0.88 / 1.99 |
+| trg | 0.333 / 0.77 / 1.55 | 0.470 / 0.85 / 1.84 |
+
+References for the targets: Italic d 0.349 / 57,678 / 1.95, o 0.344 / 57,596 / 1.30; BoldItalic d 0.481 / 43,077 / 1.89, o 0.473 / 39,598 / 1.16. Every preset: join 0.82 xh, bow 0.10, join weight 0.85, phi 15; (RY, RX, W, THIN) per weight in `_TRI_SET`. All touch 0, hairs PASS in both italics.

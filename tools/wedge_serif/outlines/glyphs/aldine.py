@@ -3275,21 +3275,41 @@ if ON:
     #         halfway between wdg and rnd, and the top's JOIN to the stem
     #         carried at A_TRI_JW x the nib's broad, easing to the pen's own
     #         width over the first A_TRI_JSPAN of the stroke
+    # THE THREE PASSES' PRESETS (instruments/a_fit.py; docs/albo-italic-a-top-2026-09-27.md):
+    # mid's shape (join 0.82, bow 0.10, join weight 0.85) with the stress
+    # turned to 15 degrees so the SIDES carry the weight and the top and bottom
+    # are the hairlines, as the d and q do -- the family nib at 50 had it
+    # inverted (contrast 0.91) -- and (RY, RX, W, THIN) per weight:
+    #   fit   colour on the d's, counter 0.85-0.94 of the d's, contrast between the o's and the d's
+    #   opn   fit with a larger round: the most open counter
+    #   con   fit with the hairline thinned: the d's contrast
+    #   trg   fit with a smaller round: the most triangular, and lighter
+    _TRI_SET = {"fit": ((0.38, 0.47, 1.25, 0.80), (0.42, 0.50, 0.95, 0.75)),
+                "opn": ((0.41, 0.48, 1.25, 0.80), (0.44, 0.51, 0.95, 0.75)),
+                "con": ((0.38, 0.47, 1.40, 0.55), (0.42, 0.50, 1.05, 0.58)),
+                "trg": ((0.33, 0.46, 1.25, 0.80), (0.37, 0.49, 0.95, 0.75))}
+    _TS = _TRI_SET.get(A_TRI, (None, None))[1 if S > 84.0 else 0]
     _AT = {"wdg": (0.31, 0.82, 0.07), "dro": (0.27, 0.72, 0.07), "rnd": (0.34, 0.82, 0.13),
-           "mid": (0.325, 0.82, 0.10)}.get(A_TRI, (0.31, 0.82, 0.07))
-    A_TRI_JW = float(os.environ.get("ALBO_ALD_A_TRI_JW", 0) or (0.85 if A_TRI == "mid" else 0))   # 0 = the pen alone at the join
+           "mid": (0.325, 0.82, 0.10)}.get(A_TRI, (_TS[0], 0.82, 0.10) if _TS else (0.31, 0.82, 0.07))
+    A_TRI_JW = float(os.environ.get("ALBO_ALD_A_TRI_JW", 0) or (0.85 if (A_TRI == "mid" or _TS) else 0))   # 0 = the pen alone at the join
     A_TRI_JSPAN = float(os.environ.get("ALBO_ALD_A_TRI_JSPAN", 0.22))
     A_TRI_RY = float(os.environ.get("ALBO_ALD_A_TRI_RY", 0) or _AT[0])     # the round's half-height, x xh
     A_TRI_JY = float(os.environ.get("ALBO_ALD_A_TRI_JY", 0) or _AT[1])     # where the bowl's top joins the stem, x xh
     A_TRI_BOW = float(os.environ.get("ALBO_ALD_A_TRI_BOW", 0) or _AT[2])   # how far the top edge bows up, x xh
-    A_TRI_W = float(os.environ.get("ALBO_ALD_A_TRI_W", 1.65))              # the nib's broad, x the stem
+    A_TRI_W = float(os.environ.get("ALBO_ALD_A_TRI_W", 0) or (_TS[2] if _TS else 1.65))   # the nib's broad, x the stem
+    # the three passes (owner 2026-09-27, "increase the fit and style. adjust
+    # size of counter and contrast"), instruments/a_fit.py: the round's width,
+    # the stress angle the widths are read at, and the hairline
+    A_TRI_RX = float(os.environ.get("ALBO_ALD_A_TRI_RX", 0) or (_TS[1] if _TS else 0.42))    # the round's half-width, x the bowl's span
+    A_TRI_PHI = float(os.environ.get("ALBO_ALD_A_TRI_PHI", 0) or (15.0 if _TS else 50.0))  # the stress: 50 = the family nib; toward 0 the sides go heavy and the top and bottom light, as the d's and q's ring
+    A_TRI_THIN = float(os.environ.get("ALBO_ALD_A_TRI_THIN", 0) or (_TS[3] if _TS else 1.05))  # the hairline, x the arch's
 
     def _a_tri(c, xs, xh, u):
-        hu = hm_u(c); thick = HM_STEMW * hu * A_TRI_W; thin = HM_ARCH_T * hu * 1.05
+        hu = hm_u(c); thick = HM_STEMW * hu * A_TRI_W; thin = HM_ARCH_T * hu * A_TRI_THIN
         x0 = S * 0.6; W = xs - x0
         J = (xs - thick * 0.05, A_TRI_JY * xh)                     # the bowl's point, into the stem below its top
         ry = A_TRI_RY * xh; cy = ry + thick * 0.30 - 0.02 * xh      # the round's bottom ink on the o's overshoot
-        rx = 0.42 * W; cx = x0 + thick * 0.45 + rx
+        rx = A_TRI_RX * W; cx = x0 + thick * 0.45 + rx
         E = lambda t: (cx + rx * math.cos(t), cy + ry * math.sin(t))
         Jv = (J[0], J[1] + A_TRI_BOW * xh)                          # the virtual point the top is aimed from
         best = None
@@ -3306,7 +3326,7 @@ if ON:
         K = (xs + thick * 0.05, cy + ry * math.sin(t1) + 0.08 * xh)
         cl = geom.resample(top + arc + [K])
         tans = geom.tangents(cl)
-        ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin) for tx, ty in tans]
+        ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin, phi=A_TRI_PHI) for tx, ty in tans]
         m = 10; ws = [sum(ws[max(0, q - m):q + m + 1]) / len(ws[max(0, q - m):q + m + 1]) for q in range(len(ws))]
         n = len(ws) - 1
         if A_TRI_JW:
@@ -3360,7 +3380,7 @@ if ON:
         # lands on, because "the crown is the top, and a cut corner under it
         # only pokes a spike through the shoulder". That spike is what read as
         # two overlapping shapes at the top right.
-        if A_TRI in ("wdg", "dro", "rnd", "mid"):
+        if A_TRI in ("wdg", "dro", "rnd", "mid", "fit", "opn", "con", "trg"):
             bowl_ = _a_tri(c, xs, xh, u)
         return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, 'a')])
 
