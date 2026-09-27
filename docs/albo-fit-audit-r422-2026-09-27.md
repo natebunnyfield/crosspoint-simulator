@@ -39,7 +39,7 @@ y 2.32 -> 1.79, g 5.67 -> 4.11.
   above its family's line. That is the owner's ruled drawing (417/418);
   recorded, not proposed.
 - **Bold L 1.78 -> 2.08, H 1.65 -> 1.93, r 2.00 -> 2.21 (all on `thin`)** --
-  none of the three was redrawn since round 409 (outline-identical); their
+  none of the three was redrawn since round 409 (checked: `cmp_outlines.py` round-409 Bold vs round-422 Bold moves 28 glyphs -- the N, T, j, s, t, y families -- and not L, H or r); their
   `thin` z rose 0.2-0.3 because the family's own statistics moved when round
   415 thinned the Bold N. Drift of a relative metric, not a defect. NOT
   candidates.
