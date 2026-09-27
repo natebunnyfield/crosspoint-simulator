@@ -650,3 +650,36 @@ Gates (`poor_gates.sh` against today, Regular + Bold): all five arms touch 0,
 hairs `--letters` and full no delta, glitch 0, counter dents unchanged, e gate
 ok. Moved: t, tbar, uniE004 (ct), uniFB06 (st), plus tcaron, uni0163, uni021B
 under T2-T5. B2 not refit. Awaiting a pick.
+
+**Ruled 2026-09-27: T5** (*"t5 wins"*), round 420.
+
+## Roman a height (2026-09-27, owner: *"is 'a' too short though? show me comparisons"*)
+
+Measured on round 419 + T5 (font units, unhinted bboxes; `ameas.py`-style
+bbox read, session scratchpad). Albo's x carries ~22 units of wedge over the
+line (bbox 451 Regular), so Albo is compared against its own o, not the x.
+
+| face | a top / o top | ink width a / o |
+|---|---|---|
+| Albo Regular | 433 / 444 (-11) | 0.830 |
+| Albo Bold | 438 / 444 (-6) | 0.799 |
+| Georgia, Charter, Hoefler, Baskerville, Big Caslon | equal | 0.96, 0.96, 0.89, 0.99, 0.92 |
+| Palatino | 0.995 | 0.91 |
+| Georgia Bold, Charter Bold, Palatino Bold | equal, equal, 0.987 | 0.97, 0.97, 0.92 |
+
+(An earlier reading in this session gave Charter Bold 1.10: that was
+Charter.ttc index 2, the Bold ITALIC. The Bold is index 3.)
+
+Dials (`stems.py`, default = today): `ALBO_ROM_A_RISE` / `_RISE_700` add to
+the hood arc's two inner controls (crown rises ~0.8 / ~0.7 of it; 14 and 8
+land the crown on 444); `ALBO_ROM_A_W` scales the a's leftward reach (hood
+end, bowl left and bottom). Arms, all gates clean:
+
+| label | env | a top | a/o width |
+|---|---|---|---|
+| A | -- | 433 / 438 | 0.830 / 0.799 |
+| H1 | RISE 14, RISE_700 8 | 444 / 444 | same |
+| H2 | H1 + W 1.08 | 444 / 444 | 0.882 / 0.847 |
+| H3 | H1 + W 1.15 | 444 / 444 | 0.931 / 0.889 |
+
+Awaiting a pick.

@@ -429,9 +429,9 @@ def _t_arm(x, xh, wf, tail, t_bar):
 #        eight corner spokes were the square ends; poor-characters pass 2)
 #   spr  traced, Palatino: the left arm a short spur 0.35 S past the stem,
 #        on the pen cut; the right end cut
-T_CLEAN = os.environ.get("ALBO_ROM_T_CLEAN", "0") == "1"
-T_END = os.environ.get("ALBO_ROM_T_END", "a")
-T_BAR = os.environ.get("ALBO_ROM_T_BAR", "a")
+T_CLEAN = os.environ.get("ALBO_ROM_T_CLEAN", "1") == "1"   # round 420: T5 ships (owner 2026-09-27, "t5 wins")
+T_END = os.environ.get("ALBO_ROM_T_END", "fin")
+T_BAR = os.environ.get("ALBO_ROM_T_BAR", "spr")
 
 def _t_clean(x, xh, wf, r, t_top, t_bar, st):
     # 1. clip the stem at its cut face (the face runs through (x, t_top) at the pen cut)
@@ -527,6 +527,22 @@ A_CURVES = [(0.66, 0.54, 22, 0.93),   # 0: round 84's
                                       # 14 -> 0, so the hood leaves the stem vertical, no kink
             (0.76, 0.58, 16, 0.95)]   # 9: the roundest of the tight ladder
 A_HOOD_FLUSH = True
+# 2026-09-27, owner after round 419: *"is 'a' too short though? show me
+# comparisons"*. Measured on round 419's build (font units): the roman a's top
+# is 433 against the o's 444 and the n's 447 (Regular), 438 / 444 / 450
+# (Bold) -- 11 and 6 under the o, where in Georgia, Charter, Hoefler,
+# Baskerville and Big Caslon the a's top IS the o's (Palatino 0.5-1.3% under).
+# It is also narrow: ink a/o 0.83 (Regular), 0.80 (Bold) against the
+# references' 0.89-0.99 (Charter Bold 1.10).
+#   A_RISE / A_RISE_700  units added to the hood arc's two inner controls (and
+#       its underside's), so its crown rises ~0.72 of that; the terminal stays
+#       at 0.72 xh. 0 = today.
+#   A_W  the a's leftward reach from its stem -- the hood's end and far
+#       control, the bowl's left extreme, bottom and their controls -- x this.
+#       1.0 = today.
+A_RISE = float(os.environ.get("ALBO_ROM_A_RISE", 0))
+A_RISE_700 = float(os.environ.get("ALBO_ROM_A_RISE_700", 0))
+A_W = float(os.environ.get("ALBO_ROM_A_W", 1.0))
 A_HOOD_W = 0.92   # round 94: the hood's stroke x this (both its outer run-then-arc and the underside cubic)
 A_UNDER_LEAN = 14   # round 86's curve 8 lean, for the underside cubic
 A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
@@ -583,6 +599,7 @@ def g_a(c):
     else:
         st = stem(x, 0, xh * top_f, top=None, foot='both' if _feet_in else 'right', ent_span=(0, xh))
     peak = xh + OVER - PR.bowl_hair() / 2
+    _ar = A_RISE_700 if S > 84.0 else A_RISE   # 2026-09-27 dials, default 0 (below A_CURVES)
     if A_HOOD_FLUSH:
         # owner 2026-09-14, "smooth off the top right so there is no corner
         # protuberance": the hood is a straight run up the stem's centerline
@@ -606,11 +623,11 @@ def g_a(c):
         # the turn on, which is what round 94 asked for.
         w_st = PR.stem_width(TH_V, PR.ENT, top_f); f0 = w_st / S / A_HOOD_W
         run = line((x, xh * start_f), (x, xh * top_f))
-        arc = cubic((x, xh * top_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+        arc = cubic((x, xh * top_f), (x + lean * wf, xh * up + _ar), (x - 236 * wf * A_W, peak + 44 + _ar), (x - 286 * wf * A_W, xh * 0.72))
         hood = join(run, arc)
         tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
         tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
-        under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+        under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up + _ar), (x - 236 * wf * A_W, peak + 44 + _ar), (x - 286 * wf * A_W, xh * 0.72))
         under0 = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.0)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.0)])   # round 275: the 1.12 at the end is the finial's swell now (below)
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
@@ -693,12 +710,12 @@ def g_a(c):
     # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round
     # shoulder out to the left extreme at 0.30 xh, a round bottom, back
     # into the stem near the foot
-    L = (x - 335 * wf, xh * 0.30); B = (x - 150 * wf, -OVER)
+    L = (x - 335 * wf * A_W, xh * 0.30); B = (x - 150 * wf * A_W, -OVER)
     xin = x + TH_V / 2 - TH_V * 0.35
     top = (xin, xh * 0.60)
-    outer = join(cubic(top, (top[0] - 70 * wf, top[1] + 62), (L[0] + 6 * wf, L[1] + 150), L),
-                 cubic(L, (L[0], L[1] - 120), (B[0] - 105 * wf, B[1]), B),
-                 cubic(B, (B[0] + 85 * wf, B[1]), (xin, 15), (xin, 60)))
+    outer = join(cubic(top, (top[0] - 70 * wf * A_W, top[1] + 62), (L[0] + 6 * wf * A_W, L[1] + 150), L),
+                 cubic(L, (L[0], L[1] - 120), (B[0] - 105 * wf * A_W, B[1]), B),
+                 cubic(B, (B[0] + 85 * wf * A_W, B[1]), (xin, 15), (xin, 60)))
     outer_closed = geom.resample(outer + [outer[0]])[:-1]
     tans_o = geom.tangents(outer_closed, closed=True); n_o = len(outer_closed)
     NEAR_STEM_W = 40.0
