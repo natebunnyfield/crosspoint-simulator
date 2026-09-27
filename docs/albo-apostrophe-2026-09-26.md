@@ -283,3 +283,65 @@ better."*
 - Shipped as **round 403** (`docs/albo-round-403-2026-09-26.md`).
 - The statuses at the top of this doc and the "defaults = today" wording in §3
   describe the options as built, before this ruling.
+
+## 10. The italic straight `'`: options (2026-09-26, after round 403)
+
+Owner: *"make it match the style better"*.
+
+Today's mark is a **parallel** stroke, the same width all the way down. Every
+italic reference **tapers** it instead. Measured with
+`instruments/apos_italic_straight.py` (unhinted; widths as a fraction of each
+face's own stem, at 10%, 50% and 90% of the mark's height):
+
+| | height /xh | top | middle | foot | foot / top | lean | ink / n |
+|---|---|---|---|---|---|---|---|
+| Albo Italic today | 0.531 | 1.42 | 1.42 | 1.41 | 0.99 | 12.9° | 0.327 |
+| Palatino It | 0.457 | 1.10 | 1.06 | 0.55 | 0.50 | 24.1° | 0.179 |
+| Charter It | 0.591 | 1.04 | 0.76 | 0.32 | 0.30 | 0.1° | 0.167 |
+| Georgia It | 0.551 | 1.05 | 0.89 | 0.44 | 0.42 | 11.6° | 0.192 |
+| Flanker Griffo It | 0.428 | 1.05 | 1.15 | 0.55 | 0.53 | 12.0° | 0.173 |
+| Pagella It | 0.485 | 1.06 | 0.85 | 0.42 | 0.39 | 9.2° | 0.159 |
+| Poetica | 0.522 | 0.91 | 0.93 | 0.53 | 0.58 | 14.9° | 0.185 |
+
+**The dial.** `ALBO_APOS_IT_STRAIGHT=a|b|c|d|e` in `marks.py` (`_it_straight`).
+
+- `a` is today, and the default.
+- It affects the italic cuts only, and the single `'` only. `"` follows only
+  under `ALBO_APOS_DOUBLES=1`.
+- Every arm is drawn upright and takes the italic's shear, so its lean is the
+  face's slant.
+
+With the dial unset, all four cuts are outline- and advance-identical to round
+403. Each arm moves only `quotesingle`, in Italic and BoldItalic.
+
+| arm | construction | height /xh | top / mid / foot | ink / n | gates (Italic, BoldItalic) |
+|---|---|---|---|---|---|
+| b PEN WEDGE | today's length; pen-cut top, 1.20 stems tapering to a 0.25 point | 0.548 | 1.19 / 0.78 / 0.31 | 0.172 | all green |
+| c SHORT WEDGE | the curly `’`'s length (0.48 xh); pen-cut top, 1.60 → 0.35 | 0.482 | 1.02 / 1.05 / 0.42 | 0.195 | all green |
+| d TEARDROP | a round head 1.15 stems across, tangent into a cone to 0.30; 0.50 xh | 0.456 | 1.00 / 0.86 / 0.44 | 0.158 | **BoldItalic `'?` 0.0087 em, under the 0.012 floor** (the round head reaches the `?`) |
+| e REFERENCE | the references' median profile, 1.05 / 0.89 / 0.44; 0.50 xh; pen-cut top | 0.486 | 1.03 / 0.92 / 0.54 | 0.171 | all green |
+
+- "All green" covers the following:
+  - `cmp_touch` 0/0;
+  - `cmp_contour_hairs --letters` PASS, with the full sweep identical to round 403;
+  - `cmp_counter_dents` and `cmp_aldine_glitch --all` identical to round 403;
+  - `approved.py` 2/2.
+- **c's pen cut eats its top:** it reads 1.02 at the 10% row where it was
+  drawn at 1.60. Its weight sits in the middle (1.05), which is why its ink is
+  the heaviest of the four.
+- Every arm lands inside the reference band on height, profile and ink,
+  except d on the floor gate.
+
+**The image.** `instruments/apos_italic_proof.py` renders it: one compact PNG at
+54 px, unhinted, with today on top and the curly `’` row at the foot. The page
+is in the session scratchpad at `apos-italic/index.html` and is not published.
+
+**Recommendation: `e`, or `b`.**
+
+- `e` is the references' own profile, and every gate is green.
+- `b` is the most pen-like, with a true point at the foot, but it keeps
+  today's length (0.548 xh).
+- `d` fails the floor gate in the Bold Italic. It would need a `'?` kern before
+  it could ship.
+
+Owner pick: (awaiting)

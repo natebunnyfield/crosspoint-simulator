@@ -604,10 +604,50 @@ def straight_quote(c, x, k=0):
     if opt == "e":
         return stroke(line((x, bot), (x, top)), w, cut0=CUT, cut1=CUT)
     return stroke(line((x, bot), (x, top)), w, cut0=CUT)
+# 2026-09-26 -- OPTIONS: THE ITALIC STRAIGHT ' IN THE ITALIC'S OWN CONSTRUCTION.
+# Owner, round 403: *"yes to everything but the straight italic apostrophe.
+# make it match the style better."* Measured (instruments/apos_italic_straight.py):
+# the italic ' is a PARALLEL stroke, 1.42 stems wide at its top, middle and
+# foot alike, 0.531 x-height tall; every italic reference TAPERS it -- top
+# 0.91-1.10 stems, foot 0.32-0.55 (foot/top 0.30-0.58, median 0.47), middle
+# 0.76-1.15 -- and leans it 9-15 degrees (Charter 0; Palatino 24), 0.43-0.59
+# x-height tall (median 0.50). ALBO_APOS_IT_STRAIGHT picks; `a` is today's
+# mark byte for byte and the default. Italic cuts only, the single ' only
+# (the double " follows only under ALBO_APOS_DOUBLES=1). Every arm is drawn
+# upright and takes the italic's shear with the rest of the face, so its lean
+# IS the italic's slant. Widths are in the italic's MEASURED stem (today's
+# mark reads 1.42 of it), lengths in the x-height.
+#   b  PEN WEDGE     today's length; the pen lands full at the top (the family's
+#                    pen cut) and lifts to a point: 1.20 stems -> 0.25
+#   c  SHORT WEDGE   the curly ’'s length (0.48 xh) with a top as heavy as its
+#                    head reads beside it: 1.60 stems (reads 1.3 below the cut) -> 0.35
+#   d  TEARDROP      a round head 1.15 stems across running tangent into a cone
+#                    to a 0.30 tip, 0.50 xh: the curly mark's head without its turn
+#   e  REFERENCE     the references' median profile: 1.05 / 0.89 / 0.44 stems at
+#                    top / middle / foot, 0.50 xh, pen-cut top
+APOS_IT_STRAIGHT = os.environ.get("ALBO_APOS_IT_STRAIGHT", "a") if pen.ITALIC else "a"
+def _it_straight(c, x):
+    top = CAP(c) - _qdrop(); U = TH_V * 0.8 * QUOTE_W / 1.42; X = c["xh"]; o = APOS_IT_STRAIGHT
+    if o == "b":
+        return stroke(line((x, top), (x, top - QUOTE_BODY_L)), widths([(0.0, 1.20 * U), (1.0, 0.25 * U)]), cut0=CUT)
+    if o == "c":
+        return stroke(line((x, top), (x, top - 0.48 * X)), widths([(0.0, 1.60 * U), (1.0, 0.35 * U)]), cut0=CUT)
+    if o == "d":
+        r = 1.15 * U / 2; bot = top - 0.50 * X
+        return geom.ink([dot(x, top - r, r), stroke(line((x, top - r), (x, bot)), widths([(0.0, 2 * r * 0.98), (1.0, 0.30 * U)]))]).convex_hull
+    if o == "e":
+        return stroke(line((x, top), (x, top - 0.50 * X)), widths([(0.0, 1.05 * U), (0.5, 0.89 * U), (1.0, 0.44 * U)]), cut0=CUT)
+    return None
 @glyph("'")
-def g_quotesingle(c): return _apos_straight(straight_quote(c, S * 0.5), S * 0.5, CAP(c) - _qdrop())
+def g_quotesingle(c):
+    g = _it_straight(c, S * 0.5)
+    return g if g is not None else _apos_straight(straight_quote(c, S * 0.5), S * 0.5, CAP(c) - _qdrop())
 @glyph('"')
-def g_quotedbl(c): return _dbl(lambda dx: _apos_straight(straight_quote(c, S * 0.5 + dx, k=1), S * 0.5 + dx, CAP(c) - _qdrop(), False))
+def g_quotedbl(c):
+    def mk(dx):
+        g = _it_straight(c, S * 0.5 + dx) if APOS_DOUBLES else None
+        return g if g is not None else _apos_straight(straight_quote(c, S * 0.5 + dx, k=1), S * 0.5 + dx, CAP(c) - _qdrop(), False)
+    return _dbl(mk)
 def quote(c, x, up, single=True):
     """The curly quotes: the comma's own dot+tail (same DOT_R body as every
     other mark), turned to hang from the top instead of sitting on the
