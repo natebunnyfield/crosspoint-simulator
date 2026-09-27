@@ -729,6 +729,15 @@ ALD_BEARING_ADJ = {'o': (0, 28)}
 for _c, _lr in ALD_LC_ADJ.items():                # round 308's joint fit
     _b = ALD_BEARING_ADJ.get(_c, (0, 0))
     ALD_BEARING_ADJ[_c] = (_b[0] + _lr[0], _b[1] + _lr[1])
+# ROUND 419 -- THE TEARDROP a's RIGHT BEARING. Its tail is the d's (runs right
+# along the baseline), so the bearing, set from the tail's tip, left 13-21 units
+# more white after the a than after the d at the x-height (pair_white: an 251
+# vs dn 230, ao 211 vs do 198; BoldItalic 229 vs 208). The d's was fitted to the
+# owner's bench, so the a takes the d's: -18 on the right, both italics.
+# ALBO_ALD_A_SHIP=ring (the old a) takes nothing.
+if os.environ.get("ALBO_ALD_A_SHIP", "y1") == "y1":
+    _b = ALD_BEARING_ADJ.get('a', (0, 0))
+    ALD_BEARING_ADJ['a'] = (_b[0], _b[1] + float(os.environ.get("ALBO_ALD_A_RSB", -18)))
 # ROUND 304 -- AND THE ITALIC LOWERCASE WANTS NOTHING. WITHDRAWN.
 #
 # Round 303 gave every italic lowercase letter +4 per side, a uniform +8 per

@@ -3270,6 +3270,23 @@ if ON:
     #   wdg   join at 0.82 xh, bowed 0.07
     #   dro   the bowl lower on the stem -- join 0.72 -- and a smaller round
     #   rnd   join 0.82, bowed 0.13, a larger round: the softest
+    # ROUND 419 -- THE TEARDROP a SHIPS: Y1. Owner 2026-09-27, after the
+    # series in docs/albo-italic-a-top-2026-09-27.md: *"W1 for regular italic
+    # and W3 for bold italic but flatten out flick to be similar to 'd'"*, then
+    # *"Y1 wins"*. These are DEFAULTS (setdefault): any ALBO_ALD_A_TRI_* in the
+    # environment still wins, and ALBO_ALD_A_SHIP=ring puts the round-151 ring a
+    # back exactly.
+    _A_SHIP = os.environ.get("ALBO_ALD_A_SHIP", "y1")
+    if _A_SHIP == "y1":
+        _y1 = dict(A_TRI="trg", A_TRI_BIAS="0.65", A_TRI_PHI="45", A_TRI_HEAD="1", A_TRI_JY="0.88",
+                   A_TRI_HEADCLIP="1", A_TRI_DIRSM="14", A_TRI_SMR="4", A_TRI_ASC="8", A_TRI_TOPFIT="9",
+                   A_TRI_DTAIL="1", A_TRI_TAIL_X="138", A_TRI_TAIL_Y="0.15")
+        _y1.update(dict(A_TRI_T1="285", A_TRI_KY="0.40", A_TRI_RY="0.38", A_TRI_THIN="0.95", A_TRI_RX="0.41",
+                        A_TRI_W="1.25", A_TRI_BRW="0.45") if S <= 84.0 else   # W1, the Italic
+                   dict(A_TRI_T1="280", A_TRI_KY="0.52", A_TRI_RY="0.43", A_TRI_THIN="0.78", A_TRI_RX="0.39",
+                        A_TRI_W="1.10", A_TRI_BRW="0.65"))                    # W3, the BoldItalic
+        for _k, _v in _y1.items():
+            os.environ.setdefault("ALBO_ALD_" + _k, _v)
     A_TRI = os.environ.get("ALBO_ALD_A_TRI", "")
     #   mid   owner 2026-09-27, "between a and c, needs thick too right join":
     #         halfway between wdg and rnd, and the top's JOIN to the stem
