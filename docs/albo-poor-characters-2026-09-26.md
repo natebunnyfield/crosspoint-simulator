@@ -547,3 +547,8 @@ ruling stops arm work; they are corrected here.
   `poor_harness/`.
 - Scratchpad (session, not published): `poorchars/refsheets/`,
   `poorchars/proof/`, `poorchars/fit-*.json`, `summary.txt`, `gates/`, `pairs/`.
+
+## 11. Owner rulings, 2026-09-26 (roman y)
+
+- *"for y, i do not see a difference"* — the four tail arms (geo at 0.33 and 0.50, hoe, alb) are sub-visible at reading size in both cuts. None ships; a y tail change must be large enough to see at 54 px before it is offered again.
+- *"bold y needs to have a baseline cutout on the left stroke like regular"* — the Regular y shows a cut/notch where the left diagonal meets the tail at the baseline; the Bold y has none. A defect to fix in the Bold (see its construction in `diagonals.py` g_y and the Bold-only behavior).
