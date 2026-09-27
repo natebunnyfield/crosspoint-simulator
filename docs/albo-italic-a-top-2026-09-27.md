@@ -136,3 +136,19 @@ Owner: *"match B word image better with a less thin top left line than showed, C
 | E4 | 1.20 / 0.85 / 0.75 | 1.10 / 0.85 / 0.75 |
 
 Common: ASC 35, PHI 45, DIRSM 8, BIAS 0.55, TOPFIT 0; W 1.55 Italic / 1.16 BoldItalic. All touch 0, hairs PASS.
+
+## Reread: the cutout under the bottom join (same day)
+
+Owner: *"reread my prompt, you went the wrong way with it and the little cutout on the bottom is gone, not bigger. look at reference image for what I meant."* "Add more area under bottom join" meant MORE WHITE: the small notch left of the stem, under where the bowl's bottom rejoins it -- the scan has it clearly, with the stem's foot spreading into a heel below. The E options' heel disc sat in exactly that notch and filled it. Now:
+
+- `A_TRI_HEEL` moved to the stem's FOOT (centre just right of the stem's axis, on the baseline), so it never reaches up into the notch.
+- The notch is opened by ending the round sooner (`A_TRI_T1`, the angle the return leaves the ellipse; 352 before), raising where the return enters the stem (`A_TRI_KY`), and narrowing the round (`A_TRI_RX`) so the return has to climb a diagonal into the stem. Measured by `instruments/a_cutout.py` (white left of the stem's left edge, baseline to 90 units, outside the counter): C2 672 units^2; T1/KY alone barely moved it (587-683) -- the round's bottom ran straight into the stem; with RX it opens: G1 1,882, G2 2,512, G3 3,191 (Italic). The BoldItalic's heavier strokes leave less: 347 / 598 / 969 / 574 for G1-G4.
+
+| label | RX / T1 / KY / HEEL |
+|---|---|
+| G1 | 0.40 / 320 / 0.18 / -- |
+| G2 | 0.38 / 315 / 0.22 / 0.55 |
+| G3 | 0.36 / 310 / 0.26 / 0.55 |
+| G4 | 0.38 / 315 / 0.22 / 0.70 |
+
+Common: E1's (THIN 1.20 Italic / 1.10 BoldItalic, GLOB 0.85, ASC 35, PHI 45, DIRSM 8). All touch 0, hairs PASS.

@@ -3328,6 +3328,8 @@ if ON:
     # the bowl's return into the stem (0 = none)
     A_TRI_HEEL = float(os.environ.get("ALBO_ALD_A_TRI_HEEL", 0) or 0)
     A_TRI_HEEL_Y = float(os.environ.get("ALBO_ALD_A_TRI_HEEL_Y", 0) or 0.0)   # its centre's height above its own radius, x xh (0 = sitting on the baseline)
+    A_TRI_T1 = float(os.environ.get("ALBO_ALD_A_TRI_T1", 0) or 352.0)   # where the return leaves the round, degrees; earlier (smaller) opens the cutout under the bottom join
+    A_TRI_KY = float(os.environ.get("ALBO_ALD_A_TRI_KY", 0) or 0.08)    # how far above the round's end the return enters the stem, x xh
     A_TRI_DIRSM = int(os.environ.get("ALBO_ALD_A_TRI_DIRSM", 0) or 0)   # smooth the pen's DIRECTION over +/- this many samples instead of averaging widths (0 = the width average)   # the stem stands this many units above the o's top, over the glob (0 = the glob is the top)
     A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
@@ -3351,9 +3353,9 @@ if ON:
         t0 = best[1]; P0 = E(t0)
         C = (Jv[0] + (P0[0] - Jv[0]) * A_TRI_BIAS, Jv[1] + (P0[1] - Jv[1]) * A_TRI_BIAS)   # on the tangent line: C1 into the round
         top = list(geom.cubic(J, C, (C[0] + (P0[0] - C[0]) * 0.5, C[1] + (P0[1] - C[1]) * 0.5), P0))[:-1]
-        t1 = math.radians(352)
+        t1 = math.radians(A_TRI_T1)
         arc = [E(t0 + (t1 - t0) * q / 80) for q in range(81)]
-        K = (xs + thick * 0.05, cy + ry * math.sin(t1) + 0.08 * xh)
+        K = (xs + thick * 0.05, cy + ry * math.sin(t1) + A_TRI_KY * xh)
         cl = geom.resample(top + arc + [K])
         tans = geom.tangents(cl)
         if A_TRI_DIRSM:
@@ -3391,7 +3393,11 @@ if ON:
         if A_TRI_HEEL:
             from shapely.geometry import Point
             hr = A_TRI_HEEL * sw0
-            g_ = g_.union(Point((xs - sw0 * 0.5 - hr * 0.30, hr * 0.85 + A_TRI_HEEL_Y * xh)).buffer(hr, 48))   # under the join, on the baseline, against the stem
+            # the stem's FOOT as a glob, low on the baseline, reaching left under
+            # the cutout -- never up into it (owner: "the little cutout on the
+            # bottom is gone, not bigger. look at reference image"; the first
+            # heel sat in the cutout and filled it)
+            g_ = g_.union(Point((xs + sw0 * 0.10, hr * 0.92 + A_TRI_HEEL_Y * xh)).buffer(hr, 48))
         if gr:
             from shapely.geometry import Point
             g_ = g_.union(Point(J).buffer(gr, 48))
