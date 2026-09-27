@@ -71,3 +71,16 @@ Owner: *"take three passes and increase the fit and style. adjust size of counte
 | trg | 0.333 / 0.77 / 1.55 | 0.470 / 0.85 / 1.84 |
 
 References for the targets: Italic d 0.349 / 57,678 / 1.95, o 0.344 / 57,596 / 1.30; BoldItalic d 0.481 / 43,077 / 1.89, o 0.473 / 39,598 / 1.16. Every preset: join 0.82 xh, bow 0.10, join weight 0.85, phi 15; (RY, RX, W, THIN) per weight in `_TRI_SET`. All touch 0, hairs PASS in both italics.
+
+## Triangular, heavier, with line contrast (same day)
+
+Owner: *"traingular wins but needs heaviness and line contrast"*. The contrast lever was not the hairline: at `A_TRI_SMOOTH` 10 (the +/-10-sample width average that removed the first drawing's bumps) thinning the hairline from 0.64 to 0.48 moved the contrast 1.63 -> 1.67 -- the average was eating the thins. At 6 / 5 / 4 samples it reads 2.11 / 2.44 / 2.88. With the average short, the heavy return poked past the stem's right edge; a width cap on the return's second half (no point may reach past the stem's right edge, eased) removed it.
+
+| ladder | Italic W / THIN / SMOOTH -> colour, contrast | BoldItalic W / THIN / SMOOTH -> colour, contrast |
+|---|---|---|
+| trg | 1.25 / 0.80 / 10 -> 0.333, 1.55 | 0.95 / 0.75 / 10 -> 0.470, 1.84 |
+| h1 | 1.40 / 0.64 / 6 -> 0.342, 2.11 | 1.06 / 0.60 / 6 -> 0.474, 1.86 |
+| h2 | 1.55 / 0.56 / 5 -> 0.355, 2.44 | 1.16 / 0.52 / 5 -> 0.488, 2.04 |
+| h3 | 1.70 / 0.45 / 4 -> 0.368, 2.88 | 1.26 / 0.45 / 4 -> 0.502, 2.22 |
+
+All touch 0, hairs PASS in both italics.

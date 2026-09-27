@@ -3302,7 +3302,8 @@ if ON:
     # the stress angle the widths are read at, and the hairline
     A_TRI_RX = float(os.environ.get("ALBO_ALD_A_TRI_RX", 0) or (_TS[1] if _TS else 0.42))    # the round's half-width, x the bowl's span
     A_TRI_PHI = float(os.environ.get("ALBO_ALD_A_TRI_PHI", 0) or (15.0 if _TS else 50.0))  # the stress: 50 = the family nib; toward 0 the sides go heavy and the top and bottom light, as the d's and q's ring
-    A_TRI_THIN = float(os.environ.get("ALBO_ALD_A_TRI_THIN", 0) or (_TS[3] if _TS else 1.05))  # the hairline, x the arch's
+    A_TRI_THIN = float(os.environ.get("ALBO_ALD_A_TRI_THIN", 0) or (_TS[3] if _TS else 1.05))
+    A_TRI_SMOOTH = int(os.environ.get("ALBO_ALD_A_TRI_SMOOTH", 0) or 10)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
     def _a_tri(c, xs, xh, u):
         hu = hm_u(c); thick = HM_STEMW * hu * A_TRI_W; thin = HM_ARCH_T * hu * A_TRI_THIN
@@ -3327,8 +3328,16 @@ if ON:
         cl = geom.resample(top + arc + [K])
         tans = geom.tangents(cl)
         ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin, phi=A_TRI_PHI) for tx, ty in tans]
-        m = 10; ws = [sum(ws[max(0, q - m):q + m + 1]) / len(ws[max(0, q - m):q + m + 1]) for q in range(len(ws))]
+        m = A_TRI_SMOOTH; ws = [sum(ws[max(0, q - m):q + m + 1]) / len(ws[max(0, q - m):q + m + 1]) for q in range(len(ws))]
         n = len(ws) - 1
+        # the return lands INSIDE the stem: over the last 12% the width eases
+        # down to 0.9 of the stem's, or a heavy nib pokes past its right edge
+        sw_ = HM_STEMW * hu; edge = xs + sw_ / 2 - 3.0
+        for q in range(n // 2, n + 1):   # nowhere on the return may the ink reach past the stem's right edge
+            room = 2.0 * (edge - cl[q][0])
+            if room < ws[q]: ws[q] = max(room, 1.0)
+        for q in range(n // 2 + 1, n + 1):   # and the cap is eased, not stepped
+            ws[q] = min(ws[q], (ws[q - 1] + ws[q]) / 2 + 0.5 * abs(ws[q - 1] - ws[q]))
         if A_TRI_JW:
             jn = max(1, int(n * A_TRI_JSPAN))
             for q in range(jn + 1):
