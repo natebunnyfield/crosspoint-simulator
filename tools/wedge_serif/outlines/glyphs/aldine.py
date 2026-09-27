@@ -3914,11 +3914,30 @@ if ON:
     #        root, 2.0 held, 2.6 into the finial
     #   lng  as hvy, and the arm REACHES to Flanker's 0.76 of the pitch
     #        (today 0.66): a flag, not a hook
+    #   sho  owner 2026-09-27, "keep serif the same, but n shoulder. balance
+    #        optically": the n's own arch keys up to (0.654 P, 0.875 xh) --
+    #        which is within 0.006 P of today's terminal centre (0.660, 0.876)
+    #        -- then today's terminal EXACTLY (same end point, `fin_reach`,
+    #        end width t x 2.1, family finial and cut). The middle of the
+    #        width profile is scaled by R_SHO_K, solved so the arm's ink over
+    #        the shoulder window equals the n's (instruments/r_sho_balance.py)
+    R_SHO_K = float(os.environ.get("ALBO_ALD_R_SHO_K") or 0) or (0.95 if S <= 84.0 else 1.00)   # solved 2026-09-27: arm ink = the n's shoulder ink (Italic r/n 1.000 at 0.948, BoldItalic 0.999 at 1.0)
     R_ARC_END = float(os.environ.get("ALBO_ALD_R_ARC_END", 2.0))   # arc's end weight, x the arch hairline (2.0 as first drawn)
     R_OPT = os.environ.get("ALBO_ALD_R_OPT", "a")
-    if R_OPT not in ("a", "geo", "fla", "arc", "hvy", "lng"): R_OPT = "a"
+    if R_OPT not in ("a", "geo", "fla", "arc", "hvy", "lng", "sho"): R_OPT = "a"
 
     def _r_arm(c, x0, P, sw, t, xh):
+        if R_OPT == "sho":
+            ax, ay = x0 + P * R_ARM_X, xh * 0.876
+            px, py = x0 + P * 0.47, xh * 0.850
+            dl = math.hypot(ax - px, ay - py)
+            ext = fin_reach(R_ARM_W * hm_u(c) * ALD_WF_UP / 2, ((ax - px) / dl, (ay - py) / dl))
+            K = [(x0, xh * HM_SPRING)] + [(x0 + fx * P, fy * xh) for fx, fy in HM_ARCH_K[:3]] + \
+                [(ax, ay), (ax + (ax - px) / dl * ext, ay + (ay - py) / dl * ext)]
+            arm = catmull(K, tension=0.5)
+            k = R_SHO_K
+            prof = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k), (0.42, t * k), (0.72, t * 1.25 * k), (1.00, t * 2.1)])
+            return stroke(arm, PR.finial_widths(prof, False, floor=fin_floor()), cut1=PR.finial_cut(arm, False))
         if R_OPT == "arc":
             K = [(0.0, HM_SPRING)] + HM_ARCH_K + [(0.880, 0.905)]
             arm = catmull([(x0 + fx * P, fy * xh) for fx, fy in K], tension=0.5)
