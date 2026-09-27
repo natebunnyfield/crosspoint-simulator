@@ -637,7 +637,10 @@ def straight_quote(c, x, k=0):
 #   k  3 degrees more lean than the stems (16 in all; Poetica 14.9, Palatino 24)
 _B_VARS = {"b": {}, "f": dict(top=1.05), "g": dict(foot=0.40), "h": dict(length=0.48),
            "i": dict(mid=0.55), "j": dict(cut=PR.FINIAL_CUT_DEG), "k": dict(lean=3.0)}
-APOS_IT_STRAIGHT = os.environ.get("ALBO_APOS_IT_STRAIGHT", "a") if pen.ITALIC else "a"
+# ROUND 404 -- RULED 2026-09-26 (owner): *"j wins"* -- the pen wedge with its
+# top cut at the italic's 28-degree finial face ships in Italic and
+# BoldItalic. The roman never reads this dial. `a` restores the parallel stroke.
+APOS_IT_STRAIGHT = os.environ.get("ALBO_APOS_IT_STRAIGHT", "j") if pen.ITALIC else "a"
 def _it_straight(c, x):
     top = CAP(c) - _qdrop(); U = TH_V * 0.8 * QUOTE_W / 1.42; X = c["xh"]; o = APOS_IT_STRAIGHT
     if o in _B_VARS:

@@ -402,4 +402,8 @@ involving `'` in the Bold Italic, from `cmp_touch`, in em:
 The image is `italic-straight-b-variations.png`, in the session scratchpad
 `apos-italic/`. `index.html` shows it first. Not published.
 
-Owner pick: (awaiting)
+Owner pick: **RULED 2026-09-26 -- "j wins".** `ALBO_APOS_IT_STRAIGHT=j` is
+the default in Italic and BoldItalic, shipped as **round 404**
+(`docs/albo-round-404-2026-09-26.md`). The §10 arms b–e and the other
+variations stay available behind the dial. `a` restores the parallel stroke.
+
