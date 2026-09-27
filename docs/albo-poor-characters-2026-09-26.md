@@ -726,3 +726,5 @@ and k7 (heavy square end, reads as K2). Measured: K6 and K8 put `(j` at
 clearance kern if either wins. Seen at 300 px on the Bold: every sheared
 finial end (J2, K5, K6) leaves a small upward point at the face's inner corner;
 the square faces and the pen-cut curl do not. Awaiting a pick.
+
+**Ruled 2026-09-27: K8 with J2's head** (*"K8 next"*), round 421.

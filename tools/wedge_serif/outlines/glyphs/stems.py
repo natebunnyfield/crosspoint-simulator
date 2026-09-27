@@ -148,14 +148,14 @@ def g_j(c):
 #   fin  original: the arc to -98 ending in the face's own round finial,
 #        the c's top (PR.finial_widths / finial_cut, as the y's tail since
 #        round 275), so the turn stops early and the weight goes into the end
-J_OPT = os.environ.get("ALBO_ROM_J_OPT", "a")
+J_OPT = os.environ.get("ALBO_ROM_J_OPT", "k8")   # round 421: K8 ships (owner 2026-09-27, "K8 next"); "a" = round 420
 # 2026-09-27, after round 420: the i carries the family's left top wedge and
 # the j has none ("no top flag", rounds 22/25), which at 300 px reads as a flat
 # cut beside its own i; every reference (Georgia, Charter, Palatino, Hoefler,
 # both weights) heads its j as its i. ALBO_ROM_J_TOP=1 gives the roman j the
 # i's head (stem(top='left'), the same wedge). Default 0 = today; it reverses
 # the round-25 drawing, so it is the owner's call.
-J_TOP = os.environ.get("ALBO_ROM_J_TOP", "0") == "1"
+J_TOP = os.environ.get("ALBO_ROM_J_TOP", "1") == "1"   # round 421: J2's head ships with K8
 J_ARMS = {"geo": (-110,), "pal": (-95,), "hoe": (-95,), "fin": (-98,)}   # fin: -102 in pass 1 set "(j" 0.0086 em, under cmp_touch's floor
 # 2026-09-27, owner on the j page: *"J2 but give me more variations on tail"*.
 # The tail generalised: an ELLIPTICAL arc (x / y radius factors on r, the
