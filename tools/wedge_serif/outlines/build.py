@@ -365,6 +365,17 @@ def _fig_width_unsheared(ch, g):
     x0, _, x1, _ = u.bounds
     return x1 - x0
 
+# N and T WIDTH, OPTIONS -- 2026-09-26, owner: "give me options with ideal
+# widths for N and T". Ink width over the H's, six references (poor_trace's
+# set: Georgia Charter Times Baskerville Hoefler Palatino) against Albo round
+# 414: N Regular 1.015 / Albo 1.018 (on it), N Bold 0.967 / 1.015 (5% wide),
+# T Regular 0.841 / 0.863, T Bold 0.816 / 0.857. Over the O every one runs
+# 5-10% wide, because Albo's O is itself narrow. A factor on the solver's
+# TARGET (a scale in draw() is undone, see below), (Regular, Bold), roman only
+# -- the aldine T borrows g_T. 1.0 = today.
+CAP_NT_WIDTH = {'N': (float(os.environ.get("ALBO_ROM_N_W", 1.0)), float(os.environ.get("ALBO_ROM_N_W_BOLD", 1.0))),
+                'T': (float(os.environ.get("ALBO_ROM_T_W", 1.0)), float(os.environ.get("ALBO_ROM_T_W_BOLD", 1.0)))}
+
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink
     width lands on the references' median (round 20's rule, same clamps)."""
@@ -394,6 +405,7 @@ def solve_widths(passes=3):
             target = REF[ch]["w"] * C * pen.WIDTH
             if pen.SHEAR: target *= CAP_NARROW
             if ch == 'X': target *= CAP_X_WIDTH          # owner 2026-09-23, see CAP_X_WIDTH
+            if ch in CAP_NT_WIDTH and not pen.SHEAR: target *= CAP_NT_WIDTH[ch][1 if pen.S > 84.0 else 0]   # 2026-09-26, see CAP_NT_WIDTH
             if isfig(ch) and pen.S > FIG_WIDTH_S0: target += _fig_weight_gain()   # round 376, see FIG_BOLD_K
             _lo = FIG_WIDTH_FLOOR if (isfig(ch) and (pen.S <= 84.0 or FIG_BOLD_FLOOR)) else 0.7   # round 374, see FIG_WIDTH_FLOOR; round 376 FIG_BOLD_FLOOR
             if drawn > 1: W[ch] = max(_lo, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))

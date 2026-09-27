@@ -566,3 +566,22 @@ at reading size, `ALBO_ROM_S_ARM` (default `a`, today):
 | bek | original, Albertus: a wedge beak on each end face, 0.13 xh (`ALBO_ROM_S_BEAK`) | touch 0, hairs 0 |
 
 Built from the round 413 tree; sheet in the session scratchpad `rs/s.png`.
+
+## N and T widths (2026-09-26, owner: "give me options with ideal widths for N and T")
+
+Ink width over the H's and over the O's, six references (Georgia Charter Times Baskerville Hoefler Palatino, medians) against round 414:
+
+| | refs /H | Albo /H | refs /O | Albo /O |
+|---|---|---|---|---|
+| N Regular | 1.015 | 1.018 | 1.080 | 1.136 |
+| N Bold | 0.967 | 1.015 | 1.022 | 1.133 |
+| T Regular | 0.841 | 0.863 | 0.888 | 0.963 |
+| T Bold | 0.816 | 0.857 | 0.874 | 0.957 |
+
+The N is on the H in the Regular and 5% wide in the Bold; the T is 2.5% / 5% wide. Against the O every one is 5-10% wide, which is the O being narrow (capital-widths doc), not the N or T alone.
+
+A width scale applied in `g_N`/`g_T` does NOTHING (measured: 1.018 -> 1.015 at x0.93) because `solve_widths` re-solves each capital's ink to its reference target; the dial is `CAP_NT_WIDTH` on that target in `build.py` (`ALBO_ROM_N_W`, `_N_W_BOLD`, `ALBO_ROM_T_W`, `_T_W_BOLD`; 1.0 = today; roman only). Arms, all touch 0 / hairs 0:
+
+- **vs H**: N 1.0 / 0.953, T 0.975 / 0.952 -> N/H 1.018 / 0.971, T/H 0.841 / 0.816 (on the medians)
+- **vs O**: N 0.951 / 0.902, T 0.922 / 0.913 -> N/O 1.083 / 1.030, T/O 0.887 / 0.875
+- **vs H + strokes**: vs H plus `ALBO_ROM_N_OPT=cha` and Bold `ALBO_ROM_T_BAR_K=0.76`
