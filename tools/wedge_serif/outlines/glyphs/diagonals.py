@@ -313,7 +313,8 @@ def g_y(c):
 # Albo's: a y is as deep as its p in all six references.
 #   flr  original: today's path, the hairline floor raised to Y_FLR_FLOOR S
 # Every arm keeps the right diagonal's top, its wedge, and the left stroke.
-Y_TAIL = os.environ.get("ALBO_ROM_Y_TAIL", "a")
+# ROUND 412 SHIPS: owner 2026-09-26 "Curl Regular, sweep Bold" ("a" = round 411)
+Y_TAIL = os.environ.get("ALBO_ROM_Y_TAIL", "curl" if pen.S <= 84.0 else "sweep")
 if Y_TAIL not in ("a", "geo", "hoe", "pal", "alb", "flr", "sweep", "curl", "foot", "short"): Y_TAIL = "a"
 # THE ARMS' FLOOR, x S. Pass 2 (docs/albo-poor-characters-2026-09-26.md):
 # a traced skeleton alone did not move the flag -- any hook that turns left
