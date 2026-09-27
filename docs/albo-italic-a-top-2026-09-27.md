@@ -300,3 +300,19 @@ Owner: *"more passes to smooth out u4"*. `albo_bumps.py --chars a` on U4: Italic
 - **V5** + `A_TRI_TOPFIT` 9: the bowl's top rises to meet the head (which stands on an 8-unit ascender), so the top edge runs level into it instead of stepping up. **V6** instead lowers the ascender to 3.
 
 Misread It / BI: U4 23 / 8; V1 24 / 9; V2 21 / 9; **V5 21 / 9**; V6 20 / 12. Smoothing cost no legibility. All touch 0, hairs PASS.
+
+## Lighter Italic, more space at the bottom right, longer flick (same day)
+
+Owner, on V1-V6: *"can't see a difference, but there is too much heaviness on roman and not enough space with bottom right stem and flick. flick can be slightly longer."* ("roman" = the regular-weight Italic, as before.) The smoothing passes were real but sub-visible at reading size -- recorded as such.
+
+V5 Italic measured colour 0.382 against the d's 0.349. Lighter broad and return floor (W 1.25-1.20, BRW 0.45-0.40) bring it to 0.351-0.359. The space under the join (`instruments/a_cutout.py`): 3,076 units^2 at V5 -> 3,744 (lighter) -> 4,460 (join at KY 0.48, round RX 0.39) -> 5,040 (KY 0.52, RX 0.38, T1 280). The BoldItalic keeps V5's weight and takes the same space moves: 465 / 874 / 1,576.
+
+| label | Italic W / THIN / BRW / KY / RX / T1 / FLICK | misread It / BI |
+|---|---|---|
+| V5 | 1.40 / 0.95 / 0.60 / 0.40 / 0.41 / 285 / -- | 21 / 9 |
+| W1 | 1.25 / 0.95 / 0.45 / 0.40 / 0.41 / 285 / 1.15 | 21 / 6 |
+| **W2** | 1.25 / 0.95 / 0.45 / 0.48 / 0.39 / 285 / 1.15 | **14** / 6 |
+| W3 | 1.20 / 0.90 / 0.40 / 0.52 / 0.38 / 280 / 1.15 | 20 / 6 |
+| **W4** | W3, FLICK 1.30 | 19 / **5** (grand 92.6, crowded 87.9) |
+
+All touch 0, hairs PASS.
