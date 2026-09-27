@@ -81,3 +81,28 @@ The BoldItalic median does not track the dial (the ridge population shifts as
 strokes merge); its heavy strokes do. Page (A / G1 1.15 / G2 1.30 / G3 1.45):
 https://claude.ai/artifact/MLUPVTayFLozNikt5p2EeK. Gates: touch 0, hairs 0,
 approved 2/2; moves two, onehalf, twothirds, U+00B2, U+2082. Awaiting a pick.
+
+## The roman 6 and 8: a metric artifact, not a defect (same day)
+
+The audit flags the roman 6 and 8 on `vertical`, top +4.0 / +3.9 sigma
+(Regular), +4.8 (Bold). Measured directly (unhinted bboxes over each face's own
+o height, round 423 build; old-style glyphs where the face has them):
+
+| face | 6 top / o | 8 top / o |
+|---|---|---|
+| Albo Regular, Bold | 1.39 | 1.39 |
+| Georgia, Georgia Bold | 1.39, 1.38 | 1.39, 1.39 |
+| Palatino / Bold (oldstyle) | 1.43 / 1.35 | 1.40 / 1.35 |
+| Big Caslon | 1.50 | 1.50 |
+| Pagella Italic, Flanker Italic | 1.42, 1.47 | 1.42, 1.41 |
+
+Albo's 6 and 8 sit exactly on Georgia and inside the references' 1.35-1.50.
+The flag is the axis scoring each figure against its OWN family, in which the
+old-style 6 and 8 ascend by design. NOT candidates. Also: the 8 now tops on
+its 6's line (1.39 / 1.39), so the figure-options doc's "8 is 97 units short
+of its own 6" (2026-09-18) is stale.
+
+## Next: the BoldItalic 7
+
+Stroke -2.5 sigma, BoldItalic only (the Italic 7 is on its family: ridge
+median 46.5 against ~46). Same round-410 pen construction as the 2.
