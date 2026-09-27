@@ -29,6 +29,8 @@ quoting.
 | `amp_touch.py` | the `&` against every letter, figure and mark -- `cmp_touch.py` has no `&` in its charset (round 377) |
 | `counter-bench.html` | the bench the owner dialled the counter's 393 / 19 / 17 on (round 332) |
 | `r388_pair_white.py` | a pair's white as rsb + GPOS kern (HarfBuzz) + lsb; set round 388's six re-ask kerns against the bench-time fonts, and found the italic capitals' bearing-plus-kern double count |
+| `fig27_trace.py` | the old-style 2 and 7 of 14 reference faces (Georgia, Hoefler Text, Palatino, Big Caslon, Charter, Baskerville and their italics, Flanker Griffo, Poetica, Pagella) measured unhinted, unsheared and at Albo's x-height -- arc, crown, slash, base, overhang, terminal hang; bar, beak, leg taper, angle, bow, foot -- every stroke over that face's n stem; the SAME function reads an Albo build. Set round 406's `TWO_TRACE_*` / `SEVEN_TRACE_*` rows. Found Hoefler Text Italic's `l` is not a bare stem (reads 21.0 degrees; its `I` reads 13.4) |
+| `fig27_sheet.py` | round 406's one-image option sheet: `1927 2024 7:27 £72 27 of 72` at 54 px unhinted and HarfBuzz-shaped, today over each arm, each reference's own 2 and 7 beside its label |
 
 They import each other and `render.py` by bare name, so run them from this
 directory or put it on `PYTHONPATH`. They are working instruments, not library

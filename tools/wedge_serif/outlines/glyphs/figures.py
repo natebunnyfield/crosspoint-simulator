@@ -824,8 +824,20 @@ def g_two(c):
     # -3.55, barw*0.60 clears by +3.35 and every value above it clears further.
     # Same family as the 1's flag (ONE_FLAG_BURY) and the 4's apex.
     _drop = TWO_BAR_DROP if pen.ITALIC else 0.0
-    foot = (S * 0.5, barw * 0.60 - _drop)
     _o2 = _okw('2', TWO_OPT, TWO_OPT_IT)
+    # ROUND 406 (2026-09-26) -- THE TRACING LEVERS, owner: *"give me options
+    # of redoing the 2 and 7 based on tracing other reference fonts"*. Four
+    # handles on the skeleton that the stroke-weight rows a-n never had, each
+    # defaulting to the constant it replaces, so every earlier row is
+    # byte-identical: `rx_k` the arc's half-width over w (0.46), `ry_k` its
+    # half-height over rx (0.95), `t_start` the angle the arc STARTS at in
+    # degrees (190: the left terminal hangs to just under the arc's center --
+    # every old-style reference but Georgia's ball stops higher, measured in
+    # docs/albo-figures-2-7-2026-09-26.md), and `foot_x` where the slash
+    # lands on the base, x S (0.5).
+    if 'rx_k' in _o2: rx = w * _o2['rx_k']
+    _ryk = _o2.get('ry_k', 0.95); _tst = _o2.get('t_start', 190)
+    foot = (S * _o2.get('foot_x', 0.5), barw * 0.60 - _drop)
     # ROUND 368 (2026-09-23) -- the two levers that decide where this figure's
     # foot lands. `lift` TRANSLATES the whole glyph (which moves the top with
     # it) and `foot_ext` extends the BASE BAR downward alone, its top edge and
@@ -855,7 +867,7 @@ def g_two(c):
         _aim = lambda tipd: foot
     best = None
     for deg in range(-40, -8, 1):
-        top = superellipse(rx, D - rx * 0.95, rx, rx * 0.95, math.radians(190), math.radians(deg), BOWL_K)
+        top = superellipse(rx, D - rx * _ryk, rx, rx * _ryk, math.radians(_tst), math.radians(deg), BOWL_K)
         tipd = top[-1]; at = tangents(top)[-1]; tgt = _aim(tipd)
         vx, vy = tgt[0] - tipd[0], tgt[1] - tipd[1]; L = math.hypot(vx, vy) or 1.0
         err = 1 - (at[0] * vx + at[1] * vy) / L
@@ -863,6 +875,10 @@ def g_two(c):
     _, deg, top, tipd = best
     _st = math.radians(FIG_STRESS) if pen.ITALIC else 0.0
     _cn = FIG_CON if pen.ITALIC else 1.0
+    # ROUND 406: the arc's own cut and axis, traced (`con` re-spreads the
+    # widths about their mean, <1 flatter; `stress` turns the nib, degrees)
+    _cn = _o2.get('con', _cn)
+    if 'stress' in _o2: _st = math.radians(_o2['stress'])
     import shapely.affinity as _aff
     if _turn:
         T1 = _aim(tipd)
@@ -998,6 +1014,43 @@ TWO_BASE_W = 1.22     # the base bar, x the bar weight (heavier on the bottom)
 # rather than in the base -- a thin arc (0.62 of the profile against 0.82)
 # running into a diagonal at nearly full width, with the base back at 1.10.
 # Both styles share the table; the italic's bar drop (round 212) is untouched.
+# ROUND 406 (2026-09-26) -- THE 2, TRACED FROM THE REFERENCES. Owner: *"give
+# me options of redoing the 2 and 7 based on tracing other reference fonts,
+# both roman and italic"*. o-r in BOTH styles, one reference per letter per
+# style, and the same letter means a different reference in each (roman o
+# Georgia, p Palatino, q Hoefler Text, r Big Caslon; italic o Flanker Griffo,
+# p Palatino Italic, q Georgia Italic, r Poetica). NOTHING SHIPS: the rows are
+# inert until FIG_SHIP_ROM / FIG_SHIP_IT names one.
+#
+# "Tracing" is MEASUREMENT: `instruments/fig27_trace.py` renders each
+# reference's own old-style 2 unhinted, unsheared by its measured slant, at
+# Albo's x-height, and reads the arc's thickness, the crown, the slash's
+# thickness and angle, the base, the base's overhang and how far the arc's
+# left terminal hangs -- every stroke over THAT face's n stem. The dials below
+# were set, and re-measured with the same instrument on the built arm, until
+# the arm read the reference's numbers in Albo's pen (the whole table, target
+# against built, is in docs/albo-figures-2-7-2026-09-26.md). No outline point
+# of any reference is used. The new levers (`rx_k ry_k t_start foot_x` on the
+# skeleton, `con stress` on the arc) are at g_two and default to today.
+#
+# WHAT THIS SKELETON CANNOT TRACE, recorded so it is not chased: Georgia's
+# slash runs at 28 degrees to Albo's 42 -- its neck is a long curve and this 2's
+# slash is solved on the arc's tangent; ry_k, rx_k and foot_x moved it 38-42
+# on a six-rung ladder and no further. And the 2's WIDTH is the solver's
+# (build.solve_widths aims its ink at round20.REF, so a width drawn here is
+# undone), which is why a longer overhang (`over`) narrows the body.
+TWO_TRACE_ROM = {
+    'o': dict(top_w=0.95, slash_k=0.58, slash_w=0.45, base_w=1.64, over=22.0, start_w=1.0, con=1.6),                          # GEORGIA: the most cut arc (crown 0.48 of the n against arc 1.20), a light slash, a heavy base
+    'p': dict(top_w=1.10, slash_k=0.58, slash_w=0.45, base_w=1.62, over=46.0, start_w=1.0, t_start=165, stress=-30),         # PALATINO: an oblique axis (crown 0.85, arc 1.03), the terminal higher, the base 46 past the arc
+    'q': dict(top_w=1.06, slash_k=0.50, slash_w=0.40, base_w=1.45, over=38.0, start_w=1.0, t_start=170, stress=-30),         # HOEFLER TEXT: Palatino's axis on a lighter slash (0.48) and base (0.84)
+    'r': dict(top_w=1.24, slash_k=0.34, slash_w=0.28, base_w=1.74, over=62.0, start_w=1.0, t_start=180, stress=-30, con=0.2),  # BIG CASLON: a near-monoline arc over a hairline slash (0.40) and the heaviest, longest base
+}
+TWO_TRACE_IT = {
+    'o': dict(top_w=1.20, slash_k=0.55, slash_w=0.40, base_w=1.45, over=24.0, t_start=184, con=0.2),   # FLANKER GRIFFO: an even arc (0.84 / crown 0.81), the base heavier than today's (0.84 against 0.71)
+    'p': dict(top_w=1.0, slash_k=0.74, slash_w=0.52, base_w=1.25, over=62.0, t_start=160, con=1.0),    # PALATINO ITALIC: the terminal high (hang 0.26 against 0.42), the base 60 past the arc
+    'q': dict(top_w=0.92, slash_k=0.62, slash_w=0.55, base_w=1.60, over=14.0, stress=0, con=2.0),      # GEORGIA ITALIC: the nib turned upright and cut (arc 1.18, crown 0.53), heavy base
+    'r': dict(top_w=1.22, slash_k=0.40, slash_w=0.32, base_w=1.35, over=82.0, t_start=186, con=0.3),   # POETICA: an even arc over a light slash and the longest base in the set, 79 past the arc
+}
 TWO_OPT = {
     'b': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0),   # round 249: start_w 1.0 -- owner 2026-09-18, "ALBO_FIG_2 b without the bulge": the arc's left terminal no longer swells to 1.1 of the arc
     'c': dict(top_w=0.62, slash_w=0.98, base_w=1.45),
@@ -1099,12 +1152,14 @@ TWO_OPT = {
     # under them (j, which pinned lift 0, is now identical to b).
     'n': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0, foot_ext=36.0),            # ...36: the foot level with the 0, 6 and 8's overshoot. A FLAT foot is not supposed to overshoot, so this is the end of the ladder rather than a candidate -- and the base is then 43% deeper than the shipped one
 }
+TWO_OPT.update(TWO_TRACE_ROM)
 TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229's two and draws 'a' under d-i: its bar sits on the round-212 drop and its press cuts are placed on the bbox
 # ROUND 374 -- THE ITALIC'S 2 GETS ROUND 255's `g` LEVERS on its own drawing:
 # the arc to the profile's full weight and the slash held at 0.70 of it, the
 # base untouched (owner 2026-09-23: "the bottom stroke needs to not be
 # thicker"). See the round-374 section of docs/albo-figures-2026-09-23.md.
 TWO_OPT_IT['g'] = dict(top_w=_E('ALBO_2G_TOPW_IT', 0.82), slash_k=0.70, slash_w=0.55)
+TWO_OPT_IT.update(TWO_TRACE_IT)
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
 THREE_FLOOR = float(os.environ.get("ALBO_FIG3_FLOOR", 0.40))   # round 394 option (roman 3), x S; # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0 = round 393)
@@ -1620,6 +1675,46 @@ def g_six(c):
 # `x7`. So (b) stops at 1.48, one step under the cliff, and (c) goes past it
 # deliberately -- it is Flanker's 7 and Flanker's bar is that heavy -- with
 # the cost recorded rather than hidden. `ALBO_FIG_7_BAR` re-runs the ladder.
+# ROUND 406 (2026-09-26) -- THE 7, TRACED. Same brief, same letters and same
+# instrument as TWO_TRACE_ROM above (roman o Georgia, p Palatino, q Hoefler
+# Text, r Big Caslon; italic o Flanker Griffo, p Palatino Italic, q Georgia
+# Italic, r Poetica). What the references agree on and Albo does not:
+#   the BEAK -- every one hangs 58-114 units under the bar's left end, Albo 43
+#               (roman) and 30 (italic): `beak`, the family's own wedge longer
+#   the LEG  -- the roman references' legs are LIGHT under the bar and SWELL
+#               toward the foot (Palatino 0.52 -> 0.85 of the n, Big Caslon
+#               0.25 -> 0.56); Albo's is even at 0.67. The italic references'
+#               legs are STRAIGHT (bow 0.00) and swell or hold; Albo's curves
+#               to an upright foot and thins (0.80 -> 0.62)
+#   the DEPTH -- 136 (Poetica) to 310 (Flanker) under the baseline against
+#               Albo's 208 / 200. `sink` exists (g_seven) and NO ARM USES IT:
+#               built with each reference's depth, the fit audit flagged every
+#               such 7 on its descender (vertical z -5.5 to +6.4, F up to 4.9),
+#               because the 3 4 5 9 keep Albo's depth and one figure alone
+#               cannot move off the family's line. Depth is a family question.
+# THE BEAK HAS TWO CEILINGS. Longer than ~3.5x in the italic, the wedge's
+# long thin bracket drags the 7's p10 stroke down and the fit audit flags it
+# thin (Flanker's 102 units at 4.5x: F 2.02); at particular lengths (3.0x in
+# the italic, 2.7x on Poetica's bar) the apex turns past the hairs gate's 165
+# degrees. The values below are laddered clear of both.
+# THE ITALIC ARMS SET ASIDE RULINGS, each by name: o, q and r take the leg
+# straight (round 212's curve to an upright foot); o and q drop the press
+# (round 215) because Flanker and Georgia do not press; every italic arm flattens
+# the bar (round 219's taper, bar_mod 0.55) because every reference's bar is flat
+# (0.95-1.00 of itself across its span). p is the one that keeps 212 and 215.
+# Every row keeps today's descender and top (see `sink` above).
+SEVEN_TRACE_ROM = {
+    'o': dict(bar_w=1.60, diag_w=0.77, top_up=14.0, beak=2.25, foot_x=0.21, leg_taper=1.05, leg_from=0.0, curve=0.0, flare=1.0),   # GEORGIA: the bar lighter (0.90), an even leg 0.58 at 26 degrees, a 99-unit beak
+    'p': dict(bar_w=1.70, diag_w=0.64, top_up=14.0, beak=2.6, foot_x=0.15, leg_taper=1.95, leg_from=0.0, curve=0.0, flare=1.0),    # PALATINO: the leg swelling 0.54 -> 0.84, the foot furthest left (0.16 of w), the longest beak (114)
+    'q': dict(bar_w=1.72, diag_w=0.48, top_up=14.0, beak=1.55, foot_x=0.26, leg_taper=1.25, leg_from=0.0, curve=0.0, flare=1.0),  # HOEFLER TEXT: a light leg (0.39 -> 0.45) under a full bar, a 64-unit beak
+    'r': dict(bar_w=1.80, diag_w=0.30, top_up=14.0, beak=1.80, foot_x=0.31, leg_taper=2.3, leg_from=0.0, curve=0.0, flare=1.0),   # BIG CASLON: the leg a near-hairline under the bar (0.30) swelling to 0.50 -- the most contrast (cut 3.35); the thin end is 18 units at the 400
+}
+SEVEN_TRACE_IT = {
+    'o': dict(bar_w=1.65, diag_w=1.0, bar_mod=1.0, beak=3.5, foot_x=0.17, leg_taper=1.0, leg_from=0.9, curve=0.0, flare=1.0),   # FLANKER GRIFFO: a straight, even leg (0.73) at 25 degrees and a flat bar, a 79-unit beak (Flanker's 102 is past the ceiling above)
+    'p': dict(bar_w=1.70, diag_w=0.63, bar_mod=0.92, beak=2.5, foot_x=0.31, leg_taper=1.72, leg_from=0.0, flare=1.23),                            # PALATINO ITALIC: today's curve and press kept, the leg SWELLING 0.55 -> 0.79 instead of thinning, beak 58
+    'q': dict(bar_w=1.62, diag_w=0.76, bar_mod=1.0, beak=2.5, foot_x=0.21, leg_taper=1.07, leg_from=0.0, curve=0.0, flare=1.0),                   # GEORGIA ITALIC: straight, even leg (0.57) at 24 degrees, beak 52
+    'r': dict(bar_w=1.80, diag_w=0.42, bar_mod=0.9, beak=2.3, foot_x=0.30, leg_taper=2.5, leg_from=0.0, curve=0.0, flare=1.3),        # POETICA: a thin leg swelling 0.42 -> 0.73 into a press (1.32), beak 55
+}
 SEVEN_OPT = {
     'b': dict(bar_w=1.48, diag_w=0.70, bar_mod=0.74),
     'c': dict(bar_w=1.70, diag_w=0.74, bar_mod=0.60,
@@ -1731,6 +1826,7 @@ SEVEN_OPT = {
 #       Built as `ALBO_FIG_7_BAR=1.30 ALBO_FIG_7_DIAG=1.45` (ratio 0.72) and
 #       rejected on that measurement, not on taste; the number is in the
 #       report so nobody re-proposes it.
+SEVEN_OPT.update(SEVEN_TRACE_ROM)
 SEVEN_OPT_IT = {
     'b': dict(bar_w=1.80, diag_w=1.18, bar_mod=0.42, leg_from=0.45, leg_taper=0.52),
     'c': dict(bar_w=1.55, diag_w=1.05, bar_mod=0.72, leg_from=0.68, leg_taper=0.66),
@@ -1740,6 +1836,7 @@ SEVEN_OPT_IT = {
     'g': dict(leg_taper=0.35, flare=1.0, end_cut=-34.0),
     'h': dict(bar_w=2.05, diag_w=0.86),
 }
+SEVEN_OPT_IT.update(SEVEN_TRACE_IT)
 
 @glyph('7')
 def g_seven(c):
@@ -1764,6 +1861,12 @@ def g_seven(c):
     # round 255 (i-k): the bar's top may stand above the 0.64 box; the foot
     # stays on the box's floor, so only the height D grows
     D = c["figH"] + _E('ALBO_FIG_7_TOP', _o7.get('top_up', 0.0)); w = W_(c, '7', 440)
+    # ROUND 406 -- `sink` (units): the DESCENDER's depth, traced. The foot
+    # rises by `sink` and the top stays where it is (D shrinks by the same and
+    # the glyph is lifted at the end), so an arm can take Georgia's shallow
+    # -159 or Flanker's deep -310 against today's -208 without touching
+    # latin.FIG_BOX, which every other descending figure shares. 0 = today.
+    _sink = _o7.get('sink', 0.0); D -= _sink
     # ROUND 189 -- the owner, 2026-09-17: *"for 7, thin out diagonal and
     # thicken top bar."* Measured against Coelacanth the 7 was effectively
     # MONOLINEAR -- 1.1:1 where Coelacanth is 2.6:1 -- so the two strokes were
@@ -1858,12 +1961,13 @@ def g_seven(c):
     # width at the mitre; `entry_t` is how far along the bar it reaches full.
     _entry = _o7.get('entry', 1.0)
     _entry_t = _o7.get('entry_t', 0.30)
+    _beak = _o7.get('beak', 0.0)
     if _entry != 1.0:
         _bp = widths([(0.0, _entry), (_entry_t, 1.0), (1.0, _mod)])
         _wedges = []
     else:
         _bp = widths([(0.0, 1.0), (1.0, _mod)]) if _mod != 1.0 else None
-        _wedges = [('left', -1)]
+        _wedges = [] if _beak else [('left', -1)]
     # ROUND 376 -- THE MITRE ON THE DIAGONAL'S BUILT EDGE. The bar's end face
     # is laid on the diagonal's right edge AS `pw` PREDICTS IT (ex, ey: the
     # straight p0-p1 line at width wd). The built diagonal is a stroke on its
@@ -1925,6 +2029,16 @@ def g_seven(c):
                 if _xm is None: break
                 _shift = (_xa + _sl * (_ym - _ya)) - _xm
                 if abs(_shift) < 0.1 or abs(_shift) > 40.0: break
+    # ROUND 406 -- `beak`: the bar's hanging wedge at its left end, its HANG
+    # (the wedge's length down the bar's end) x this. Every reference hangs
+    # something there, 58-106 units at xh 429 (Georgia 97, Palatino 106,
+    # Flanker 102) against today's 43; the wedge stays the family's own
+    # bracketed wedge, only longer. Rows without it keep the bar's own wedge.
+    if _beak:
+        _b = geom.union([_b, wedge((0.0, D - barw), (-1, 0), (0, -1), WL * 0.85 * _beak, WD * 0.9, 0.0)])
+    if _sink:
+        import shapely.affinity as _aff7
+        return _aff7.translate(geom.ink([_b, diag]), 0, _sink)
     return geom.ink([_b, diag])
 SEVEN_MITRE_TOL = 0.5
 
