@@ -11755,12 +11755,27 @@ if ON:
     # numerals"). At 1.4 the 7 is near-monoline -- ridge p10 80 / p90 106 where
     # the other figures run p10 28-68 and p90 114-137 -- so the bar and the leg
     # take separate factors on top of the weight, above stem 84 only.
-    FIG7_BAR_700 = float(os.environ.get("ALBO_IT_FIG7_BAR_700", 0.60))   # round 424: the bar onto the 5's bar (vertical run 66 vs 68; plain 1.40 gave 108)
-    FIG7_LEG_700 = float(os.environ.get("ALBO_IT_FIG7_LEG_700", 0.95))   # round 424
+    FIG7_BAR_700 = float(os.environ.get("ALBO_IT_FIG7_BAR_700", 0.90))   # round 425 (I2): the bar carries the weight, near the 2's base (90); round 424's 0.60 had the roles backwards
+    FIG7_LEG_700 = float(os.environ.get("ALBO_IT_FIG7_LEG_700", 0.72))   # round 425 (I2): the leg on the 4's diagonal (61 vs 60)
     # 'swell': the leg thick in its middle and easing toward both ends, as the
     # other figures' downstrokes do (the 3's and 9's tails, the 5's bowl);
     # '' keeps the arm's own profile (heavy at both ends).
-    FIG7_LEGPROF_700 = os.environ.get("ALBO_IT_FIG7_LEGPROF_700", "swell2")   # round 424; "" = round 410's profile
+    FIG7_LEGPROF_700 = os.environ.get("ALBO_IT_FIG7_LEGPROF_700", "")   # round 425: round 410's profile again (424's swell had the roles backwards)
+    # THE BAR, REDRAWN (owner on I2: "fix the top stroke"). Round 410's bar is
+    # the z's top ribbon -- entry hook, crest, a dip at 0.70, a second crest --
+    # and its widths fall 54 -> 34 toward the right, so at 1.4x in the
+    # BoldItalic it read as a lumpy top edge peaking 11 units over the 5's top
+    # (477 vs 466), a wobbling underside, and a square end standing proud of
+    # the leg's corner as a sliver with a step. FIG7_BAR_CLEAN_700 keeps the
+    # entry hook and draws the rest as one level run at full weight, its top
+    # on the 5's (FIG7_BAR_DROP under round 410's crest), clipped to the leg's outer edge so
+    # bar and leg meet in one corner. Above stem 84 only.
+    FIG7_BAR_CLEAN_700 = os.environ.get("ALBO_IT_FIG7_BAR_CLEAN_700", "1") == "1"   # round 425
+    # how far the redrawn bar's top sits UNDER round 410's crest: measured on the
+    # BoldItalic, the crest is 477 font units and the 5's top 466. Relative,
+    # because figures are shifted into their old-style box after drawing, so a
+    # drawing-space height is not a font-unit height.
+    FIG7_BAR_DROP = float(os.environ.get("ALBO_IT_FIG7_BAR_DROP", 11.0))
 
     def _fig7_pen(c, arm):
         P, H, W = _fig_frame(c, '7')
@@ -11772,6 +11787,11 @@ if ON:
         bar = d_pen(bar_pts, [(0.00, 16), (0.06, 24), (0.18, 34), (0.30, 44),
                               (0.45, 52), (0.60, 54), (0.75, 50), (0.90, 42), (1.00, 34)],
                     1.0, tw=_bw7)
+        _clean = S > 84.0 and FIG7_BAR_CLEAN_700
+        if _clean:
+            _crest = bar.bounds[3]
+            bar = d_pen([P(0.02, 0.905), P(0.07, 0.960), P(0.20, 0.986), P(0.45, 0.990), P(0.75, 0.990), P(1.25, 0.990)],   # runs PAST the leg's edge line, which then cuts it
+                        [(0.00, 16), (0.06, 26), (0.16, 42), (0.28, 52), (0.45, 54), (1.00, 54)], 1.0, tw=_bw7)
         top = P(0.93, 0.985)
         legs = {
             # straight, the nib alone thins it; finial foot
@@ -11820,6 +11840,39 @@ if ON:
             prof7 = [(k / 20, D * _cr(k / 20)) for k in range(21)]
         leg = d_pen(pts, prof7, 1.0, tw=_lw7,
                     fin1=(arm in ("a", "b", "f", "d", "e")))
+        if _clean:
+            from shapely.geometry import LineString as _LS, Polygon as _Pg
+            import shapely.affinity as _af
+            # the leg's outer (right) edge, read at two heights below the bar
+            ys = (H * 0.80, H * 0.62); xs = []
+            for yy in ys:
+                cut = leg.intersection(_LS([(-2000, yy), (4000, yy)]))
+                xs.append(cut.bounds[2])
+            (x1_, y1_), (x2_, y2_) = (xs[0], ys[0]), (xs[1], ys[1])
+            k_ = (x1_ - x2_) / (y1_ - y2_)
+            xat = lambda yy: x1_ + k_ * (yy - y1_)
+            big = 3 * H
+            # the bar's top onto the 5's FIRST, then clip -- clipping first and
+            # moving after slid the clipped end off the edge line (a vertical
+            # face 38 units tall at the corner, measured)
+            bar = _af.translate(bar, 0, (_crest - FIG7_BAR_DROP) - bar.bounds[3])
+            bar = bar.intersection(_Pg([(-big, -big), (xat(-big), -big), (xat(big), big), (-big, big)]))
+            # close the corner: the bar now reaches the leg's edge line, and the
+            # leg's own top face left a tooth under it. Fill with the hull of
+            # the ink in a narrow strip along the outer edge, above the bar's
+            # underside less a little, clipped to the edge line again.
+            from shapely.geometry import box as _box
+            yb = bar.bounds[1]
+            strip = _box(xat(yb) - 45, yb - 75, big, big)
+            fill = geom.union([bar, leg]).intersection(strip).convex_hull
+            inside = _Pg([(-big, -big), (xat(-big), -big), (xat(big), big), (-big, big)])
+            fill = fill.intersection(inside)
+            # the leg itself bulges ~3 units past the straight edge near its top
+            # (it curves there), which stepped the corner back as a tooth: in the
+            # corner strip, everything is trimmed to the one edge line
+            g7 = geom.union([bar, leg, fill])
+            g7 = g7.difference(strip.difference(inside))
+            return geom.ink([g7])
         return geom.ink([bar, leg])
 
     # 2026-09-27, the round-422 fit audit (docs/albo-fit-audit-r422-2026-09-27.md):
