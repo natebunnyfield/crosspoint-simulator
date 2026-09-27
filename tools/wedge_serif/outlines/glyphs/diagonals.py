@@ -257,6 +257,8 @@ def g_y(c):
         p0 = (p0[0] - nx * sh, p0[1] - ny * sh); p1 = (p1[0] - nx * sh, p1[1] - ny * sh)
     a = diagonal(p0, p1, w_left, serif0=1)
     tail = cubic((w - S * 0.4, xh), (w * 0.52, -desc * 0.55), (w * 0.44, -desc * 1.08), (w * 0.02, -desc * 0.95))
+    if not pen.ITALIC and Y_TAIL != "a":
+        tail = _y_tail_arm(w, xh, desc)
     # round 51: the pen's width along the tail x (0.72 rising to 1.0 by the middle), flaring 0.3 into the cut
     wfn = pen_widths(tail, lambda t: (0.72 + 0.28 * min(1.0, t * 2)) * widths([(0.7, 1.0), (1.0, 1.3)])(t)); tail_cut = CUT
     if not pen.ITALIC:
@@ -273,8 +275,84 @@ def g_y(c):
         from .rounds import c_top_width
         from .. import primitives as PR
         wfn = PR.finial_widths(pen_widths(tail, lambda t: 0.72 + 0.28 * min(1.0, t * 2), floor=S * Y_TAIL_FLOOR), False, floor=c_top_width()); tail_cut = PR.finial_cut(tail, False)
+    if not pen.ITALIC and Y_TAIL != "a":
+        return geom.ink([a, _y_tail_ink(tail, wfn, tail_cut), end_wedge(tail, wfn(0.0), True, -1)])
     t = stroke(tail, wfn, cut1=tail_cut)
     return geom.ink([a, t, end_wedge(tail, wfn(0.0), True, -1)])
+
+# THE ROMAN y's TAIL, OPTIONS -- 2026-09-26, the poor-characters pass
+# (docs/albo-poor-characters-2026-09-26.md). The fit audit ranks the roman y
+# 6th in the Regular (F 3.06) and 2nd in the Bold (F 3.75), both on CONTRAST:
+# its p10 ridge is 0.67 of its diagonal family's where every reference's y
+# sits at 0.82-1.06. The thin is the tail's long leftward run, which heads
+# along the pen's THIN (round 391 floored it at 0.33 S). Direction before
+# width (albo-method section 1): the references do not thicken that run, they
+# do not HAVE it -- their tail runs straight down the right diagonal's line
+# and turns left only in its last third, into a weighted terminal.
+# Traced with instruments/poor_trace.py (skeleton rows at Albo's xh 429):
+#   a    today (round 391): one cubic, the turn spread over the whole
+#        descender, ink bottom -284, the run-out 100 units long heading left
+#   geo  traced: Georgia/Charter -- straight for the first 55% of the depth,
+#        a tight hook curling UP-LEFT into the c's finial at 0.08 w
+#   hoe  traced: Hoefler/Baskerville -- straight for 68%, the hook lower
+#   pal  traced: Palatino -- straight for 73%, a short turn, and a square
+#        tip, swelled a little, pointing up (Palatino's small flat tip); no
+#        ball (pass 1 cut it with Albo's diagonal wedge, which read as a spur)
+#   alb  original: the Albertus tail -- no hook at all; the straight run ends
+#        on the p's line in a flared chisel cut on the horizontal, the
+#        wedge-serif face's own terminal
+# Depths are fractions of each reference's OWN descender (its p), set on
+# Albo's: a y is as deep as its p in all six references.
+#   flr  original: today's path, the hairline floor raised to Y_FLR_FLOOR S
+# Every arm keeps the right diagonal's top, its wedge, and the left stroke.
+Y_TAIL = os.environ.get("ALBO_ROM_Y_TAIL", "a")
+if Y_TAIL not in ("a", "geo", "hoe", "pal", "alb", "flr"): Y_TAIL = "a"
+# THE ARMS' FLOOR, x S. Pass 2 (docs/albo-poor-characters-2026-09-26.md):
+# a traced skeleton alone did not move the flag -- any hook that turns left
+# passes through the pen's thin, in the references too, and at round 391's
+# 0.33 S that run stayed the thinnest thing in the letter (p10 25.9 against
+# 24.6). The face's own rule for a diagonal's light stroke is 0.72 of the
+# pen (this module's header), about 0.54 S; the v w x thins measure 36-40
+# units. So every arm is drawn at ONE floor, 0.50 S, and the arms differ
+# only in their skeleton; `flr` is today's skeleton at that floor.
+Y_FLR_FLOOR = float(os.environ.get("ALBO_ROM_Y_FLR_FLOOR", 0.50))
+
+def _y_tail_arm(w, xh, desc):
+    P0 = (w - S * 0.4, xh)
+    d = (w * 0.52 - P0[0], -desc * 0.55 - P0[1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
+    def at(y):                                   # the straight run's point at depth y
+        k = (y - P0[1]) / d[1]; return (P0[0] + d[0] * k, y)
+    if Y_TAIL == "flr":
+        return cubic(P0, (w * 0.52, -desc * 0.55), (w * 0.44, -desc * 1.08), (w * 0.02, -desc * 0.95))
+    if Y_TAIL == "alb":
+        return line(P0, at(-1.02 * desc))           # pass 2: -1.10 read 2.7 sigma deep; the flat face and its flare reach past the end point
+    # (K depth, h1, c2, E): depths in the DESCENDER, x in the width -- each
+    # reference measured against its OWN p (Georgia's y bottom is its p's
+    # line, -194 at xh 429), then set on Albo's descender, which is longer.
+    # The hook ENDS heading up-left, as the references' do: that direction is
+    # across the pen, so the run-out never lies on the thin.
+    ky, h1, c2, e = {"geo": (-0.60, 0.25, (0.22, -1.02), (0.08, -0.82)),
+                     "hoe": (-0.75, 0.20, (0.24, -1.05), (0.07, -0.92)),
+                     "pal": (-0.80, 0.15, (0.20, -1.04), (0.05, -0.90))}[Y_TAIL]
+    K = at(ky * desc)
+    hook = cubic(K, (K[0] + d[0] * h1 * desc, K[1] + d[1] * h1 * desc), (c2[0] * w, c2[1] * desc), (e[0] * w, e[1] * desc))
+    return line(P0, K)[:-1] + hook
+
+def _y_tail_ink(tail, wfn, tail_cut):
+    from .. import primitives as PR
+    from .rounds import c_top_width
+    base = lambda t: 0.72 + 0.28 * min(1.0, t * 2)
+    if Y_TAIL == "flr":
+        f = PR.finial_widths(pen_widths(tail, base, floor=S * Y_FLR_FLOOR), False, floor=c_top_width())
+        return stroke(tail, f, cut1=PR.finial_cut(tail, False))
+    if Y_TAIL == "alb":                          # the flared chisel: 1.25 over the last fifth, face horizontal
+        f = pen_widths(tail, lambda t: base(t) * widths([(0.8, 1.0), (1.0, 1.25)])(t), floor=S * Y_FLR_FLOOR)
+        return stroke(tail, f, cut1=_flat_face(tail[0], tail[-1]))
+    if Y_TAIL == "pal":                          # Palatino's flat tip: a square end, swelled 1.15, no ball
+        f = pen_widths(tail, lambda t: base(t) * widths([(0.85, 1.0), (1.0, 1.15)])(t), floor=S * Y_FLR_FLOOR)
+        return stroke(tail, f)
+    f = PR.finial_widths(pen_widths(tail, base, floor=S * Y_FLR_FLOOR), False, floor=c_top_width())
+    return stroke(tail, f, cut1=PR.finial_cut(tail, False))
 
 @glyph('z')
 def g_z(c):

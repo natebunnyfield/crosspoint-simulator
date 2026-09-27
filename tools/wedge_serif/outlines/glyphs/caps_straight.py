@@ -973,8 +973,30 @@ def g_N(c):
     # (0.4 x 0.6 of the family at 0.4 drop) the I and the U's right stem
     # carry. The diagonal arrives at that stem 0.3 stems above the baseline,
     # nowhere near the top; nothing else on the letter moves.
-    return geom.ink([cstem(x0, 0, C, top='left', foot='both', w=THIN), diagonal(d0, d1, pw(d0, d1)),
-                     cstem(x1, 0, C, top='right+' if FIX_ROM else 'right', foot=None, w=THIN)])
+    th = _n_thin()
+    return geom.ink([cstem(x0, 0, C, top='left', foot='both', w=th), diagonal(d0, d1, pw(d0, d1)),
+                     cstem(x1, 0, C, top='right+' if FIX_ROM else 'right', foot=None, w=th)])
+
+# THE ROMAN N's THIN STEMS, OPTIONS -- 2026-09-26, the poor-characters pass
+# (docs/albo-poor-characters-2026-09-26.md). The fit audit flags the Bold N
+# FLAT (thin +3.4: its p10 90 against a stem family's 58), the Regular not
+# sharing it (cross-cut +1.9). Traced (poor_trace, runs at half the cap height
+# over the H's stem): Albo's N stems are 0.73 of the H in both weights; the
+# references' are 0.25-0.60 in the Regular and 0.23-0.55 in the Bold --
+# Charter, the lowest-contrast reference, is the nearest at 0.60 / 0.55.
+#   a    today, round 51's 0.72 of the cap stem in every weight
+#   cha  traced: Charter -- 0.57 of the cap stem
+#   pal  traced: Palatino -- 0.42
+#   wgt  original: the thin stems do NOT GROW WITH THE WEIGHT -- 0.72 at the
+#        400 (the ruled look, untouched), x sqrt(66.9 / S) above it, so the
+#        700 gains contrast the way a pen-drawn bold does (0.55 at stem 116)
+N_OPT = os.environ.get("ALBO_ROM_N_OPT", "a")
+if N_OPT not in ("a", "cha", "pal", "wgt"): N_OPT = "a"
+
+def _n_thin():
+    if N_OPT == "a": return THIN
+    if N_OPT == "wgt": return THIN * min(1.0, math.sqrt(66.9 / S))
+    return CW * {"cha": 0.57, "pal": 0.42}[N_OPT]
 
 def cap_ring(c, rx_c):
     C = c["cap"]; rx = rx_c + TH_V / 2; ry = C / 2 + OVER
@@ -1496,10 +1518,25 @@ def g_S(c):
         return geom.ink([body, lip], [_blunt_tip(A, B, S_BEAK_TIP)])
     return geom.ink([body, lip])
 
+# THE T's BAR, A DEMONSTRATION ARM -- 2026-09-26, the poor-characters pass
+# (docs/albo-poor-characters-2026-09-26.md). The fit audit flags the Bold T
+# LIGHT (stroke -3.8, the Regular not sharing it). Traced (poor_trace), Albo's
+# T bar is 0.55 of its stem in the Bold where every reference runs 0.26-0.42
+# (Charter and Palatino 0.42) -- heavier, not lighter. The flag is the p50 of
+# a two-stroke letter landing between the bar's and the stem's populations.
+# ALBO_ROM_T_BAR_K scales the bar ABOVE STEM 84 only (1.0 = today; the 400
+# is never touched -- pass 2 found the lighter bar cost the Regular T +2.0 on
+# legibility). Pass 1 expected the reference direction to move the metric the
+# wrong way; measured, BOTH directions clear it (0.76 -> F 0.82, 1.30 -> 1.32),
+# which is what a median balanced between two populations does:
+#   0.76  traced: Charter/Palatino -- bar 0.42 of the stem
+#   1.30  control: the heavier bar, recorded, not proposed
+T_BAR_K = float(os.environ.get("ALBO_ROM_T_BAR_K", 1.0))
+
 @glyph('T')
 def g_T(c):
     C = c["cap"]; w = W_(c, 'T', 520); x = w / 2
-    th = CAP_BAR * 0.85; yb = C - th / 2   # round 94: was 0.62 of the pen's horizontal, a light line at 13 pt
+    th = CAP_BAR * 0.85 * (T_BAR_K if S > 84.0 else 1.0); yb = C - th / 2   # round 94: was 0.62 of the pen's horizontal, a light line at 13 pt
     b = bar(0, w, C, th, align='top', wedges=[('left', -1), ('right', -1)])
     return geom.ink([b, cstem(x, 0, yb + th * 0.5 - 4, top=None, foot='both', ent_span=(0, C))])
 

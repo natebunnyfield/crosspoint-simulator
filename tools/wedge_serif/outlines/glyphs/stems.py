@@ -116,10 +116,48 @@ def g_j(c):
     st = stem(x, y0 - (30 if pen.ITALIC else 2), xh, top=None, foot=None, ent_span=(lo, xh))
     w_st = PR.stem_width(TH_V, ENT, (y0 - lo) / (xh - lo))   # the stem's width where the tail takes over
     a0, a1 = 0.0, math.radians(-118)
+    if J_OPT != "a" and not pen.ITALIC: a1 = math.radians(J_ARMS[J_OPT][0])
     tail = [(x - r + r * math.cos(a0 + (a1 - a0) * i / 48), y0 + r * math.sin(a0 + (a1 - a0) * i / 48)) for i in range(49)]
     jt = 0.9 if adj('j') else 1.0   # round 92 (adj 'j'): the heaviest letter by band (+27%) -- the tail 0.9, the dot as the i's
     wfn = widths([(0.0, TH_V * jt if pen.ITALIC else w_st), (0.45, S * jt), (1.0, S * 0.10)])
+    if J_OPT != "a" and not pen.ITALIC:
+        return geom.ink([st, _j_tail(tail, w_st, jt), dot(x, dot_y(xh), TIT_R_ADJ if adj('j') else TIT_R)])
     return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), TIT_R_ADJ if adj('j') else TIT_R)])
+
+# THE ROMAN j's HOOK, OPTIONS -- 2026-09-26, the poor-characters pass
+# (docs/albo-poor-characters-2026-09-26.md). The fit audit: Regular j F 3.70,
+# led by SPACING (B2 kerns INTO the j run +22 to +31 on aj bj ej ij nj oj) and
+# by bearings balance (-3.1). The bearing rule fits the j on its x-height band
+# (build.fit), which holds only the stem, so the hook's reach is never paid for
+# in the bearings -- it tucks under the letter before it, and B2 had to learn
+# kerns to push that letter away. Traced with instruments/poor_trace.py, the
+# ink's reach left of the ORIGIN: Albo -82, Georgia -66, Charter -70,
+# Times -74, Baskerville -118, Palatino -29, Hoefler 0 -- Albo is long, and
+# its stem sits at 0.89 n from the origin where Georgia's sits at 1.31 n.
+# So the drawing lever is the hook's sweep, and every arm shortens it:
+#   a    today, the arc to -118 degrees, tapering to 0.10 S
+#   geo  traced: Georgia/Charter/Times -- the arc to -110: ~16 units less reach
+#   pal  traced: Palatino -- the arc to -95, the end a square cut at 0.45 S
+#        (Palatino's small flat tip): ~50 units less
+#   hoe  traced: Hoefler -- the arc to -95, the end swelling to 0.75 S
+#        (Hoefler's teardrop, in Albo's pen) and cut on the pen
+#   fin  original: the arc to -98 ending in the face's own round finial,
+#        the c's top (PR.finial_widths / finial_cut, as the y's tail since
+#        round 275), so the turn stops early and the weight goes into the end
+J_OPT = os.environ.get("ALBO_ROM_J_OPT", "a")
+J_ARMS = {"geo": (-110,), "pal": (-95,), "hoe": (-95,), "fin": (-98,)}   # fin: -102 in pass 1 set "(j" 0.0086 em, under cmp_touch's floor
+if J_OPT not in J_ARMS: J_OPT = "a"
+
+def _j_tail(tail, w_st, jt):
+    if J_OPT == "geo":
+        return stroke(tail, widths([(0.0, w_st), (0.45, S * jt), (1.0, S * 0.10)]))
+    if J_OPT == "pal":
+        return stroke(tail, widths([(0.0, w_st), (0.45, S * jt), (1.0, S * 0.45)]))
+    if J_OPT == "hoe":
+        return stroke(tail, widths([(0.0, w_st), (0.45, S * jt), (0.80, S * 0.62), (1.0, S * 0.75)]), cut1=CUT)
+    from .rounds import c_top_width
+    base = widths([(0.0, w_st), (0.45, S * jt), (1.0, S * 0.55)])
+    return stroke(tail, PR.finial_widths(base, False, floor=c_top_width()), cut1=PR.finial_cut(tail, False))
 
 # ALBO_ROM_F_BAR -- R21 / R22, owner 2026-09-18, on the f's bar ends: "give me
 # options for slightly calligraphic treatments." Today's bar is a plain
@@ -308,7 +346,54 @@ def g_t(c):
     tail = cubic((x, r * 0.85), (x, -OVER * 0.5), (x + r * 0.8, -OVER * 0.5), (x + r * 1.45, r * 0.6))
     tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)]), floor=S * T_TAIL_FLOOR), cut1=CUT)
     b = stroke([(x - 100 * wf, xh - t_bar / 2), (x + 150 * wf, xh - t_bar / 2)], t_bar)
+    if T_OPT != "a" and not pen.ITALIC:
+        return geom.ink([st] + _t_arm(x, xh, wf, tail, t_bar))
     return geom.ink([st, tl, b])
+
+# THE ROMAN t, OPTIONS -- 2026-09-26, the poor-characters pass
+# (docs/albo-poor-characters-2026-09-26.md). The fit audit: Regular t F 2.77,
+# led by SPACING (B2's identity for t is (+10, -15), the largest correction in
+# the roman, and his bench pushes its right side -18 over 18 pairs), Bold t
+# F 3.09 led by CONTRAST (p10 0.45 of its stem family). Traced with
+# instruments/poor_trace.py: Albo's t is conventional in RAW numbers -- left
+# arm 0.97 n, right 1.69 n, bar 0.54 n, where Georgia is 0.99 / 1.53 / 0.52 --
+# so the contrast flag is the face's own: its arches never thin (Albertus),
+# and a t barred like Georgia's reads contrasty next to them.
+#   a    today
+#   pal  traced: Palatino -- the left arm a short spur, 0.35 S past the stem,
+#        its end on the pen cut; the right arm and the tail as today
+#   hoe  traced: Hoefler -- a TAPERED bar, 0.75 of today's thickness at the
+#        left end rising to 1.10 at the right (Hoefler 0.38 n / 0.59 n), its
+#        top on the x-height, both ends on the pen cut
+#   alb  original: the Albertus bar -- the bar at least the arches' own
+#        hair (0.70 S, primitives.DEFAULT_BOWL), both ends on the pen cut as
+#        the z's bars are, the tail floored at 0.50 S
+#   wdg  original: the wedge t -- the left arm ends in Albo's hanging wedge
+#        serif (the z's top-bar wedge), the right on the pen cut; bar and
+#        tail as `alb`. DROPPED in pass 2: the weakest on the metric (Bold
+#        F 1.74, Regular 3.24) and it leaves a 165-degree reversal in the st
+#        ligature (uniFB06). Kept reachable as the record.
+# Pass 2: square bar ends were what the Bold's flag was reading -- the p10 of
+# the ridge is the eight corner spokes of two square ends plus the stem's cut
+# top (instruments/thinmap), not a thin bar; so every arm cuts its ends.
+T_OPT = os.environ.get("ALBO_ROM_T_OPT", "a")
+if T_OPT not in ("a", "pal", "hoe", "alb", "wdg"): T_OPT = "a"
+
+def _t_arm(x, xh, wf, tail, t_bar):
+    y = xh - t_bar / 2
+    if T_OPT == "pal":
+        tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)]), floor=S * T_TAIL_FLOOR), cut1=CUT)
+        b = stroke([(x - S / 2 - 0.35 * S, y), (x + 150 * wf, y)], t_bar, cut0=CUT)
+        return [tl, b]
+    if T_OPT == "hoe":
+        tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)]), floor=S * T_TAIL_FLOOR), cut1=CUT)
+        return [tl, PR.bar(x - 100 * wf, x + 150 * wf, xh, t_bar, align='top', cut1=CUT,
+                           prof=lambda u: 0.75 + 0.35 * u)]
+    tb = max(t_bar, 0.70 * S)
+    tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)]), floor=S * 0.50), cut1=CUT)
+    if T_OPT == "alb":
+        return [tl, PR.bar(x - 100 * wf, x + 150 * wf, xh, tb, align='top', cut0=CUT, cut1=CUT)]
+    return [tl, PR.bar(x - 100 * wf, x + 150 * wf, xh, tb, align='top', cut1=CUT, wedges=[('left', -1)])]
 
 T_TOP_RISE = 96
 T_TOP_SHEAR_DEG = 46
@@ -628,6 +713,8 @@ def g_s(c):
         return geom.ink([stroke(spine, pen_widths(spine, prof), cut0=CUT, cut1=CUT)])
     from .rounds import c_top_width
     fl = c_top_width(); base = pen_widths(spine, None, floor=S * S_FLOOR)
+    if S_ARM != "a" and not pen.ITALIC:
+        base = _s_arm_base(spine)
     if S > 84.0 and S_SMOOTH > 0.0: base = _smooth_widths(base, spine, S * S_SMOOTH)   # the deburr, see the docstring
     foot = PR.finial_widths(base, False, floor=fl, swell=S_FOOT_SWELL)   # the foot: the c's finial, held to the c's end width
     c0, c1 = PR.finial_cut(spine, True), PR.finial_cut(spine, False)
@@ -635,6 +722,33 @@ def g_s(c):
         wf_ = PR.finial_widths(foot, True, floor=0.0, swell=he * foot(1.0) / foot(0.0), span=S_HEAD_SPAN)
         return stroke(spine, wf_, cut0=c0, cut1=c1), spine[0], spine[-1], wf_(0.0), wf_(1.0)
     return geom.ink([_mk(s_head_end(_mk))[0]])
+
+# THE ROMAN s's HAIRLINE, OPTIONS -- 2026-09-26, the poor-characters pass
+# (docs/albo-poor-characters-2026-09-26.md). The fit audit: Regular s F 2.56,
+# led by CONTRAST (cut +3.1) and by the Bold not sharing it (cross-cut +2.9).
+# Direction before width: the s's top and bottom arcs run horizontal, where
+# the PEN is at its thin (34.5 units at the 400, floored at round 391's
+# 0.33 S = 22), while the o and the c beside it are drawn on the BOWL profile,
+# whose hair is 0.70 S. So the s's hairline is 0.64 of its own o's; in the six
+# references it is 0.71-0.97 (median 0.91) -- an s's thin is its o's thin.
+# Measured with fit_audit/geom (instruments/poor_trace.py for the rows).
+# Nothing about the spine, the waist, the terminals or the solved head moves
+# (rounds 282-286 are his, and every arm keeps them).
+#   a    today
+#   geo  traced: Georgia/Charter/Hoefler -- the hairline floored at 0.97 of
+#        the o's own hair (their s/o thin: 0.97, 0.96, 0.97)
+#   pal  traced: Palatino/Baskerville -- floored at 0.85 of it (0.85, 0.86)
+#   bwl  original: the s ON THE BOWL PROFILE -- its widths read from the same
+#        profile the o and the c are (PR.bowl_widths) instead of the pen, so
+#        the round family is one construction
+S_ARM = os.environ.get("ALBO_ROM_S_ARM", "a")
+if S_ARM not in ("a", "geo", "pal", "bwl"): S_ARM = "a"
+
+def _s_arm_base(spine):
+    o_hair = PR.bowl_th((1.0, 0.0))
+    if S_ARM == "bwl":
+        return PR.bowl_widths(spine, None, floor=S * S_FLOOR)
+    return pen_widths(spine, None, floor={"geo": 0.97, "pal": 0.85}[S_ARM] * o_hair)
 
 def s_head_end(make, target=None, lo=0.80, hi=1.00, steps=9):
     """ROUND 284 -- how much smaller the s's HEAD is than its FOOT, solved
