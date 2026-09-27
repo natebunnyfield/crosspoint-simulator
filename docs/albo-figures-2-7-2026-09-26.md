@@ -527,3 +527,14 @@ as the 7's typical stroke. Judge the 7 by color, which moves only 2 points.
   `clearance.py` on its build once more before shipping.
 
 Sheet: `fig27-italic-p.png`, in the session scratchpad `fig27/`.
+
+
+## Round 410 (draft) — the italic 2 and 7 in the italic's own pen, drawn by the main session
+
+Owner 2026-09-26 on the round-408 variations: *"those are crappy variations. do better with more 7 leg tweaks and 2 that joins in a smoother way. i need albo style."* Then, on reflection, the standing rule of 2026-09-13 was restored: glyph drawing is not delegated. These arms are drawn in `outlines/glyphs/aldine.py` (`_fig7_pen`, `_fig2_pen`, after the figure registration loop), selected by `ALBO_IT_FIG7_PEN=a..f` / `ALBO_IT_FIG2_PEN=a|b|d|e`; unset = the shipped figures, byte-identical.
+
+Why they are different in kind from rounds 406/408: the shipped italic figures are the ROMAN construction (`figures.py`, stroke/bar/diagonal on S) sheared; every italic lowercase is `d_pen` -- one catmull movement with a width table and the family finial. So the 7 IS the italic z's top ribbon (entry hook, crest, ease) with a z-like diagonal overlapping its end, the leg weighted like the z's diagonal (set width `FIGPEN_LEG` 46, heavier ends) because a down-left stroke on the 50-degree nib is nearly its thin edge; the 2 is a c-finial arc flowing over the shoulder into its neck as ONE movement, landing in a z-like bottom ribbon.
+
+Arms: 7a straight leg, finial foot · 7b curve to an upright pressed foot (round 212/215 intent) · 7c swell mid-stroke, cut foot · 7d quill turn leaving the bar · 7e more upright · 7f long y-descender curve · 2a neck straight into a ribbon base · 2b one cursive stroke through the base · 2d base swells out of the neck · 2e rounder neck. (2c, a looped join, drew as a hairline knot at 54 px and was cut.)
+
+Gates (fig_it_arms.py): every 2 arm clean in Italic and Bold Italic. Every 7 arm leaves `q7` under the floor in Bold Italic (0.006 em for 7a) -- the leg's foot sits further right than today's; 7c/7d/7f also touch one pair there, and 7e touches g7 q7 O7 in both italics. All are letter+7 descender pairs, fixable by `local_ai/clearance.py` kerns once an arm is picked. Hairs, dents, glitch and approved unchanged on every arm.

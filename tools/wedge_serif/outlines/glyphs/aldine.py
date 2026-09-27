@@ -11335,6 +11335,142 @@ if ON:
         _mk()
     del _ch, _fn
 
+    # ------------------------------------------------ ROUND 410 (draft), 2026-09-26
+    # THE ITALIC 2 AND 7 IN THE ITALIC'S OWN PEN. Owner: *"those are crappy
+    # variations. do better with more 7 leg tweaks and 2 that joins in a
+    # smoother way. i need albo style."* The shipped italic figures are the
+    # ROMAN construction (figures.py: stroke/bar/diagonal on S) sheared; every
+    # italic lowercase is `d_pen` -- one catmull movement of the 50-degree nib
+    # with a width table, ends in the family's finial. So these are drawn the
+    # way the italic z is drawn: the 7 IS the z's top ribbon and a z-like
+    # diagonal overlapping its end; the 2 is a c-finial arc flowing into its
+    # neck as one movement, landing in a z-like bottom ribbon. Widths come off
+    # the nib by each sample's DIRECTION (direction before width), scaled by
+    # FIGPEN_TW. Draft arms, selected by ALBO_IT_FIG7_PEN / ALBO_IT_FIG2_PEN;
+    # unset draws exactly the shipped figures.
+    FIGPEN_TW = d_dial("FIGPEN_TW", 1.0)
+    FIGPEN_THICK = d_dial("FIGPEN_THICK", 66.0)
+    FIGPEN_THIN = d_dial("FIGPEN_THIN", 20.0)
+    FIGPEN_LEG = d_dial("FIGPEN_LEG", 46.0)
+
+    def _nib_keys(pts, thick=None, thin=None, n=9, swell=None, tip=True):
+        """Width keys for d_pen read off the nib by the path's direction at n
+        stations; `swell` optionally multiplies by a (t, k) profile."""
+        thick = FIGPEN_THICK if thick is None else thick
+        thin = FIGPEN_THIN if thin is None else thin
+        p = catmull(list(pts), tension=0.5) if len(pts) > 2 else list(pts)
+        rs = geom.resample(p) if hasattr(geom, "resample") else p
+        tg = geom.tangents(rs)
+        keys = []
+        for i in range(n):
+            t = i / (n - 1)
+            j = min(len(tg) - 1, int(round(t * (len(tg) - 1))))
+            dx, dy = tg[j]
+            d = math.degrees(math.atan2(dy, dx))
+            w = nib(d, thick, thin)
+            if swell:
+                # linear interpolation in the swell profile
+                for (t0, k0), (t1, k1) in zip(swell, swell[1:]):
+                    if t0 <= t <= t1:
+                        w *= k0 + (k1 - k0) * ((t - t0) / max(1e-9, t1 - t0)); break
+            if tip and n >= 3:
+                w *= _taper(n)[i]
+            keys.append((t, w))
+        return keys
+
+    def _fig_frame(c, ch):
+        H = c["figH"]; W = _FG.W_(c, ch, 440)
+        return (lambda fx, fy: (S * 0.35 + fx * W, fy * H)), H, W
+
+    def _fig7_pen(c, arm):
+        P, H, W = _fig_frame(c, '7')
+        # the bar: the z's top ribbon, entry hook under its left end, crest, ease
+        bar_pts = [P(0.02, 0.905), P(0.06, 0.955), P(0.20, 0.985), P(0.45, 0.998),
+                   P(0.70, 0.985), P(0.86, 0.992), P(0.97, 1.000)]
+        bar = d_pen(bar_pts, [(0.00, 16), (0.06, 24), (0.18, 34), (0.30, 44),
+                              (0.45, 52), (0.60, 54), (0.75, 50), (0.90, 42), (1.00, 34)],
+                    1.0, tw=FIGPEN_TW)
+        top = P(0.93, 0.985)
+        legs = {
+            # straight, the nib alone thins it; finial foot
+            "a": [top, P(0.75, 0.70), P(0.52, 0.36), P(0.33, 0.02)],
+            # one gentle curve to an upright foot (round 212's intent, drawn)
+            "b": [top, P(0.78, 0.72), P(0.58, 0.40), P(0.44, 0.14), P(0.41, 0.01)],
+            # swells mid-stroke then tapers to a cut foot
+            "c": [top, P(0.74, 0.68), P(0.53, 0.36), P(0.36, 0.02)],
+            # quill turn: leaves the bar with a small hook, then straight
+            "d": [top, P(0.95, 0.93), P(0.84, 0.80), P(0.60, 0.44), P(0.40, 0.02)],
+            # more upright
+            "e": [top, P(0.84, 0.70), P(0.70, 0.36), P(0.58, 0.02)],
+            # the y's descender: a single long curve, concave to the right
+            "f": [top, P(0.82, 0.78), P(0.62, 0.50), P(0.46, 0.22), P(0.38, 0.02)],
+        }
+        # THE LEG'S WEIGHT IS THE z's DIAGONAL, not the nib's raw thin: a
+        # down-left stroke on the 50-degree nib is nearly its thin edge, and
+        # the z answered that with a set width (Z_DIAG 36, ends 1.45x) rather
+        # than a hairline. The 7's leg carries the figure, so FIGPEN_LEG > 36.
+        D = FIGPEN_LEG
+        profiles = {
+            "a": [(0.00, D * 1.35), (0.15, D * 1.05), (0.55, D), (0.90, D * 1.05), (1.00, D * 1.15)],
+            "b": [(0.00, D * 1.35), (0.15, D * 1.05), (0.60, D * 0.95), (0.85, D * 1.15), (1.00, D * 1.40)],
+            "c": [(0.00, D * 1.20), (0.20, D * 1.00), (0.45, D * 1.30), (0.75, D * 1.05), (1.00, D * 0.75)],
+            "d": [(0.00, D * 0.70), (0.10, D * 1.10), (0.25, D * 1.15), (0.60, D), (1.00, D * 1.15)],
+            "e": [(0.00, D * 1.35), (0.15, D * 1.10), (0.55, D * 1.05), (1.00, D * 1.20)],
+            "f": [(0.00, D * 1.35), (0.20, D * 1.05), (0.60, D * 0.90), (0.88, D * 0.95), (1.00, D * 1.10)],
+        }
+        pts = legs.get(arm, legs["a"])
+        leg = d_pen(pts, profiles.get(arm, profiles["a"]), 1.0, tw=FIGPEN_TW,
+                    fin1=(arm in ("a", "b", "f", "d", "e")))
+        return geom.ink([bar, leg])
+
+    def _fig2_pen(c, arm):
+        P, H, W = _fig_frame(c, '2')
+        # the arc starts in the c's finial and flows over the shoulder into the
+        # neck in ONE movement; the join into the base is what each arm varies
+        arc = [P(0.06, 0.70), P(0.16, 0.90), P(0.40, 0.995), P(0.66, 0.96),
+               P(0.84, 0.80), P(0.82, 0.60), P(0.62, 0.38)]
+        ends = {
+            # z-like: the neck runs straight to the base's left end
+            "a": [P(0.38, 0.18), P(0.16, 0.04)],
+            # cursive: the neck turns through the corner into the base, one stroke
+            "b": [P(0.34, 0.16), P(0.14, 0.04), P(0.20, 0.02), P(0.45, 0.035),
+                  P(0.75, 0.03), P(0.98, 0.07)],
+            # a small closed loop at the join (a chancery 2)
+            "c": [P(0.36, 0.16), P(0.16, 0.05), P(0.10, 0.10), P(0.18, 0.13),
+                  P(0.24, 0.06), P(0.45, 0.035), P(0.75, 0.03), P(0.98, 0.07)],
+            # the neck lands and the base grows out of it with a pen swell
+            "d": [P(0.36, 0.17), P(0.15, 0.035)],
+            # a softer, rounder neck (more curve before the base)
+            "e": [P(0.46, 0.26), P(0.26, 0.09), P(0.14, 0.035)],
+        }
+        tail = ends.get(arm, ends["a"])
+        main_pts = arc + tail
+        main = d_pen(main_pts, _nib_keys(main_pts, n=15), 1.0, tw=FIGPEN_TW, fin0=True,
+                     fin1=(arm in ("b", "c")))
+        if arm in ("b", "c"):
+            return geom.ink([main])
+        # the base: the z's bottom ribbon, hooking up from under the line at its
+        # left and flicking up at the right
+        bkeys = [(0.00, 18), (0.12, 40), (0.30, 52), (0.50, 55), (0.70, 50),
+                 (0.85, 40), (1.00, 22)]
+        if arm == "d":
+            bkeys = [(0.00, 62), (0.10, 60), (0.30, 54), (0.50, 52), (0.70, 48),
+                     (0.85, 38), (1.00, 22)]
+        base = d_pen([P(0.12, -0.005), P(0.25, 0.035), P(0.50, 0.040), P(0.75, 0.030),
+                      P(0.90, 0.045), P(1.00, 0.10)], bkeys, 1.0, tw=FIGPEN_TW)
+        return geom.ink([main, base])
+
+    _F7 = os.environ.get("ALBO_IT_FIG7_PEN", "")
+    _F2 = os.environ.get("ALBO_IT_FIG2_PEN", "")
+    if _F7:
+        @glyph('7')
+        def a_fig7_pen(c, _arm=_F7):
+            return _fig7_pen(c, _arm)
+    if _F2:
+        @glyph('2')
+        def a_fig2_pen(c, _arm=_F2):
+            return _fig2_pen(c, _arm)
+
 
 # ROUND 137 -- THE CAPITALS' SPACING, HIS. Set live on the bench
 # (https://claude.ai/artifact/9RUVYkit1Vdk9foVUTFz46) at 58 px on arm B, every
