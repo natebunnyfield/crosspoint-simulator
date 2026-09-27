@@ -47,6 +47,7 @@ Z398 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r398", f)) for s, f in
 Z399 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r399", f)) for s, f in FN.items()}
 Z402 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r402", f)) for s, f in FN.items()}
 Z405 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r405", f)) for s, f in FN.items()}
+Z409 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r409", f)) for s, f in FN.items()}
 
 
 # TRACKING c (round 393, owner "c . +6 (caps +3)") is applied by build.py ON TOP
@@ -59,7 +60,8 @@ Z405 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r405", f)) for s, f in
 # override arm: before this, sessions 1-3 were fitted 6 units loose (3 on
 # capital pairs) -- round 397 and 398 carry that.
 TRACKED_ZEROS = {"fonts-2026-09-26", "fonts-2026-09-26-r396", "fonts-2026-09-26-r397",
-                 "fonts-2026-09-26-r398", "fonts-2026-09-26-r399", "fonts-2026-09-26-r402", "fonts-2026-09-26-r405"}
+                 "fonts-2026-09-26-r398", "fonts-2026-09-26-r399", "fonts-2026-09-26-r402", "fonts-2026-09-26-r405",
+                 "fonts-2026-09-26-r409"}
 
 
 def track_c(pair):
@@ -143,6 +145,7 @@ def active(src):
                          d_r399=int(r["white0"] + a["delta"] - Z399[a["style"]](*r["pair"])),
                          d_r402=int(r["white0"] + a["delta"] - Z402[a["style"]](*r["pair"])),
                          d_r405=int(r["white0"] + a["delta"] - Z405[a["style"]](*r["pair"])),
+                         d_r409=int(r["white0"] + a["delta"] - Z409[a["style"]](*r["pair"])),
                          zero=key.get("zero"),
                          session=a.get("session"), at=a.get("at"), kind=r["kind"],
                          verdict=a.get("verdict", "") or "",

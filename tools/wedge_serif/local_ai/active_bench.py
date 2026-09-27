@@ -49,7 +49,7 @@ BENCH = os.path.join(WS, "bench")
 # were round 395 (fonts-2026-09-26); round 396 (B2 shipped) is
 # fonts-2026-09-26-r396; session 3 is round 397 (fonts-2026-09-26-r397), session 4 on round 398 (fonts-2026-09-26-r398). Each key file records its own zero and every row's
 # white there, so active_ingest.py converts each session from ITS zero.
-ZERO_DIR = "fonts-2026-09-26-r405"   # s5 on r398, s6 on r402, s7 on is r405
+ZERO_DIR = "fonts-2026-09-26-r409"   # s5 on r398, s6 on r402, s7 on r405, s8 on r409 (the resized italic)
 ZERO = {"roman": os.path.join(BENCH, ZERO_DIR, "Albo-Regular.ttf"),
         "italic": os.path.join(BENCH, ZERO_DIR, "Albo-Italic.ttf")}
 B0920 = FT.FONTS
@@ -91,21 +91,31 @@ def carriers_for(carriers, p, n=5):
     return words
 
 
-def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1, force=()):
+def answer_counts(style):
+    """{pair: number of readings} in `style`, the bench counting one."""
+    return {p: len(v) for p, v in b2_fit.readings(style).items()}
+
+
+def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1, force=(), italic_frac=None, repeat_style=None):
+    """italic_frac: share of the ACTIVE rows given to the italic (None = by
+    score alone, as sessions 1-7). repeat_style: draw the repeats from THAT
+    style's MOST-ANSWERED pairs (most readings first, then commonest) instead
+    of at random from the bench (session 8, round 409: the italic was resized
+    under his answers, so its most-answered pairs are the ones to re-ask)."""
     """force: [(style, pair, word)] -- rows the owner asked for by name. They
     go on the page whatever their uncertainty rank, with `word` as the
     carrier, and take the places of the lowest-scored active rows so the
     session keeps its size (owner 2026-09-26: "check kerning on 'bowl'")."""
     rng = np.random.default_rng(seed)
     done = answered()
-    fonts = {s: FT.Font(p) for s, p in B0920.items()}
+    fonts = b2_fit.feature_fonts()           # round 409: the italic's features on its new zero
     rows = []
     for style in ("roman", "italic"):
         J, W = b2_fit.with_extra(style)          # bench + every ingested answer (skips = 0)
         cand = [p for p, c in census.items() if in_scope(p) and p not in done[style]
                 and (c >= b2_fit.CENSUS_MIN or (c >= b2_fit.CENSUS_MIN_MARK and any(ch in b2_fit.MARKS for ch in p)))]
         pairs = sorted(p for p in set(J) | set(cand) if in_scope(p) or p in bench_fit.judgments(style))
-        feats = {p: FT.pair_features(fonts[style], p[0], p[1], style == "italic")[0] for p in pairs}
+        feats = {p: b2_fit.pair_feats(fonts, style, p) for p in pairs}
         J = {p: v for p, v in J.items() if p in pairs}
         keys = sorted(J)
         boots = []
@@ -137,17 +147,37 @@ def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1, force=()):
                        white0=int(wz(p[0], p[1])), white0920=int(w20(p[0], p[1])))
         forced.append(dict(hit, kind="forced", carrier=word))
     fkeys = {(r["style"], r["pair"]) for r in forced}
-    chosen = [r for r in act if (r["style"], r["pair"]) not in fkeys][: max(0, n - n_rep - len(forced))] + forced
-    # repeats: previously answered bench pairs, visible or not, one draw per style alternately
-    pool = []
-    for style in ("roman", "italic"):
-        wz, w20 = white_fn(ZERO[style]), white_fn(B0920[style])
-        for p, d in sorted(bench_fit.judgments(style).items()):
-            if p in census and census[p] >= 200:
-                pool.append(dict(style=style, pair=p, n=census[p], sd=None, move=None, visible=None, score=None,
-                                 white0=int(wz(p[0], p[1])), white0920=int(w20(p[0], p[1])), kind="repeat",
-                                 previous0920=d))
-    reps = [pool[i] for i in rng.choice(len(pool), n_rep, replace=False)]
+    free = [r for r in act if (r["style"], r["pair"]) not in fkeys]
+    n_act = max(0, n - n_rep - len(forced))
+    if italic_frac is None:
+        chosen = free[:n_act] + forced
+    else:
+        n_it = int(round(n_act * italic_frac))
+        chosen = ([r for r in free if r["style"] == "italic"][:n_it] +
+                  [r for r in free if r["style"] == "roman"][:n_act - n_it] + forced)
+    if repeat_style:
+        cnt = answer_counts(repeat_style)
+        reads = b2_fit.readings(repeat_style)
+        wz, w20 = white_fn(ZERO[repeat_style]), white_fn(B0920[repeat_style])
+        best = sorted((p for p in cnt if p in census and in_scope(p)), key=lambda p: (-cnt[p], -census[p], p))[:n_rep]
+        reps = []
+        for p in best:
+            # previous0920 on the SAME basis as active_ingest's d0920 (unshifted): the mean reading + delta(p)
+            prev = float(np.mean([d for d, _ in reads[p]])) + (b2_fit.italic_delta(p) if repeat_style == "italic" else 0.0)
+            reps.append(dict(style=repeat_style, pair=p, n=census[p], sd=None, move=None, visible=None, score=None,
+                             white0=int(wz(p[0], p[1])), white0920=int(w20(p[0], p[1])), kind="repeat",
+                             previous0920=round(prev, 2), answered=cnt[p]))
+    else:
+        # repeats: previously answered bench pairs, visible or not, one draw per style alternately
+        pool = []
+        for style in ("roman", "italic"):
+            wz, w20 = white_fn(ZERO[style]), white_fn(B0920[style])
+            for p, d in sorted(bench_fit.judgments(style).items()):
+                if p in census and census[p] >= 200:
+                    pool.append(dict(style=style, pair=p, n=census[p], sd=None, move=None, visible=None, score=None,
+                                     white0=int(wz(p[0], p[1])), white0920=int(w20(p[0], p[1])), kind="repeat",
+                                     previous0920=d))
+        reps = [pool[i] for i in rng.choice(len(pool), n_rep, replace=False)]
     out = chosen + reps
     for r in out:
         r["id"] = {"active": "a_", "repeat": "r_", "forced": "f_"}[r["kind"]] + r["pair"].encode().hex()
@@ -181,6 +211,11 @@ def main():
     ap.add_argument("--force", default="",
                     help="rows on the page regardless of rank: 'style:pair:word,...', style roman|italic|both "
                          "(e.g. 'both:bo:bowl,both:ow:bowl,both:wl:bowl')")
+    ap.add_argument("--italic-frac", type=float, default=None,
+                    help="share of the ACTIVE rows given to the italic (default: by score alone)")
+    ap.add_argument("--repeat-frac", type=float, default=0.1)
+    ap.add_argument("--repeat-style", default=None, choices=("roman", "italic"),
+                    help="repeats = that style's MOST-ANSWERED pairs (default: random bench pairs)")
     a = ap.parse_args()
     data = json.load(open(a.census))
     census = {p: c for p, c in data["pairs"]}
@@ -190,7 +225,8 @@ def main():
     for spec in filter(None, a.force.split(",")):
         st, p, w = spec.split(":")
         force += [(x, p, w) for x in (("roman", "italic") if st == "both" else (st,))]
-    items, allrows = select(census, carriers, a.b2, a.n, a.seed, force=force)
+    items, allrows = select(census, carriers, a.b2, a.n, a.seed, repeat_frac=a.repeat_frac, force=force,
+                            italic_frac=a.italic_frac, repeat_style=a.repeat_style)
     sds = np.array([r["sd"] for r in allrows])
     vis = sum(r["visible"] for r in allrows)
     summary = dict(candidates=len(allrows), visible=int(vis), sd_min=float(sds.min()), sd_median=float(np.median(sds)),

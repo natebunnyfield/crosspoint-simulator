@@ -250,3 +250,23 @@ roman then italic on one line at 14 and 18 pt on the phone (2x). It is
 unhinted, 2-bit, on the frozen dark page, with today on top of each block and
 arms c, e, h and m below. To regenerate it, run `italic_size_proof.py DIR`
 over a directory holding `today/` and `opt_{c,e,h,m}/`.
+
+## Ruling, and what shipped (round 409)
+
+Owner, 2026-09-26: *"yes to m for italic resize."* Arm m is the default in
+the Italic and the BoldItalic from round 409. The approved italic g was
+re-hashed; it is the round-354 g scaled by m, to within 1.7 units.
+
+The costs listed in section 5 were paid as follows:
+
+- **Pair whites:** the B2 spacing was refit on his readings as ABSOLUTE target
+  whites, with the features re-measured on the new outlines. The letters got
+  wider and the common pair whites held (frequency-weighted +0.3 units). The
+  italic's held-out error went 9.37 → 9.13; the roman is unchanged.
+- **Descender collisions:** these got measured clearance kerns, and
+  `cmp_touch` is 0/0 on all four cuts.
+- **Italic bench pass:** session 8 is italic-heavy (60%) and re-asks his ten
+  most-answered italic pairs.
+
+Shipped ratios: xh 1.013, stem 0.953, width 0.892, apparent size 0.903.
+Everything is in `docs/albo-round-409-2026-09-26.md`.

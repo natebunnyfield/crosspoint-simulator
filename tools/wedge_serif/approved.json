@@ -1,8 +1,8 @@
 {
  "Italic:g": {
-  "outline": "bcd61b6c24036d8c8044c71902b2eae5",
-  "quote": "re-cut only: --nocut proves the drawing is unchanged (only Y + its composites differ)",
-  "round": "354; re-hashed round 393: tracking c moved it +3 units in x and nothing else (shifted back it hashes to the approved outline)"
+  "outline": "9c2bcc9993605c42aee22433f70addd7",
+  "quote": "yes to m for italic resize",
+  "round": "409; the round-354 g scaled by arm m -- unsheared, x 1.015*1.15, y 1.015 about the baseline origin, resheared: Hausdorff 1.7 units and IoU 0.987 against the round-408 (approved) outline so transformed, area ratio 1.179 against 1.185 predicted (the 1.2-unit ink spread is applied after the scale); unscaled IoU 0.639"
  },
  "Regular:g": {
   "outline": "03886d84d10a78a79b1da78566b40f7e",

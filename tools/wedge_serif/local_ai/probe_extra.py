@@ -34,12 +34,12 @@ SKIPS = (1.0, 0.5, 0.25, 0.0)
 
 
 def main():
-    fonts = {s: FT.Font(p) for s, p in FT.FONTS.items()}
+    fonts = b2_fit.feature_fonts()      # round 409: the new italic's zero when ALBO_B2_ITALIC_NEW/_OLD are set
     R = {s: b2_fit.readings(s) for s in STYLES}
-    J0 = {s: bench_fit.judgments(s) for s in STYLES}
+    J0 = {s: b2_fit.judgments0(s) for s in STYLES}
     feats = {}
     for s in STYLES:
-        feats[s] = {p: FT.pair_features(fonts[s], p[0], p[1], s == "italic")[0]
+        feats[s] = {p: b2_fit.pair_feats(fonts, s, p)
                     for p in R[s] if b2_fit.in_scope(p) or p in J0[s]}
     ex = json.load(open(os.path.join(WS, "bench", "answers", "extra-judgments.json")))["rows"]
     tag = {}                     # (style, pair) -> subset label of a post-bench-only pair
@@ -66,7 +66,7 @@ def main():
     FO = PF.folds()
     print("A. the 370 bench pairs, held out on bench_fit's folds, scored against his bench number")
     for label, skip in [("bench only (B2 as proofed)", None)] + [(f"+ extras, skip weight {w:g}", w) for w in SKIPS]:
-        errs = []
+        errs = []; by = {s: [] for s in STYLES}
         for r in range(PF.REPEATS):
             for i in range(PF.K):
                 for s in STYLES:
@@ -76,8 +76,9 @@ def main():
                     else:
                         reads = {p: v for p, v in R[s].items() if p not in held}
                     pred = fit_on(s, reads, 1.0 if skip is None else skip)
-                    errs += [abs(pred(p) - J0[s][p]) for p in held]
-        print(f"   {label:32s} {np.mean(errs):6.2f}")
+                    e = [abs(pred(p) - J0[s][p]) for p in held]
+                    errs += e; by[s] += e
+        print(f"   {label:32s} {np.mean(errs):6.2f}   roman {np.mean(by['roman']):6.2f}  italic {np.mean(by['italic']):6.2f}")
 
     # ---- B: the post-bench pairs themselves
     keys = sorted(tag)

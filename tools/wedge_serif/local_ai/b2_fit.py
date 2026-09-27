@@ -66,6 +66,110 @@ HOLD = {
 }
 
 
+# ROUND 409 -- THE ITALIC WAS RE-DRAWN UNDER HIS READINGS (arm m: x-height
+# 1.015, set width 1.15, nib 0.92; docs/albo-italic-size-nib-2026-09-26.md).
+# Every italic reading is a delta on the 09-20 zero, i.e. an ABSOLUTE target
+# white  T = white0920 + d.  A new outline moves the white the fit rule gives
+# a pair before any table touches it, by
+#     delta(p) = white(new outline, same tables) - white(old outline, same tables)
+# (ALBO_B2_ITALIC_NEW / _OLD: two Italic builds identical in every table, kern,
+# hold, clearance and tracking, differing only in the outline -- so all of those
+# cancel). "White" for delta is the gap between the two glyphs' INK EXTREMES
+# INSIDE THE X-HEIGHT BAND (the band the fit rule spaces on), at 1 unit per
+# pixel; the bbox white (rsb + kern + lsb) is used only where either glyph has
+# no x-band ink (quotes). The bbox white reads a stretched ascender's or tail's
+# lean as spacing: d-e, d-o, d-comma read +19..+21 on the bbox and 0 in the
+# band (measured 2026-09-26, 188 bench pairs: medians +2 bbox, +4 band). The pair's zero on the new outline is white0920 + delta, the fit's
+# target there is  d - delta = T - (white0920 + delta),  and the shape features
+# are measured on the NEW glyphs placed at that zero white (ZeroFont). The
+# `kern` feature keeps the 09-20 font's own kern, which is what it always meant.
+# FROM ROUND 409 THIS IS THE DEFAULT: the two builds live in
+# bench/italic-delta-r409/ (-old: round 408's outline, -new: round 409's, both
+# on round 405's tables), so every later refit and every active bench keeps the
+# italic on its new zero. ALBO_B2_ITALIC_NEW=off gives the pre-409 behaviour
+# (how the "before" column of the round-409 CV was produced); the env vars can
+# also name other builds. The roman never takes this path.
+#
+# INGEST NEEDS NOTHING NEW. active_ingest.py's d0920 = page white + delta -
+# white0920 - tracking, on whatever glyphs the page served. For a page served
+# on the round-409 italic that is  T - white0920  measured on the NEW glyphs,
+# and the new zero's white on the new glyphs is white0920 + delta(p) (ZeroFont
+# places them there), so  d0920 - delta(p)  is right for those rows too.
+_D409 = os.path.join(WS, "bench", "italic-delta-r409")
+_IT_NEW = os.environ.get("ALBO_B2_ITALIC_NEW", os.path.join(_D409, "Albo-Italic-new.ttf"))
+_IT_OLD = os.environ.get("ALBO_B2_ITALIC_OLD", os.path.join(_D409, "Albo-Italic-old.ttf"))
+if (_IT_NEW or "").lower() in ("off", "0", "none", ""):
+    _IT_NEW = _IT_OLD = None
+_DELTA = {}
+
+
+def xband_gap(F, a, b):
+    """Ink-extreme gap inside the x band (0..XH), units, rasterized at 1 unit
+    per pixel; None when either glyph has no ink there."""
+    saved = FT.U
+    FT.U = 1.0
+    try:
+        names, adv, kern = F.shape(a, b)
+        W = int(FT.X0 + adv + kern + 1400); H = int(FT.BASE + 1000)
+        A = F.mask(names[0], 0, W, H); B = F.mask(names[1], adv + kern, W, H)
+        _, RA = FT.edges(A); LB, _ = FT.edges(B)
+    finally:
+        FT.U = saved
+    yv = (H - np.arange(H)) - FT.BASE
+    xs = (yv >= 0) & (yv < FT.XH)
+    if not (np.any(xs & ~np.isnan(RA)) and np.any(xs & ~np.isnan(LB))):
+        return None
+    return float(np.nanmin(np.where(xs, LB, np.nan)) - np.nanmax(np.where(xs, RA, np.nan)) - 1.0)
+
+
+def italic_delta(p):
+    if not (_IT_NEW and _IT_OLD):
+        return 0.0
+    if not _DELTA:
+        _DELTA["_new"], _DELTA["_old"] = FT.Font(_IT_NEW), FT.Font(_IT_OLD)
+        _DELTA["_wn"], _DELTA["_wo"] = white_fn(_IT_NEW), white_fn(_IT_OLD)
+    if p not in _DELTA:
+        xn, xo = xband_gap(_DELTA["_new"], p[0], p[1]), xband_gap(_DELTA["_old"], p[0], p[1])
+        _DELTA[p] = (xn - xo) if (xn is not None and xo is not None) else \
+            float(_DELTA["_wn"](p[0], p[1]) - _DELTA["_wo"](p[0], p[1]))
+    return _DELTA[p]
+
+
+class ZeroFont(FT.Font):
+    """The NEW italic's glyphs, each pair placed at its zero white
+    (white0920 + delta); the 09-20 font supplies the reference white and kern."""
+
+    def __init__(self, new_path, old0920_path):
+        super().__init__(new_path)
+        self.z = FT.Font(old0920_path)
+        self.wz, self.wn = white_fn(old0920_path), white_fn(new_path)
+
+    def shape(self, a, b):
+        names, adv, kern = super().shape(a, b)
+        want = self.wz(a, b) + italic_delta(a + b)
+        return names, adv, kern + (want - self.wn(a, b))
+
+
+def feature_fonts():
+    fonts = {s: FT.Font(p) for s, p in FT.FONTS.items()}
+    if _IT_NEW and _IT_OLD:
+        fonts["italic"] = ZeroFont(_IT_NEW, FT.FONTS["italic"])
+    return fonts
+
+
+def pair_feats(fonts, style, p):
+    f = FT.pair_features(fonts[style], p[0], p[1], style == "italic")[0]
+    if isinstance(fonts[style], ZeroFont):
+        f["kern"] = float(fonts[style].z.shape(p[0], p[1])[2])
+    return f
+
+
+def judgments0(style, drop=("g",)):
+    """bench_fit.judgments on the fit's zero -- shifted onto the new italic's."""
+    return {p: d - (italic_delta(p) if style == "italic" else 0.0)
+            for p, d in bench_fit.judgments(style, drop).items()}
+
+
 def gnames(ch):
     """Glyph names a character's kern must be written on."""
     if ch == "'":
@@ -128,16 +232,16 @@ def main():
                          "each pair's judgment becomes the mean of every reading on the fit's zero")
     args = ap.parse_args()
     census = {p: n for p, n in json.load(open(args.census))["pairs"]}
-    fonts = {s: FT.Font(p) for s, p in FT.FONTS.items()}
+    fonts = feature_fonts()
     out = json.load(open(OUT)) if (args.holds and os.path.exists(OUT)) else {}
     for style in ("roman", "italic"):
-        J, W = with_extra(style, skip_w=args.skip_weight) if args.extra else (bench_fit.judgments(style), None)
+        J, W = with_extra(style, skip_w=args.skip_weight) if args.extra else (judgments0(style), None)
         scope = sorted({p for p in J if in_scope(p)} |
                        {p for p, n in census.items() if in_scope(p) and
                         (n >= CENSUS_MIN or (n >= CENSUS_MIN_MARK and any(c in MARKS for c in p)))})
         feats = {}
         for p in scope:
-            feats[p] = FT.pair_features(fonts[style], p[0], p[1], style == "italic")[0]
+            feats[p] = pair_feats(fonts, style, p)
         lsb, rsb, predict, ins = fit(style, {p: J[p] for p in J if p in feats}, feats, W)
         letters, marks = {}, {}
         for c in sorted(set(lsb) | set(rsb)):
@@ -198,13 +302,14 @@ def readings(style, drop=("g",)):
     plus every ingested row (active_ingest.py), class "skip" for a skipped
     active row (verdict skipped-ok), "extra" otherwise. g stays out, as in
     bench_fit (owner 2026-09-21)."""
-    reads = {p: [(d, "bench")] for p, d in bench_fit.judgments(style, drop).items()}
+    reads = {p: [(d, "bench")] for p, d in judgments0(style, drop).items()}
     ex = os.path.join(WS, "bench", "answers", "extra-judgments.json")
     if os.path.exists(ex):
         for r in json.load(open(ex))["rows"]:
             if r["style"] == style and not any(c in drop for c in r["pair"]):
                 cls = "skip" if r.get("verdict") == "skipped-ok" else "extra"
-                reads.setdefault(r["pair"], []).append((r["d0920"], cls))
+                sh = italic_delta(r["pair"]) if style == "italic" else 0.0
+                reads.setdefault(r["pair"], []).append((r["d0920"] - sh, cls))
     return reads
 
 

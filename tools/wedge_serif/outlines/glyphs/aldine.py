@@ -872,9 +872,10 @@ if ON:
     # exits, arches, dots) are Flanker's 70-unit stem scaled by S / 84, so at
     # the 400 they draw 55.7 units = 0.83 S, while the letters on ALD_WF_UP
     # (t f j v w x y z c g, the bowls) stay at the Medium's 1.0. ALD_NIB
-    # multiplies ALD_WF only; 1.0 is today to the unit. Measured and laddered
+    # multiplies ALD_WF only; 1.0 is round 408 to the unit, 0.92 is round 409's
+    # arm m (with build.py's IT_LC_SCALE / IT_LC_SETW). Measured and laddered
     # in docs/albo-italic-size-nib-2026-09-26.md.
-    ALD_NIB = float(os.environ.get("ALBO_ALD_NIB", 1.0))
+    ALD_NIB = float(os.environ.get("ALBO_ALD_NIB", 0.92))   # round 409: arm m (owner "yes to m"); 1.0 = round 408
     ALD_WF = pen.S / 84.0 * ALD_NIB
     HM_UNIT = 429.0
 

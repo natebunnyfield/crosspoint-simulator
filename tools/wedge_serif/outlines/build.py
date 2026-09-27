@@ -239,10 +239,12 @@ CAP_NARROW = float(os.environ.get("ALBO_IT_CAP_NARROW", 0.953))
 # and the shear, so the fit then derives bearings from the scaled shape:
 #   ALBO_IT_LC_SCALE  uniform (x-height, ascender, descender, stems, width)
 #   ALBO_IT_LC_SETW   horizontal only (width; vertical strokes thicken with it)
-# 1.0 / 1.0 is today to the unit. The B2 bearing deltas and the kerns are
-# absolute units learned on today's italic and are NOT rescaled.
-IT_LC_SCALE = float(os.environ.get("ALBO_IT_LC_SCALE", 1.0))
-IT_LC_SETW = float(os.environ.get("ALBO_IT_LC_SETW", 1.0))
+# 1.0 / 1.0 is round 408 to the unit. ROUND 409 ships arm m (owner, 2026-09-26:
+# "yes to m for italic resize"): 1.015 / 1.15 with ALBO_ALD_NIB 0.92, in the
+# Italic and the BoldItalic. The B2 tables were refit for it from ABSOLUTE
+# target whites (docs/albo-italic-size-nib-2026-09-26.md, round 409).
+IT_LC_SCALE = float(os.environ.get("ALBO_IT_LC_SCALE", 1.015))   # round 409: arm m (owner "yes to m")
+IT_LC_SETW = float(os.environ.get("ALBO_IT_LC_SETW", 1.15))     # round 409: arm m
 
 # THE CAPITAL X's WIDTH. Owner 2026-09-23: *"make versions of X that are less
 # wide by reducing angles but keeping rest of letter stylistically intact."*
