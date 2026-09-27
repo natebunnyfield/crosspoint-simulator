@@ -6676,7 +6676,7 @@ if ON:
     #        x 60 instead of 8, so it turns under the letter without running
     #        to its edge. Labeled: it PARTLY overrides the same 2026-09-16
     #        ruling (the swash still sweeps left, but not to the edge).
-    Y_OPT = os.environ.get("ALBO_ALD_Y_OPT", "a")
+    Y_OPT = os.environ.get("ALBO_ALD_Y_OPT", "crl")   # ROUND 413: owner 2026-09-26 "curl wins for italic y" ("a" = round 412)
     if Y_OPT not in ("a", "trc", "flb", "chn", "swa", "crl"): Y_OPT = "a"
     def _y_u():
         return max(0.0, min(1.0, (S - 66.9) / (116.0 - 66.9)))
