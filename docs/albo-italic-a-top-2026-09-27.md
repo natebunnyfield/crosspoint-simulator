@@ -316,3 +316,19 @@ V5 Italic measured colour 0.382 against the d's 0.349. Lighter broad and return 
 | **W4** | W3, FLICK 1.30 | 19 / **5** (grand 92.6, crowded 87.9) |
 
 All touch 0, hairs PASS.
+
+## W1 / W3 with the d's flat tail (same day)
+
+Owner: *"W1 for regular italic and W3 for bold italic but flatten out flick to be similar to 'd'. take more passes and give me options."*
+
+The d's tail (`a_d`) is not the family exit (`hm_exit`): it runs down the stem to near the baseline, travels nearly FLAT about 26-30 units up, then rises gently to a tip at 0.15 xh, 138 units right of its stem; the exit climbs at ~45 degrees. `A_TRI_DTAIL` draws the d's construction on the a (stem stopped at S x 0.10, as the d's is, the tail making the foot), tip at `A_TRI_TAIL_X` / `A_TRI_TAIL_Y`.
+
+| label | TAIL_X / TAIL_Y | misread It / BI | BI grand, crowded |
+|---|---|---|---|
+| W | family exit, flick 1.15 (W1 / W3) | 21 / 6 | 91.9, 78.8 |
+| Y1 | 138 / 0.15 (the d's) | 24 / 5 | **93.0, 90.0** |
+| **Y2** | 138 / 0.11 (flatter) | 25 / **3** | 93.0, 89.5 |
+| Y3 | 120 / 0.13 (shorter) | 22 / 9 | 91.6, 73.8 |
+| Y4 | 160 / 0.13 (longer) | 28 / 5 | 92.6, 86.5 |
+
+Italic crowded: W 61.7, Y1 64.7, **Y2 66.8**, Y3 60.3, Y4 65.1. Part of the Italic a-misread count is Vision returning the Cyrillic a (a>а), the same letterform -- not a confusion. The d's tail lifts the whole BoldItalic text's scores more than any a drawn so far. All touch 0, hairs PASS.

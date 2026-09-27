@@ -3338,6 +3338,14 @@ if ON:
     A_TRI_BRW = float(os.environ.get("ALBO_ALD_A_TRI_BRW", 0) or 0)          # weight floor on the return into the stem, x the broad (0 = the pen alone)
     A_TRI_SMR = float(os.environ.get("ALBO_ALD_A_TRI_SMR", 0) or 0)      # opening+closing radius on the bowl stroke, units (0 = none)
     A_TRI_JOINR = float(os.environ.get("ALBO_ALD_A_TRI_JOINR", 0) or 0)  # closing radius on the whole letter, units (0 = none)
+    # owner 2026-09-27: "flatten out flick to be similar to 'd'" -- the d's
+    # tail (a_d): down the stem to near the baseline, a nearly FLAT run ~30
+    # units up, then a gentle rise to a tip at 0.15 xh, instead of the family
+    # exit's 45-degree climb. A_TRI_DTAIL = 1 draws it; the tip sits
+    # A_TRI_TAIL_X units right of the stem's centre at A_TRI_TAIL_Y x xh.
+    A_TRI_DTAIL = int(os.environ.get("ALBO_ALD_A_TRI_DTAIL", 0) or 0)
+    A_TRI_TAIL_X = float(os.environ.get("ALBO_ALD_A_TRI_TAIL_X", 0) or 150.0)
+    A_TRI_TAIL_Y = float(os.environ.get("ALBO_ALD_A_TRI_TAIL_Y", 0) or 0.15)
     A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
     def _a_tri_at(c, xs, xh, u, bow):
@@ -3525,7 +3533,16 @@ if ON:
                     base_ = geom.ink([bowl_, st_])
                     holes_ = [_Pg(h) for p_ in getattr(base_, "geoms", [base_]) for h in p_.interiors]
                     for h_ in holes_: hd_ = hd_.difference(h_.buffer(1.0))
-                g_all = geom.ink([bowl_, st_, hd_, hm_exit(c, xs, _AEX)])
+                if A_TRI_DTAIL:
+                    sw0 = HM_STEMW * hm_u(c)
+                    tip = (xs + A_TRI_TAIL_X * u, xh * A_TRI_TAIL_Y)
+                    tp = catmull([(xs, xh * 0.30), (xs + 4 * u, xh * 0.10), (xs + 30 * u, 26 * u),
+                                  (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
+                    ex_ = stroke(tp, widths([(0.0, sw0), (0.30, sw0 * 0.90), (0.62, sw0 * 0.62), (1.0, sw0 * 0.30)]), cut1=CUT)
+                    st_ = hm_stem(c, xs, S * 0.10, ht)   # the d's stem stops short of the line; the tail makes the foot
+                    g_all = geom.ink([bowl_, st_, hd_, ex_])
+                else:
+                    g_all = geom.ink([bowl_, st_, hd_, hm_exit(c, xs, _AEX)])
                 if A_TRI_JOINR:
                     # a closing of the WHOLE letter fills the small notches where
                     # the bowl's return and the head meet the stem; it leaves
