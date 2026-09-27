@@ -597,3 +597,56 @@ Owner: *"for V W bold italic, today seem okay, just use something close to A str
 | W (today) | 64.4 | 122.8 |
 
 Today's V and W are already within 3% of the A on both strokes (under 0.1 px at reading size), so today IS "close to A strokes" and nothing changes. The arms drawn for the poor-characters pass all move away from the A: cha 44.9 / 120.8, pal 30.0 / 120.8, wgt 49.4 / 121.3, cap 49.4 / 97.3 (V). `ALBO_ALD_VW_OPT` stays `a`.
+
+## Roman t: defects found, fixed behind a dial, and four arms (2026-09-27, after round 419)
+
+The last roman items on the list were the t (Regular spacing, Bold contrast)
+and the j. Read at 300 px on round 419's build (`2e12e80`), the t carries two
+CONSTRUCTION defects that no gate flags (contour hairs, glitch and touch all
+pass on today):
+
+1. **A 15-unit hair on the Bold's cut top.** `stem(cut_top=)` moves only the
+   LAST right-edge point down to the cut line. The cut drops that corner by
+   tan(20) x w / 2 = 22 units at the 700 (13 at the 400), and the entasis
+   samples above the line stay, so the edge climbs to y 539 and falls back to
+   520: points (194,524) (196,539) (197,539) (199,520). The 400's drop is under
+   the sample spacing, so the Regular has none. Verified against the built
+   outline. Other `cut_top` users were not audited here [open].
+2. **An 8-unit bump inside the Bold's tail join.** The tail's centerline turns
+   tighter than half its width (radius ~45 against a 55 half-width at the 700),
+   so its inner offset folds back on itself (x 201 -> 210 -> 206 -> 211 over
+   y 104..58) and `_unfold` leaves the lump: x 200 at y 75 against the stem's
+   192. The Regular's offset edge is lumpy all along the turn for the same
+   reason, and its outer edge has a chord corner at (118,55)-(135,29).
+
+**Fix, `ALBO_ROM_T_CLEAN=1` (default 0 = today, outline- and advance-identical,
+checked):** the stem is clipped by its cut's own half-plane; the tail starts at
+the stem's width (R20's flush join, on `smooth_widths`), and BOTH tail edges are
+redrawn as one cubic each from the stem's edge (vertical) to the terminal's
+corner (along the tail's end direction), each solved so its lowest point is the
+offset's own (counter depth and overshoot unchanged).
+
+Three cheaper fixes were tried first and failed, recorded so they are not
+retried: capping the tail's width at the stem's over its first quarter (the
+cap's release at t=0.25 made a width jump, a new corner in the Regular);
+replacing only the folded stretch of the inner edge with a quarter-round landing
+at the offset's lowest point (the offset is still folded there in the 400: a
+dent); landing it past the fold with the direction taken from neighbours
+(the neighbours are folded: a straight chord then a flat).
+
+**Arms** (`ALBO_ROM_T_END` a / fin / lng, `ALBO_ROM_T_BAR` a / cut / spr, both
+only under T_CLEAN), page https://claude.ai/artifact/VEN7vtKzb9neeXxkzYJVpz:
+
+| label | env | what |
+|---|---|---|
+| A | (none) | today |
+| T1 | CLEAN=1 | defects fixed, today's shape |
+| T2 | + END=fin | tail ends in the c's finial (round 275's family end) |
+| T3 | + END=lng | tail 12% further right, end at 0.50 r instead of 0.60 r |
+| T4 | + END=fin BAR=cut | T2, both bar ends on the pen cut |
+| T5 | + END=fin BAR=spr | T2, left arm a 0.35 S spur (Palatino), ends cut |
+
+Gates (`poor_gates.sh` against today, Regular + Bold): all five arms touch 0,
+hairs `--letters` and full no delta, glitch 0, counter dents unchanged, e gate
+ok. Moved: t, tbar, uniE004 (ct), uniFB06 (st), plus tcaron, uni0163, uni021B
+under T2-T5. B2 not refit. Awaiting a pick.

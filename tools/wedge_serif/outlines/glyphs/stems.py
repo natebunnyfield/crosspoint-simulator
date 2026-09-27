@@ -346,6 +346,9 @@ def g_t(c):
     tail = cubic((x, r * 0.85), (x, -OVER * 0.5), (x + r * 0.8, -OVER * 0.5), (x + r * 1.45, r * 0.6))
     tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)]), floor=S * T_TAIL_FLOOR), cut1=CUT)
     b = stroke([(x - 100 * wf, xh - t_bar / 2), (x + 150 * wf, xh - t_bar / 2)], t_bar)
+    if T_CLEAN and not pen.ITALIC:
+        st, tl, b = _t_clean(x, xh, wf, r, t_top, t_bar, st)
+        return geom.ink([st, tl, b])
     if T_OPT != "a" and not pen.ITALIC:
         return geom.ink([st] + _t_arm(x, xh, wf, tail, t_bar))
     return geom.ink([st, tl, b])
@@ -394,6 +397,107 @@ def _t_arm(x, xh, wf, tail, t_bar):
     if T_OPT == "alb":
         return [tl, PR.bar(x - 100 * wf, x + 150 * wf, xh, tb, align='top', cut0=CUT, cut1=CUT)]
     return [tl, PR.bar(x - 100 * wf, x + 150 * wf, xh, tb, align='top', cut1=CUT, wedges=[('left', -1)])]
+
+# THE ROMAN t, CLEANED -- 2026-09-27, after round 419 (the poor-characters
+# list's last roman items). Two construction defects, both measured on the
+# built fonts at HEAD:
+#  1. THE HAIR ON THE CUT TOP (Bold). stem(cut_top=) moves only the LAST
+#     edge point to the cut line. The cut drops the right corner by
+#     tan(20) x w / 2 -- 22 units at the 700, 13 at the 400 -- and the
+#     entasis samples above that line stay, so the Bold's right edge climbs
+#     to 539 and falls back to 520: a 15-unit hair (points (194,524)
+#     (196,539) (197,539) (199,520)). The 400's drop is under the sample
+#     spacing, so it has none. Clean: the stem is clipped by the cut's own
+#     half-plane.
+#  2. THE BUMP WHERE THE TAIL LEAVES THE STEM (Bold, 8 units). The tail
+#     starts at the pen's width for its direction, which grows as it turns,
+#     so its inner edge stands proud of the stem's right edge (x 200 against
+#     192 at y 76). Clean: the tail starts at the stem's own width and eases
+#     to the pen's over its first quarter (R20's flush join, the f's), on
+#     smooth_widths (R23's sawtooth fix).
+# T_CLEAN turns both on. T_END is the tail's terminal:
+#   a    today's end: a 1.3 flare into the family's 20-degree pen cut
+#   fin  the c's finial (round 275's family end, which the f's hook
+#        already carries): swell 1.10 over the last 13%, face sheared 28
+#        degrees toward the vertical
+#   lng  original: fin, the tail reaching 12% further right and rising less
+#        steeply (end at 0.50 r instead of 0.60 r) -- a longer, flatter
+#        exit that leads into the next letter
+# T_BAR is the bar:
+#   a    today's plain bar, square ends
+#   cut  both ends on the family's pen cut, as the z's bars (the Bold flag's
+#        eight corner spokes were the square ends; poor-characters pass 2)
+#   spr  traced, Palatino: the left arm a short spur 0.35 S past the stem,
+#        on the pen cut; the right end cut
+T_CLEAN = os.environ.get("ALBO_ROM_T_CLEAN", "0") == "1"
+T_END = os.environ.get("ALBO_ROM_T_END", "a")
+T_BAR = os.environ.get("ALBO_ROM_T_BAR", "a")
+
+def _t_clean(x, xh, wf, r, t_top, t_bar, st):
+    # 1. clip the stem at its cut face (the face runs through (x, t_top) at the pen cut)
+    k = math.tan(CUT); big = 400.0
+    clip = geom.poly([(x - big, -big), (x + big, -big), (x + big, t_top - k * big), (x - big, t_top + k * big)])
+    st = st.intersection(clip)
+    # 2. the tail, flush out of the stem
+    end = (x + r * (1.45 * 1.12 if T_END == "lng" else 1.45), r * (0.50 if T_END == "lng" else 0.60))
+    c2 = (x + r * (0.9 if T_END == "lng" else 0.8), -OVER * 0.5)
+    tail = cubic((x, r * 0.85), (x, -OVER * 0.5), c2, end)
+    y0 = r * 0.85
+    f0 = PR.stem_width(TH_V, ENT, y0 / t_top) / TH_V   # the stem's width where the tail leaves it, over the pen's vertical
+    if T_END == "a":
+        prof = widths([(0.0, f0), (0.25, 1.0), (0.65, 1.0), (1.0, 1.3)])
+        hw = smooth_widths(tail, pen.PEN.th, prof, floor=S * T_TAIL_FLOOR); cut1 = CUT
+    else:
+        prof = widths([(0.0, f0), (0.25, 1.0)])
+        hw = smooth_widths(tail, pen.PEN.th, prof, floor=S * T_TAIL_FLOOR)
+        hw = PR.finial_widths(hw, False, floor=S * T_TAIL_FLOOR); cut1 = PR.finial_cut(tail, False)
+    wst = PR.stem_width(TH_V, ENT, y0 / t_top)   # = f0 x the pen's vertical: the tail starts exactly the stem's width
+    # THE INNER EDGE IS DRAWN, not offset. The tail's centerline turns
+    # tighter than half its width (Bold: radius ~45 against a 55 half-width),
+    # so its inner offset folds back on itself -- x 201 -> 210 -> 206 -> 211
+    # over y 104..58 -- and the unfold leaves that as the lump. The outer
+    # edge and the end are the stroke's own; the inner edge from the stem's
+    # right side down to the counter's bottom (the offset's lowest point,
+    # where it runs horizontal) is one quarter-round, so the bottom's weight
+    # is unchanged and the stem's edge runs into the curve with no step.
+    _, L, R = stroke(tail, hw, cut1=cut1, sides=True)
+    # Both edges are then REDRAWN as one cubic each, from the stem's edge
+    # (vertical) to the terminal's corner (along the tail's end direction),
+    # each solved so its lowest point is the offset's own -- the counter's
+    # depth and the overshoot are today's. Patching only the fold was tried
+    # first and kept finding the next dent: at the 400 the offset edge is
+    # lumpy all along the turn (the pen's width sampled on a curve tighter
+    # than half its width), so no piece of it is a clean place to land.
+    tdx, tdy = tail[-1][0] - tail[-2][0], tail[-1][1] - tail[-2][1]; tdl = math.hypot(tdx, tdy) or 1.0
+    tdir = (tdx / tdl, tdy / tdl)
+    def _edge(A, E, ymin):
+        D = math.hypot(E[0] - A[0], E[1] - A[1])
+        def pts(sc):
+            c1 = (A[0], A[1] - sc * D); c2 = (E[0] - tdir[0] * sc * D, E[1] - tdir[1] * sc * D)
+            return c1, c2
+        def low(sc):
+            c1, c2 = pts(sc)
+            return min((1 - u) ** 3 * A[1] + 3 * (1 - u) ** 2 * u * c1[1] + 3 * (1 - u) * u * u * c2[1] + u ** 3 * E[1]
+                       for u in [i / 200 for i in range(201)])
+        lo, hi = 0.05, 1.5
+        for _ in range(40):
+            mid = (lo + hi) / 2
+            if low(mid) > ymin: lo = mid
+            else: hi = mid
+        c1, c2 = pts((lo + hi) / 2)
+        return cubic(A, c1, c2, E)
+    inner = _edge((x + wst / 2, y0), L[-1], min(p[1] for p in L))
+    outer = _edge((x - wst / 2, y0), R[-1], min(p[1] for p in R))
+    tl = geom.poly(list(inner) + list(outer)[::-1])
+    st = st.intersection(geom.poly([(x - 400, y0 - 2), (x + 400, y0 - 2), (x + 400, 2000), (x - 400, 2000)]))
+    y = xh - t_bar / 2
+    if T_BAR == "cut":
+        b = stroke([(x - 100 * wf, y), (x + 150 * wf, y)], t_bar, cut0=CUT, cut1=CUT)
+    elif T_BAR == "spr":
+        b = stroke([(x - S / 2 - 0.35 * S, y), (x + 150 * wf, y)], t_bar, cut0=CUT, cut1=CUT)
+    else:
+        b = stroke([(x - 100 * wf, y), (x + 150 * wf, y)], t_bar)
+    return st, tl, b
 
 T_TOP_RISE = 96
 T_TOP_SHEAR_DEG = 46
