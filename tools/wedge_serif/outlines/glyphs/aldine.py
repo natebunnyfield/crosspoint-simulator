@@ -11791,7 +11791,7 @@ if ON:
     # the pen-drawn 2d reads as the lightest figure of its family (stroke -3.3
     # sigma Italic, -2.6 BoldItalic). FIG2_TW scales the 2's widths alone,
     # arc, neck and base together (1.0 = round 410's 2d).
-    FIG2_TW = float(os.environ.get("ALBO_IT_FIG2_TW", 1.0))
+    FIG2_TW = float(os.environ.get("ALBO_IT_FIG2_TW", 1.20))   # round 423: owner "1.2 wins" (between G1 1.15 and G2 1.30); 1.0 = round 410
 
     def _fig2_pen(c, arm):
         P, H, W = _fig_frame(c, '2')
