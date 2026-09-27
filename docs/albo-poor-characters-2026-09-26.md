@@ -78,7 +78,7 @@ section 7).
   had to learn kerns (+22 to +31) before it.
 - **roman s** -- DIRECTION BEFORE WIDTH: the top and bottom arcs run
   horizontal where the PEN is thin (34.5 at the 400), while the o and c are on
-  the BOWL profile (hair 0.70 S). Its thin is 0.65 of its own o's; the
+  the BOWL profile (hair 0.46 S since round 265, 30.8 units at the 400 -- the arm comments' "0.70 S" is stale). Its thin is 0.65 of its own o's; the
   references' 0.90-1.03. Its median is 0.84 of the o's; theirs 0.54-0.77.
 - **roman N** -- flat: the thin stems are 0.74 / 0.73 of the H's stem where
   the references run 0.25-0.61 (Regular) and 0.22-0.55 (Bold); Charter is the
@@ -480,7 +480,62 @@ gap (the swash tucks less). Scratchpad `poorchars/pairs/`.
 
 ## 10. Pass 3: adversarial review
 
-(Pending at the time of writing; appended when it reports.)
+One read-only agent rebuilt all 35 arms from `39dc1b8` and tried to refute each.
+It reported after the ruling, so NOTHING WAS REDRAWN on it; the findings stand
+here as the record for whoever draws. Confirmed findings, most severe first:
+
+1. **`ALBO_ROM_T_BAR_K` leaked into the BoldItalic T** (the aldine T is
+   `_CS.g_T`). Found independently by this pass's leak check and FIXED in
+   `b637b7c` (`not pen.ITALIC`).
+2. **Italic y `trc` / `flb` fail cmp_touch in BOTH italics:** `4y` -0.0196 em
+   (BoldItalic) and `qy` 0.0070 em (Italic, under the 0.012 floor). Only `4y`
+   was recorded above; `swa` is clean.
+3. **The roman j arms were scored with today's kerns into j still in the font**
+   (aj +23, ej +26, oj +32, nj +22, ij +27), so the proofs double-correct; the
+   arms cannot be judged until those kerns are refit. `hoe` also reintroduces a
+   teardrop end that round 275 retired, unlabeled.
+4. **Italic r:** the aldine comment "the path is today's in every arm since
+   pass 2" is FALSE for geo/fla (their second and third knots sit at 0.60 /
+   0.80 xh against today's 0.55 / 0.745); the fla gain is corner-spoke noise
+   (p10 26.4 / 25.3 / 31.3 in base / geo / fla).
+5. **Roman y:** every arm overrides round 391's 0.33 floor (0.50), so the
+   skeletons are confounded with the floor -- `flr` alone gives Regular 0.10;
+   `pal` and `alb` also drop round 275's finial on the tail. Unlabeled in the
+   code.
+6. **`s_bwl`:** the spine gets ~25% lighter (vertical run 53 -> 40 at the
+   centre), so "nothing about the spine moves" is false for that arm; its
+   premise "hair 0.70 S" is stale (0.46 since round 265). Measured s/o hair
+   0.70 (the comment says 0.64).
+7. **Roman t comments:** `hoe` cuts only the right end (the stems.py header
+   was corrected in pass 2 but the pass-2 note "every arm cuts its ends" is
+   false for hoe's left and pal's right).
+8. **`vw_cap`:** the W's middle-apex spur (present today) stands further out,
+   with a notch under it, because the crown's offset is not rescaled with the
+   hairline; the glitch sweep does not see it. Lower confidence.
+9. **`poor_gates.sh` compares counts and names only:** a touching pair that
+   clears while another starts, or a second hair in a glyph that already had
+   one, passes. Latent.
+10. **`_VW_HAIR` in `a_W` is not reset in a try/finally.** Latent: an exception
+   aborts the build rather than leaking.
+
+Its verdicts, for the record: KEEP t_alb (Bold), s_geo, s_pal, N_cha, N_wgt,
+jt_trc (jt_nib as the alternative), yi_swa, vw_cap; FIX (labels / refit)
+roman y arms, t_pal, t_hoe, s_bwl, yi_trc, yi_flb, the roman j arms; DROP
+t_wdg, j hoe / fin, N_pal, ri_geo, ri_arc, ri_fla (or relabel as metric
+noise), vw_cha, vw_wgt, vw_pal, Fit_geo, Fit_mod; Fit_cha weak.
+
+Checked CLEAN by the review: unset = today in all four cuts, plain and with
+`FJORD_ADJ=all`; cross-style leaks (only finding 1); per-arm scope (letter +
+its own composites/ligatures); the `cdiag` hairline test picks exactly the
+thin arms of V and W and never runs for A N X M; VW_OPT inert at the 400; no
+self-intersecting contour in any arm's letter (so no fold in the roman y's
+hook); the italic F microserif stays attached; the italic y depths as
+stated; the j reach numbers; the S interpolation ends; census, approved and
+e-mouth gates unchanged everywhere.
+
+The stale code comments in findings 4, 6 and 7 are NOT corrected in the code:
+`aldine.py` is being edited by another agent (round 410 draft), and the
+ruling stops arm work; they are corrected here.
 
 ## Files
 
