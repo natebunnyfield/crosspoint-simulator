@@ -3886,6 +3886,48 @@ if ON:
     R_ARM_Y = float(os.environ.get("ALBO_ALD_R_ARM_Y", 0.876))   # its center, x xh
     R_ARM_W = float(os.environ.get("ALBO_ALD_R_ARM_W", 84.0))    # its width, units
     R_ARM_H = float(os.environ.get("ALBO_ALD_R_ARM_H", 106.0))   # its height, units
+    # THE ITALIC r's ARM, OPTIONS -- 2026-09-26, the poor-characters pass
+    # (docs/albo-poor-characters-2026-09-26.md). The fit audit after round
+    # 409: BoldItalic r F 3.59 (cut +4.1, the Italic not sharing it, +3.1),
+    # up from 2.15 at round 405. Traced (poor_trace, unsheared, sheet in the
+    # doc): the thinnest ridge is the arm's ROOT -- it leaves the stem as the
+    # arch's hairline (t x 1.15) and in the 700 that reads 0.45 of the stem
+    # family's thin; in Georgia, Charter and Flanker the arm's root is the
+    # heavy part of the stroke. (Pass 1 also read the arm as cresting BELOW
+    # the x-height -- 408 against 428-431 -- and raised it; that was the
+    # trace's own normalisation, which scales Albo by its x's top, 28 units of
+    # wedge over the line. On the fit audit's lines today's arm tops out with
+    # the head, as the n's does, and the raised arms read +6 and +10 sigma
+    # HIGH. The path is today's in every arm since pass 2.)
+    #   a    today
+    #   geo  traced: Georgia/Charter -- the arm's root heavier: 1.6 x the
+    #        hairline, holding 1.5, rising to 2.2 into the finial
+    #   fla  traced: Flanker -- as geo, and the arm leaves the stem HIGHER
+    #        (0.55 xh, not the arch's 0.355), so the notch under the head closes
+    #   arc  original: the r IS the n's shoulder -- the arm is the family's own
+    #        arch (HM_ARCH_K, its width profile) followed toward its crest
+    #        (0.88 P, 0.905 xh) and stopped there in the family finial, so r
+    #        and n share one movement
+    R_OPT = os.environ.get("ALBO_ALD_R_OPT", "a")
+    if R_OPT not in ("a", "geo", "fla", "arc"): R_OPT = "a"
+
+    def _r_arm(c, x0, P, sw, t, xh):
+        if R_OPT == "arc":
+            K = [(0.0, HM_SPRING)] + HM_ARCH_K + [(0.880, 0.905)]
+            arm = catmull([(x0 + fx * P, fy * xh) for fx, fy in K], tension=0.5)
+            prof = widths([(0.00, sw * 0.94), (0.14, t * 1.15), (0.36, t), (0.60, t * 1.30), (1.00, t * 2.00)])
+        else:
+            sp = HM_SPRING if R_OPT == "geo" else 0.55
+            ax, ay = x0 + P * R_ARM_X, xh * 0.876
+            px, py = x0 + P * 0.47, xh * 0.850
+            dl = math.hypot(ax - px, ay - py)
+            ext = fin_reach(R_ARM_W * hm_u(c) * ALD_WF_UP / 2, ((ax - px) / dl, (ay - py) / dl))
+            arm = catmull([(x0, xh * sp), (x0 + P * 0.17, xh * max(0.60, sp + 0.12)),
+                           (x0 + P * 0.32, xh * 0.80), (px, py),
+                           (ax + (ax - px) / dl * ext, ay + (ay - py) / dl * ext)], tension=0.5)
+            prof = widths([(0.00, sw * 0.94), (0.16, t * 1.6), (0.42, t * 1.5), (0.72, t * 1.7), (1.00, t * 2.2)])
+        return stroke(arm, PR.finial_widths(prof, False, floor=fin_floor()), cut1=PR.finial_cut(arm, False))
+
 
     @glyph('r')
     def a_r(c):
@@ -3901,6 +3943,8 @@ if ON:
         # `fin_reach` past the ball's old centre so the letter's rightmost ink
         # stays where the ball's edge was (design units: 243 -> 244 at the
         # 400, 308 -> 309 at the 700): the reach is the r's, not the ball's.
+        if R_OPT != "a":
+            return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh), _r_arm(c, x0, P, sw, t, xh)])
         ax, ay = x0 + P * R_ARM_X, xh * 0.876
         px, py = x0 + P * 0.47, xh * 0.850
         dl = math.hypot(ax - px, ay - py)
@@ -4237,6 +4281,36 @@ if ON:
     #   a cubic that stopped at 0.62 S with no lift in it at all.
     T_W = d_dial("T_W", 0.97)
     T_TW = d_dial("T_TW", 1.12)
+    # THE ITALIC j AND t ON THE STEM LETTERS' PEN, OPTIONS -- 2026-09-26, the
+    # poor-characters pass (docs/albo-poor-characters-2026-09-26.md). After
+    # round 409 the fit audit's two worst italic letters after the F and the
+    # approved g are the j (F 4.17, stroke +3.9) and the t (F 2.60, stroke
+    # +3.2), both HEAVY for the stem family. Traced (poor_trace, the stem's
+    # horizontal run at half the x-height, unsheared): in all six reference
+    # italics the j's and the t's stems are the i's, 0.94-1.11 of it (Flanker
+    # 1.00 / 0.99, Georgia 1.02 / 1.03, Charter 0.96 / 0.99, Palatino
+    # 1.03 / 0.99); Albo's are 1.34 / 1.27 in the Italic and 1.06 / 1.02 in the
+    # BoldItalic, because j and t are on ALD_WF_UP (1.0) while the i's pen is
+    # ALD_WF x ALD_NIB (round 263 / 269 / 409 -- docs/albo-italic-size-nib).
+    #   a    today
+    #   trc  traced: all six -- the j's and the t's widths scaled so each
+    #        stem equals the i's: x 0.75 / 0.79 at the 400, x 0.94 / 0.98 at
+    #        the 700, linear on S between
+    #   nib  original: the ruled nib on these two as well -- x ALD_NIB (0.92,
+    #        round 409's arm m) at every weight, the least move that puts
+    #        them on the pen the owner chose
+    # The f shares the fault (1.27 i) but is not flagged (F 0.64) and was not
+    # asked about: it is left alone and named in the doc as a suggestion.
+    JT_OPT = os.environ.get("ALBO_ALD_JT_OPT", "a")
+    if JT_OPT not in ("a", "trc", "nib"): JT_OPT = "a"
+    def _jt_k(ch):
+        if JT_OPT == "nib": return ALD_NIB
+        if JT_OPT == "trc":
+            u = max(0.0, min(1.0, (S - 66.9) / (116.0 - 66.9)))
+            k400, k700 = {"j": (0.75, 0.94), "t": (0.79, 0.98)}[ch]
+            return k400 + (k700 - k400) * u
+        return 1.0
+    T_TW = T_TW * _jt_k("t")
     T_TOP = d_dial("T_TOP", 1.23)     # x xh; between Poetica 1.224 and Flanker 1.184
     T_BAR = d_dial("T_BAR", 0.93)     # x xh
 
@@ -4271,7 +4345,7 @@ if ON:
     #   sweep left, so it is drawn swept. The old j stopped at -0.70 desc and
     #   wore a round PR.dot the i does not have.
     J_W = d_dial("J_W", 0.97)
-    J_TW = d_dial("J_TW", 1.10)
+    J_TW = d_dial("J_TW", 1.10) * _jt_k("j")   # 2026-09-26: see JT_OPT above
     J_TAIL = d_dial("J_TAIL", -0.62)  # the tail's floor, x xh
 
     @glyph('j')
@@ -6574,6 +6648,44 @@ if ON:
     # Owner's pick from the 0/12/24/36 ladder, 2026-09-16: 41 -- past the
     # ladder's top rung, which is his call and not an extrapolation of mine.
     Y_LBOW = float(os.environ.get("ALBO_ALD_Y_LBOW", 41.0))
+    # THE ITALIC y's DESCENT, OPTIONS -- 2026-09-26, the poor-characters pass
+    # (docs/albo-poor-characters-2026-09-26.md). The fit audit after round
+    # 409: Italic y F 1.44 (vertical -2.8), BoldItalic y F 2.32 (stroke -2.9,
+    # vertical -2.9) -- DEEP and, in the 700, LIGHT. Traced (poor_trace,
+    # unsheared): in every reference italic the y's ink bottom IS its p's
+    # (0 +/- 2 units in eleven of twelve faces; Hoefler BI -13); Albo's y runs
+    # 35 below its p in the Italic and 50 in the BoldItalic -- the finial the
+    # tail took in round 276 reaches 22-30 units under the drop it replaced.
+    # The light reading is the same tail: a long hairline is most of the
+    # ridge, so the letter's median sits on it.
+    #   a    today
+    #   trc  traced: all six -- the tail's floor raised so the ink bottom lands
+    #        on the p's line: -0.564 xh at the 400, -0.539 at the 700 (from
+    #        -0.62), everything else as drawn, the swash still reaching x 8
+    #   flb  traced: Flanker Bold -- trc, and the hairline grows with the
+    #        weight, x 1.25 at the 700 (Flanker B's tail runs 0.58 of its i;
+    #        Albo's 0.54); the 400's 30 (round 395, his pick) untouched
+    #   chn  original: the CHANCERY TAIL -- the swash dropped: the tail leaves
+    #        the fork, runs down on the p's line and turns only a short flick
+    #        left (its end at x 146, under the fork, not at the letter's left
+    #        edge). Labeled: this OVERRIDES the 2026-09-16 ruling that the
+    #        swash reaches the left edge (Y_TAIL_X). DROPPED in pass 2: with
+    #        the hairline gone the thick stroke IS the letter and the 700 read
+    #        stroke +5.9 (F 2.32 -> 5.20). Kept reachable as the record.
+    #   swa  original: the SHORTER SWASH -- trc's depth, and the swash stops at
+    #        x 60 instead of 8, so it turns under the letter without running
+    #        to its edge. Labeled: it PARTLY overrides the same 2026-09-16
+    #        ruling (the swash still sweeps left, but not to the edge).
+    Y_OPT = os.environ.get("ALBO_ALD_Y_OPT", "a")
+    if Y_OPT not in ("a", "trc", "flb", "chn", "swa"): Y_OPT = "a"
+    def _y_u():
+        return max(0.0, min(1.0, (S - 66.9) / (116.0 - 66.9)))
+    def _y_opt_tail(TX, TY):
+        ty = -0.564 + (0.025 * _y_u())   # pass 2: -0.538/-0.503 overshot to 17/22 units ABOVE the p (the face moves 1.5x the floor)
+        if Y_OPT == "chn": return 120.0, ty + 0.02
+        if Y_OPT == "swa": return 60.0, ty - 0.012   # pass 2: +0.01 sat 1.8/2.6 sigma shallow
+        return TX, ty
+
 
     @glyph('y')
     def a_y(c):
@@ -6581,6 +6693,7 @@ if ON:
         baseline into the tail -- which is the construction both references
         show, and why the tail is a hairline: it is the thin stroke."""
         P, u = d_frame(c, Y_W); TX = Y_TAIL_X; TY = Y_TAIL_Y
+        if Y_OPT != "a": TX, TY = _y_opt_tail(TX, TY)
         # ROUND 177 -- THE LEFT STROKE BOWS OUTWARD. Owner 2026-09-16: *"bend
         # left stroke of y outward to increase readability"*. It ran as a
         # nearly straight diagonal from the crown down to the junction, which
@@ -6606,7 +6719,7 @@ if ON:
         thick = d_pen([P(x, y) for x, y in _yp],
                       [(0.00, 22), (0.10, 48), (0.22, 66), (0.70, 62),
                        (0.90, 50), (1.00, 36)], u, tw=Y_TW)
-        W = Y_TAIL_W
+        W = Y_TAIL_W * (1.0 + 0.25 * _y_u() if Y_OPT == "flb" else 1.0)
         # ONE CURVE, NOT A SERPENTINE (owner 2026-09-16: "make both Y and y
         # have a single curve on their strokes, not serpentine ones"). The
         # round-135 path held x through the baseline and then whipped left
@@ -6627,7 +6740,7 @@ if ON:
         # leftmost ink 19 -> 20 at the 400, 32 -> 34 at the 700 (design
         # units); the face's lower corner does reach 22 / 30 units deeper
         # than the drop's underside did.
-        _t0 = P(128, -0.55); _t1 = P(TX + 26, TY)
+        _t0 = P(128, -0.55) if Y_OPT != "chn" else P(196, -0.44); _t1 = P(TX + 26, TY)
         _dl = math.hypot(_t1[0] - _t0[0], _t1[1] - _t0[1]); _d = ((_t1[0] - _t0[0]) / _dl, (_t1[1] - _t0[1]) / _dl)
         # the drop's centre sat 12 reference units PAST the end, its half-length 1.55 x its radius
         _ext = fin_reach(12.0 * u + Y_TAIL_DROP * Y_TW * u * ALD_WF_UP * 1.55, _d)
@@ -7018,6 +7131,38 @@ if ON:
     # lighter than its stems, where a pen makes that stroke the heaviest in the
     # letter. One number per letter now, scaling both, and the nib keeps the
     # relation.
+    # THE BOLD ITALIC V AND W's HAIRLINES, OPTIONS -- 2026-09-26, the
+    # poor-characters pass (docs/albo-poor-characters-2026-09-26.md). The fit
+    # audit after round 409: BoldItalic W F 1.93 (stroke +2.9), V F 1.96
+    # (thin +2.8) -- NEAR-MONOLINE: the rising stroke measures 0.63 of the
+    # falling one in the 700 (72 against 113 units), where the reference bold
+    # italics run 0.22-0.43 (Charter BI 0.43, Palatino BI 0.28, Georgia BI
+    # 0.22). The Italic's V and W are not flagged, so every arm acts ABOVE
+    # STEM 84 only and the 400 is byte-identical.
+    #   a    today
+    #   cha  traced: Charter Bold Italic -- the rising stroke x 0.68 (to 0.43)
+    #   pal  traced: Palatino Bold Italic -- x 0.45 (to 0.28)
+    #   wgt  original: the hairline does NOT GROW WITH THE WEIGHT -- x
+    #        sqrt(66.9 / S), the rule the roman N's `wgt` arm uses, 0.76 at
+    #        the 700
+    #   cap  original, added in pass 2: the W's flag is its MEDIAN, which a
+    #        thinner hairline pushes up onto the thick strokes (cha and wgt
+    #        clear the V and take the W from F 1.93 to 2.67). So `wgt`'s
+    #        hairline plus round 272's RULE on the falling strokes -- the thick
+    #        diagonal lands on the stem (owner 2026-09-19, "for roman 700 and
+    #        900, 'w' 'v' and possibly others are too heavy"): the italic's
+    #        falling stroke measures 119 on the ridge against the i's 95 at
+    #        the 700, so x DIAG_CAP_IT = 0.80. (The roman's ALBO_DIAG_CAP is a
+    #        cap in S and does not bite here: these strokes are 0.75 S on the
+    #        nib, the ridge reads them wider through the serif wedges.)
+    VW_OPT = os.environ.get("ALBO_ALD_VW_OPT", "a")
+    if VW_OPT not in ("a", "cha", "pal", "wgt", "cap"): VW_OPT = "a"
+    DIAG_CAP_IT = float(os.environ.get("ALBO_ALD_VW_CAP", 0.80))
+    _VW_HAIR = [1.0]
+    def _vw_k():
+        if VW_OPT == "a" or S <= 84.0: return 1.0
+        if VW_OPT in ("wgt", "cap"): return math.sqrt(66.9 / S)
+        return {"cha": 0.68, "pal": 0.45}[VW_OPT]
     A_DIAG = float(os.environ.get("ALBO_ALD_A_DIAG", 0.743))
     V_DIAG = float(os.environ.get("ALBO_ALD_V_DIAG", 0.715))
     # The N takes ONE number for both its parts, for the same reason: its
@@ -7365,6 +7510,10 @@ if ON:
         ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON, taper=False)
         ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(serif0 is None, serif1 is None)))]
         ws = ent_widths(ws, ENT_DIAG_WAIST)
+        if _VW_HAIR[0] != 1.0 and (b[0] - a[0]) * (b[1] - a[1]) > 0:   # 2026-09-26: a rising stroke, the V/W hairline (VW_OPT)
+            ws = [v * _VW_HAIR[0] for v in ws]
+        elif _VW_HAIR[0] != 1.0 and VW_OPT == "cap":                   # ...and the falling one, capped as round 272 caps the roman's
+            ws = [v * DIAG_CAP_IT for v in ws]
         wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
         p_ = ent_sway(p_, ENT_DIAG_SWAY, wave=ENT_DIAG_WAVE)
         parts = [stroke(p_, wf, cut0=None if serif0 else CUT, cut1=None if serif1 else CUT)]
@@ -7440,8 +7589,12 @@ if ON:
         from the vertex, so its serif is at t=1 and the side flips."""
         C = c["cap"]; x0 = CS * 0.5; w = 0.66 * C
         apex = (x0 + w * 0.52, -OVER * 0.3)
-        return geom.ink([cdiag((x0, C), apex, V_DIAG, serif0=1),
-                         cdiag(apex, (x0 + w, C), V_DIAG, serif1=-1)])
+        _VW_HAIR[0] = _vw_k()
+        try:
+            return geom.ink([cdiag((x0, C), apex, V_DIAG, serif0=1),
+                             cdiag(apex, (x0 + w, C), V_DIAG, serif1=-1)])
+        finally:
+            _VW_HAIR[0] = 1.0
 
     # ROUND 135, TO POETICA. Three measured differences, at a 300 px cap with
     # the ink runs read at fixed heights and each letter shifted to its own
@@ -10455,6 +10608,7 @@ if ON:
         f1, f2 = (ox + w * 0.26, 0), (ox + w * 0.74, 0)
         apex = (ox + w * 0.5, C)
         up = CAP_VV_DIAG * CAP_VV_THIN_W
+        _VW_HAIR[0] = _vw_k()   # 2026-09-26, VW_OPT; reset before the return
         a = cdiag((ox + s * 0.3, C), f1, CAP_VV_DIAG, serif0=1)
         # GLITCH SWEEP 2026-09-16 -- THE MIDDLE APEX WAS A TORN EDGE, not a
         # point. Both inner arms start at the same `apex` ON the cap line, and
@@ -10488,6 +10642,7 @@ if ON:
                         CAP_CON, taper=False)[0] * S
         crown = _wedge((apex[0] - bw * 0.35, C - DROP * (CAP_VV_CROWN_DROP - 1.0)),
                        (0, 1), (-1, 0), WL * CAP_VV_CROWN, WD * CAP_VV_CROWN, DROP)
+        _VW_HAIR[0] = 1.0
         return geom.ink([a, b, d, e, crown])
 
     # THESE TWO IMPORTS BELONG INSIDE `if ON:` AND NOT AT THE MODULE TOP, which

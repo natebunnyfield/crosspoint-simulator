@@ -21,9 +21,9 @@ cd "$(dirname "$0")/.."
 B=${1:?base dir}; A=${2:?arm dir}; CUTS=${3:-"Regular Italic Bold BoldItalic"}
 PY="env PYTHON_GIL=0 python3"
 rows() { grep -E '^\s+[A-Za-z][A-Za-z0-9_.]*\s+segs' | awk '{print $1}' | sort | tr '\n' ' '; }
-bad=0
+bad=0; seen=0
 for c in $CUTS; do
-  fb="$B/Albo-$c.ttf"; fa="$A/Albo-$c.ttf"; [ -f "$fa" ] || continue
+  fb="$B/Albo-$c.ttf"; fa="$A/Albo-$c.ttf"; [ -f "$fa" ] || continue; seen=1
   mv=$($PY cmp_outlines.py --verbose "$fb" "$fa" 2>/dev/null | grep "moved:" | sed 's/.*moved: //')
   echo "[$c] moved: ${mv:-none}"
   for mode in --letters ""; do
@@ -46,6 +46,7 @@ for c in $CUTS; do
     echo "[$c] glitch ($chars): $gb  ->  $ga"; [ "$gb" != "$ga" ] && bad=1
   fi
 done
+[ $seen = 1 ] || { echo "POOR GATES: NO ARM FONT in $A for [$CUTS]"; exit 2; }
 R="$A/Albo-Regular.ttf"; [ -f "$R" ] || R="$B/Albo-Regular.ttf"
 I="$A/Albo-Italic.ttf"; [ -f "$I" ] || I="$B/Albo-Italic.ttf"
 echo "[contours] $($PY cmp_contours.py --check --regular "$R" --italic "$I" 2>&1 | tail -1)"

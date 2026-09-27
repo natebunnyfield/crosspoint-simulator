@@ -426,8 +426,36 @@ def g_F(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'F', 400)
     st = cstem(x, 0, C, top='left', foot='both')
     th = CAP_BAR   # round 94
+    if pen.ITALIC and IT_F_OPT != "a":
+        kt, km, prof = IT_F_ARMS[IT_F_OPT]
+        return geom.ink([st, bar(x, x + w, C, th * kt, align='top', wedges=[('right', -1)], prof=prof),
+                         bar(x, x + w * 0.72, C * 0.54, th * 0.9 * km, cut1=CUT, prof=prof)])
     return geom.ink([st, bar(x, x + w, C, th, align='top', wedges=[('right', -1)]),
                      bar(x, x + w * 0.72, C * 0.54, th * 0.9, cut1=CUT)])
+
+# THE ITALIC F's BARS, OPTIONS -- 2026-09-26, the poor-characters pass
+# (docs/albo-poor-characters-2026-09-26.md). The italic F is this roman F,
+# sheared (aldine.a_F), so the dial lives here and is gated on pen.ITALIC --
+# the roman F never moves. The fit audit: Italic F F 5.05, the worst glyph in
+# the italic, led by SPACING (B2 kerns F+lowercase -26 to -39; not a drawing
+# axis) and by STROKE +4.1 (heavy), which the BoldItalic does not share
+# (cross-cut +3.5). Traced (poor_trace, columns at 62% of the width,
+# unsheared): Albo's italic bars are 0.68 / 0.59 of its stem where the six
+# reference italics run 0.34-0.54 (Charter It 0.52 / 0.52, Palatino It
+# 0.50 / 0.51, Pagella 0.52 / 0.54; Georgia It 0.34 / 0.50, Flanker
+# 0.38 / 0.38). Width and arm reach already sit among them (229 past the stem
+# against 204-300).
+#   a    today
+#   cha  traced: Charter/Palatino/Pagella -- both bars x 0.80 (to ~0.52)
+#   geo  traced: Georgia/Flanker -- the top bar x 0.55, the middle x 0.78:
+#        a lighter top than middle, which is Georgia's distribution
+#   mod  original: MODULATED bars -- the round-219 bar profile (the 7's):
+#        each bar thins to 0.65 where it leaves the stem and holds its full
+#        weight at the serif end, the pen swelling into the wedge
+IT_F_OPT = os.environ.get("ALBO_IT_F_OPT", "a")
+IT_F_ARMS = {"cha": (0.80, 0.80, None), "geo": (0.55, 0.78, None),
+             "mod": (1.0, 1.0, (lambda u: 0.65 + 0.35 * u))}
+if IT_F_OPT not in IT_F_ARMS: IT_F_OPT = "a"
 
 @glyph('G')
 def g_G(c):

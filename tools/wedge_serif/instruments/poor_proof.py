@@ -32,8 +32,8 @@ def line(R, text):
     hb.shape(R.hbf, buf, {"kern": True})
     k = PPEM / R.upm
     H = int(PPEM * 1.55); base = int(PPEM * 1.08)
-    W = int(PPEM * 0.9 * len(text)) + 20
-    c = np.zeros((H, W), np.uint8); x = 6.0; right = 0
+    W = int(PPEM * 0.9 * len(text)) + 20 + PPEM
+    c = np.zeros((H, W), np.uint8); x = float(PPEM); right = 0   # an italic's negative bearing needs room on the left
     for inf, pos in zip(buf.glyph_infos, buf.glyph_positions):
         lv, left, top = R.glyph(inf.codepoint)
         gx = int(round(x + pos.x_offset * k)) + left; gy = base - top
@@ -43,7 +43,8 @@ def line(R, text):
             np.maximum(sub, lv[max(0, -gy):max(0, -gy) + sub.shape[0], :sub.shape[1]], out=sub)
             right = max(right, gx + w)
         x += pos.x_advance * k
-    return c[:, :right + 6]
+    xs = np.nonzero(c.any(0))[0]
+    return c[:, max(xs[0] - 6, 0):right + 6] if len(xs) else c[:, :right + 6]
 
 
 def rgb(levels):
