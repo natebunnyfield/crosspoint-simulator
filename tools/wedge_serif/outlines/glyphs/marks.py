@@ -143,14 +143,17 @@ def g_period(c): return dot(MDOT, BY, MDOT)
 COMMA_LEN = float(os.environ.get("ALBO_COMMA_LEN", 1.95)) * IT_COMMA_LEN
 COMMA_W = float(os.environ.get("ALBO_COMMA_W", 2.40)) * IT_COMMA_W   # round 380: x IT_COMMA_W in the italic
 
-def comma_tail(x, y, up=True, w0=0.9, w1=0.3, k=None):
+def comma_tail(x, y, up=True, w0=0.9, w1=0.3, k=None, L=None, W=None):
     """`k` overrides the punctuation dials for a caller that is not
     punctuation. The comma BELOW a letter (U+0326, and the S T s t that
     carry it) is an accent on an accent-sized dot: round 369's scale-up
     grew its tail and not its dot, and the tail walked off the dot --
     contour count 1 -> 2, which is a mark in two pieces. The gate caught it;
-    no render of the comma itself could have."""
+    no render of the comma itself could have. `L` / `W` override the reach
+    and the swing separately (the apostrophe's own dials, 2026-09-26)."""
     _L, _W = (COMMA_LEN, COMMA_W) if k is None else (k, k)
+    if L is not None: _L = L
+    if W is not None: _W = W
     if up: tail = cubic((x + ST * 0.1, y - ST * 0.35 * _L), (x + ST * 0.1, y - ST * 1.05 * _L), (x - ST * 0.3 * _W, y - ST * 1.45 * _L), (x - ST * 0.6 * _W, y - ST * 1.75 * _L))
     # mirrored in x only (round 51 flipped y too, sending the left quote's
     # tail UP past the cap height instead of down like a real turned comma --
@@ -423,6 +426,46 @@ QUOTE_SIZE = float(os.environ.get("ALBO_QUOTE_SIZE", 1.75))   # round 369: apost
 QUOTE_W = float(os.environ.get("ALBO_QUOTE_W", 1.65))
 CURLY_SCALE = float(os.environ.get("ALBO_CURLY_SCALE", 0.86))   # round 375: curly quotes 305 -> 262, the references' median
 QUOTE_BODY = 2 * DOT_R * QUOTE_SIZE   # straight and curly quotes share this body height, top-aligned to CAP
+# 2026-09-26 -- OPTIONS: THE APOSTROPHE TO THE WORD IMAGE. Owner: *"reduce
+# apostrophe to match rest of word image."* Measured first
+# (`instruments/apos_measure.py`, docs/albo-apostrophe-2026-09-26.md): the
+# curly ’ is at the references' HEIGHT per x-height (roman 0.554 vs a median
+# 0.560) but heavy against its OWN letters -- its head is 1.86 of the face's
+# stem where six roman references run 1.23-1.79 (median 1.55; italic 1.85 vs
+# 1.39), its ink is +10% of an n's over the references', and its foot reaches
+# 0.87 of the x-height down where theirs stop at 0.95 (italic 0.83 vs 0.98).
+# The straight ' is further out still: its ink is 0.25 of an n's (median 0.165)
+# in the roman and 0.33 (median 0.18) in the italic.
+#
+# Every dial is 1.0 = today, byte for byte, and applies to the SINGLE marks
+# only -- ’ ‘ ʼ ʻ (and ' for the two straight dials) -- because the ask named
+# the apostrophe and ‘ must stay the pair of ’. ALBO_APOS_DOUBLES=1 carries
+# the same dials onto “ ” (and " for the straight ones), so a nested quote
+# does not set a large ” beside a small ’; that is a proposal, off by default.
+#   APOS_SCALE   the whole curly mark, about its own top (the anchor CURLY_SCALE
+#                already uses), so it still hangs from the same line
+#   APOS_HEAD    the curly mark's DOT only; its top stays on the line and the
+#                tail follows the dot's centre, so the foot rises by what the
+#                radius loses
+#   APOS_TAIL    the curly tail's reach AND swing (the comma's L and W), dot kept
+#   APOS_TAIL_W  the curly tail's width, dot kept
+#   APOS_STRAIGHT_W  the straight ' 's thickness, about its own axis
+#   APOS_STRAIGHT    the straight ' as a whole, about its top
+APOS_SCALE = float(os.environ.get("ALBO_APOS_SCALE", 1.0))
+APOS_HEAD = float(os.environ.get("ALBO_APOS_HEAD", 1.0))
+APOS_TAIL = float(os.environ.get("ALBO_APOS_TAIL", 1.0))
+APOS_TAIL_W = float(os.environ.get("ALBO_APOS_TAIL_W", 1.0))
+APOS_STRAIGHT_W = float(os.environ.get("ALBO_APOS_STRAIGHT_W", 1.0))
+APOS_STRAIGHT = float(os.environ.get("ALBO_APOS_STRAIGHT", 1.0))
+APOS_DOUBLES = os.environ.get("ALBO_APOS_DOUBLES", "0") == "1"
+def _apos_straight(g, x, top, single=True):
+    """The two straight-mark dials, about the mark's axis and its top."""
+    if not (single or APOS_DOUBLES): return g
+    if APOS_STRAIGHT_W != 1.0:
+        g = aff.scale(g, xfact=APOS_STRAIGHT_W, yfact=1.0, origin=(x, top))
+    if APOS_STRAIGHT != 1.0:
+        g = aff.scale(g, xfact=APOS_STRAIGHT, yfact=APOS_STRAIGHT, origin=(x, top))
+    return g
 # ROUND 222 -- THE ITALIC'S QUOTES SIT LOWER. Owner 2026-09-18, on the round-221
 # proof: *"too much space between apostrophe and previous and next letters.
 # compare with other reference fonts."* Measured at one x-height, Albo's
@@ -557,15 +600,19 @@ def straight_quote(c, x, k=0):
         return stroke(line((x, bot), (x, top)), w, cut0=CUT, cut1=CUT)
     return stroke(line((x, bot), (x, top)), w, cut0=CUT)
 @glyph("'")
-def g_quotesingle(c): return straight_quote(c, S * 0.5)
+def g_quotesingle(c): return _apos_straight(straight_quote(c, S * 0.5), S * 0.5, CAP(c) - _qdrop())
 @glyph('"')
-def g_quotedbl(c): return _dbl(lambda dx: straight_quote(c, S * 0.5 + dx, k=1))
-def quote(c, x, up):
+def g_quotedbl(c): return _dbl(lambda dx: _apos_straight(straight_quote(c, S * 0.5 + dx, k=1), S * 0.5 + dx, CAP(c) - _qdrop(), False))
+def quote(c, x, up, single=True):
     """The curly quotes: the comma's own dot+tail (same DOT_R body as every
     other mark), turned to hang from the top instead of sitting on the
     baseline -- top of the dot flush with CAP, matching the straight
     quotes' top and body height exactly."""
+    _ap = single or APOS_DOUBLES                # 2026-09-26: the apostrophe's dials (see APOS_SCALE)
+    _hd, _tl, _tw = (APOS_HEAD, APOS_TAIL, APOS_TAIL_W) if _ap else (1.0, 1.0, 1.0)
+    _sc = CURLY_SCALE * (APOS_SCALE if _ap else 1.0)
     _r = DOT_R * QUOTE_SIZE * WF * IT_QUOTE     # round 380: IT_QUOTE; round 362: the curly pair scales with the straight; round 375: WF
+    if _hd != 1.0: _r *= _hd
     C = CAP(c) - _qdrop(); y = C - _r
     s, o = quote_sym()
     if s > 0:
@@ -574,10 +621,10 @@ def quote(c, x, up):
         # from the pen's comma taper to a straight cone from the dot's full
         # diameter at its centre to the comma's own tip width. A tail straightened
         # at the pen's width alone reads as a pin stuck in a ball (tried first).
-        a = 1.0 - s; L, Wd = COMMA_LEN, COMMA_W
+        a = 1.0 - s; L, Wd = COMMA_LEN * _tl, COMMA_W * _tl
         tail = cubic((x + ST * 0.1 * a, y - ST * 0.35 * L * a), (x + ST * 0.1 * a, y - ST * 1.05 * L),
                      (x - ST * 0.3 * Wd * a, y - ST * 1.45 * L), (x - ST * 0.6 * Wd * a, y - ST * 1.75 * L))
-        pw = pen_widths(tail, lambda t: 0.85 - 0.55 * t); tip = pw(1.0)
+        pw = pen_widths(tail, lambda t: (0.85 - 0.55 * t) * _tw); tip = pw(1.0)
         head = dot(x, y, _r) if s < 1 else PR._punch_dot(x, y, _r, "a")
         g = geom.ink([head, stroke(tail, lambda t: a * pw(t) + s * (2 * _r * 0.98 * (1 - t) + tip * t))])
         if s >= 1: g = g.convex_hull   # the drop's flanks run tangent into the round, no step at the join
@@ -585,22 +632,25 @@ def quote(c, x, up):
             g = aff.rotate(g, -float(os.environ.get("ALBO_QUOTE_SYM_TILT", 20.0)), origin=(x, y))
         if not up:
             g = aff.scale(g, xfact=-1.0, yfact=1.0, origin=(x, y))
-        return aff.scale(g, xfact=CURLY_SCALE, yfact=CURLY_SCALE, origin=(x, C)) if CURLY_SCALE != 1.0 else g
-    g = geom.ink([dot(x, y, _r), comma_tail(x, y, up, 0.85, 0.3)])
+        return aff.scale(g, xfact=_sc, yfact=_sc, origin=(x, C)) if _sc != 1.0 else g
+    if _tl != 1.0 or _tw != 1.0:
+        g = geom.ink([dot(x, y, _r), comma_tail(x, y, up, 0.85 * _tw, 0.3 * _tw, L=COMMA_LEN * _tl, W=COMMA_W * _tl)])
+    else:
+        g = geom.ink([dot(x, y, _r), comma_tail(x, y, up, 0.85, 0.3)])
     # ROUND 375 -- TOO BIG. Owner 2026-09-24: *"quotes are too big."* Measured:
     # 305 /1000 em tall against six references' 253-285 (median 262) -- round
     # 369 grew them to the TOP of the band, where the comma dials that carry
     # their tails put them. Scaled as a unit about their own top, so they
     # still hang from the same line and keep the comma's shape.
-    return aff.scale(g, xfact=CURLY_SCALE, yfact=CURLY_SCALE, origin=(x, C)) if CURLY_SCALE != 1.0 else g
+    return aff.scale(g, xfact=_sc, yfact=_sc, origin=(x, C)) if _sc != 1.0 else g
 @glyph('’')
 def g_quoteright(c): return quote(c, S * 0.7, True)
 @glyph('‘')
 def g_quoteleft(c): return quote(c, S * 0.7, False)
 @glyph('”')
-def g_quotedblright(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, True))
+def g_quotedblright(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, True, False))
 @glyph('“')
-def g_quotedblleft(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, False))
+def g_quotedblleft(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, False, False))
 # ROUND 233 -- CALLIGRAPHIC OPTIONS FOR THE HYPHEN. Owner 2026-09-18 (R53):
 # *"give me calligraphic options."* Today's hyphen is a plain bar, TH_H thick,
 # square ends, at 0.34 C. ALBO_HYPHEN_OPT picks; the en and em dashes go
