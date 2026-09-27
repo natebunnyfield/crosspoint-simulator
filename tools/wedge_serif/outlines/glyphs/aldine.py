@@ -11460,8 +11460,12 @@ if ON:
                       P(0.90, 0.045), P(1.00, 0.10)], bkeys, 1.0, tw=FIGPEN_TW)
         return geom.ink([main, base])
 
-    _F7 = os.environ.get("ALBO_IT_FIG7_PEN", "")
-    _F2 = os.environ.get("ALBO_IT_FIG2_PEN", "")
+    # ROUND 410 SHIPS 2d / 7b (owner 2026-09-26: "2d 7b win"). "off" draws
+    # the round-409 figures (the roman construction, sheared).
+    _F7 = os.environ.get("ALBO_IT_FIG7_PEN", "b")
+    _F2 = os.environ.get("ALBO_IT_FIG2_PEN", "d")
+    if _F7 == "off": _F7 = ""
+    if _F2 == "off": _F2 = ""
     if _F7:
         @glyph('7')
         def a_fig7_pen(c, _arm=_F7):
