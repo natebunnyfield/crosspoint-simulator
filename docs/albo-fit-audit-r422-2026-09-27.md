@@ -63,3 +63,21 @@ BoldItalic t 0.17, BoldItalic j 0.03.
 
 The italic 2 (both cuts), drawn by the main session as weight arms on the
 2d construction, to the owner as an options page.
+
+## The italic 2, measured and optioned (same day)
+
+`ALBO_IT_FIG2_TW` (aldine.py, default 1.0 = round 410's 2d, outline-identical,
+checked) scales the 2's widths alone. Stroke ridge median
+(`instruments/stroke_ridge.py`, unhinted, 1000 ppem), against the other nine
+figures of the cut:
+
+| | today | x1.15 | x1.30 | x1.45 | figure family median |
+|---|---|---|---|---|---|
+| Italic 2 median | 34.1 | 38.0 | 44.7 | 42.2 | ~46 (0 51, 1 63, 3 54, 4 46, 5 46, 6 35, 7 46.5, 8 44, 9 50) |
+| BoldItalic 2 median | 52.2 | 42.4 | 52.8 | 46.7 | ~78 |
+| BoldItalic 2 p90 | 94.9 | 94.0 | 105.4 | 137.6 | ~116-127 |
+
+The BoldItalic median does not track the dial (the ridge population shifts as
+strokes merge); its heavy strokes do. Page (A / G1 1.15 / G2 1.30 / G3 1.45):
+https://claude.ai/artifact/MLUPVTayFLozNikt5p2EeK. Gates: touch 0, hairs 0,
+approved 2/2; moves two, onehalf, twothirds, U+00B2, U+2082. Awaiting a pick.

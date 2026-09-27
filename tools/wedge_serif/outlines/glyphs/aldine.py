@@ -11787,6 +11787,12 @@ if ON:
                     fin1=(arm in ("a", "b", "f", "d", "e")))
         return geom.ink([bar, leg])
 
+    # 2026-09-27, the round-422 fit audit (docs/albo-fit-audit-r422-2026-09-27.md):
+    # the pen-drawn 2d reads as the lightest figure of its family (stroke -3.3
+    # sigma Italic, -2.6 BoldItalic). FIG2_TW scales the 2's widths alone,
+    # arc, neck and base together (1.0 = round 410's 2d).
+    FIG2_TW = float(os.environ.get("ALBO_IT_FIG2_TW", 1.0))
+
     def _fig2_pen(c, arm):
         P, H, W = _fig_frame(c, '2')
         # the arc starts in the c's finial and flows over the shoulder into the
@@ -11809,7 +11815,7 @@ if ON:
         }
         tail = ends.get(arm, ends["a"])
         main_pts = arc + tail
-        main = d_pen(main_pts, _nib_keys(main_pts, n=15), 1.0, tw=FIGPEN_TW, fin0=True,
+        main = d_pen(main_pts, _nib_keys(main_pts, n=15), 1.0, tw=FIGPEN_TW * FIG2_TW, fin0=True,
                      fin1=(arm in ("b", "c")))
         if arm in ("b", "c"):
             return geom.ink([main])
@@ -11821,7 +11827,7 @@ if ON:
             bkeys = [(0.00, 62), (0.10, 60), (0.30, 54), (0.50, 52), (0.70, 48),
                      (0.85, 38), (1.00, 22)]
         base = d_pen([P(0.12, -0.005), P(0.25, 0.035), P(0.50, 0.040), P(0.75, 0.030),
-                      P(0.90, 0.045), P(1.00, 0.10)], bkeys, 1.0, tw=FIGPEN_TW)
+                      P(0.90, 0.045), P(1.00, 0.10)], bkeys, 1.0, tw=FIGPEN_TW * FIG2_TW)
         return geom.ink([main, base])
 
     # ROUND 410 SHIPS 2d / 7b (owner 2026-09-26: "2d 7b win"). "off" draws
