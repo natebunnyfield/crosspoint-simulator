@@ -3334,6 +3334,8 @@ if ON:
     A_TRI_HEAD = int(os.environ.get("ALBO_ALD_A_TRI_HEAD", 0) or 0)   # 1 = the stem carries the family head (hm_head) instead of a glob or a flat top
     A_TRI_DX = float(os.environ.get("ALBO_ALD_A_TRI_DX", 0) or 0)   # shift the drawn teardrop a right inside its box, units: its bowl reaches further left than the ring's, and the spacing did not move with it (left bearing 17 against today's 29 and the o's 35)
     A_TRI_FLICK = float(os.environ.get("ALBO_ALD_A_TRI_FLICK", 0) or 0)   # the exit's reach factor for the teardrop a (0 = the a's own 0.80)
+    A_TRI_HEADCLIP = int(os.environ.get("ALBO_ALD_A_TRI_HEADCLIP", 0) or 0)   # 1 = clip the head's tip out of the counter
+    A_TRI_BRW = float(os.environ.get("ALBO_ALD_A_TRI_BRW", 0) or 0)          # weight floor on the return into the stem, x the broad (0 = the pen alone)
     A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
     def _a_tri_at(c, xs, xh, u, bow):
@@ -3373,6 +3375,18 @@ if ON:
             ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin, phi=A_TRI_PHI) for tx, ty in tans]
             m = A_TRI_SMOOTH; ws = [sum(ws[max(0, q - m):q + m + 1]) / len(ws[max(0, q - m):q + m + 1]) for q in range(len(ws))]
         n = len(ws) - 1
+        if A_TRI_BRW:
+            # owner 2026-09-27: "bottom right stroke to match other letters
+            # better" -- at a 45-degree stress the return from the round into the
+            # stem runs along the nib's edge and comes out a hairline; the d's and
+            # q's bowls meet their stems there at a medium weight. A floor of
+            # A_TRI_BRW x the broad over the return (from the round's lowest point
+            # to the stem), eased in over the first third of that run
+            lowest = min(range(n + 1), key=lambda q: cl[q][1])
+            span = max(1, n - lowest)
+            for q in range(lowest, n + 1):
+                f = min(1.0, (q - lowest) / (span / 3.0)); f = f * f * (3 - 2 * f)
+                ws[q] = max(ws[q], thick * A_TRI_BRW * f + ws[q] * (1 - f))
         # the return lands INSIDE the stem: over the last 12% the width eases
         # down to 0.9 of the stem's, or a heavy nib pokes past its right edge
         sw_ = HM_STEMW * hu; edge = xs + sw_ / 2 - 3.0
@@ -3491,7 +3505,17 @@ if ON:
                 # FAMILY's own stem head (the n's and i's entry stroke across a
                 # cut top), not by a ball
                 ht = xh + A_TRI_ASC
-                return geom.ink([bowl_, hm_stem(c, xs, 0, ht), hm_head(c, xs, ht), hm_exit(c, xs, _AEX)])
+                st_ = hm_stem(c, xs, 0, ht); hd_ = hm_head(c, xs, ht)
+                if A_TRI_HEADCLIP:
+                    # the head's tip fell INSIDE the bowl's counter and stood in it
+                    # as a spike (P2, both italics, visible at 300 px): clip the
+                    # head to the ink-or-outside region of bowl + stem, so its tip
+                    # ends on the counter's edge
+                    from shapely.geometry import Polygon as _Pg
+                    base_ = geom.ink([bowl_, st_])
+                    holes_ = [_Pg(h) for p_ in getattr(base_, "geoms", [base_]) for h in p_.interiors]
+                    for h_ in holes_: hd_ = hd_.difference(h_.buffer(1.0))
+                return geom.ink([bowl_, st_, hd_, hm_exit(c, xs, _AEX)])
             if A_TRI_GLOB:
                 # the glob IS the stem's head: the stem stops at the glob's centre,
                 # so no flat top or corner stands above the ball

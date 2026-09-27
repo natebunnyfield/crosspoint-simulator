@@ -255,3 +255,19 @@ Owner: *"N3 wins, take multiple passes matching the other letters and maximizing
 | R6 | 0.94 / 0.25 / 1.75 | 32 | 18 (**92.8, 89.4**) |
 
 Today BoldItalic: 40 (91.5, 74.4). R6's long exit widens the a and loosens the word after it. All touch 0, hairs PASS.
+
+## P2 cleanup: the head's tip, the BoldItalic counter, the bottom-right stroke (same day)
+
+Owner: *"P2 wins, take multiple pass at cleanup, especially bold italic counter and bottom right stroke to match other letters better."*
+
+Seen at 300 px beside d q o u, P2 had three faults. (1) The HEAD's tip (hm_head's entry stroke) fell inside the bowl's counter and stood in it as a spike, both italics -- the hairs gate passes it. `A_TRI_HEADCLIP` subtracts the counter (holes of bowl + stem) from the head, so the tip ends on the counter's edge. (2) The BoldItalic counter is a narrow teardrop where the d and q have ovals -- its AREA is already 0.92 of the d's (39.7k / 43.1k), so the fault is shape, not size. (3) The bottom-right return into the stem runs at 45 degrees, the nib's thin direction, and comes out a hairline where the d and q meet their stems at a medium weight. `A_TRI_BRW` floors the return's width at this x the broad, from the round's lowest point, eased over the first third (the stem-edge cap still applies).
+
+| label | what | misread It / BI | colour It / BI | counter It / BI |
+|---|---|---|---|---|
+| P2 | pick | 29 / 12 | 0.364 / 0.500 | -- / 39.7k |
+| S1 | head clip | 30 / 15 | 0.363 / 0.500 | 52.2k / 39.7k |
+| **S2** | S1 + return floor 0.50 / 0.55 | **23 / 13** | 0.369 / 0.503 | 51.7k / 39.2k |
+| S3 | S2 + rounder counter (T1 330) | 30 / 21 | 0.368 / 0.504 | 52.6k / 39.7k |
+| S4 | S2 + roundest counter (T1 335) | 36 / 36 | 0.363 / 0.497 | 54.2k / 41.3k |
+
+The rounder counters match the d's shape and read as o more (a>o 12-24 in the BoldItalic): the pointed teardrop is part of what separates this a from the o. All touch 0, hairs PASS.
