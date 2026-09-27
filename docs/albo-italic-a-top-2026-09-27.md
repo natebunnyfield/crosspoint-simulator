@@ -332,3 +332,32 @@ The d's tail (`a_d`) is not the family exit (`hm_exit`): it runs down the stem t
 | Y4 | 160 / 0.13 (longer) | 28 / 5 | 92.6, 86.5 |
 
 Italic crowded: W 61.7, Y1 64.7, **Y2 66.8**, Y3 60.3, Y4 65.1. Part of the Italic a-misread count is Vision returning the Cyrillic a (a>а), the same letterform -- not a confusion. The d's tail lifts the whole BoldItalic text's scores more than any a drawn so far. All touch 0, hairs PASS.
+
+## After round 421: the two open questions, measured (2026-09-27)
+
+Round 419 left two things flagged: the Italic a lighter than the d, and a small
+spur on its counter's top-left. Measured on the round-421 build.
+
+**Weight** (`instruments/a_fit.py`, Italic, only `ALBO_ALD_A_TRI_W` moved; no
+code change, the dial exists):
+
+| W | a colour | counter / d's |
+|---|---|---|
+| 1.25 (today, W1) | 0.315 | 0.91 |
+| 1.35 | 0.327 | 0.88 |
+| 1.40 | 0.333 | 0.86 |
+| 1.45 | 0.338 | 0.85 |
+| 1.55 | 0.349 (= d) | 0.82 |
+
+(n 0.308, o 0.344, d 0.349.) THIN 1.15 alone moves colour only to 0.320.
+W1 measured 0.351-0.359 before the d's tail replaced the exit (section "W1 /
+W3 with the d's flat tail"); the tail took the difference. Page with A / B1
+(1.40) / B2 (1.55): https://claude.ai/artifact/TJaKdDvYsjdCNAdHNCCQ49. Gates on
+B1/B2: touch 0, approved 2/2.
+
+**The spur** (albo_bumps #98, (171,350)) is a 20-degree kink on the counter's
+top-left where the bowl's top edge meets the round (outline points (164,321)
+(171,331) (178,341) (188,348)). `A_TRI_SMR` 4 -> 8 leaves 16 degrees,
+`A_TRI_DIRSM` 14 -> 20 leaves 17; SMR 12 merged the contours. Sub-visible at
+reading size; left. The other two a findings (#96 spur, #97 notch) are the d's
+own tail spur and notch, carried on purpose in round 419.
