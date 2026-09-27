@@ -200,3 +200,19 @@ Owner: *"reshape H2 until it is readable by you and me. it needs make a strong w
 J1 is both more legible to OCR and lighter / more open than H2. v4's bowl: W 1.25, THIN 1.00, RX 0.43, RY 0.36 (Italic).
 
 BoldItalic, where the glob works the other way (misread): today 40, H2 24, **K1 (H1's shape) 14**, K2 = K1 lightened to the d's colour (W 1.00, THIN 0.95, RX 0.43, RY 0.38, GLOB 0.85, HEEL 0.70; colour 0.500, counter 36.5k) 17, K3 20.
+
+## No globs: thick and thin matched to the o (same day)
+
+Owner, on J1-J3 / K1-K3: *"those all suck because they look amateurish with the globs. try again with the goal of appropriate thick and thin."*
+
+Targets, ridge widths (2 x distance transform at its local maxima, `instruments/stroke_ridge.py` on fonts, `instruments/a_ridge_eval.py` on the upright geometry): the o is the reference -- Italic o hairline 20.9 / thick 66.2 upright (22.4 / 84.1 in the built font, sheared), BoldItalic o 29.7 / 97.7; Flanker's a 25.3 / 80.6. The bowl's own four widths (the `A_TRI_DEBUG` line):
+
+| label | Italic top-left / bottom-right / left side / bottom | settings |
+|---|---|---|
+| L1 | 20.8 / 20.7 / 65.7 / 63.4 -- the o's | W 1.65, THIN 1.0, PHI 45 (BI: W 1.40, THIN 0.9 -> 32.2 / 30.6 / 98.4) |
+| L2 | 20.2 / 21.7 / 71.6 / 68.5 | W 1.80 (more contrast) |
+| L3 | 28.7 / 32.0 / 73.0 / 54.3 | PHI 35 (stress more upright) |
+| L4 | as L1 | L1 without the join weight |
+| M2 | as L1 | L1 + `A_TRI_HEAD` (the family's hm_head entry stroke across a cut stem top) at ASC 12 |
+
+**OCR vs eye.** Vision misreads (Italic / BoldItalic): today 88 / 40; H2 (globs) 25 / 24; L1 56 / 67; L2 140 / 112; L3 53 / 76; L4 89 / 72; M1 (head at xh) 86 / 72; **M2 53 / 62**; M3 (join lowered to 0.72) 95 / 125. Without globs the a is read as o and, in the BoldItalic, as e (a>e 38-96) -- the globs were carrying its identity for the OCR. To my eye L1 and M2 are the cleanest word images of the series (even colour, no knot, the stem entry shared with n and i); the OCR ranks them below the globs and, in the BoldItalic, below today. Not resolved by measurement; the owner's eye decides.

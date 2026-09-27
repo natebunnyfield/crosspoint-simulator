@@ -3331,6 +3331,7 @@ if ON:
     A_TRI_T1 = float(os.environ.get("ALBO_ALD_A_TRI_T1", 0) or 352.0)   # where the return leaves the round, degrees; earlier (smaller) opens the cutout under the bottom join
     A_TRI_KY = float(os.environ.get("ALBO_ALD_A_TRI_KY", 0) or 0.08)    # how far above the round's end the return enters the stem, x xh
     A_TRI_DIRSM = int(os.environ.get("ALBO_ALD_A_TRI_DIRSM", 0) or 0)   # smooth the pen's DIRECTION over +/- this many samples instead of averaging widths (0 = the width average)   # the stem stands this many units above the o's top, over the glob (0 = the glob is the top)
+    A_TRI_HEAD = int(os.environ.get("ALBO_ALD_A_TRI_HEAD", 0) or 0)   # 1 = the stem carries the family head (hm_head) instead of a glob or a flat top
     A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
     def _a_tri_at(c, xs, xh, u, bow):
@@ -3469,6 +3470,14 @@ if ON:
         # two overlapping shapes at the top right.
         if A_TRI in ("wdg", "dro", "rnd", "mid", "fit", "opn", "con", "trg"):
             bowl_ = _a_tri(c, xs, xh, u)
+            if A_TRI_HEAD and not A_TRI_GLOB:
+                # owner 2026-09-27, on the glob options: "those all suck because
+                # they look amateurish with the globs. try again with the goal of
+                # appropriate thick and thin" -- the a's identity carried by the
+                # FAMILY's own stem head (the n's and i's entry stroke across a
+                # cut top), not by a ball
+                ht = xh + A_TRI_ASC
+                return geom.ink([bowl_, hm_stem(c, xs, 0, ht), hm_head(c, xs, ht), hm_exit(c, xs, 'a')])
             if A_TRI_GLOB:
                 # the glob IS the stem's head: the stem stops at the glob's centre,
                 # so no flat top or corner stands above the ball
