@@ -552,3 +552,17 @@ ruling stops arm work; they are corrected here.
 
 - *"for y, i do not see a difference"* — the four tail arms (geo at 0.33 and 0.50, hoe, alb) are sub-visible at reading size in both cuts. None ships; a y tail change must be large enough to see at 54 px before it is offered again.
 - *"bold y needs to have a baseline cutout on the left stroke like regular"* — the Regular y shows a cut/notch where the left diagonal meets the tail at the baseline; the Bold y has none. A defect to fix in the Bold (see its construction in `diagonals.py` g_y and the Bold-only behavior).
+
+## Roman s, visible arms (2026-09-26, after "always show me")
+
+The first arms (geo / pal / ARM_K 1.3) only moved the hairline, 4-9 units --
+invisible at 54 px, recorded as a negative result. Redrawn so each is visible
+at reading size, `ALBO_ROM_S_ARM` (default `a`, today):
+
+| arm | what | gates (Regular, Bold) |
+|---|---|---|
+| evn | traced, both halves of the finding: the o's hairline (0.97) AND the spine capped at 0.82 of the pen's max (`ALBO_ROM_S_EVEN_CAP`) | touch 0, hairs 0 |
+| opn | original: 8% wider (`ALBO_ROM_S_OPEN_W`), upper bowl let out to 0.97 (`ALBO_ROM_S_OPEN_UP`) | touch 0, hairs 0 |
+| bek | original, Albertus: a wedge beak on each end face, 0.13 xh (`ALBO_ROM_S_BEAK`) | touch 0, hairs 0 |
+
+Built from the round 413 tree; sheet in the session scratchpad `rs/s.png`.

@@ -701,11 +701,12 @@ def g_s(c):
     the pen widths are averaged over +/- S_SMOOTH x the stem of path
     (`_smooth_widths`, before the finials) -- 0.35 leaves the nubs, 0.6
     clears both; the 400 and the 200 keep the pen's own widths."""
-    xh = c["xh"]; wf = c["wf"]; w = 370 * wf; o = OVER - TH_H / 2
+    xh = c["xh"]; wf = c["wf"]; w = 370 * wf * (S_OPEN_W if S_ARM == "opn" and not pen.ITALIC else 1.0); o = OVER - TH_H / 2
+    _up = S_OPEN_UP if S_ARM == "opn" and not pen.ITALIC else S_UP
     _ax = w * 0.50   # round 285: the upper bowl's two points reach toward this axis by S_UP
     _wq = S_WAIST * 0.35   # round 286: the two points either side of the waist move a third as far
     pts = [(w * S_HEAD_X, xh * S_HEAD_Y), (w * 0.62, xh + o * S_OVER),
-           (_ax + (w * 0.20 - _ax) * S_UP, xh * (0.86 + _wq)), (_ax + (w * 0.22 - _ax) * S_UP, xh * (0.60 + S_WAIST)),
+           (_ax + (w * 0.20 - _ax) * _up, xh * (0.86 + _wq)), (_ax + (w * 0.22 - _ax) * _up, xh * (0.60 + S_WAIST)),
            (w * S_MID[0], xh * (S_MIDY[0] + S_WAIST)), (w * S_MID[1], xh * (S_MIDY[1] + _wq)), (w * 0.42, -o * 0.9), (w * S_FOOT_X, xh * 0.19)]
     spine = catmull(pts, tension=S_TENS)
     if PR.BOWL and PR.BOWL.get('widen'):
@@ -721,7 +722,10 @@ def g_s(c):
     def _mk(he):
         wf_ = PR.finial_widths(foot, True, floor=0.0, swell=he * foot(1.0) / foot(0.0), span=S_HEAD_SPAN)
         return stroke(spine, wf_, cut0=c0, cut1=c1), spine[0], spine[-1], wf_(0.0), wf_(1.0)
-    return geom.ink([_mk(s_head_end(_mk))[0]])
+    body = _mk(s_head_end(_mk))
+    if S_ARM == "bek" and not pen.ITALIC:
+        return geom.ink([body[0]] + _s_beaks(body, xh))
+    return geom.ink([body[0]])
 
 # THE ROMAN s's HAIRLINE, OPTIONS -- 2026-09-26, the poor-characters pass
 # (docs/albo-poor-characters-2026-09-26.md). The fit audit: Regular s F 2.56,
@@ -741,14 +745,44 @@ def g_s(c):
 #   bwl  original: the s ON THE BOWL PROFILE -- its widths read from the same
 #        profile the o and the c are (PR.bowl_widths) instead of the pen, so
 #        the round family is one construction
+#   evn  traced, BOTH halves of the finding: geo's hairline AND the spine
+#        capped at S_EVEN_CAP x the pen's own maximum, so the median lands
+#        in the references' 0.54-0.77 of the o's instead of 0.84
+#   opn  original: the letter S_OPEN_W wider and the upper bowl let out to
+#        S_OPEN_UP (round 286's 0.88 drew it in), apertures visibly open
+#   bek  original, Albertus: a wedge BEAK dropped from the head's face and
+#        raised from the foot's -- the face's own wedge serif, S_BEAK x the
+#        x-height long
 S_ARM = os.environ.get("ALBO_ROM_S_ARM", "a")
-if S_ARM not in ("a", "geo", "pal", "bwl"): S_ARM = "a"
+if S_ARM not in ("a", "geo", "pal", "bwl", "evn", "opn", "bek"): S_ARM = "a"
+S_EVEN_CAP = float(os.environ.get("ALBO_ROM_S_EVEN_CAP", 0.82))
+S_OPEN_W = float(os.environ.get("ALBO_ROM_S_OPEN_W", 1.08))
+S_OPEN_UP = float(os.environ.get("ALBO_ROM_S_OPEN_UP", 0.97))
+S_BEAK = float(os.environ.get("ALBO_ROM_S_BEAK", 0.13))
 
 def _s_arm_base(spine):
     o_hair = PR.bowl_th((1.0, 0.0))
     if S_ARM == "bwl":
         return PR.bowl_widths(spine, None, floor=S * S_FLOOR)
-    return pen_widths(spine, None, floor={"geo": 0.97, "pal": 0.85}[S_ARM] * o_hair)
+    if S_ARM in ("opn", "bek"):
+        return pen_widths(spine, None, floor=S * S_FLOOR)
+    _k = float(os.environ.get("ALBO_ROM_S_ARM_K", 0) or {"geo": 0.97, "pal": 0.85, "evn": 0.97}[S_ARM])
+    f = pen_widths(spine, None, floor=_k * o_hair)
+    if S_ARM != "evn":
+        return f
+    top = max(f(i / 200) for i in range(201)) * S_EVEN_CAP
+    return lambda t: min(f(t), top)
+
+def _s_beaks(body, xh):
+    """The head's face runs down into a wedge and the foot's up into one:
+    a triangle on each end face, base the face's width, apex S_BEAK x the
+    x-height past it, leaning toward the letter's outside."""
+    from shapely.geometry import Polygon
+    _, p0, p1, w0, w1 = body
+    L = S_BEAK * xh
+    head = Polygon([(p0[0] - w0 * 0.30, p0[1] + w0 * 0.10), (p0[0] + w0 * 0.30, p0[1] + w0 * 0.10), (p0[0] + w0 * 0.22, p0[1] - L)])
+    foot = Polygon([(p1[0] + w1 * 0.30, p1[1] - w1 * 0.10), (p1[0] - w1 * 0.30, p1[1] - w1 * 0.10), (p1[0] - w1 * 0.22, p1[1] + L)])
+    return [head, foot]
 
 def s_head_end(make, target=None, lo=0.80, hi=1.00, steps=9):
     """ROUND 284 -- how much smaller the s's HEAD is than its FOOT, solved
