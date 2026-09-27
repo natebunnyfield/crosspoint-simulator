@@ -3332,6 +3332,8 @@ if ON:
     A_TRI_KY = float(os.environ.get("ALBO_ALD_A_TRI_KY", 0) or 0.08)    # how far above the round's end the return enters the stem, x xh
     A_TRI_DIRSM = int(os.environ.get("ALBO_ALD_A_TRI_DIRSM", 0) or 0)   # smooth the pen's DIRECTION over +/- this many samples instead of averaging widths (0 = the width average)   # the stem stands this many units above the o's top, over the glob (0 = the glob is the top)
     A_TRI_HEAD = int(os.environ.get("ALBO_ALD_A_TRI_HEAD", 0) or 0)   # 1 = the stem carries the family head (hm_head) instead of a glob or a flat top
+    A_TRI_DX = float(os.environ.get("ALBO_ALD_A_TRI_DX", 0) or 0)   # shift the drawn teardrop a right inside its box, units: its bowl reaches further left than the ring's, and the spacing did not move with it (left bearing 17 against today's 29 and the o's 35)
+    A_TRI_FLICK = float(os.environ.get("ALBO_ALD_A_TRI_FLICK", 0) or 0)   # the exit's reach factor for the teardrop a (0 = the a's own 0.80)
     A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
     def _a_tri_at(c, xs, xh, u, bow):
@@ -3469,6 +3471,18 @@ if ON:
         # only pokes a spike through the shoulder". That spike is what read as
         # two overlapping shapes at the top right.
         if A_TRI in ("wdg", "dro", "rnd", "mid", "fit", "opn", "con", "trg"):
+            from shapely import affinity as _aff
+            return _aff.translate(_a_tri_glyph(c, xs, xh, u), A_TRI_DX * u, 0)
+        return _a_ring_glyph(c, xs, xh, u, bowl_)
+
+    def _a_ring_glyph(c, xs, xh, u, bowl_):
+        return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, 'a')])
+
+    def _a_tri_glyph(c, xs, xh, u):
+        _AEX = 'a'
+        if A_TRI_FLICK:   # owner 2026-09-27: "more of a bottom right flick" -- the a's exit at this x the family reach (the a ships 0.80)
+            HM_EXIT_BY['a_tri'] = A_TRI_FLICK; _AEX = 'a_tri'
+        if True:
             bowl_ = _a_tri(c, xs, xh, u)
             if A_TRI_HEAD and not A_TRI_GLOB:
                 # owner 2026-09-27, on the glob options: "those all suck because
@@ -3477,15 +3491,15 @@ if ON:
                 # FAMILY's own stem head (the n's and i's entry stroke across a
                 # cut top), not by a ball
                 ht = xh + A_TRI_ASC
-                return geom.ink([bowl_, hm_stem(c, xs, 0, ht), hm_head(c, xs, ht), hm_exit(c, xs, 'a')])
+                return geom.ink([bowl_, hm_stem(c, xs, 0, ht), hm_head(c, xs, ht), hm_exit(c, xs, _AEX)])
             if A_TRI_GLOB:
                 # the glob IS the stem's head: the stem stops at the glob's centre,
                 # so no flat top or corner stands above the ball
                 gy = A_TRI_OTOP * u - A_TRI_GLOB * HM_STEMW * hm_u(c)
                 if A_TRI_ASC:   # owner 2026-09-27: "the bigger glob wins but needs a small ascender"
                     gy = A_TRI_OTOP * u + A_TRI_ASC
-                return geom.ink([bowl_, hm_stem(c, xs, 0, gy, cut=False), hm_exit(c, xs, 'a')])
-        return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, 'a')])
+                return geom.ink([bowl_, hm_stem(c, xs, 0, gy, cut=False), hm_exit(c, xs, _AEX)])
+            return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, _AEX)])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.

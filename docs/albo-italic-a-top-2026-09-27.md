@@ -234,3 +234,24 @@ Owner: *"variants of M2 and other L1 with better xheight and word image use."*
 | (N5) | join 0.95, bias 0.65 | 19.9 | dropped |
 
 BoldItalic: raising the join makes it read as e (N1, N2: a>e 84-92); no teardrop BoldItalic yet beats today's round a (40). All touch 0, hairs PASS.
+
+## N3 matched to its neighbours; straight profile and flick (same day)
+
+Owner: *"N3 wins, take multiple passes matching the other letters and maximizing word image"*, then mid-pass: *"make several versions with more of a bottom right flick and a near straight profile line like N1 or N4 top left did."*
+
+**Pass 1 (N3 against its neighbours):** Italic colour 0.390 vs d 0.349, counter 0.82 of the d's; BoldItalic 0.541 vs 0.481, counter 0.71, heavy p90 150 vs the d's 118 -- both too dark and closed. Left bearing 17 against today's 29 and the o's 35.
+**Pass 2 (lighter):** P2 (Italic W 1.40, THIN 0.95, RY 0.37; BoldItalic W 1.10, THIN 0.85, RY 0.40): misread **29 / 12** (N3 60 / 58; today 88 / 40) -- the first teardrop BoldItalic to beat today's.
+**The bearing was a non-problem.** `A_TRI_DX` (shift the drawing inside its box) changed nothing: the build sets the left bearing off the ink's bounding box (`build.py` ~1042, `capbear * A_LEFT + 17` + the B2 adjustment), so a shift is normalised away. The low 17 is the bbox's pointed lower-left, not crowding: `instruments/pair_white.py` (mean white across 0.15-0.85 xh, HarfBuzz-shaped) gives P2 7-8 units MORE white than today on the a's left (na da oa ua ea ra) and the same on its right. No spacing change needed; the dial stays inert.
+**Pass 3 (around P2):** Italic Q1-Q4 all worse (32-47); BoldItalic Q2 (W 1.10, THIN 0.78) 9.
+**Straight profile + flick.** `A_TRI_BIAS` down (0.45 / 0.35 / 0.25) and the join up (0.92-0.94) with `A_TRI_TOPFIT` 0 straightens the top-left the way N1/N4 did; it also removed a nick on the counter's top edge that P2's bowed top had where the bowl met the head's tip (the hairs gate passes it -- under its thresholds -- but it is visible at 4x). `A_TRI_FLICK` sets the teardrop a's exit reach (the a ships 0.80 of the family's):
+
+| label | JY / BIAS / FLICK | Italic misread | BoldItalic misread (grand, crowded) |
+|---|---|---|---|
+| R1 | 0.92 / 0.45 / 1.25 | 24 | 15 (92.0, 80.8) |
+| **R2** | 0.92 / 0.35 / 1.50 | **16** | 17 (92.4, 84.0) |
+| R3 | 0.94 / 0.25 / 1.50 | 28 | 19 (92.4, 83.8) |
+| R4 | 0.92 / 0.35 / 1.25 | 36 | 15 (92.0, 80.9) |
+| R5 | 0.94 / 0.25 / 1.25 | 38 | 16 (92.4, 84.6) |
+| R6 | 0.94 / 0.25 / 1.75 | 32 | 18 (**92.8, 89.4**) |
+
+Today BoldItalic: 40 (91.5, 74.4). R6's long exit widens the a and loosens the word after it. All touch 0, hairs PASS.
