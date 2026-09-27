@@ -216,3 +216,21 @@ Targets, ridge widths (2 x distance transform at its local maxima, `instruments/
 | M2 | as L1 | L1 + `A_TRI_HEAD` (the family's hm_head entry stroke across a cut stem top) at ASC 12 |
 
 **OCR vs eye.** Vision misreads (Italic / BoldItalic): today 88 / 40; H2 (globs) 25 / 24; L1 56 / 67; L2 140 / 112; L3 53 / 76; L4 89 / 72; M1 (head at xh) 86 / 72; **M2 53 / 62**; M3 (join lowered to 0.72) 95 / 125. Without globs the a is read as o and, in the BoldItalic, as e (a>e 38-96) -- the globs were carrying its identity for the OCR. To my eye L1 and M2 are the cleanest word images of the series (even colour, no knot, the stem entry shared with n and i); the OCR ranks them below the globs and, in the BoldItalic, below today. Not resolved by measurement; the owner's eye decides.
+
+## X-height and word image: variants of M2 and L1 (same day)
+
+Owner: *"variants of M2 and other L1 with better xheight and word image use."*
+
+**The x-height finding** (`instruments/a_xband.py`: ink in the band 0.85-1.05 xh over the letter's ink width, upright): L1's top band held 17.9 against o 23.6, d 25.3, n 22.3, u 20.8, e 26.1 (today's a 28.6), and its top was the STEM at 429 -- the bowl never reached the o's line (436). Cause: without a glob the bowl joins the stem at 0.82 xh, and the bow solver's range (-0.05..0.40) could not lift the top that far, so it stopped at the cap silently. Range widened to 0.90; with the join raised to 0.92 xh every variant's top lands at 436-437 and the band holds 27.6-28.4.
+
+| label | what | band | Vision misread It / BI |
+|---|---|---|---|
+| M2 | last round | 21.1 | 53 / 62 |
+| N1 | M2, head at the n's height, join 0.92 | 27.9 | 58 / 125 |
+| N2 | N1 + ascender 8 | 28.2 | 52 / 120 (grand 87.2, crowded 71.0: best) |
+| N3 | N2, join 0.88, bowl 4 over the line, bias 0.65 | 27.6 | 60 / **58** |
+| N4 | L1 (flat stem top), join 0.92 | 28.0 | 81 / 75 |
+| N6 | N4 + heavier top hairline (THIN 1.25 / 1.12) | 28.4 | **46** / 80 |
+| (N5) | join 0.95, bias 0.65 | 19.9 | dropped |
+
+BoldItalic: raising the join makes it read as e (N1, N2: a>e 84-92); no teardrop BoldItalic yet beats today's round a (40). All touch 0, hairs PASS.

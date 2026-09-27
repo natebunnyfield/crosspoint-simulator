@@ -3417,7 +3417,7 @@ if ON:
                 _gx = (xs + HM_STEMW * hm_u(c) * 0.5 - gr - 1.0) if A_TRI_ASC else (xs - HM_STEMW * hm_u(c) * 0.10)
                 g0 = g0.intersection(box(-1e4, -1e4, _gx - gr * 1.05, 1e4))
             return g0.bounds[3]
-        lo, hi = -0.05, 0.40
+        lo, hi = -0.05, 0.90   # 0.40 capped the bowl below the o's line when the join sits low (no glob) -- measured: L1's top 429, not 436
         for _ in range(22):
             mid = (lo + hi) / 2
             if top_of(mid) < target: lo = mid
