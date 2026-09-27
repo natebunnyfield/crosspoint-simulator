@@ -152,3 +152,31 @@ Owner: *"reread my prompt, you went the wrong way with it and the little cutout 
 | G4 | 0.38 / 315 / 0.22 / 0.70 |
 
 Common: E1's (THIN 1.20 Italic / 1.10 BoldItalic, GLOB 0.85, ASC 35, PHI 45, DIRSM 8). All touch 0, hairs PASS.
+
+## Globby for word legibility: three passes on G4, measured by OCR (same day)
+
+Owner: *"G4 wins but take multiple passes at making it globby in a way that helps legibility of words"*. Measure: the Kept Legibility Index v3.1 (github.com/JessieSalas/kept-legibility-index at `aff8fb3`, re-cloned; `ocr/visionocr` built from `visionocr.swift`), run through `etrace/kli_e.py` on the session venv (uharfbuzz), 22 s a run; `instruments/a_kli.py` reduces it to the a's confusions (a read as x, x read as a). The index calls a grand difference under about a point a tie; `crowded` moves several points between runs of the same font.
+
+**The finding that drove all three passes: G4 is read as d.** Italic, Apple Vision:
+
+| font | grand | crowded | a misread | top | read as a |
+|---|---|---|---|---|---|
+| today | 86.1 | 59.3 | 88 | a>o 34, a>e 22, a>u 19 | 102 |
+| G4 | 86.4 | 64.7 | **116** | **a>d 88** | 100 |
+
+The 35-unit ascender over the glob is a d's ascender at reading size.
+
+- **Pass 1, the ascender.** 20: 50 misreads; **10: 36**; 0: 48 (a>d 15 -- with no stem above, the glob itself reads as a d's shoulder); 0 with a bigger glob: 52.
+- **Pass 2, glob and heel at ascender 10.** Globbier helps: glob 1.00 + heel 0.90: **25** (read-as-a 94); heel 0.90 alone 31; glob 1.00 alone 33; glob 0.70 36; heel 0.55 41.
+- **Pass 3.** glob 1.15 + heel 1.10: 26 (read-as-a 92, the fewest; grand 86.8, crowded 65.7); ascender 5: 24; ascender 15: 27; the wider cutout (RX 0.36): 28. A plateau near 25.
+- **Second reader.** Tesseract 5 on the same images (`--tess`): no a confusion in any candidate's top eight; i>a 68-80 across all, the drawing's i, not the a.
+- **BoldItalic reverses the glob.** today 40, **H1 14**, H4 19, H2 24, H3 28: the heavier glob reads as a d at the bold weight. The best glob is per weight.
+
+| label | ASC / GLOB / HEEL | Italic a-misread | BoldItalic a-misread |
+|---|---|---|---|
+| H1 | 10 / 0.85 / 0.70 | 36 | 14 |
+| H2 | 10 / 1.00 / 0.90 | 25 | 24 |
+| H3 | 10 / 1.15 / 1.10 | 26 | 28 |
+| H4 | 5 / 1.00 / 0.90 | 24 | 19 |
+
+Common: G4's (RX 0.38, T1 315, KY 0.22, THIN 1.20 / 1.10, PHI 45, DIRSM 8, BIAS 0.55). All touch 0, hairs PASS.
