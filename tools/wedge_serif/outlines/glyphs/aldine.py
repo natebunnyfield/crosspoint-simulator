@@ -3922,7 +3922,8 @@ if ON:
     #        width profile is scaled by R_SHO_K, solved so the arm's ink over
     #        the shoulder window equals the n's (instruments/r_sho_balance.py)
     R_SHO_K = float(os.environ.get("ALBO_ALD_R_SHO_K") or 0) or (0.95 if S <= 84.0 else 1.00)   # solved 2026-09-27: arm ink = the n's shoulder ink (Italic r/n 1.000 at 0.948, BoldItalic 0.999 at 1.0)
-    R_SHO_END = float(os.environ.get("ALBO_ALD_R_SHO_END", 2.1))   # sho's end weight, x the arch hairline (2.1 = today's terminal)
+    R_SHO_END = float(os.environ.get("ALBO_ALD_R_SHO_END", 2.1))
+    R_SHO_CON = float(os.environ.get("ALBO_ALD_R_SHO_CON", 0.0))   # 0 = the balanced line; 1 = full contrast   # sho's end weight, x the arch hairline (2.1 = today's terminal)
     R_ARC_END = float(os.environ.get("ALBO_ALD_R_ARC_END", 2.0))   # arc's end weight, x the arch hairline (2.0 as first drawn)
     R_OPT = os.environ.get("ALBO_ALD_R_OPT", "a")
     if R_OPT not in ("a", "geo", "fla", "arc", "hvy", "lng", "sho"): R_OPT = "a"
@@ -3938,7 +3939,9 @@ if ON:
             arm = catmull(K, tension=0.5)
             k = R_SHO_K
             e = R_SHO_END   # owner 2026-09-27, "serif on right is too thin for both"
-            prof = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k), (0.42, t * k), (0.72, t * (1.25 * k + (e - 2.1) * 0.30)), (1.00, t * e)])
+            cn = R_SHO_CON   # owner 2026-09-27, "3x is good but have line contrast": thinner climb, fuller swell into the end
+            prof = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k * (1 - 0.25 * cn)), (0.42, t * k * (1 - 0.35 * cn)),
+                           (0.72, t * (1.25 * k + (e - 2.1) * 0.30) * (1 + 0.30 * cn)), (1.00, t * e)])
             return stroke(arm, PR.finial_widths(prof, False, floor=fin_floor()), cut1=PR.finial_cut(arm, False))
         if R_OPT == "arc":
             K = [(0.0, HM_SPRING)] + HM_ARCH_K + [(0.880, 0.905)]
