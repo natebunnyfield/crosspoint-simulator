@@ -305,7 +305,7 @@ def g_r(c):
 # terminal 53.5 against the o's 73.6 at the 400, 80.7 against 127.2 at the 700,
 # inscribed-circle diameters, instruments/r_terminal_solve.py). A larger swell
 # over a longer span (R_TERM_SPAN) -- a floor on the end alone moved it 0.5 units.
-R_TERM = float(os.environ.get("ALBO_ROM_R_TERM") or 0)
+R_TERM = float(os.environ.get("ALBO_ROM_R_TERM") or (1.7 if S <= 84.0 else 0))   # round 417, owner "about 1 for roman and .64 for bold": 1.7 lands the Regular terminal at 1.002 of the o; the Bold already reads 0.635 (today)
 R_TERM_SPAN = float(os.environ.get("ALBO_ROM_R_TERM_SPAN") or 0.35)
 FOOT_R = 0.85   # round 92: the r's feet, x the family's foot length
 R_REACH, R_FLOOR, R_FLARE = 190, 0.72, 1.35   # round 94: was 205, 0.78, 1.5

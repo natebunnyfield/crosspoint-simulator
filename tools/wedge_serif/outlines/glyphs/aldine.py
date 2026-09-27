@@ -3922,10 +3922,10 @@ if ON:
     #        width profile is scaled by R_SHO_K, solved so the arm's ink over
     #        the shoulder window equals the n's (instruments/r_sho_balance.py)
     R_SHO_K = float(os.environ.get("ALBO_ALD_R_SHO_K") or 0) or (0.95 if S <= 84.0 else 1.00)   # solved 2026-09-27: arm ink = the n's shoulder ink (Italic r/n 1.000 at 0.948, BoldItalic 0.999 at 1.0)
-    R_SHO_END = float(os.environ.get("ALBO_ALD_R_SHO_END", 2.1))
+    R_SHO_END = float(os.environ.get("ALBO_ALD_R_SHO_END") or (5.7 if S <= 84.0 else 2.1))   # round 417: 5.7 = 1.16 x the o in the Italic
     R_SHO_CON = float(os.environ.get("ALBO_ALD_R_SHO_CON", 0.0))   # 0 = the balanced line; 1 = full contrast   # sho's end weight, x the arch hairline (2.1 = today's terminal)
     R_ARC_END = float(os.environ.get("ALBO_ALD_R_ARC_END", 2.0))   # arc's end weight, x the arch hairline (2.0 as first drawn)
-    R_OPT = os.environ.get("ALBO_ALD_R_OPT", "a")
+    R_OPT = os.environ.get("ALBO_ALD_R_OPT", "sho" if S <= 84.0 else "a")   # round 417: sho ships in the Italic (owner: "1.16 for italic"); the BoldItalic keeps today pending its own pick
     if R_OPT not in ("a", "geo", "fla", "arc", "hvy", "lng", "sho"): R_OPT = "a"
 
     def _r_arm(c, x0, P, sw, t, xh):
