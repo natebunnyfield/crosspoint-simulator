@@ -4301,7 +4301,7 @@ if ON:
     #        them on the pen the owner chose
     # The f shares the fault (1.27 i) but is not flagged (F 0.64) and was not
     # asked about: it is left alone and named in the doc as a suggestion.
-    JT_OPT = os.environ.get("ALBO_ALD_JT_OPT", "a")
+    JT_OPT = os.environ.get("ALBO_ALD_JT_OPT", "nib")   # ROUND 411: owner 2026-09-26 "same nib" ("a" = round 410)
     if JT_OPT not in ("a", "trc", "nib"): JT_OPT = "a"
     def _jt_k(ch):
         if JT_OPT == "nib": return ALD_NIB
