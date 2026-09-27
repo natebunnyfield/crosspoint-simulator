@@ -753,7 +753,7 @@ def g_s(c):
 #   bek  original, Albertus: a wedge BEAK dropped from the head's face and
 #        raised from the foot's -- the face's own wedge serif, S_BEAK x the
 #        x-height long
-S_ARM = os.environ.get("ALBO_ROM_S_ARM", "a")
+S_ARM = os.environ.get("ALBO_ROM_S_ARM", "geo")   # round 414: geo ships (owner: "traced Georgia/Charter: hairline = the o's hairline wins")
 if S_ARM not in ("a", "geo", "pal", "bwl", "evn", "opn", "bek"): S_ARM = "a"
 S_EVEN_CAP = float(os.environ.get("ALBO_ROM_S_EVEN_CAP", 0.82))
 S_OPEN_W = float(os.environ.get("ALBO_ROM_S_OPEN_W", 1.08))
