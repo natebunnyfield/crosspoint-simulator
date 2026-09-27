@@ -2275,6 +2275,15 @@ EIGHT_OPT_IT['y'] = EIGHT_OPT_IT['z'] = EIGHT_OPT_IT['x']
 # 0.30 ("ALBO_8_NIB": "1.03,0.30,0" on the roman builds), which is option z
 # exactly. The italic keeps its x -- the pick was roman only.
 FIG_SHIP_ROM.update({'8': 'z'})
+# ROUND 407, owner ruling 2026-09-26 on round 406's sheet: *"2 from q + 7 from
+# p"* wins for the ROMAN -- the 2 traced from Hoefler Text (TWO_TRACE_ROM 'q':
+# Palatino's oblique axis on a lighter slash and base) and the 7 traced from
+# Palatino (SEVEN_TRACE_ROM 'p': the leg swelling toward the foot, the long
+# beak). Regular and Bold share this dict; the italic is untouched. Accepted
+# with its measured cost: the roman 7 reads ~15% lighter by color than the
+# other figures (-15% against today's -5%, cmp_weight_survey), which the
+# references' 7s also do. docs/albo-round-407-2026-09-26.md.
+FIG_SHIP_ROM.update({'2': 'q', '7': 'p'})
 
 @glyph('8')
 def g_eight(c, _ovl=None, _pass=0):

@@ -59,6 +59,16 @@ other reference fonts, both roman and italic"*.
   - Regular and BoldItalic are unchanged in count (14, 6);
   - every gate is clean in all four cuts.
 
+## Owner ruling, 2026-09-26
+
+- **Roman:** *"\* 2 from q + 7 from p"* wins. It shipped as round 407
+  ([albo-round-407-2026-09-26.md](albo-round-407-2026-09-26.md)):
+  `FIG_SHIP_ROM` 2 → `q` and 7 → `p`, in Regular and Bold. The roman 7 reads
+  about 15% lighter by color than the other figures (−15% against −5% before),
+  and he accepted that.
+- **Italic:** *"need variations on p"* (Palatino Italic). These are round 408,
+  in the section at the end of this file.
+
 ---
 
 ## 1. The references and what "tracing" means here
