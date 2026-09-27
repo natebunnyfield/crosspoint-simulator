@@ -270,4 +270,16 @@ the bearings follow the ink.
 
 ## 9. Owner picks
 
-(awaiting)
+**RULED 2026-09-26**, on one image of the recommendation (today against HEAD
+0.85 / STRAIGHT_W 0.75, roman and italic, curly and straight): *"yes to
+everything but the straight italic apostrophe. make it match the style
+better."*
+
+- `ALBO_APOS_HEAD` **0.85** is the default in every cut.
+- `ALBO_APOS_STRAIGHT_W` **0.75** is the default in the ROMAN cuts only
+  (`1.0 if pen.ITALIC else 0.75`). The italic straight `'` is unchanged until a
+  redraw is picked (§10).
+- `ALBO_APOS_DOUBLES` stays off.
+- Shipped as **round 403** (`docs/albo-round-403-2026-09-26.md`).
+- The statuses at the top of this doc and the "defaults = today" wording in §3
+  describe the options as built, before this ruling.

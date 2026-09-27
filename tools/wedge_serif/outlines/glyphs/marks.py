@@ -437,7 +437,7 @@ QUOTE_BODY = 2 * DOT_R * QUOTE_SIZE   # straight and curly quotes share this bod
 # The straight ' is further out still: its ink is 0.25 of an n's (median 0.165)
 # in the roman and 0.33 (median 0.18) in the italic.
 #
-# Every dial is 1.0 = today, byte for byte, and applies to the SINGLE marks
+# Every dial at 1.0 draws the pre-round-403 mark, byte for byte, and applies to the SINGLE marks
 # only -- ’ ‘ ʼ ʻ (and ' for the two straight dials) -- because the ask named
 # the apostrophe and ‘ must stay the pair of ’. ALBO_APOS_DOUBLES=1 carries
 # the same dials onto “ ” (and " for the straight ones), so a nested quote
@@ -452,10 +452,15 @@ QUOTE_BODY = 2 * DOT_R * QUOTE_SIZE   # straight and curly quotes share this bod
 #   APOS_STRAIGHT_W  the straight ' 's thickness, about its own axis
 #   APOS_STRAIGHT    the straight ' as a whole, about its top
 APOS_SCALE = float(os.environ.get("ALBO_APOS_SCALE", 1.0))
-APOS_HEAD = float(os.environ.get("ALBO_APOS_HEAD", 1.0))
+# ROUND 403 -- RULED 2026-09-26 (owner, on the recommendation image): *"yes to
+# everything but the straight italic apostrophe. make it match the style
+# better."* So HEAD 0.85 ships in every style, and STRAIGHT_W 0.75 ships in
+# the ROMAN cuts only; the italic straight ' stays exactly as it was until he
+# picks a redraw (ALBO_APOS_IT_STRAIGHT, below). The doubles switch stays off.
+APOS_HEAD = float(os.environ.get("ALBO_APOS_HEAD", 0.85))
 APOS_TAIL = float(os.environ.get("ALBO_APOS_TAIL", 1.0))
 APOS_TAIL_W = float(os.environ.get("ALBO_APOS_TAIL_W", 1.0))
-APOS_STRAIGHT_W = float(os.environ.get("ALBO_APOS_STRAIGHT_W", 1.0))
+APOS_STRAIGHT_W = float(os.environ.get("ALBO_APOS_STRAIGHT_W", 1.0 if pen.ITALIC else 0.75))
 APOS_STRAIGHT = float(os.environ.get("ALBO_APOS_STRAIGHT", 1.0))
 APOS_DOUBLES = os.environ.get("ALBO_APOS_DOUBLES", "0") == "1"
 def _apos_straight(g, x, top, single=True):
