@@ -1,6 +1,28 @@
 # Wedge-serif exploration ("Albo", named round 58; "fjord" until then)
 
-## STATE (read this first; each bullet is dated, the newest 2026-09-21; the log below is history)
+## STATE (read this first; each bullet is dated, the newest 2026-09-26; the log below is history)
+
+- **2026-09-26 (rounds 393-405) -- WHAT SHIPS NOW, and where each decision lives.**
+  **Spacing is B2** (round 396 on): the per-glyph ridge fit plus 38 measured
+  shape features, refit after every active-bench session (sessions 1-6, 350
+  answers since the bench; round 405 scores 9.82 held out against his own
+  repeatability ~10.7). His answers are TRAINING DATA, never pinned values
+  (owner: *"we're trying to get a strong model not overfitting"* -- the
+  override was ruled out). Tracking c ships (round 393). The reader renders
+  Albo **UNHINTED** (round 401, `hinting: none` in the firmware's
+  `sd-fonts.yaml`): every weight judgment before that was made on the 4-10%
+  heavier autohinted roman. Owner-ruled letters since round 392: Regular R
+  rebalanced to the Bold R, BI j head (393); thick/thin slider picks (395); BI g
+  on the weight axis (398); roman e bar top 0.585 + the e gate (400); apostrophe
+  head 0.85 / roman straight 0.75 (403); italic straight ' = pen wedge j (404).
+  Docs: `local-ai-spacing-options-2026-09-26.md` (B2, the active bench, every
+  ruling), `hard-pairs-eval-2026-09-26.md` + `spacing-tools-survey-2026-09-26.md`
+  (no vision model or existing tool beats B2 -- negative results),
+  `albo-fit-audit-2026-09-26.md` (the "well fitted" metric), `albo-weights-transfer-2026-09-26.md`,
+  `albo-e-legibility-2026-09-26.md`, `albo-hinting-options-2026-09-26.md`,
+  `albo-apostrophe-2026-09-26.md`, `albo-thick-thin-options-2026-09-26.md`, and
+  the round docs `albo-round-393..405`. **In progress** at the time of writing:
+  2/7 figure options, italic size/nib, options for the worst characters.
 
 - **SPACING IS FITTED FROM HIS OWN BENCH, 2026-09-21 (rounds 299-310).** A
   396-row interactive bench (`claude.ai/artifact/VCbkYNuYmZgV2m5Udd6ruy`) built
