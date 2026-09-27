@@ -91,7 +91,11 @@ def carriers_for(carriers, p, n=5):
     return words
 
 
-def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1):
+def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1, force=()):
+    """force: [(style, pair, word)] -- rows the owner asked for by name. They
+    go on the page whatever their uncertainty rank, with `word` as the
+    carrier, and take the places of the lowest-scored active rows so the
+    session keeps its size (owner 2026-09-26: "check kerning on 'bowl'")."""
     rng = np.random.default_rng(seed)
     done = answered()
     fonts = {s: FT.Font(p) for s, p in B0920.items()}
@@ -124,7 +128,16 @@ def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1):
     act = [r for r in rows if r["score"] > 0]
     act.sort(key=lambda r: -r["score"])
     n_rep = max(1, round(n * repeat_frac))
-    chosen = act[: n - n_rep]
+    forced = []
+    for style, p, word in force:
+        hit = next((r for r in rows if r["style"] == style and r["pair"] == p), None)
+        if hit is None:            # answered before, or out of B2's scope: measure it anyway
+            wz, w20 = white_fn(ZERO[style]), white_fn(B0920[style])
+            hit = dict(style=style, pair=p, n=census.get(p, 0), sd=None, move=None, visible=None, score=None,
+                       white0=int(wz(p[0], p[1])), white0920=int(w20(p[0], p[1])))
+        forced.append(dict(hit, kind="forced", carrier=word))
+    fkeys = {(r["style"], r["pair"]) for r in forced}
+    chosen = [r for r in act if (r["style"], r["pair"]) not in fkeys][: max(0, n - n_rep - len(forced))] + forced
     # repeats: previously answered bench pairs, visible or not, one draw per style alternately
     pool = []
     for style in ("roman", "italic"):
@@ -137,8 +150,10 @@ def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1):
     reps = [pool[i] for i in rng.choice(len(pool), n_rep, replace=False)]
     out = chosen + reps
     for r in out:
-        r["id"] = ("a_" if r["kind"] == "active" else "r_") + r["pair"].encode().hex()
+        r["id"] = {"active": "a_", "repeat": "r_", "forced": "f_"}[r["kind"]] + r["pair"].encode().hex()
         ws = carriers_for(carriers, r["pair"])
+        if r.get("carrier"):
+            ws = [r["carrier"]] + [w for w in ws if w != r["carrier"]]
         r["word"] = ws[0] if ws else r["pair"]
         r["extra"] = ws[1:5]
         r["i"] = r["word"].index(r["pair"])
@@ -163,12 +178,19 @@ def main():
     ap.add_argument("--census", required=True); ap.add_argument("--b2", required=True)
     ap.add_argument("--out", required=True); ap.add_argument("--n", type=int, default=50)
     ap.add_argument("--session", default="s1"); ap.add_argument("--seed", type=int, default=20260926)
+    ap.add_argument("--force", default="",
+                    help="rows on the page regardless of rank: 'style:pair:word,...', style roman|italic|both "
+                         "(e.g. 'both:bo:bowl,both:ow:bowl,both:wl:bowl')")
     a = ap.parse_args()
     data = json.load(open(a.census))
     census = {p: c for p, c in data["pairs"]}
     carriers = data["carriers"]
     tag = f"active-2026-09-26-{a.session}"
-    items, allrows = select(census, carriers, a.b2, a.n, a.seed)
+    force = []
+    for spec in filter(None, a.force.split(",")):
+        st, p, w = spec.split(":")
+        force += [(x, p, w) for x in (("roman", "italic") if st == "both" else (st,))]
+    items, allrows = select(census, carriers, a.b2, a.n, a.seed, force=force)
     sds = np.array([r["sd"] for r in allrows])
     vis = sum(r["visible"] for r in allrows)
     summary = dict(candidates=len(allrows), visible=int(vis), sd_min=float(sds.min()), sd_median=float(np.median(sds)),
@@ -192,7 +214,8 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     open(os.path.join(a.out, "index.html"), "w").write(page)
     act = [r for r in items if r["kind"] == "active"]
-    print(f"{tag}: {len(items)} rows ({len(act)} active, {len(items) - len(act)} repeats); "
+    nf = sum(r["kind"] == "forced" for r in items)
+    print(f"{tag}: {len(items)} rows ({len(act)} active, {nf} forced, {len(items) - len(act) - nf} repeats); "
           f"roman {sum(r['style'] == 'roman' for r in items)}, italic {sum(r['style'] == 'italic' for r in items)}")
     print(f"candidates {summary['candidates']}, visible {summary['visible']}; bootstrap sd over candidates: "
           f"min {summary['sd_min']:.2f}, median {summary['sd_median']:.2f}, p90 {summary['sd_p90']:.2f}, max {summary['sd_max']:.2f}")
