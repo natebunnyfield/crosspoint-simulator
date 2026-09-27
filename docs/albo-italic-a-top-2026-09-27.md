@@ -102,3 +102,20 @@ Built fonts, ink tops (a / o): 444-446 / 442 in the Italic, 444 / 444 in the Bol
 | g3 | 0.62 / 0.70 | 0.372, 44,439, 2.41 | 0.493, 33,252, 2.05 |
 
 All touch 0, hairs PASS in both italics.
+
+## Ascender and stress (same day)
+
+Owner: *"the bigger glob wins but needs a small ascender, and the top left should be thin where the bottom left should be thick"* (and: *"please always uniquely label choices so i can refer to them"* -- options below carry their page labels). Base: g2 (glob 0.75).
+
+- `A_TRI_ASC` -- the stem stands this many units above the o's top, over the glob. With the stem rising past it the centred glob stood out as a KNOB on the stem's right; under an ascender the glob now sits flush with the stem's right edge and swells only toward the bowl.
+- The stress for "top left thin, bottom left thick" is the family nib's own neighbourhood: `A_TRI_PHI` 40-60 (the three-pass 15 made the sides heavy and top/bottom thin, which put weight on the top left).
+
+| label | ASC | PHI |
+|---|---|---|
+| C1 | 20 | 50 |
+| C2 | 35 | 50 |
+| C3 | 50 | 50 |
+| D1 | 35 | 40 |
+| D2 | 35 | 60 |
+
+All touch 0, hairs PASS in both italics.

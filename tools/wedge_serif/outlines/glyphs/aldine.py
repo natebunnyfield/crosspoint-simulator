@@ -3321,13 +3321,15 @@ if ON:
     A_TRI_BIAS = float(os.environ.get("ALBO_ALD_A_TRI_BIAS", 0) or 0.40)
     _tf = os.environ.get("ALBO_ALD_A_TRI_TOPFIT")
     A_TRI_TOPFIT = float(_tf) if _tf not in (None, "") else None
+    A_TRI_ASC = float(os.environ.get("ALBO_ALD_A_TRI_ASC", 0) or 0)   # the stem stands this many units above the o's top, over the glob (0 = the glob is the top)
     A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
     def _a_tri_at(c, xs, xh, u, bow):
         hu = hm_u(c); thick = HM_STEMW * hu * A_TRI_W; thin = HM_ARCH_T * hu * A_TRI_THIN
         x0 = S * 0.6; W = xs - x0
         sw0 = HM_STEMW * hu; gr = A_TRI_GLOB * sw0
-        J = ((xs - sw0 * 0.10, A_TRI_OTOP * u - gr) if gr else
+        _gx = (xs + sw0 * 0.5 - gr - 1.0) if A_TRI_ASC else (xs - sw0 * 0.10)   # under an ascender the glob sits FLUSH with the stem's right edge and swells only toward the bowl
+        J = ((_gx, A_TRI_OTOP * u - gr) if gr else
              (xs - thick * 0.05, A_TRI_JY * xh))                   # the bowl's point: into the glob's centre, or into the stem below its top
         ry = A_TRI_RY * xh; cy = ry + thick * 0.30 - 0.02 * xh      # the round's bottom ink on the o's overshoot
         rx = A_TRI_RX * W; cx = x0 + thick * 0.45 + rx
@@ -3379,7 +3381,8 @@ if ON:
             gr = A_TRI_GLOB * HM_STEMW * hm_u(c)
             if gr:   # the bowl's own top: the part left of the glob
                 from shapely.geometry import box
-                g0 = g0.intersection(box(-1e4, -1e4, xs - HM_STEMW * hm_u(c) * 0.10 - gr * 1.05, 1e4))
+                _gx = (xs + HM_STEMW * hm_u(c) * 0.5 - gr - 1.0) if A_TRI_ASC else (xs - HM_STEMW * hm_u(c) * 0.10)
+                g0 = g0.intersection(box(-1e4, -1e4, _gx - gr * 1.05, 1e4))
             return g0.bounds[3]
         lo, hi = -0.05, 0.40
         for _ in range(22):
@@ -3438,6 +3441,8 @@ if ON:
                 # the glob IS the stem's head: the stem stops at the glob's centre,
                 # so no flat top or corner stands above the ball
                 gy = A_TRI_OTOP * u - A_TRI_GLOB * HM_STEMW * hm_u(c)
+                if A_TRI_ASC:   # owner 2026-09-27: "the bigger glob wins but needs a small ascender"
+                    gy = A_TRI_OTOP * u + A_TRI_ASC
                 return geom.ink([bowl_, hm_stem(c, xs, 0, gy, cut=False), hm_exit(c, xs, 'a')])
         return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, 'a')])
 
