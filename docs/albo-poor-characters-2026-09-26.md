@@ -751,3 +751,5 @@ cut, its lower corner on the line (the first cut dipped 9-15 units under it).
 Arms, page https://claude.ai/artifact/E8VJnViLzppEYE5b5Ya6hz: A today, Q1 flat,
 Q2 flat + right 0.75, Q3 flat + right 0.55, Q4 flat p + no-foot q. Gates:
 only p and q move, touch 0, hairs 0, approved 2/2. Awaiting a pick.
+
+**Ruled 2026-09-27: A, as is** (*"leave as is"*). The q and p keep today's foot, dent included; the dials stay default-off as the record. With this the 2026-09-26 list is closed: roman y (412), t (420), j (421), s (414), N / T (415), a (as is); italic j / t (411), y (413), F (416), r (417/418), V / W (as is), q (as is).
