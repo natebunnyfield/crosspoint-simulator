@@ -271,3 +271,21 @@ Seen at 300 px beside d q o u, P2 had three faults. (1) The HEAD's tip (hm_head'
 | S4 | S2 + roundest counter (T1 335) | 36 / 36 | 0.363 / 0.497 | 54.2k / 41.3k |
 
 The rounder counters match the d's shape and read as o more (a>o 12-24 in the BoldItalic): the pointed teardrop is part of what separates this a from the o. All touch 0, hairs PASS.
+
+## S3's bottom-right, traced against the d, q and u (same day)
+
+Owner: *"s3 wins, but the bottom right stem is not correct. trace other letter to see why"*.
+
+Traced at 380-420 px, bottom 0.6 xh of the right half, both italics: in the **d, q and u** the bowl (or the u's round) leaves its curve before the bottom and climbs DIAGONALLY into the stem at about a third of the x-height; the stem then descends alone to the baseline and the exit flicks off its foot, with white under the join. In **S3's a** the round ran along the baseline into the stem's foot (return leaving at 330 deg, entering 0.22 xh above that), so the bowl's bottom and the stem's foot fused into one shelf where the stem should stand alone.
+
+Fix, by the existing dials: the return leaves the round sooner (`A_TRI_T1` 300 / 290 / 285), enters the stem higher (`A_TRI_KY` 0.30 / 0.34 / 0.40), the round a little narrower so its right side stays off the stem (`A_TRI_RX`), and the return weighted (`A_TRI_BRW`) toward the d's join weight.
+
+| label | T1 / KY / RX (It) / BRW (It, BI) | misread It / BI |
+|---|---|---|
+| S3 | 330 / 0.22 / 0.45 / 0.50, 0.55 | 30 / 21 |
+| U1 | 300 / 0.30 / 0.43 / 0.50, 0.55 | 23 / 17 |
+| U2 | 290 / 0.34 / 0.41 / 0.50, 0.55 | 24 / 15 |
+| **U3** | 290 / 0.34 / 0.41 / 0.70, 0.72 | **15** / 12 |
+| **U4** | 285 / 0.40 / 0.41 / 0.60, 0.65 | 23 / **8** |
+
+U3 is the most legible Italic a of the series, U4 the most legible BoldItalic a and the nearest the d's join by eye. All touch 0, hairs PASS.
