@@ -1564,7 +1564,7 @@ T_BAR_K = float(os.environ.get("ALBO_ROM_T_BAR_K", 1.0))
 @glyph('T')
 def g_T(c):
     C = c["cap"]; w = W_(c, 'T', 520); x = w / 2
-    th = CAP_BAR * 0.85 * (T_BAR_K if S > 84.0 else 1.0); yb = C - th / 2   # round 94: was 0.62 of the pen's horizontal, a light line at 13 pt
+    th = CAP_BAR * 0.85 * (T_BAR_K if S > 84.0 and not pen.ITALIC else 1.0); yb = C - th / 2   # not ITALIC: the aldine T borrows this g_T (found by the leak check, 2026-09-26)   # round 94: was 0.62 of the pen's horizontal, a light line at 13 pt
     b = bar(0, w, C, th, align='top', wedges=[('left', -1), ('right', -1)])
     return geom.ink([b, cstem(x, 0, yb + th * 0.5 - 4, top=None, foot='both', ent_span=(0, C))])
 
