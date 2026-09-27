@@ -11750,17 +11750,28 @@ if ON:
     # -2.5 sigma; ridge median 62.6 against its figures' ~78, p90 75 against
     # ~116-127); the Italic 7 is on its family. FIG7_TW_700 scales the 7's
     # widths above stem 84 only (1.0 = round 410's 7b).
-    FIG7_TW_700 = float(os.environ.get("ALBO_IT_FIG7_TW_700", 1.0))
+    FIG7_TW_700 = float(os.environ.get("ALBO_IT_FIG7_TW_700", 1.40))   # round 424: owner "1.4 wins"
+    # ...and its CONTRAST (owner: "1.4 wins, but make adjustments to match other
+    # numerals"). At 1.4 the 7 is near-monoline -- ridge p10 80 / p90 106 where
+    # the other figures run p10 28-68 and p90 114-137 -- so the bar and the leg
+    # take separate factors on top of the weight, above stem 84 only.
+    FIG7_BAR_700 = float(os.environ.get("ALBO_IT_FIG7_BAR_700", 0.60))   # round 424: the bar onto the 5's bar (vertical run 66 vs 68; plain 1.40 gave 108)
+    FIG7_LEG_700 = float(os.environ.get("ALBO_IT_FIG7_LEG_700", 0.95))   # round 424
+    # 'swell': the leg thick in its middle and easing toward both ends, as the
+    # other figures' downstrokes do (the 3's and 9's tails, the 5's bowl);
+    # '' keeps the arm's own profile (heavy at both ends).
+    FIG7_LEGPROF_700 = os.environ.get("ALBO_IT_FIG7_LEGPROF_700", "swell2")   # round 424; "" = round 410's profile
 
     def _fig7_pen(c, arm):
         P, H, W = _fig_frame(c, '7')
         _tw7 = FIGPEN_TW * (FIG7_TW_700 if S > 84.0 else 1.0)
+        _bw7 = _tw7 * (FIG7_BAR_700 if S > 84.0 else 1.0); _lw7 = _tw7 * (FIG7_LEG_700 if S > 84.0 else 1.0)
         # the bar: the z's top ribbon, entry hook under its left end, crest, ease
         bar_pts = [P(0.02, 0.905), P(0.06, 0.955), P(0.20, 0.985), P(0.45, 0.998),
                    P(0.70, 0.985), P(0.86, 0.992), P(0.97, 1.000)]
         bar = d_pen(bar_pts, [(0.00, 16), (0.06, 24), (0.18, 34), (0.30, 44),
                               (0.45, 52), (0.60, 54), (0.75, 50), (0.90, 42), (1.00, 34)],
-                    1.0, tw=_tw7)
+                    1.0, tw=_bw7)
         top = P(0.93, 0.985)
         legs = {
             # straight, the nib alone thins it; finial foot
@@ -11790,7 +11801,24 @@ if ON:
             "f": [(0.00, D * 1.35), (0.20, D * 1.05), (0.60, D * 0.90), (0.88, D * 0.95), (1.00, D * 1.10)],
         }
         pts = legs.get(arm, legs["a"])
-        leg = d_pen(pts, profiles.get(arm, profiles["a"]), 1.0, tw=_tw7,
+        prof7 = profiles.get(arm, profiles["a"])
+        if S > 84.0 and FIG7_LEGPROF_700 == "swell":
+            prof7 = [(0.00, D * 0.95), (0.18, D * 1.10), (0.45, D * 1.32), (0.70, D * 1.22), (0.90, D * 1.00), (1.00, D * 0.95)]
+        elif S > 84.0 and FIG7_LEGPROF_700 == "swell2":
+            # the swell's six anchors joined by a Catmull-Rom curve and sampled
+            # at 21 stations: `widths()` smoothsteps between keys, which is
+            # flat AT every key, so six keys on a strong swell drew plateaus
+            # and ramps -- a rippled leg edge at 140 px (seen, round 424)
+            _an = [(0.00, 0.80), (0.20, 1.05), (0.45, 1.60), (0.68, 1.40), (0.88, 0.95), (1.00, 0.85)]
+            def _cr(t):
+                for i in range(len(_an) - 1):
+                    (t1, y1), (t2, y2) = _an[i], _an[i + 1]
+                    if t <= t2 or i == len(_an) - 2:
+                        y0 = _an[i - 1][1] if i > 0 else y1; y3 = _an[i + 2][1] if i + 2 < len(_an) else y2
+                        u = (t - t1) / (t2 - t1)
+                        return 0.5 * (2 * y1 + (-y0 + y2) * u + (2 * y0 - 5 * y1 + 4 * y2 - y3) * u * u + (-y0 + 3 * y1 - 3 * y2 + y3) * u ** 3)
+            prof7 = [(k / 20, D * _cr(k / 20)) for k in range(21)]
+        leg = d_pen(pts, prof7, 1.0, tw=_lw7,
                     fin1=(arm in ("a", "b", "f", "d", "e")))
         return geom.ink([bar, leg])
 
