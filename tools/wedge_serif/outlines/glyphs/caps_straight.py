@@ -452,7 +452,7 @@ def g_F(c):
 #   mod  original: MODULATED bars -- the round-219 bar profile (the 7's):
 #        each bar thins to 0.65 where it leaves the stem and holds its full
 #        weight at the serif end, the pen swelling into the wedge
-IT_F_OPT = os.environ.get("ALBO_IT_F_OPT", "a")
+IT_F_OPT = os.environ.get("ALBO_IT_F_OPT", "mod" if S <= 84.0 else "a")   # round 416: mod ships in the Italic (owner: "Italic -- original: bars thin where they leave the stem, full at the serif wins"); the BoldItalic keeps today -- the audit found the heavy bars in the Italic only
 IT_F_ARMS = {"cha": (0.80, 0.80, None), "geo": (0.55, 0.78, None),
              "mod": (1.0, 1.0, (lambda u: 0.65 + 0.35 * u))}
 if IT_F_OPT not in IT_F_ARMS: IT_F_OPT = "a"
