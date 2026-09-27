@@ -585,3 +585,15 @@ A width scale applied in `g_N`/`g_T` does NOTHING (measured: 1.018 -> 1.015 at x
 - **vs H**: N 1.0 / 0.953, T 0.975 / 0.952 -> N/H 1.018 / 0.971, T/H 0.841 / 0.816 (on the medians)
 - **vs O**: N 0.951 / 0.902, T 0.922 / 0.913 -> N/O 1.083 / 1.030, T/O 0.887 / 0.875
 - **vs H + strokes**: vs H plus `ALBO_ROM_N_OPT=cha` and Bold `ALBO_ROM_T_BAR_K=0.76`
+
+## Bold Italic V and W: ruled today (2026-09-27)
+
+Owner: *"for V W bold italic, today seem okay, just use something close to A strokes"*. Measured on the ridge (`tools/wedge_serif/instruments/stroke_ridge.py`: 2 x the distance transform at its 3x3 local maxima, unhinted, 1000 ppem), round 418 BoldItalic:
+
+| glyph | light (p10) | heavy (p90) |
+|---|---|---|
+| A | 66.6 | 120.1 |
+| V (today) | 64.9 | 120.8 |
+| W (today) | 64.4 | 122.8 |
+
+Today's V and W are already within 3% of the A on both strokes (under 0.1 px at reading size), so today IS "close to A strokes" and nothing changes. The arms drawn for the poor-characters pass all move away from the A: cha 44.9 / 120.8, pal 30.0 / 120.8, wgt 49.4 / 121.3, cap 49.4 / 97.3 (V). `ALBO_ALD_VW_OPT` stays `a`.
