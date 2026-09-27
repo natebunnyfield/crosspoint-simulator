@@ -279,7 +279,8 @@ def g_r(c):
         # the vertical, which on this arm is a near-vertical face with the
         # lower corner forward. The floor (0.60 S) and the reach are R31's.
         prof = widths([(0.0, 0.5), (0.35, 1.0), (1.0, 1.0)])
-        wfn = PR.finial_widths(base, False, prof); arm_cut = PR.finial_cut(center, False)
+        wfn = (PR.finial_widths(base, False, prof, swell=R_TERM, span=R_TERM_SPAN) if R_TERM
+               else PR.finial_widths(base, False, prof)); arm_cut = PR.finial_cut(center, False)   # R_TERM 2026-09-27, see its definition
     arm = stroke(center, wfn, cut1=arm_cut)
     # (a family end wedge was tried on the arm's tip and stood up like a horn -- the plain cut it is)
     if pen.ITALIC:
@@ -298,6 +299,14 @@ def g_r(c):
     # the arm's underside meets the stem in a smooth 25-degree crotch and
     # there is no ruling asking the r for a notch there.
     return geom.ink([st, arm])
+# ALBO_ROM_R_TERM -- owner 2026-09-27: "for roman r terminal needs to be as
+# thick as o and other letters to balance", then "roman terminal needs to be
+# thicker". The arm's end SWELL (0 = today, the c's 1.10 over the last 13%:
+# terminal 53.5 against the o's 73.6 at the 400, 80.7 against 127.2 at the 700,
+# inscribed-circle diameters, instruments/r_terminal_solve.py). A larger swell
+# over a longer span (R_TERM_SPAN) -- a floor on the end alone moved it 0.5 units.
+R_TERM = float(os.environ.get("ALBO_ROM_R_TERM") or 0)
+R_TERM_SPAN = float(os.environ.get("ALBO_ROM_R_TERM_SPAN") or 0.35)
 FOOT_R = 0.85   # round 92: the r's feet, x the family's foot length
 R_REACH, R_FLOOR, R_FLARE = 190, 0.72, 1.35   # round 94: was 205, 0.78, 1.5
 # ALBO_ROM_R_THIN -- R31, owner 2026-09-18: "give me options for thinning out

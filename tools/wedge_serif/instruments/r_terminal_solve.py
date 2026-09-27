@@ -1,5 +1,5 @@
 """The r's terminal against the o: inscribed-circle diameter of the r's arm end
-(ink right of 72% of the r's box, upper half) and of the o's ink (its thickest
+(ink right of 60% of the r's box, upper half -- 72% was measured to cap a heavy terminal) and of the o's ink (its thickest
 stroke), unsheared, from the builders. Owner 2026-09-27: "terminal needs to be
 as thick as o and other letters to balance". Pass KEY=VAL env overrides after
 the style's env; prints both numbers.
@@ -14,8 +14,8 @@ if os.environ.get("_RT_CHILD"):
     from shapely.geometry import box
     from outlines import build as B
     def mic(g): return 2 * shapely.maximum_inscribed_circle(g, tolerance=0.25).length
-    r = B.GLYPHS['r'](B.ctx('r')); x0, y0, x1, y1 = r.bounds
-    term = r.intersection(box(x0 + 0.72 * (x1 - x0), (y0 + y1) / 2, x1 + 1, y1 + 1))
+    r = B.GLYPHS["r"](B.ctx("r")); x0, y0, x1, y1 = r.bounds
+    term = r.intersection(box(x0 + float(os.environ.get("RT_CROP", 0.60)) * (x1 - x0), (y0 + y1) / 2, x1 + 1, y1 + 1))
     print(json.dumps(dict(o=mic(B.GLYPHS['o'](B.ctx('o'))), r=mic(term))))
     sys.exit(0)
 env = dict(os.environ, _RT_CHILD="1", PYTHON_GIL="0")
