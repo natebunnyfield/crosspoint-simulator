@@ -373,8 +373,8 @@ def _fig_width_unsheared(ch, g):
 # 5-10% wide, because Albo's O is itself narrow. A factor on the solver's
 # TARGET (a scale in draw() is undone, see below), (Regular, Bold), roman only
 # -- the aldine T borrows g_T. 1.0 = today.
-CAP_NT_WIDTH = {'N': (float(os.environ.get("ALBO_ROM_N_W", 1.0)), float(os.environ.get("ALBO_ROM_N_W_BOLD", 1.0))),
-                'T': (float(os.environ.get("ALBO_ROM_T_W", 1.0)), float(os.environ.get("ALBO_ROM_T_W_BOLD", 1.0)))}
+CAP_NT_WIDTH = {'N': (float(os.environ.get("ALBO_ROM_N_W", 1.0)), float(os.environ.get("ALBO_ROM_N_W_BOLD", 0.953))),   # round 415: "ideal vs H" ships
+                'T': (float(os.environ.get("ALBO_ROM_T_W", 0.975)), float(os.environ.get("ALBO_ROM_T_W_BOLD", 0.952)))}
 
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink

@@ -1018,10 +1018,15 @@ def g_N(c):
 #   wgt  original: the thin stems do NOT GROW WITH THE WEIGHT -- 0.72 at the
 #        400 (the ruled look, untouched), x sqrt(66.9 / S) above it, so the
 #        700 gains contrast the way a pen-drawn bold does (0.55 at stem 116)
-N_OPT = os.environ.get("ALBO_ROM_N_OPT", "a")
+N_OPT = os.environ.get("ALBO_ROM_N_OPT", "cha")   # round 415: cha ships (owner: "ideal vs H + Charter N stems + T bar 0.76 wins")
 if N_OPT not in ("a", "cha", "pal", "wgt"): N_OPT = "a"
 
+# Regular-only override, x the cap stem (0 = the arm's own). Owner 2026-09-26
+# on round 415's candidate: "bold is good, redo thin stroke on N regular".
+N_THIN_REG = float(os.environ.get("ALBO_ROM_N_THIN_REG", 0.645) or 0)   # round 415: owner ".66 wins, unless you can calculate a better value near that" -- 0.645 gives the Regular N the approved Bold N's thick/thin (2.01)
+
 def _n_thin():
+    if N_THIN_REG and S <= 84.0 and not pen.ITALIC: return CW * N_THIN_REG
     if N_OPT == "a": return THIN
     if N_OPT == "wgt": return THIN * min(1.0, math.sqrt(66.9 / S))
     return CW * {"cha": 0.57, "pal": 0.42}[N_OPT]
@@ -1559,7 +1564,7 @@ def g_S(c):
 # which is what a median balanced between two populations does:
 #   0.76  traced: Charter/Palatino -- bar 0.42 of the stem
 #   1.30  control: the heavier bar, recorded, not proposed
-T_BAR_K = float(os.environ.get("ALBO_ROM_T_BAR_K", 1.0))
+T_BAR_K = float(os.environ.get("ALBO_ROM_T_BAR_K", 0.76))   # round 415: 0.76 ships (700 only)
 
 @glyph('T')
 def g_T(c):
