@@ -459,6 +459,21 @@ letters at display size. So:
 
 ---
 
+- **lead with ONE small image** (2026-09-26: *"just show me a small image with
+  all your recs"*): the word image at reading size, today on top, each option
+  labeled beneath. He then rules in one line (*"yes to everything but the
+  straight italic apostrophe"*, *"j wins"*). Long proof pages come second.
+- **for a continuous dial, give him sliders across the FULL range** (2026-09-26:
+  *"present this in an interactive way so i can slide between full range"*),
+  one slider per dial, every step a real render, shipped and recommended
+  marked, "Copy picks" JSON back.
+- **a change he cannot see is not an option.** 2026-09-26: *"i dont see
+  differences in thick thin"* -- the arms moved under a pixel at reading size.
+  Measure visibility at the phone's 2x before showing, and say "sub-pixel"
+  plainly; offer one arm strong enough to see.
+- **"decide blind" is a real answer**: ask the question without the picture
+  when he says so. A misclick is re-asked, and the record says it was.
+
 ## 10. The honest reflection
 
 What produced value this session: the **corpus** measurement of the outstroke;
@@ -553,3 +568,77 @@ noise, or the union followed by a curve-aware smoothing that knows a hairline
 from a bowl. Recorded here so the next attempt starts from these numbers and
 not from the tables again. `ALBO_HAND_SCALE` stays at 0.3: the capitals'
 hand cuts (Q R Z) were visible and he asked for less.
+
+
+## 11. What the owner said about making type, 2026-09-24 → 26 — read before any round
+
+Collected at his request (*"reflect on everything I have said about font making
+and update md files"*). Each line is his words, then what it binds. Earlier
+standing rules live in §0 (the brief), §9 (how to ask), `docs/fjord-glyph-guide.md`
+§0, and `docs/albo-imperfections.md`; this section adds what this stretch taught.
+
+**On drawing**
+- *"those are crappy variations. do better with more 7 leg tweaks and 2 that
+  joins in a smoother way. i need albo style."* — A variation is a DESIGN MOVE
+  in Albo's own pen (stroke direction, where it thickens, the 20° pen cut, the
+  28° finial face, the Aldine cursive flow), never a one-parameter nudge. The
+  standing rule from 2026-09-13 already said it: **glyph drawing is not
+  delegated** to subagents; they measure, gate and render ladders. This week
+  broke that rule (apostrophe, 2/7, worst-characters arms were drawn by
+  subagents) and the 2/7 variations came back rejected. Before offering
+  drawings, render them beside the letters they must live with and cut the ones
+  that don't read as Albo.
+- *"trace other reference fonts and come up with original solutions too. take
+  three passes."* — Options come in two kinds: TRACED (measured from a named
+  reference, redrawn in Albo's pen, never pasted) and ORIGINAL (Albo's own).
+  Three passes = draw, measure-and-cut, adversarial review.
+- *"make it match the style better"* (italic straight apostrophe) and *"reduce
+  apostrophe to match rest of word image"* — marks and punctuation are judged by
+  whether they belong to the word image in weight and pen, not by their own
+  proportions.
+- *"The Roman R should match the optical balance of the bold capital R"*,
+  *"check that 'g' is right in bold italic"*, *"check italic and roman are using
+  the same nib. italic seems too small."* — **every cut is checked, not just the
+  400**, and a letter must hold the same construction and optical balance across
+  weights and between roman and italic. (Round 409: the italic was on three
+  different pens and drawn 19% narrow; the measurement against 11 real families
+  proved his eye.)
+- *"interpolated based on my answers what changes would be applicable to all of
+  albo fonts"* — a ruling on one cut is a question about all cuts; say how it
+  transfers (docs/albo-weights-transfer-2026-09-26.md).
+- *"take a pass at balancing out the thick and thin strokes for better word
+  images"* / *"give me the likely letters that would benefit from being redone
+  because optically they are outliers ... determine a metric for what is well
+  fitted"* — he wants the outliers found by a stated, validated metric
+  (docs/albo-fit-audit-2026-09-26.md), then options, then his pick.
+
+**On spacing and the model**
+- *"we're trying to get a strong model not overfitting"* (ruling out pinning his
+  answers) — his bench answers are TRAINING DATA; the fit decides every pair;
+  held-out error is the score. He is consistent to ~10.7 units; no answer is
+  gospel, including his own.
+- *"i corrected the ones that needed it the most but mostly skipped the ones
+  that didn't"* — a skip means "fine as shipped" (= 0).
+- *"it seems overdue to see what other existing tools can offer"* — survey and
+  RUN existing tools before building; record the negatives
+  (docs/spacing-tools-survey-2026-09-26.md, docs/hard-pairs-eval-2026-09-26.md:
+  no vision model and no existing spacer beats the fit on his answers).
+- *"todo: check kerning on 'bowl'"* — a screenshot note is a bench row, not an
+  opinion to argue with.
+
+**On rendering and shipping**
+- *"no hinting wins"* — judge on what the reader actually draws (Albo unhinted
+  since round 401); every weight judgment before that was on a heavier rendering.
+- *"the most recent albo version needs to make it on update"* — every Albo
+  change ships to EVERY channel the same day: TestFlight bundle AND the
+  `fonts-latest` release (republish from the validated seed tree).
+
+**On reading (not type, but the same taste)**
+- *"those all stink. i need new ways to read not gimmicks"* — evidence over
+  effects; see docs/research-new-ways-to-read-2026-09-26.md.
+
+**The reflection.** The rounds that landed first time (thick/thin sliders, the
+e bar, j wins, m for the italic) all had three things: a measured reason, real
+renders at reading size, and a single compact picture to rule from. The one that
+failed (the 2/7 variations) had parameters instead of pen-drawn design and was
+drawn by a subagent. Draw it yourself, in the pen, and cut before you show.
