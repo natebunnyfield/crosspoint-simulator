@@ -195,6 +195,9 @@ def draw(ch, W=None):
         top, bot = latin.FIG_BOX[ch]; c["figH"] = (top - bot) * C
     PR.begin_glyph(ch)   # the life: deterministic per-glyph perturbation of wedges and rings
     g = GLYPHS[ch](c)
+    if pen.SHEAR and ch.islower() and (IT_LC_SCALE != 1.0 or IT_LC_SETW != 1.0):   # 2026-09-26, see IT_LC_SCALE
+        import shapely.affinity as _aff
+        g = _aff.affine_transform(g, (IT_LC_SCALE * IT_LC_SETW, 0, 0, IT_LC_SCALE, 0, 0))
     # the record's Cut post-op grew every polygon 1.2 units (offset_naive,
     # grow 3.0 x 0.4) to re-close the joins it had opened; the joins are
     # real now, but the 1.2 units were part of the shipped weight (the l's
@@ -225,6 +228,21 @@ def draw(ch, W=None):
     return g
 
 CAP_NARROW = float(os.environ.get("ALBO_IT_CAP_NARROW", 0.953))
+
+# THE ITALIC LOWERCASE'S SIZE AND SET WIDTH, 2026-09-26. Owner: *"check italic
+# and roman are using the same nib. italic seems too small."* Measured against
+# eleven roman/italic pairs (docs/albo-italic-size-nib-2026-09-26.md,
+# instruments/italic_size_nib.py): Albo's italic sets 0.81 of its roman's
+# width per character where the references run 0.84-1.02 (median 0.93), and
+# its x-height is 1.000 where they run 0.99-1.04 (median 1.015). Both dials
+# act on the UNSHEARED lowercase ink, about the origin, before the ink spread
+# and the shear, so the fit then derives bearings from the scaled shape:
+#   ALBO_IT_LC_SCALE  uniform (x-height, ascender, descender, stems, width)
+#   ALBO_IT_LC_SETW   horizontal only (width; vertical strokes thicken with it)
+# 1.0 / 1.0 is today to the unit. The B2 bearing deltas and the kerns are
+# absolute units learned on today's italic and are NOT rescaled.
+IT_LC_SCALE = float(os.environ.get("ALBO_IT_LC_SCALE", 1.0))
+IT_LC_SETW = float(os.environ.get("ALBO_IT_LC_SETW", 1.0))
 
 # THE CAPITAL X's WIDTH. Owner 2026-09-23: *"make versions of X that are less
 # wide by reducing angles but keeping rest of letter stylistically intact."*

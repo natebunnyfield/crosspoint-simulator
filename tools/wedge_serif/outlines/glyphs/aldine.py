@@ -865,7 +865,17 @@ if ON:
     # (proven: 0 glyphs differ). POSITIONS are deliberately NOT scaled -- the
     # pitch, the spring, the arch's apex, the head's reach and the exit's
     # reach are where the letter is, not how heavy it is.
-    ALD_WF = pen.S / 84.0
+    # 2026-09-26 -- THE ITALIC'S NIB AGAINST THE ROMAN'S. Owner: *"check
+    # italic and roman are using the same nib. italic seems too small."* They
+    # are NOT the same nib. The roman's is pen.PEN (pen.py), stem S = 66.9 at
+    # the 400. This module's hm_* letters (a b d h i l m n p q r u, heads,
+    # exits, arches, dots) are Flanker's 70-unit stem scaled by S / 84, so at
+    # the 400 they draw 55.7 units = 0.83 S, while the letters on ALD_WF_UP
+    # (t f j v w x y z c g, the bowls) stay at the Medium's 1.0. ALD_NIB
+    # multiplies ALD_WF only; 1.0 is today to the unit. Measured and laddered
+    # in docs/albo-italic-size-nib-2026-09-26.md.
+    ALD_NIB = float(os.environ.get("ALBO_ALD_NIB", 1.0))
+    ALD_WF = pen.S / 84.0 * ALD_NIB
     HM_UNIT = 429.0
 
     def _hm(name, default):
