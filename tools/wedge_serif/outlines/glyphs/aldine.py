@@ -3271,7 +3271,14 @@ if ON:
     #   dro   the bowl lower on the stem -- join 0.72 -- and a smaller round
     #   rnd   join 0.82, bowed 0.13, a larger round: the softest
     A_TRI = os.environ.get("ALBO_ALD_A_TRI", "")
-    _AT = {"wdg": (0.31, 0.82, 0.07), "dro": (0.27, 0.72, 0.07), "rnd": (0.34, 0.82, 0.13)}.get(A_TRI, (0.31, 0.82, 0.07))
+    #   mid   owner 2026-09-27, "between a and c, needs thick too right join":
+    #         halfway between wdg and rnd, and the top's JOIN to the stem
+    #         carried at A_TRI_JW x the nib's broad, easing to the pen's own
+    #         width over the first A_TRI_JSPAN of the stroke
+    _AT = {"wdg": (0.31, 0.82, 0.07), "dro": (0.27, 0.72, 0.07), "rnd": (0.34, 0.82, 0.13),
+           "mid": (0.325, 0.82, 0.10)}.get(A_TRI, (0.31, 0.82, 0.07))
+    A_TRI_JW = float(os.environ.get("ALBO_ALD_A_TRI_JW", 0) or (0.85 if A_TRI == "mid" else 0))   # 0 = the pen alone at the join
+    A_TRI_JSPAN = float(os.environ.get("ALBO_ALD_A_TRI_JSPAN", 0.22))
     A_TRI_RY = float(os.environ.get("ALBO_ALD_A_TRI_RY", 0) or _AT[0])     # the round's half-height, x xh
     A_TRI_JY = float(os.environ.get("ALBO_ALD_A_TRI_JY", 0) or _AT[1])     # where the bowl's top joins the stem, x xh
     A_TRI_BOW = float(os.environ.get("ALBO_ALD_A_TRI_BOW", 0) or _AT[2])   # how far the top edge bows up, x xh
@@ -3302,6 +3309,11 @@ if ON:
         ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin) for tx, ty in tans]
         m = 10; ws = [sum(ws[max(0, q - m):q + m + 1]) / len(ws[max(0, q - m):q + m + 1]) for q in range(len(ws))]
         n = len(ws) - 1
+        if A_TRI_JW:
+            jn = max(1, int(n * A_TRI_JSPAN))
+            for q in range(jn + 1):
+                f = 1.0 - q / jn; f = f * f * (3 - 2 * f)   # smoothstep: full at the stem, the pen's own by JSPAN
+                ws[q] = max(ws[q], thick * A_TRI_JW * f + ws[q] * (1 - f))
         return stroke(cl, lambda t: ws[min(n, int(round(t * n)))], raw=True)
 
     @glyph('a')
@@ -3348,7 +3360,7 @@ if ON:
         # lands on, because "the crown is the top, and a cut corner under it
         # only pokes a spike through the shoulder". That spike is what read as
         # two overlapping shapes at the top right.
-        if A_TRI in ("wdg", "dro", "rnd"):
+        if A_TRI in ("wdg", "dro", "rnd", "mid"):
             bowl_ = _a_tri(c, xs, xh, u)
         return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, 'a')])
 
