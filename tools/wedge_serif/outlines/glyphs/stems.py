@@ -113,7 +113,7 @@ def g_j(c):
     # calling this function directly, so an ungated change here moves the
     # italic's uni0237 and jcircumflex (it did, on the first build).
     lo = y0 - 260
-    st = stem(x, y0 - (30 if pen.ITALIC else 2), xh, top=None, foot=None, ent_span=(lo, xh))
+    st = stem(x, y0 - (30 if pen.ITALIC else 2), xh, top=('left' if (J_TOP and not pen.ITALIC) else None), foot=None, ent_span=(lo, xh))
     w_st = PR.stem_width(TH_V, ENT, (y0 - lo) / (xh - lo))   # the stem's width where the tail takes over
     a0, a1 = 0.0, math.radians(-118)
     if J_OPT != "a" and not pen.ITALIC: a1 = math.radians(J_ARMS[J_OPT][0])
@@ -145,6 +145,13 @@ def g_j(c):
 #        the c's top (PR.finial_widths / finial_cut, as the y's tail since
 #        round 275), so the turn stops early and the weight goes into the end
 J_OPT = os.environ.get("ALBO_ROM_J_OPT", "a")
+# 2026-09-27, after round 420: the i carries the family's left top wedge and
+# the j has none ("no top flag", rounds 22/25), which at 300 px reads as a flat
+# cut beside its own i; every reference (Georgia, Charter, Palatino, Hoefler,
+# both weights) heads its j as its i. ALBO_ROM_J_TOP=1 gives the roman j the
+# i's head (stem(top='left'), the same wedge). Default 0 = today; it reverses
+# the round-25 drawing, so it is the owner's call.
+J_TOP = os.environ.get("ALBO_ROM_J_TOP", "0") == "1"
 J_ARMS = {"geo": (-110,), "pal": (-95,), "hoe": (-95,), "fin": (-98,)}   # fin: -102 in pass 1 set "(j" 0.0086 em, under cmp_touch's floor
 if J_OPT not in J_ARMS: J_OPT = "a"
 

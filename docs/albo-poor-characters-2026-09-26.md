@@ -685,3 +685,31 @@ end, bowl left and bottom). Arms, all gates clean:
 Awaiting a pick.
 
 **Ruled 2026-09-27: A, as is** (*"as is, next"*). The a keeps its height and width; the dials stay default-off as the record.
+
+## Roman j: the head and the hook, shown (2026-09-27, after round 420)
+
+Read at 300 px on round 420 (`r420` build): the roman j's top is a flat cut
+(`g_j`, "no top flag", rounds 22/25) where its i carries the family's left
+wedge head; Georgia, Charter, Palatino and Hoefler (both weights) head their
+j exactly as their i. The hook reaches 82 units left of the origin (Georgia
+66, Charter 70; section 2) and ends in a 0.10 S blade.
+
+New dial `ALBO_ROM_J_TOP=1` (default 0 = today, outline-identical, checked):
+the roman j takes the i's head, `stem(top='left')`. It reverses the round-25
+drawing, so it is offered, not fixed. Arms, page
+https://claude.ai/artifact/4zPBXG8mUMnwE5tyyqmz5B:
+
+| label | env |
+|---|---|
+| A | today |
+| J1 | J_OPT=fin (arc to -98, c finial) |
+| J2 | J1 + J_TOP=1 |
+| J3 | J_OPT=hoe (teardrop) |
+| J4 | J_OPT=pal (short, square tip) |
+| J5 | J_TOP=1 alone |
+
+Gates (poor_gates vs r420, Regular + Bold): all touch 0, hairs no delta,
+glitch 0. At 54 px the head reads and widens the j's left side (J2 and J5 set
+wider); the hook arms are subtle at 54 px and clear at drawing size. The
+finial and teardrop ends (J1-J3) leave the tip pointing down-left -- flagged on
+the page. B2 not refit. Awaiting a pick.
