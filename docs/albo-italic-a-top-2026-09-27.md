@@ -119,3 +119,20 @@ Owner: *"the bigger glob wins but needs a small ascender, and the top left shoul
 | D2 | 35 | 60 |
 
 All touch 0, hairs PASS in both italics.
+
+## B's word image on C2, the heel, top-left = bottom-right (same day)
+
+Owner: *"match B word image better with a less thin top left line than showed, C2 with a globbier feel, add more area under bottom join to make a globby heel without to much visual weight (bottom right stroke of bowl should match top left)"*.
+
+- On a broad pen the top-left (running down-left, 225 deg) and the bottom-right (running up-right, 45 deg) are the SAME axis, so the nib gives them the same width at any stress; `A_TRI_PHI` 45 is the stress that makes both the thins. They measured unequal (C2: 21.3 against 26.2) because the WIDTH AVERAGE pulled the bottom-right toward the heavy bottom beside it. Cutting the average to 2 samples matched them (21.3 / 21.6) but brought the edge bumps back.
+- `A_TRI_DIRSM` smooths the pen's DIRECTION and reads the width off it: the thins stay thin, the edge stays smooth, and the two ends match -- 24.3 / 23.6 at hairline 1.20, 27.0 / 26.4 at 1.35 (C2's top-left was 21.3).
+- `A_TRI_HEEL`: a disc x the stem's width, sitting on the baseline against the stem's left edge, filling under the bowl's return. The first placement (0.16 xh) put it INSIDE the counter as a separate dot.
+
+| label | Italic THIN / GLOB / HEEL | BoldItalic THIN / GLOB / HEEL |
+|---|---|---|
+| E1 | 1.20 / 0.85 / 0.55 | 1.10 / 0.85 / 0.55 |
+| E2 | 1.35 / 0.85 / 0.55 | 1.25 / 0.85 / 0.55 |
+| E3 | 1.20 / 1.00 / 0.55 | 1.10 / 1.00 / 0.55 |
+| E4 | 1.20 / 0.85 / 0.75 | 1.10 / 0.85 / 0.75 |
+
+Common: ASC 35, PHI 45, DIRSM 8, BIAS 0.55, TOPFIT 0; W 1.55 Italic / 1.16 BoldItalic. All touch 0, hairs PASS.

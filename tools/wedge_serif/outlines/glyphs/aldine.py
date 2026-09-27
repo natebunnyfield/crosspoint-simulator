@@ -3321,7 +3321,14 @@ if ON:
     A_TRI_BIAS = float(os.environ.get("ALBO_ALD_A_TRI_BIAS", 0) or 0.40)
     _tf = os.environ.get("ALBO_ALD_A_TRI_TOPFIT")
     A_TRI_TOPFIT = float(_tf) if _tf not in (None, "") else None
-    A_TRI_ASC = float(os.environ.get("ALBO_ALD_A_TRI_ASC", 0) or 0)   # the stem stands this many units above the o's top, over the glob (0 = the glob is the top)
+    A_TRI_ASC = float(os.environ.get("ALBO_ALD_A_TRI_ASC", 0) or 0)
+    # owner 2026-09-27: "add more area under bottom join to make a globby heel
+    # without too much visual weight (bottom right stroke of bowl should match
+    # top left)". A disc of this x the stem's width filling the crotch under
+    # the bowl's return into the stem (0 = none)
+    A_TRI_HEEL = float(os.environ.get("ALBO_ALD_A_TRI_HEEL", 0) or 0)
+    A_TRI_HEEL_Y = float(os.environ.get("ALBO_ALD_A_TRI_HEEL_Y", 0) or 0.0)   # its centre's height above its own radius, x xh (0 = sitting on the baseline)
+    A_TRI_DIRSM = int(os.environ.get("ALBO_ALD_A_TRI_DIRSM", 0) or 0)   # smooth the pen's DIRECTION over +/- this many samples instead of averaging widths (0 = the width average)   # the stem stands this many units above the o's top, over the glob (0 = the glob is the top)
     A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
     def _a_tri_at(c, xs, xh, u, bow):
@@ -3349,8 +3356,17 @@ if ON:
         K = (xs + thick * 0.05, cy + ry * math.sin(t1) + 0.08 * xh)
         cl = geom.resample(top + arc + [K])
         tans = geom.tangents(cl)
-        ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin, phi=A_TRI_PHI) for tx, ty in tans]
-        m = A_TRI_SMOOTH; ws = [sum(ws[max(0, q - m):q + m + 1]) / len(ws[max(0, q - m):q + m + 1]) for q in range(len(ws))]
+        if A_TRI_DIRSM:
+            # the DIRECTION is smoothed and the width read off it: the pen's
+            # thins stay thin (a width average fills them from the thicks beside
+            # them) and the edge stays smooth (the direction turns gradually)
+            k_ = A_TRI_DIRSM; nt = len(tans)
+            tans = [(sum(tans[j][0] for j in range(max(0, q - k_), min(nt, q + k_ + 1))),
+                     sum(tans[j][1] for j in range(max(0, q - k_), min(nt, q + k_ + 1)))) for q in range(nt)]
+            ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin, phi=A_TRI_PHI) for tx, ty in tans]
+        else:
+            ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin, phi=A_TRI_PHI) for tx, ty in tans]
+            m = A_TRI_SMOOTH; ws = [sum(ws[max(0, q - m):q + m + 1]) / len(ws[max(0, q - m):q + m + 1]) for q in range(len(ws))]
         n = len(ws) - 1
         # the return lands INSIDE the stem: over the last 12% the width eases
         # down to 0.9 of the stem's, or a heavy nib pokes past its right edge
@@ -3365,7 +3381,17 @@ if ON:
             for q in range(jn + 1):
                 f = 1.0 - q / jn; f = f * f * (3 - 2 * f)   # smoothstep: full at the stem, the pen's own by JSPAN
                 ws[q] = max(ws[q], thick * A_TRI_JW * f + ws[q] * (1 - f))
+        if os.environ.get("ALBO_ALD_A_TRI_DEBUG"):   # the top-left and bottom-right widths: where the path runs down-left and up-right
+            import sys as _sys
+            def _near(deg):
+                best = min(range(n + 1), key=lambda q: abs(((math.degrees(math.atan2(tans[q][1], tans[q][0])) - deg + 180) % 360) - 180))
+                return round(ws[best], 1), round(cl[best][0]), round(cl[best][1])
+            print("[a_tri] top-left (225 deg) w,x,y", _near(225), " bottom-right (45 deg)", _near(45), " left side (270)", _near(270), " bottom (0)", _near(0), file=_sys.stderr)
         g_ = stroke(cl, lambda t: ws[min(n, int(round(t * n)))], raw=True)
+        if A_TRI_HEEL:
+            from shapely.geometry import Point
+            hr = A_TRI_HEEL * sw0
+            g_ = g_.union(Point((xs - sw0 * 0.5 - hr * 0.30, hr * 0.85 + A_TRI_HEEL_Y * xh)).buffer(hr, 48))   # under the join, on the baseline, against the stem
         if gr:
             from shapely.geometry import Point
             g_ = g_.union(Point(J).buffer(gr, 48))
