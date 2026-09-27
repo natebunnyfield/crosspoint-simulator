@@ -4013,6 +4013,17 @@ if ON:
     # hook, swash.
     Q_TAIL = os.environ.get("ALBO_ALD_Q_TAIL", "foot").lower()
     Q_FOOT_LMUL = float(os.environ.get("ALBO_ALD_Q_FOOT_LMUL", 0.65))  # the q foot's LEFT arm, x the p's
+    # 2026-09-27, the poor-characters list's BoldItalic q (bearing balance:
+    # rsb -70 BoldItalic / -25 Italic, the foot's right arm running under the
+    # next letter; references +26 to +112). Q_FOOT_RMUL scales the RIGHT arm
+    # alone, as LMUL does the left (1.0 = today). PQ_FLAT fills the dent in
+    # the foot's underside, measured on round 421: the underside rises 8 / 15
+    # units mid-foot on the q (Italic / BoldItalic) and 4 / 10 on the p,
+    # because the catmull centerline and the smoothstep widths do not cancel
+    # between their keys -- the "straight underside" the docstring promises is
+    # only exact AT the five keys. It moves the p too (same foot).
+    Q_FOOT_RMUL = float(os.environ.get("ALBO_ALD_Q_FOOT_RMUL", 1.0))
+    PQ_FLAT = os.environ.get("ALBO_ALD_PQ_FLAT", "0") == "1"
 
     def q_tail(xc, ybot, u=1.0):
         t = PQ_FOOT_T * u
@@ -4030,7 +4041,13 @@ if ON:
             # 0.38 / 0.25 and shown; **0.65 wins**, off the owner's own eye and
             # above every rung he was offered -- a microserif here turns out to
             # be a serif two thirds the length, not a nub.
-            return pq_foot(xc, ybot, u, lmul=Q_FOOT_LMUL)
+            return pq_foot(xc, ybot, u, lmul=Q_FOOT_LMUL, rmul=Q_FOOT_RMUL)
+        if Q_TAIL == "cut":
+            # no foot: the descender stops on the family's pen cut (Palatino's
+            # bold italic q; the chancery q with no serif). The stem is drawn
+            # down to the line here, the stroke above it overlapping.
+            _w = Q_STEM_W * u; _d = math.tan(CUT) * _w / 2   # the cut's lower corner lands ON the line, not under it
+            return stroke([(xc, ybot + t * 2.0 + _d), (xc, ybot + _d)], _w, cut1=CUT)
         if Q_TAIL == "flourish":
             # out of the stem's foot, right and up, thinning to the pen's cut:
             # the capital Q's tail at a tenth of the size.
@@ -4063,12 +4080,12 @@ if ON:
                                      (0.62, t * 0.80), (1.0, t * 0.26)]), cut1=CUT)
         return pq_foot(xc, ybot, u)
 
-    def pq_foot(xc, ybot, u=1.0, lmul=1.0):
+    def pq_foot(xc, ybot, u=1.0, lmul=1.0, rmul=1.0):
         """The descender's spread foot: a flat-bottomed two-sided bar, 21 units
         at the tips and 3.2x that where the stem lands. The centerline RISES
         toward the middle, because the underside is straight and the stroke
         thickens upward from it."""
-        l = PQ_FOOT_L * u * lmul; r = PQ_FOOT_R * u; t = PQ_FOOT_T * u
+        l = PQ_FOOT_L * u * lmul; r = PQ_FOOT_R * u * rmul; t = PQ_FOOT_T * u
         cps = [(xc - l, ybot + t * 0.50), (xc - l * 0.46, ybot + t * 0.68),
                (xc, ybot + t * 1.60), (xc + r * 0.46, ybot + t * 0.68),
                (xc + r, ybot + t * 0.50)]
@@ -4093,7 +4110,14 @@ if ON:
         for (px, py), w in zip(cps, ws):
             j = min(range(len(p)), key=lambda i: (p[i][0] - px) ** 2 + (p[i][1] - py) ** 2)
             keys.append((d[j] / d[-1], w))
-        return stroke(p, widths(keys), cut0=CUT, cut1=CUT)
+        ft = stroke(p, widths(keys), cut0=CUT, cut1=CUT)
+        if PQ_FLAT:
+            # the underside flat: the foot's own hull, only in a band lower
+            # than the tips' thickness, so nothing but the dent is filled
+            from shapely.geometry import box as _box
+            x0_, _, x1_, _ = ft.bounds
+            ft = geom.union([ft, ft.convex_hull.intersection(_box(x0_, ybot, x1_, ybot + t * 0.9))])
+        return ft
 
     @glyph('p')
     def a_p(c):

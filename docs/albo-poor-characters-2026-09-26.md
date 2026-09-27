@@ -728,3 +728,26 @@ finial end (J2, K5, K6) leaves a small upward point at the face's inner corner;
 the square faces and the pen-cut curl do not. Awaiting a pick.
 
 **Ruled 2026-09-27: K8 with J2's head** (*"K8 next"*), round 421.
+
+## Italic q (BoldItalic flag): what the flag is, the foot's dent, and arms (2026-09-27, after round 421)
+
+Measured on round 421 (`r421b` build):
+- **The bearing-balance flag is not the foot.** The q's rightmost ink is its
+  stem's sheared top at the x-height (rsb -70 BoldItalic, -25 Italic).
+  Shortening the foot's right arm to 0.55 leaves rsb exactly where it was
+  (checked, both cuts). The number follows the fitted advance (B2, his bench),
+  so no drawing of the foot reaches it. Negative result, recorded so it is not
+  retried.
+- **The foot's underside is not flat**, contrary to `pq_foot`'s docstring: it
+  rises 8 / 15 units mid-foot on the q (Italic / BoldItalic; e.g. BoldItalic
+  -286 -> -271 at x 324 -> -287) and 4 / 10 on the p. The catmull centerline
+  and the smoothstep widths agree only AT the five keys.
+
+Dials (`aldine.py`, default = today, outline-identical, checked):
+`ALBO_ALD_PQ_FLAT=1` fills the dent (the foot's hull in a band under the tips'
+thickness; underside -> within 2 units, p too); `ALBO_ALD_Q_FOOT_RMUL` scales
+the q's right arm; `ALBO_ALD_Q_TAIL=cut` is a no-foot descender on the pen
+cut, its lower corner on the line (the first cut dipped 9-15 units under it).
+Arms, page https://claude.ai/artifact/E8VJnViLzppEYE5b5Ya6hz: A today, Q1 flat,
+Q2 flat + right 0.75, Q3 flat + right 0.55, Q4 flat p + no-foot q. Gates:
+only p and q move, touch 0, hairs 0, approved 2/2. Awaiting a pick.
