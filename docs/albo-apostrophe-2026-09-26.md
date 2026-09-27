@@ -345,3 +345,61 @@ is in the session scratchpad at `apos-italic/index.html` and is not published.
   it could ship.
 
 Owner pick: (awaiting)
+
+## 11. Variations on b (2026-09-26)
+
+Round 403 shipped as build 233. Owner, on the four arms: *"need tasteful
+variations on b"*.
+
+Six new arm letters under `ALBO_APOS_IT_STRAIGHT`; the default is still `a`
+(today). Each one changes ONE thing from b. For reference, b is:
+
+- 1.20 stems at the top, tapering to 0.25 at the foot;
+- today's length;
+- the family's 20° pen cut on the top;
+- a smoothstep taper;
+- the italic's own slant, because it is drawn upright and sheared with the
+  rest of the face.
+
+The italic's other terminals were checked. Its strokes' cuts are overwhelmingly
+the same `CUT` (20°): 34 `cut0/cut1=CUT` in `aldine.py`. The finial face is
+`PR.FINIAL_CUT_DEG` (28°), and that is what j tries.
+
+Measured with `apos_italic_straight.py`. The last column is the closest pair
+involving `'` in the Bold Italic, from `cmp_touch`, in em:
+
+| arm | the change | height /xh | top / mid / foot | lean | ink / n | closest `'` pair, BoldItalic |
+|---|---|---|---|---|---|---|
+| a | today | 0.531 | 1.42 / 1.42 / 1.41 | 12.9° | 0.327 | `'?` 0.0190 |
+| b | pen wedge | 0.548 | 1.19 / 0.78 / 0.31 | 12.9° | 0.172 | `q'` 0.0196 |
+| f | top 1.05, the references' median | 0.544 | 1.05 / 0.71 / 0.31 | 13.0° | 0.155 | `'?` 0.0182 |
+| g | blunt foot 0.40 | 0.548 | 1.19 / 0.85 / 0.46 | 12.7° | 0.190 | `'?` 0.0165 |
+| h | the curly `’`'s length, 0.48 xh | 0.473 | 1.03 / 0.80 / 0.32 | 11.5° | 0.148 | `'?` 0.0188 |
+| i | concave taper, like a brush (0.55 halfway) | 0.548 | 1.19 / 0.61 / 0.32 | 12.7° | 0.153 | `q'` 0.0196 |
+| j | top cut at 28°, the finial face | 0.561 | 0.85 / 0.80 / 0.32 | 10.1° | 0.172 | `'?` 0.0147 |
+| k | 3° more lean (16° in all) | 0.550 | 1.05 / 0.80 / 0.31 | 14.7° | 0.171 | `'?` 0.0196 |
+
+**Gates, every variation, Italic and BoldItalic.**
+
+- `cmp_touch`: 0 touching, 0 under the floor.
+- `cmp_contour_hairs --letters` PASS, and the full sweep is identical to round
+  403.
+- `cmp_counter_dents` and `cmp_aldine_glitch --all` are identical to round 403.
+- `approved.py` 2/2.
+- Only `quotesingle` moves.
+- The tightest punctuation pair is j's BoldItalic `'?` at 0.0147 em. It is
+  above the 0.012 floor, but the closest of the set.
+
+**Two readings.**
+
+- **j's steeper cut shortens the top it keeps.** It reads 0.85 at the 10% row,
+  so j is lighter at the top than b. The cut also moves its measured lean to
+  10.1°.
+- **At 54 px the variations differ by a pixel or two.** They are distinct on
+  the italic `'` itself, not on the word shape.
+
+**The image.** `apos_italic_proof.py` now takes `"label=font.ttf"` arguments.
+The image is `italic-straight-b-variations.png`, in the session scratchpad
+`apos-italic/`. `index.html` shows it first. Not published.
+
+Owner pick: (awaiting)

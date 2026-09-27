@@ -625,11 +625,27 @@ def straight_quote(c, x, k=0):
 #                    to a 0.30 tip, 0.50 xh: the curly mark's head without its turn
 #   e  REFERENCE     the references' median profile: 1.05 / 0.89 / 0.44 stems at
 #                    top / middle / foot, 0.50 xh, pen-cut top
+# VARIATIONS ON b. Owner 2026-09-26, on the four arms: *"need tasteful
+# variations on b"*. Each changes ONE thing from b (1.20 -> 0.25 stems,
+# today's length, the family's 20-degree pen cut, smoothstep taper, the
+# italic's own slant), every value inside the references' ranges:
+#   f  top 1.05 stems, the references' median top
+#   g  a blunt foot, 0.40 stems (references 0.32-0.55)
+#   h  the curly ’'s length, 0.48 x-height
+#   i  a concave taper, as a brush thins: 0.55 stems halfway, where b holds 0.73
+#   j  the top cut at 28 degrees, the italic's finial face (PR.FINIAL_CUT_DEG)
+#   k  3 degrees more lean than the stems (16 in all; Poetica 14.9, Palatino 24)
+_B_VARS = {"b": {}, "f": dict(top=1.05), "g": dict(foot=0.40), "h": dict(length=0.48),
+           "i": dict(mid=0.55), "j": dict(cut=PR.FINIAL_CUT_DEG), "k": dict(lean=3.0)}
 APOS_IT_STRAIGHT = os.environ.get("ALBO_APOS_IT_STRAIGHT", "a") if pen.ITALIC else "a"
 def _it_straight(c, x):
     top = CAP(c) - _qdrop(); U = TH_V * 0.8 * QUOTE_W / 1.42; X = c["xh"]; o = APOS_IT_STRAIGHT
-    if o == "b":
-        return stroke(line((x, top), (x, top - QUOTE_BODY_L)), widths([(0.0, 1.20 * U), (1.0, 0.25 * U)]), cut0=CUT)
+    if o in _B_VARS:
+        v = dict(top=1.20, foot=0.25, length=None, mid=None, cut=None, lean=0.0); v.update(_B_VARS[o])
+        L = QUOTE_BODY_L if v["length"] is None else v["length"] * X
+        keys = [(0.0, v["top"] * U), (1.0, v["foot"] * U)] + ([(0.5, v["mid"] * U)] if v["mid"] else [])
+        g = stroke(line((x, top), (x, top - L)), widths(keys), cut0=CUT if v["cut"] is None else math.radians(v["cut"]))
+        return aff.rotate(g, -v["lean"], origin=(x, top)) if v["lean"] else g
     if o == "c":
         return stroke(line((x, top), (x, top - 0.48 * X)), widths([(0.0, 1.60 * U), (1.0, 0.35 * U)]), cut0=CUT)
     if o == "d":

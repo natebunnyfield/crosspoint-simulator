@@ -6,6 +6,7 @@ labeled, and the curly ’ row (round 403) for comparison.
     uv run --python 3.13 --with uharfbuzz --with freetype-py --with shapely \\
         --with fonttools --with pillow --with numpy \\
         python instruments/apos_italic_proof.py OUT.png today.ttf b.ttf c.ttf d.ttf e.ttf
+    or, labeled:  ... OUT.png "a  today=today.ttf" "b  pen wedge=b.ttf" ...
 """
 import os, sys
 import numpy as np
@@ -20,9 +21,10 @@ UI = "/System/Library/Fonts/Supplemental/Arial.ttf"
 
 def main():
     out, fonts = sys.argv[1], sys.argv[2:]
-    rows = [(LAB[i], set_block(p, WORDS, 54, 700)) for i, p in enumerate(fonts)]
-    rows.append(("curly ’ (round 403)", set_block(fonts[0], WORDS.replace("'", "’"), 54, 700)))
-    LW = 190; h = rows[0][1].shape[0]
+    specs = [a.rsplit("=", 1) if "=" in a else (LAB[i], a) for i, a in enumerate(fonts)]
+    rows = [(lab, set_block(p, WORDS, 54, 700)) for lab, p in specs]
+    rows.append(("curly ’ (round 403)", set_block(specs[0][1], WORDS.replace("'", "’"), 54, 700)))
+    LW = max(190, 20 + max(int(ImageFont.truetype(UI, 17).getlength(l)) for l, _ in rows)); h = rows[0][1].shape[0]
     im = Image.new("RGB", (LW + 700, h * len(rows)), "white"); d = ImageDraw.Draw(im)
     f = ImageFont.truetype(UI, 17)
     for i, (lab, cov) in enumerate(rows):
