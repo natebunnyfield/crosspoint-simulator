@@ -3235,6 +3235,75 @@ if ON:
         A_DROOP_HAND = [tuple(float(x) for x in kv.split(":"))
                         for kv in os.environ["ALBO_ALD_A_HAND"].split(",")]
 
+    # THE TRIANGULAR a, options -- owner 2026-09-27, after three ring-dial
+    # options were rejected: *"none are what i asked for. it needs to be almost
+    # triangular"*, then, correcting the first drawing's premise, *"top right
+    # is the high corner"* and *"top left is not a corner"*. So the bowl is a
+    # WEDGE POINTING LEFT, drawn as one pen movement: out of the stem at its
+    # top (the high corner, the only corner), down-left along a near-straight
+    # top that DROOPS, round a soft turn at the left -- not a corner -- and
+    # back down-right to the stem low. Widths off the 50-degree nib by
+    # direction (the ONE RULE): the drooping top runs near the nib's edge and
+    # comes out light, the return runs across it and comes out heavy.
+    #   wdg   the turn at the left at 0.52 xh
+    #   dro   droopier: the turn lower, 0.42 xh, so the top falls further
+    #   rnd   as wdg with a rounder turn and a rounder bottom
+    # The ring's round-155/166/167 droop is untouched and is what ships.
+    #   (redrawn the same day) The bowl is a TEARDROP whose point is the high
+    #   corner: a round lower bowl -- an ellipse -- and a STRAIGHT top that is
+    #   the tangent from the corner to that ellipse, so line and curve meet
+    #   with no knee by construction (a catmull through a corner of points
+    #   made one). The options size the round part; the smaller it is, the
+    #   longer the straight droop and the more triangular the letter.
+    #   wdg   the round part 0.62 of the x-height tall
+    #   dro   smaller and lower, 0.52: the longest droop, most triangular
+    #   rnd   larger, 0.74: the softest
+    #   (and again, owner: *"yes but rounded. look at earlier provided
+    #   reference"* -- the scan crop, aldine_autofit.SOURCES['a']). In the scan
+    #   the HIGH CORNER is the STEM's top: the stem stands well above the bowl,
+    #   and the bowl is a small rounded teardrop HUNG on the stem, its point
+    #   joining the stem below the stem's top, its top edge convex. So the join
+    #   is A_TRI_JY of the x-height down the stem, and the top edge is a curve
+    #   bowed up by A_TRI_BOW that still meets the round tangentially: it is
+    #   aimed at the tangent from a point A_TRI_BOW above the join, whose line
+    #   it follows into the ellipse.
+    #   wdg   join at 0.82 xh, bowed 0.07
+    #   dro   the bowl lower on the stem -- join 0.72 -- and a smaller round
+    #   rnd   join 0.82, bowed 0.13, a larger round: the softest
+    A_TRI = os.environ.get("ALBO_ALD_A_TRI", "")
+    _AT = {"wdg": (0.31, 0.82, 0.07), "dro": (0.27, 0.72, 0.07), "rnd": (0.34, 0.82, 0.13)}.get(A_TRI, (0.31, 0.82, 0.07))
+    A_TRI_RY = float(os.environ.get("ALBO_ALD_A_TRI_RY", 0) or _AT[0])     # the round's half-height, x xh
+    A_TRI_JY = float(os.environ.get("ALBO_ALD_A_TRI_JY", 0) or _AT[1])     # where the bowl's top joins the stem, x xh
+    A_TRI_BOW = float(os.environ.get("ALBO_ALD_A_TRI_BOW", 0) or _AT[2])   # how far the top edge bows up, x xh
+    A_TRI_W = float(os.environ.get("ALBO_ALD_A_TRI_W", 1.65))              # the nib's broad, x the stem
+
+    def _a_tri(c, xs, xh, u):
+        hu = hm_u(c); thick = HM_STEMW * hu * A_TRI_W; thin = HM_ARCH_T * hu * 1.05
+        x0 = S * 0.6; W = xs - x0
+        J = (xs - thick * 0.05, A_TRI_JY * xh)                     # the bowl's point, into the stem below its top
+        ry = A_TRI_RY * xh; cy = ry + thick * 0.30 - 0.02 * xh      # the round's bottom ink on the o's overshoot
+        rx = 0.42 * W; cx = x0 + thick * 0.45 + rx
+        E = lambda t: (cx + rx * math.cos(t), cy + ry * math.sin(t))
+        Jv = (J[0], J[1] + A_TRI_BOW * xh)                          # the virtual point the top is aimed from
+        best = None
+        for q in range(900):
+            t = math.radians(40 + q * 0.2)
+            ex, ey = E(t); tx, ty = -rx * math.sin(t), ry * math.cos(t)
+            cr = abs((ex - Jv[0]) * ty - (ey - Jv[1]) * tx) / (math.hypot(ex - Jv[0], ey - Jv[1]) * math.hypot(tx, ty) + 1e-9)
+            if best is None or cr < best[0]: best = (cr, t)
+        t0 = best[1]; P0 = E(t0)
+        C = (Jv[0] + (P0[0] - Jv[0]) * 0.40, Jv[1] + (P0[1] - Jv[1]) * 0.40)   # on the tangent line: C1 into the round
+        top = list(geom.cubic(J, C, (C[0] + (P0[0] - C[0]) * 0.5, C[1] + (P0[1] - C[1]) * 0.5), P0))[:-1]
+        t1 = math.radians(352)
+        arc = [E(t0 + (t1 - t0) * q / 80) for q in range(81)]
+        K = (xs + thick * 0.05, cy + ry * math.sin(t1) + 0.08 * xh)
+        cl = geom.resample(top + arc + [K])
+        tans = geom.tangents(cl)
+        ws = [nib(math.degrees(math.atan2(ty, tx)), thick, thin) for tx, ty in tans]
+        m = 10; ws = [sum(ws[max(0, q - m):q + m + 1]) / len(ws[max(0, q - m):q + m + 1]) for q in range(len(ws))]
+        n = len(ws) - 1
+        return stroke(cl, lambda t: ws[min(n, int(round(t * n)))], raw=True)
+
     @glyph('a')
     def a_a(c):
         """The i's stem and outstroke, with the d's bowl on its left.
@@ -3279,6 +3348,8 @@ if ON:
         # lands on, because "the crown is the top, and a cut corner under it
         # only pokes a spike through the shoulder". That spike is what read as
         # two overlapping shapes at the top right.
+        if A_TRI in ("wdg", "dro", "rnd"):
+            bowl_ = _a_tri(c, xs, xh, u)
         return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, 'a')])
 
     # ------------------------------------------------------------ THE b, round 132
