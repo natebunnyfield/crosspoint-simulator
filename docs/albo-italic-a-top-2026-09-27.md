@@ -180,3 +180,23 @@ The 35-unit ascender over the glob is a d's ascender at reading size.
 | H4 | 5 / 1.00 / 0.90 | 24 | 19 |
 
 Common: G4's (RX 0.38, T1 315, KY 0.22, THIN 1.20 / 1.10, PHI 45, DIRSM 8, BIAS 0.55). All touch 0, hairs PASS.
+
+## Reshaping H2 for the word image, round 1 of several (same day)
+
+Owner: *"reshape H2 until it is readable by you and me. it needs make a strong word image. this will take multiple passes from both of us."*
+
+**My read of H2** (in confusable words -- dad, road, aura, idea, quad, quota, adage, aquaduct -- at 20 px x2 and 40 px, beside today and Flanker): it reads as a, but it is the DARKEST letter in each word (colour 0.385 against the d's 0.349) with a counter a quarter smaller than the d's (44.5k against 57.7k), so in "dad" and "quad" it sits as a knot among open rounds. Flanker's a keeps the o's openness.
+
+**The conflict the passes found:** lightening and opening it to the d's colour (v4: 0.348, counter 51.7k) evens the word image to my eye but raised OCR misreads 25 -> 32 (a>o 7 -> 12): the darkness was part of what separated a from o. Resolved by moving the a's identity to its RIGHT side -- a stronger glob and heel on the lightened bowl:
+
+| Italic | colour | counter | a misread (Vision) |
+|---|---|---|---|
+| H2 | 0.385 | 44.5k | 25 |
+| v4 (light, open) | 0.348 | 51.7k | 32 |
+| **J1** v4 + GLOB 1.05, HEEL 1.00 | 0.360 | 50.9k | **21** |
+| J2 v4 + GLOB 1.25, HEEL 0.90, ASC 14 | 0.372 | 48.8k | 23 (a>o 3, the fewest) |
+| J3 v4 + GLOB 1.15, HEEL 0.90 | 0.364 | 49.9k | 24 |
+
+J1 is both more legible to OCR and lighter / more open than H2. v4's bowl: W 1.25, THIN 1.00, RX 0.43, RY 0.36 (Italic).
+
+BoldItalic, where the glob works the other way (misread): today 40, H2 24, **K1 (H1's shape) 14**, K2 = K1 lightened to the d's colour (W 1.00, THIN 0.95, RX 0.43, RY 0.38, GLOB 0.85, HEEL 0.70; colour 0.500, counter 36.5k) 17, K3 20.
