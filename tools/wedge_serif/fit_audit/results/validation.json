@@ -1,0 +1,1578 @@
+{
+ "fixed": [
+  {
+   "case": "Italic b",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 1.09,
+    "rank": 18,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": -0.04,
+     "b": -1.11,
+     "c": 0.96,
+     "d": -2.53,
+     "e": -0.35,
+     "g": -0.07,
+     "h": 0.5
+    }
+   },
+   "after": {
+    "F": 1.08,
+    "rank": 18,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": 0.28,
+     "b": -0.81,
+     "c": 0.79,
+     "d": -2.53,
+     "e": -0.35,
+     "g": -0.07,
+     "h": 0.19
+    }
+   }
+  },
+  {
+   "case": "Italic d",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 0.88,
+    "rank": 20,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.16,
+     "b": 1.87,
+     "c": 0.65,
+     "d": 1.11,
+     "e": 0.63,
+     "g": -0.59,
+     "h": 0.64
+    }
+   },
+   "after": {
+    "F": 0.08,
+    "rank": 47,
+    "of": 62,
+    "flag": false,
+    "reason": "d:bot",
+    "axes": {
+     "a": 0.11,
+     "b": 0.69,
+     "c": 0.54,
+     "d": 1.11,
+     "e": 0.63,
+     "g": -0.68,
+     "h": 0.29
+    }
+   }
+  },
+  {
+   "case": "Italic p",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 0.0,
+    "rank": 53,
+    "of": 62,
+    "flag": false,
+    "reason": "a:col2x",
+    "axes": {
+     "a": 0.11,
+     "b": 0.78,
+     "c": 0.65,
+     "d": 0.44,
+     "e": 0.18,
+     "g": -0.38,
+     "h": 0.38
+    }
+   },
+   "after": {
+    "F": 0.0,
+    "rank": 54,
+    "of": 62,
+    "flag": false,
+    "reason": "a:col2x",
+    "axes": {
+     "a": 0.39,
+     "b": 0.64,
+     "c": 0.53,
+     "d": 0.44,
+     "e": 0.18,
+     "g": -0.11,
+     "h": 0.44
+    }
+   }
+  },
+  {
+   "case": "Italic q",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 0.54,
+    "rank": 26,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": 0.12,
+     "b": 1.52,
+     "c": 0.82,
+     "d": 1.2,
+     "e": 0.47,
+     "g": 0.08,
+     "h": 0.36
+    }
+   },
+   "after": {
+    "F": 0.14,
+    "rank": 40,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": 0.38,
+     "b": 0.83,
+     "c": 0.67,
+     "d": 1.2,
+     "e": 0.47,
+     "g": 0.03,
+     "h": 0.48
+    }
+   }
+  },
+  {
+   "case": "Italic a",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 0.6,
+    "rank": 24,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": 0.2,
+     "b": 1.56,
+     "c": -0.23,
+     "d": 1.3,
+     "e": -0.5,
+     "g": 0.06,
+     "h": 0.99
+    }
+   },
+   "after": {
+    "F": 0.25,
+    "rank": 34,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": 0.35,
+     "b": 1.14,
+     "c": -0.23,
+     "d": 1.3,
+     "e": -0.41,
+     "g": -0.49,
+     "h": 0.07
+    }
+   }
+  },
+  {
+   "case": "Italic s",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 0.72,
+    "rank": 22,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.55,
+     "b": 1.64,
+     "c": 0.69,
+     "d": -1.44,
+     "e": 0.61,
+     "g": 0.09,
+     "h": 0.58
+    }
+   },
+   "after": {
+    "F": 0.29,
+    "rank": 31,
+    "of": 62,
+    "flag": false,
+    "reason": "d:bot",
+    "axes": {
+     "a": -0.55,
+     "b": 1.15,
+     "c": 0.57,
+     "d": -1.35,
+     "e": 0.64,
+     "g": 0.28,
+     "h": 0.75
+    }
+   }
+  },
+  {
+   "case": "Italic y",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 2.06,
+    "rank": 3,
+    "of": 62,
+    "flag": true,
+    "reason": "d:bot",
+    "axes": {
+     "a": -0.2,
+     "b": -2.43,
+     "c": 0.21,
+     "d": -3.1,
+     "e": -0.62,
+     "g": 0.87,
+     "h": 0.0
+    }
+   },
+   "after": {
+    "F": 1.84,
+    "rank": 9,
+    "of": 62,
+    "flag": false,
+    "reason": "d:bot",
+    "axes": {
+     "a": -0.18,
+     "b": -2.09,
+     "c": -0.19,
+     "d": -3.1,
+     "e": -0.63,
+     "g": 0.69,
+     "h": 0.0
+    }
+   }
+  },
+  {
+   "case": "Italic 6",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 1.92,
+    "rank": 8,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.04,
+     "b": 2.45,
+     "c": -0.08,
+     "d": 2.76,
+     "e": 1.05,
+     "g": 0.92,
+     "h": 1.2
+    }
+   },
+   "after": {
+    "F": 1.42,
+    "rank": 13,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": -0.08,
+     "b": -1.44,
+     "c": -0.08,
+     "d": 2.9,
+     "e": 1.06,
+     "g": 0.4,
+     "h": 1.08
+    }
+   }
+  },
+  {
+   "case": "Regular x",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 1.08,
+    "rank": 20,
+    "of": 62,
+    "flag": false,
+    "reason": "d:bot",
+    "axes": {
+     "a": -0.74,
+     "b": 1.61,
+     "c": -0.24,
+     "d": -1.94,
+     "e": 1.85,
+     "g": 0.39,
+     "h": 0.82
+    }
+   },
+   "after": {
+    "F": 0.99,
+    "rank": 20,
+    "of": 62,
+    "flag": false,
+    "reason": "e:balance",
+    "axes": {
+     "a": -0.56,
+     "b": 0.77,
+     "c": -0.38,
+     "d": -1.94,
+     "e": 2.02,
+     "g": -1.12,
+     "h": 0.2
+    }
+   }
+  },
+  {
+   "case": "Regular Y",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 1.51,
+    "rank": 13,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -1.15,
+     "b": 2.42,
+     "c": -0.11,
+     "d": 1.38,
+     "e": -0.11,
+     "g": 1.42,
+     "h": 0.7
+    }
+   },
+   "after": {
+    "F": 2.06,
+    "rank": 10,
+    "of": 62,
+    "flag": true,
+    "reason": "b:stroke",
+    "axes": {
+     "a": -0.34,
+     "b": 2.74,
+     "c": -0.09,
+     "d": 1.38,
+     "e": -0.08,
+     "g": -0.35,
+     "h": 2.51
+    }
+   }
+  },
+  {
+   "case": "Regular e",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 5.97,
+    "rank": 1,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.66,
+     "b": 6.89,
+     "c": 0.5,
+     "d": 0.85,
+     "e": 0.11,
+     "g": 0.06,
+     "h": 2.35
+    }
+   },
+   "after": {
+    "F": 3.77,
+    "rank": 3,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.49,
+     "b": 4.77,
+     "c": 0.5,
+     "d": 0.85,
+     "e": 0.08,
+     "g": -0.22,
+     "h": 0.65
+    }
+   }
+  },
+  {
+   "case": "Regular 3",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 0.63,
+    "rank": 27,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -1.02,
+     "b": 1.63,
+     "c": -0.88,
+     "d": 0.63,
+     "e": 0.59,
+     "g": 0.04,
+     "h": 0.95
+    }
+   },
+   "after": {
+    "F": 0.37,
+    "rank": 36,
+    "of": 62,
+    "flag": false,
+    "reason": "b:stroke",
+    "axes": {
+     "a": -1.16,
+     "b": 1.34,
+     "c": -0.88,
+     "d": -0.62,
+     "e": 0.58,
+     "g": 0.02,
+     "h": 0.63
+    }
+   }
+  },
+  {
+   "case": "Regular 8",
+   "pre": "r393",
+   "post": "r395",
+   "source": "round 395, his thick/thin slider picks",
+   "before": {
+    "F": 2.68,
+    "rank": 5,
+    "of": 62,
+    "flag": true,
+    "reason": "d:top",
+    "axes": {
+     "a": -0.85,
+     "b": 2.61,
+     "c": 0.72,
+     "d": 3.91,
+     "e": 0.85,
+     "g": 1.54,
+     "h": 1.32
+    }
+   },
+   "after": {
+    "F": 2.05,
+    "rank": 11,
+    "of": 62,
+    "flag": true,
+    "reason": "d:top",
+    "axes": {
+     "a": -0.3,
+     "b": 0.78,
+     "c": 0.17,
+     "d": 3.91,
+     "e": 0.83,
+     "g": -0.09,
+     "h": 0.45
+    }
+   }
+  },
+  {
+   "case": "Regular R",
+   "pre": "r392",
+   "post": "r393",
+   "source": "round 393, the roman R takes the Bold R's balance",
+   "before": {
+    "F": 0.34,
+    "rank": 42,
+    "of": 62,
+    "flag": false,
+    "reason": "d:bot",
+    "axes": {
+     "a": 0.13,
+     "b": -0.12,
+     "c": -0.52,
+     "d": -1.43,
+     "e": -1.17,
+     "g": 1.08,
+     "h": 0.28
+    }
+   },
+   "after": {
+    "F": 0.3,
+    "rank": 39,
+    "of": 62,
+    "flag": false,
+    "reason": "d:bot",
+    "axes": {
+     "a": -0.04,
+     "b": 0.51,
+     "c": -0.52,
+     "d": -1.43,
+     "e": -0.96,
+     "g": 0.27,
+     "h": 0.28
+    }
+   }
+  },
+  {
+   "case": "BoldItalic j",
+   "pre": "r392",
+   "post": "r393",
+   "source": "round 393, the bold italic j head",
+   "before": {
+    "F": 0.0,
+    "rank": 59,
+    "of": 62,
+    "flag": false,
+    "reason": "a:col2x",
+    "axes": {
+     "a": 0.06,
+     "b": -0.54,
+     "c": 0.62,
+     "d": -0.63,
+     "e": -0.69,
+     "g": 0.26,
+     "h": 0.48
+    }
+   },
+   "after": {
+    "F": 0.0,
+    "rank": 60,
+    "of": 62,
+    "flag": false,
+    "reason": "a:col2x",
+    "axes": {
+     "a": 0.14,
+     "b": -0.76,
+     "c": 0.71,
+     "d": -0.63,
+     "e": -0.96,
+     "g": 0.29,
+     "h": 0.55
+    }
+   }
+  },
+  {
+   "case": "Italic h",
+   "pre": "r390",
+   "post": "r391",
+   "source": "round 391, the italic arch hairline",
+   "before": {
+    "F": 0.11,
+    "rank": 46,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.03,
+     "b": 1.11,
+     "c": -0.82,
+     "d": 0.87,
+     "e": 0.53,
+     "g": 0.49,
+     "h": 0.49
+    }
+   },
+   "after": {
+    "F": 0.0,
+    "rank": 52,
+    "of": 62,
+    "flag": false,
+    "reason": "a:col2x",
+    "axes": {
+     "a": 0.14,
+     "b": 0.73,
+     "c": -0.82,
+     "d": 0.87,
+     "e": 0.56,
+     "g": 0.56,
+     "h": 0.49
+    }
+   }
+  },
+  {
+   "case": "Italic m",
+   "pre": "r390",
+   "post": "r391",
+   "source": "round 391, the italic arch hairline",
+   "before": {
+    "F": 0.06,
+    "rank": 51,
+    "of": 62,
+    "flag": false,
+    "reason": "c:width",
+    "axes": {
+     "a": -0.13,
+     "b": 0.87,
+     "c": -1.07,
+     "d": 0.9,
+     "e": 0.24,
+     "g": -0.03,
+     "h": 0.17
+    }
+   },
+   "after": {
+    "F": 0.06,
+    "rank": 48,
+    "of": 62,
+    "flag": false,
+    "reason": "c:width",
+    "axes": {
+     "a": -0.06,
+     "b": 0.6,
+     "c": -1.07,
+     "d": 0.9,
+     "e": 0.21,
+     "g": -0.22,
+     "h": 0.17
+    }
+   }
+  },
+  {
+   "case": "Italic n",
+   "pre": "r390",
+   "post": "r391",
+   "source": "round 391, the italic arch hairline",
+   "before": {
+    "F": 0.49,
+    "rank": 24,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.05,
+     "b": 1.48,
+     "c": -0.59,
+     "d": 1.05,
+     "e": 0.35,
+     "g": 0.21,
+     "h": 0.28
+    }
+   },
+   "after": {
+    "F": 0.04,
+    "rank": 49,
+    "of": 62,
+    "flag": false,
+    "reason": "d:bot",
+    "axes": {
+     "a": 0.03,
+     "b": 1.01,
+     "c": -0.59,
+     "d": 1.05,
+     "e": 0.3,
+     "g": 0.28,
+     "h": 0.28
+    }
+   }
+  },
+  {
+   "case": "Italic r",
+   "pre": "r390",
+   "post": "r391",
+   "source": "round 391, the italic arch hairline",
+   "before": {
+    "F": 0.07,
+    "rank": 47,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.02,
+     "b": 1.07,
+     "c": 0.53,
+     "d": 0.6,
+     "e": 0.51,
+     "g": -0.15,
+     "h": 0.21
+    }
+   },
+   "after": {
+    "F": 0.0,
+    "rank": 54,
+    "of": 62,
+    "flag": false,
+    "reason": "a:col1x",
+    "axes": {
+     "a": 0.05,
+     "b": 0.73,
+     "c": 0.47,
+     "d": 0.6,
+     "e": 0.54,
+     "g": -0.24,
+     "h": 0.21
+    }
+   }
+  },
+  {
+   "case": "Italic u",
+   "pre": "r390",
+   "post": "r391",
+   "source": "round 391, the italic arch hairline",
+   "before": {
+    "F": 0.0,
+    "rank": 54,
+    "of": 62,
+    "flag": false,
+    "reason": "a:col2x",
+    "axes": {
+     "a": 0.12,
+     "b": -0.46,
+     "c": -0.85,
+     "d": 0.86,
+     "e": 0.4,
+     "g": 0.05,
+     "h": 0.37
+    }
+   },
+   "after": {
+    "F": 0.0,
+    "rank": 55,
+    "of": 62,
+    "flag": false,
+    "reason": "a:col2x",
+    "axes": {
+     "a": 0.15,
+     "b": -0.46,
+     "c": -0.85,
+     "d": 0.86,
+     "e": 0.36,
+     "g": 0.03,
+     "h": 0.37
+    }
+   }
+  },
+  {
+   "case": "Regular s",
+   "pre": "r390",
+   "post": "r391",
+   "source": "round 391, roman hairline floors",
+   "before": {
+    "F": 10.42,
+    "rank": 1,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.67,
+     "b": 9.57,
+     "c": 0.24,
+     "d": 1.31,
+     "e": 1.07,
+     "g": -0.06,
+     "h": 9.37
+    }
+   },
+   "after": {
+    "F": 2.47,
+    "rank": 8,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.55,
+     "b": 3.08,
+     "c": 0.21,
+     "d": 1.31,
+     "e": 1.04,
+     "g": -0.29,
+     "h": 2.87
+    }
+   }
+  },
+  {
+   "case": "Regular t",
+   "pre": "r390",
+   "post": "r391",
+   "source": "round 391, roman hairline floors",
+   "before": {
+    "F": 2.79,
+    "rank": 6,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.45,
+     "b": 3.61,
+     "c": -0.04,
+     "d": 0.82,
+     "e": 0.18,
+     "g": 0.91,
+     "h": 2.37
+    }
+   },
+   "after": {
+    "F": 2.26,
+    "rank": 12,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.39,
+     "b": 3.1,
+     "c": -0.04,
+     "d": 0.82,
+     "e": 0.19,
+     "g": 0.71,
+     "h": 2.2
+    }
+   }
+  },
+  {
+   "case": "Regular y",
+   "pre": "r390",
+   "post": "r391",
+   "source": "round 391, roman hairline floors",
+   "before": {
+    "F": 9.09,
+    "rank": 2,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": 0.42,
+     "b": 9.79,
+     "c": -0.47,
+     "d": -1.14,
+     "e": -0.49,
+     "g": 0.32,
+     "h": 4.28
+    }
+   },
+   "after": {
+    "F": 3.15,
+    "rank": 4,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": 0.42,
+     "b": 4.15,
+     "c": -0.51,
+     "d": -1.14,
+     "e": -0.49,
+     "g": -0.36,
+     "h": 0.32
+    }
+   }
+  },
+  {
+   "case": "BoldItalic g",
+   "pre": "r397",
+   "post": "r398",
+   "source": "round 398, the Bold Italic g on the weight axis",
+   "before": {
+    "F": 5.65,
+    "rank": 1,
+    "of": 62,
+    "flag": true,
+    "reason": "d:bot",
+    "axes": {
+     "a": -1.33,
+     "b": -1.67,
+     "c": 0.78,
+     "d": 8.91,
+     "e": -0.77,
+     "g": 1.14,
+     "h": 1.16
+    }
+   },
+   "after": {
+    "F": 5.6,
+    "rank": 1,
+    "of": 62,
+    "flag": true,
+    "reason": "d:bot",
+    "axes": {
+     "a": 0.87,
+     "b": 0.47,
+     "c": -0.13,
+     "d": 8.91,
+     "e": -0.82,
+     "g": 0.17,
+     "h": 0.34
+    }
+   }
+  },
+  {
+   "case": "Regular e",
+   "pre": "r399",
+   "post": "r400",
+   "source": "round 400, the e read as o",
+   "before": {
+    "F": 4.2,
+    "rank": 1,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.46,
+     "b": 5.19,
+     "c": 0.5,
+     "d": 0.85,
+     "e": -0.21,
+     "g": -1.3,
+     "h": 0.04
+    }
+   },
+   "after": {
+    "F": 4.14,
+    "rank": 2,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.52,
+     "b": 5.13,
+     "c": 0.5,
+     "d": 0.85,
+     "e": -0.24,
+     "g": -1.04,
+     "h": 0.05
+    }
+   }
+  },
+  {
+   "case": "Regular X",
+   "pre": "r372",
+   "post": "r373",
+   "source": "round 373, his X width and I wedges",
+   "before": {
+    "F": 1.69,
+    "rank": 14,
+    "of": 62,
+    "flag": false,
+    "reason": "b:stroke",
+    "axes": {
+     "a": -0.92,
+     "b": 2.63,
+     "c": 0.27,
+     "d": -0.78,
+     "e": -0.67,
+     "g": 1.42,
+     "h": 1.29
+    }
+   },
+   "after": {
+    "F": 0.75,
+    "rank": 27,
+    "of": 62,
+    "flag": false,
+    "reason": "b:stroke",
+    "axes": {
+     "a": -0.67,
+     "b": -1.69,
+     "c": -0.53,
+     "d": -0.69,
+     "e": -1.41,
+     "g": -0.11,
+     "h": 0.47
+    }
+   }
+  },
+  {
+   "case": "Regular I",
+   "pre": "r372",
+   "post": "r373",
+   "source": "round 373, his X width and I wedges",
+   "before": {
+    "F": 3.43,
+    "rank": 5,
+    "of": 62,
+    "flag": true,
+    "reason": "b:thin",
+    "axes": {
+     "a": 1.04,
+     "b": 4.3,
+     "c": -2.08,
+     "d": 0.06,
+     "e": 0.5,
+     "g": 0.44,
+     "h": 0.79
+    }
+   },
+   "after": {
+    "F": 3.75,
+    "rank": 5,
+    "of": 62,
+    "flag": true,
+    "reason": "b:thin",
+    "axes": {
+     "a": 1.12,
+     "b": 4.53,
+     "c": -2.45,
+     "d": 0.06,
+     "e": -0.51,
+     "g": 0.68,
+     "h": 0.89
+    }
+   }
+  },
+  {
+   "case": "Italic f",
+   "pre": "r372",
+   "post": "r373",
+   "source": "round 373, his italic f",
+   "before": {
+    "F": 0.83,
+    "rank": 19,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": 0.18,
+     "b": 0.54,
+     "c": -0.28,
+     "d": 2.17,
+     "e": 0.72,
+     "g": -0.44,
+     "h": 0.19
+    }
+   },
+   "after": {
+    "F": 0.64,
+    "rank": 22,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": -0.17,
+     "b": 0.49,
+     "c": 0.28,
+     "d": 1.91,
+     "e": 0.98,
+     "g": -0.29,
+     "h": 0.06
+    }
+   }
+  },
+  {
+   "case": "Italic 4",
+   "pre": "r377",
+   "post": "r378",
+   "source": "round 378, the italic 4 heavier",
+   "before": {
+    "F": 0.59,
+    "rank": 24,
+    "of": 62,
+    "flag": false,
+    "reason": "b:thin",
+    "axes": {
+     "a": 0.67,
+     "b": -1.59,
+     "c": 0.63,
+     "d": 0.69,
+     "e": -0.98,
+     "g": -0.12,
+     "h": 0.59
+    }
+   },
+   "after": {
+    "F": 0.15,
+    "rank": 40,
+    "of": 62,
+    "flag": false,
+    "reason": "b:thin",
+    "axes": {
+     "a": 0.95,
+     "b": -1.15,
+     "c": -0.46,
+     "d": 0.69,
+     "e": -0.98,
+     "g": -0.58,
+     "h": 0.32
+    }
+   }
+  },
+  {
+   "case": "BoldItalic 4",
+   "pre": "r377",
+   "post": "r378",
+   "source": "round 378, the italic 4 heavier",
+   "before": {
+    "F": 0.48,
+    "rank": 34,
+    "of": 62,
+    "flag": false,
+    "reason": "b:thin",
+    "axes": {
+     "a": 0.93,
+     "b": -1.48,
+     "c": -1.02,
+     "d": 0.54,
+     "e": -0.8,
+     "g": 0.29,
+     "h": 0.56
+    }
+   },
+   "after": {
+    "F": 0.83,
+    "rank": 25,
+    "of": 62,
+    "flag": false,
+    "reason": "b:thin",
+    "axes": {
+     "a": 0.98,
+     "b": -1.83,
+     "c": -0.36,
+     "d": 0.54,
+     "e": -0.76,
+     "g": 0.11,
+     "h": 0.68
+    }
+   }
+  },
+  {
+   "case": "Bold 4",
+   "pre": "r377",
+   "post": "r378",
+   "source": "round 378, Bold figure widths",
+   "before": {
+    "F": 1.29,
+    "rank": 24,
+    "of": 62,
+    "flag": false,
+    "reason": "b:stroke",
+    "axes": {
+     "a": 1.75,
+     "b": 1.92,
+     "c": -0.59,
+     "d": 1.67,
+     "e": -0.83,
+     "g": -0.36,
+     "h": 1.27
+    }
+   },
+   "after": {
+    "F": 1.07,
+    "rank": 26,
+    "of": 62,
+    "flag": false,
+    "reason": "b:stroke",
+    "axes": {
+     "a": 1.39,
+     "b": 1.64,
+     "c": -0.2,
+     "d": 1.65,
+     "e": -0.74,
+     "g": -1.62,
+     "h": 0.91
+    }
+   }
+  },
+  {
+   "case": "Bold 5",
+   "pre": "r377",
+   "post": "r378",
+   "source": "round 378, Bold figure widths",
+   "before": {
+    "F": 1.49,
+    "rank": 19,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -1.24,
+     "b": 1.97,
+     "c": 0.21,
+     "d": -1.33,
+     "e": 1.78,
+     "g": -1.85,
+     "h": 1.52
+    }
+   },
+   "after": {
+    "F": 0.37,
+    "rank": 46,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": -0.64,
+     "b": 1.26,
+     "c": -0.51,
+     "d": -1.33,
+     "e": 1.15,
+     "g": -0.79,
+     "h": 0.81
+    }
+   }
+  },
+  {
+   "case": "Bold 7",
+   "pre": "r377",
+   "post": "r378",
+   "source": "round 378, Bold figure widths",
+   "before": {
+    "F": 1.08,
+    "rank": 28,
+    "of": 62,
+    "flag": false,
+    "reason": "b:stroke",
+    "axes": {
+     "a": 1.33,
+     "b": -1.92,
+     "c": -1.52,
+     "d": 0.99,
+     "e": 0.36,
+     "g": -1.0,
+     "h": 1.17
+    }
+   },
+   "after": {
+    "F": 1.48,
+    "rank": 22,
+    "of": 62,
+    "flag": false,
+    "reason": "g:legib",
+    "axes": {
+     "a": 1.34,
+     "b": -1.91,
+     "c": -1.11,
+     "d": 0.99,
+     "e": 0.45,
+     "g": -2.11,
+     "h": 1.17
+    }
+   }
+  },
+  {
+   "case": "Regular X",
+   "pre": "r223",
+   "post": "r224",
+   "source": "round 224, kept",
+   "before": {
+    "F": 3.11,
+    "rank": 6,
+    "of": 62,
+    "flag": true,
+    "reason": "g:legib",
+    "axes": {
+     "a": -1.06,
+     "b": -3.13,
+     "c": 0.21,
+     "d": -0.76,
+     "e": -0.7,
+     "g": 3.26
+    }
+   },
+   "after": {
+    "F": 1.37,
+    "rank": 15,
+    "of": 62,
+    "flag": false,
+    "reason": "g:legib",
+    "axes": {
+     "a": -0.9,
+     "b": -1.86,
+     "c": 0.21,
+     "d": -0.76,
+     "e": -0.75,
+     "g": 2.07
+    }
+   }
+  },
+  {
+   "case": "Italic z",
+   "pre": "r223",
+   "post": "r224",
+   "source": "round 224, kept",
+   "before": {
+    "F": 0.1,
+    "rank": 49,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": -0.77,
+     "b": -0.85,
+     "c": 0.66,
+     "d": -1.13,
+     "e": 0.96,
+     "g": -0.2
+    }
+   },
+   "after": {
+    "F": 0.1,
+    "rank": 49,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": -0.47,
+     "b": 0.59,
+     "c": 0.66,
+     "d": -1.13,
+     "e": 0.78,
+     "g": -0.33
+    }
+   }
+  },
+  {
+   "case": "Italic A",
+   "pre": "r223",
+   "post": "r224",
+   "source": "round 224, kept",
+   "before": {
+    "F": 1.24,
+    "rank": 17,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": 0.16,
+     "b": -2.24,
+     "c": 0.67,
+     "d": 0.59,
+     "e": 0.64,
+     "g": -0.44
+    }
+   },
+   "after": {
+    "F": 1.19,
+    "rank": 17,
+    "of": 62,
+    "flag": false,
+    "reason": "b:cut",
+    "axes": {
+     "a": 0.16,
+     "b": -2.19,
+     "c": 0.93,
+     "d": 0.59,
+     "e": 0.62,
+     "g": -0.47
+    }
+   }
+  },
+  {
+   "case": "Italic k",
+   "pre": "r223",
+   "post": "r224",
+   "source": "round 224, kept",
+   "before": {
+    "F": 1.82,
+    "rank": 6,
+    "of": 62,
+    "flag": false,
+    "reason": "d:top",
+    "axes": {
+     "a": -0.59,
+     "b": -1.12,
+     "c": -0.79,
+     "d": 3.39,
+     "e": 1.92,
+     "g": 0.3
+    }
+   },
+   "after": {
+    "F": 0.69,
+    "rank": 30,
+    "of": 62,
+    "flag": false,
+    "reason": "e:loose",
+    "axes": {
+     "a": -0.59,
+     "b": -1.12,
+     "c": -0.79,
+     "d": -1.09,
+     "e": 1.96,
+     "g": 0.32
+    }
+   }
+  }
+ ],
+ "rejected": [
+  {
+   "case": "Regular Q",
+   "tag": "r223",
+   "source": "round 224's Q tail and S, reverted by him in round 225",
+   "before": {
+    "F": 4.19,
+    "rank": 4,
+    "of": 62,
+    "flag": true,
+    "reason": "c:width",
+    "axes": {
+     "a": -0.29,
+     "b": -2.33,
+     "c": 5.58,
+     "d": -0.22,
+     "e": -0.84,
+     "g": 0.23
+    }
+   }
+  },
+  {
+   "case": "Regular S",
+   "tag": "r223",
+   "source": "round 224's Q tail and S, reverted by him in round 225",
+   "before": {
+    "F": 4.52,
+    "rank": 3,
+    "of": 62,
+    "flag": true,
+    "reason": "b:cut",
+    "axes": {
+     "a": 0.01,
+     "b": 5.52,
+     "c": -0.18,
+     "d": 0.71,
+     "e": 0.76,
+     "g": 0.83
+    }
+   }
+  }
+ ],
+ "approved": [
+  {
+   "case": "Regular g",
+   "tag": "r393",
+   "F": 1.19,
+   "rank": 16,
+   "of": 62,
+   "flag": false,
+   "reason": "e:loose",
+   "axes": {
+    "a": 0.02,
+    "b": 1.34,
+    "c": -0.24,
+    "d": -1.19,
+    "e": -2.61,
+    "g": 0.57,
+    "h": 0.53
+   }
+  },
+  {
+   "case": "Regular g",
+   "tag": "r397",
+   "F": 1.22,
+   "rank": 15,
+   "of": 62,
+   "flag": false,
+   "reason": "e:loose",
+   "axes": {
+    "a": 0.02,
+    "b": 1.7,
+    "c": -0.24,
+    "d": -1.19,
+    "e": -2.39,
+    "g": 1.16,
+    "h": 0.58
+   }
+  },
+  {
+   "case": "Regular g",
+   "tag": "r402",
+   "F": 1.5,
+   "rank": 15,
+   "of": 62,
+   "flag": false,
+   "reason": "b:stroke",
+   "axes": {
+    "a": 0.02,
+    "b": 2.1,
+    "c": -0.24,
+    "d": -1.19,
+    "e": -2.42,
+    "g": 0.74,
+    "h": 0.6
+   }
+  },
+  {
+   "case": "Italic g",
+   "tag": "r393",
+   "F": 4.6,
+   "rank": 1,
+   "of": 62,
+   "flag": true,
+   "reason": "d:bot",
+   "axes": {
+    "a": 0.78,
+    "b": 0.38,
+    "c": -0.22,
+    "d": 7.51,
+    "e": -0.93,
+    "g": 0.04,
+    "h": 0.09
+   }
+  },
+  {
+   "case": "Italic g",
+   "tag": "r397",
+   "F": 4.6,
+   "rank": 1,
+   "of": 62,
+   "flag": true,
+   "reason": "d:bot",
+   "axes": {
+    "a": 0.65,
+    "b": -0.5,
+    "c": -0.22,
+    "d": 7.51,
+    "e": -0.93,
+    "g": 0.31,
+    "h": 0.09
+   }
+  },
+  {
+   "case": "Italic g",
+   "tag": "r402",
+   "F": 4.6,
+   "rank": 1,
+   "of": 62,
+   "flag": true,
+   "reason": "d:bot",
+   "axes": {
+    "a": 0.68,
+    "b": -0.49,
+    "c": -0.22,
+    "d": 7.51,
+    "e": -0.93,
+    "g": 0.23,
+    "h": 0.12
+   }
+  }
+ ],
+ "base_rate": {
+  "r393/Italic": 0.065,
+  "r393/Regular": 0.161,
+  "r392/Regular": 0.194,
+  "r392/BoldItalic": 0.081,
+  "r390/Italic": 0.065,
+  "r390/Regular": 0.194,
+  "r397/BoldItalic": 0.113,
+  "r399/Regular": 0.145,
+  "r372/Regular": 0.194,
+  "r372/Italic": 0.081,
+  "r377/Italic": 0.081,
+  "r377/BoldItalic": 0.097,
+  "r377/Bold": 0.194,
+  "r223/Regular": 0.161,
+  "r223/Italic": 0.081
+ },
+ "summary": {
+  "caught": 10,
+  "total": 37,
+  "median_rank_pct": 0.3225806451612903,
+  "top10": 12,
+  "fell": 28
+ }
+}
