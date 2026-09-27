@@ -106,3 +106,11 @@ of its own 6" (2026-09-18) is stale.
 
 Stroke -2.5 sigma, BoldItalic only (the Italic 7 is on its family: ridge
 median 46.5 against ~46). Same round-410 pen construction as the 2.
+
+**BoldItalic 7, measured and optioned.** `ALBO_IT_FIG7_TW_700` (aldine.py,
+default 1.0, both italics outline-identical at the default and the Italic
+identical at every value -- checked). Ridge median / p90: today 62.6 / 75.0,
+1.20 -> 75.2 / 92.0, 1.35 -> 84.4 / 103.5, 1.50 -> 93.1 / 114.5 (figures
+~78 / ~116-127). Page (A / H1 1.20 / H2 1.35 / H3 1.50):
+https://claude.ai/artifact/M27rQEBnGr9jeYh2xLMG3V. Gates: touch 0, hairs 0,
+approved 2/2; moves seven, seveneighths, U+2077, U+2087 (BoldItalic).

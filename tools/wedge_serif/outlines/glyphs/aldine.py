@@ -11746,14 +11746,21 @@ if ON:
         H = c["figH"]; W = _FG.W_(c, ch, 440)
         return (lambda fx, fy: (S * 0.35 + fx * W, fy * H)), H, W
 
+    # 2026-09-27, the round-422 fit audit: the BoldItalic 7 reads light (stroke
+    # -2.5 sigma; ridge median 62.6 against its figures' ~78, p90 75 against
+    # ~116-127); the Italic 7 is on its family. FIG7_TW_700 scales the 7's
+    # widths above stem 84 only (1.0 = round 410's 7b).
+    FIG7_TW_700 = float(os.environ.get("ALBO_IT_FIG7_TW_700", 1.0))
+
     def _fig7_pen(c, arm):
         P, H, W = _fig_frame(c, '7')
+        _tw7 = FIGPEN_TW * (FIG7_TW_700 if S > 84.0 else 1.0)
         # the bar: the z's top ribbon, entry hook under its left end, crest, ease
         bar_pts = [P(0.02, 0.905), P(0.06, 0.955), P(0.20, 0.985), P(0.45, 0.998),
                    P(0.70, 0.985), P(0.86, 0.992), P(0.97, 1.000)]
         bar = d_pen(bar_pts, [(0.00, 16), (0.06, 24), (0.18, 34), (0.30, 44),
                               (0.45, 52), (0.60, 54), (0.75, 50), (0.90, 42), (1.00, 34)],
-                    1.0, tw=FIGPEN_TW)
+                    1.0, tw=_tw7)
         top = P(0.93, 0.985)
         legs = {
             # straight, the nib alone thins it; finial foot
@@ -11783,7 +11790,7 @@ if ON:
             "f": [(0.00, D * 1.35), (0.20, D * 1.05), (0.60, D * 0.90), (0.88, D * 0.95), (1.00, D * 1.10)],
         }
         pts = legs.get(arm, legs["a"])
-        leg = d_pen(pts, profiles.get(arm, profiles["a"]), 1.0, tw=FIGPEN_TW,
+        leg = d_pen(pts, profiles.get(arm, profiles["a"]), 1.0, tw=_tw7,
                     fin1=(arm in ("a", "b", "f", "d", "e")))
         return geom.ink([bar, leg])
 
