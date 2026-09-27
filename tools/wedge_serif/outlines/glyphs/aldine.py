@@ -3908,8 +3908,14 @@ if ON:
     #        arch (HM_ARCH_K, its width profile) followed toward its crest
     #        (0.88 P, 0.905 xh) and stopped there in the family finial, so r
     #        and n share one movement
+    #   hvy  drawn 2026-09-27, VISIBLE: geo and fla moved the root ~10 units
+    #        and read identical to today at 27 px, so the root is taken to
+    #        the stem family's thin outright -- 2.3 x the hairline at the
+    #        root, 2.0 held, 2.6 into the finial
+    #   lng  as hvy, and the arm REACHES to Flanker's 0.76 of the pitch
+    #        (today 0.66): a flag, not a hook
     R_OPT = os.environ.get("ALBO_ALD_R_OPT", "a")
-    if R_OPT not in ("a", "geo", "fla", "arc"): R_OPT = "a"
+    if R_OPT not in ("a", "geo", "fla", "arc", "hvy", "lng"): R_OPT = "a"
 
     def _r_arm(c, x0, P, sw, t, xh):
         if R_OPT == "arc":
@@ -3917,15 +3923,16 @@ if ON:
             arm = catmull([(x0 + fx * P, fy * xh) for fx, fy in K], tension=0.5)
             prof = widths([(0.00, sw * 0.94), (0.14, t * 1.15), (0.36, t), (0.60, t * 1.30), (1.00, t * 2.00)])
         else:
-            sp = HM_SPRING if R_OPT == "geo" else 0.55
-            ax, ay = x0 + P * R_ARM_X, xh * 0.876
+            sp = HM_SPRING if R_OPT in ("geo", "hvy", "lng") else 0.55
+            ax, ay = x0 + P * (0.76 if R_OPT == "lng" else R_ARM_X), xh * 0.876
             px, py = x0 + P * 0.47, xh * 0.850
             dl = math.hypot(ax - px, ay - py)
             ext = fin_reach(R_ARM_W * hm_u(c) * ALD_WF_UP / 2, ((ax - px) / dl, (ay - py) / dl))
             arm = catmull([(x0, xh * sp), (x0 + P * 0.17, xh * max(0.60, sp + 0.12)),
                            (x0 + P * 0.32, xh * 0.80), (px, py),
                            (ax + (ax - px) / dl * ext, ay + (ay - py) / dl * ext)], tension=0.5)
-            prof = widths([(0.00, sw * 0.94), (0.16, t * 1.6), (0.42, t * 1.5), (0.72, t * 1.7), (1.00, t * 2.2)])
+            prof = widths([(0.00, sw * 0.94), (0.16, t * 1.6), (0.42, t * 1.5), (0.72, t * 1.7), (1.00, t * 2.2)]) if R_OPT in ("geo", "fla") else \
+                   widths([(0.00, sw * 0.94), (0.16, t * (2.3 if R_OPT == "hvy" else 2.0)), (0.42, t * (2.0 if R_OPT == "hvy" else 1.8)), (0.72, t * 2.1), (1.00, t * 2.6)])
         return stroke(arm, PR.finial_widths(prof, False, floor=fin_floor()), cut1=PR.finial_cut(arm, False))
 
 
