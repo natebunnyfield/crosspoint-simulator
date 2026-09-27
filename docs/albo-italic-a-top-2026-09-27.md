@@ -84,3 +84,21 @@ Owner: *"traingular wins but needs heaviness and line contrast"*. The contrast l
 | h3 | 1.70 / 0.45 / 4 -> 0.368, 2.88 | 1.26 / 0.45 / 4 -> 0.502, 2.22 |
 
 All touch 0, hairs PASS in both italics.
+
+## The glob join, the bulge, the x-height (same day)
+
+Owner: *"2.4 wins but it needs to bulge out a bit toward the top left and the top right corner needs to be a stylish glob join and it all needs to optically line up with x height for readable word image"*. Base: h2 (Italic W 1.55 / THIN 0.56 / SMOOTH 5; BoldItalic 1.16 / 0.52 / 5).
+
+- `A_TRI_GLOB` -- a disc of this x the stem's width whose top sits on the o's top (`A_TRI_OTOP`, 436 units, both italics); the bowl's point runs into its centre, and the STEM STOPS AT THE GLOB'S CENTRE. The first cut left the stem's flat top standing and the disc showed as a bump above it; making the glob the stem's head is what reads as a join.
+- `A_TRI_TOPFIT` -- the top edge's bow is SOLVED (bisection) so the bowl's own ink top, glob excluded, lands this many units above the o's top; 0 = on it.
+- `A_TRI_BIAS` -- where the bow peaks: the cubic's first handle at this fraction toward the round; 0.55-0.70 carries the bulge toward the top left.
+
+Built fonts, ink tops (a / o): 444-446 / 442 in the Italic, 444 / 444 in the BoldItalic -- within 4 units, under a tenth of a pixel at reading size. The stem no longer stands above the bowl, which is what had started the teardrop reading as a d.
+
+| option | GLOB / BIAS | Italic colour, counter, contrast | BoldItalic colour, counter, contrast |
+|---|---|---|---|
+| g1 | 0.62 / 0.55 | 0.377, 45,902, 2.41 | 0.502, 34,086, 2.06 |
+| g2 | 0.75 / 0.55 | 0.378, 45,485, 2.40 | 0.506, 33,296, 2.04 |
+| g3 | 0.62 / 0.70 | 0.372, 44,439, 2.41 | 0.493, 33,252, 2.05 |
+
+All touch 0, hairs PASS in both italics.

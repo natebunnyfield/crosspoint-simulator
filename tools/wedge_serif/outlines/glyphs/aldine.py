@@ -3303,16 +3303,36 @@ if ON:
     A_TRI_RX = float(os.environ.get("ALBO_ALD_A_TRI_RX", 0) or (_TS[1] if _TS else 0.42))    # the round's half-width, x the bowl's span
     A_TRI_PHI = float(os.environ.get("ALBO_ALD_A_TRI_PHI", 0) or (15.0 if _TS else 50.0))  # the stress: 50 = the family nib; toward 0 the sides go heavy and the top and bottom light, as the d's and q's ring
     A_TRI_THIN = float(os.environ.get("ALBO_ALD_A_TRI_THIN", 0) or (_TS[3] if _TS else 1.05))
-    A_TRI_SMOOTH = int(os.environ.get("ALBO_ALD_A_TRI_SMOOTH", 0) or 10)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
+    A_TRI_SMOOTH = int(os.environ.get("ALBO_ALD_A_TRI_SMOOTH", 0) or 10)
+    # owner 2026-09-27, on the heavier ladder: *"2.4 wins but it needs to
+    # bulge out a bit toward the top left and the top right corner needs to be
+    # a stylish glob join and it all needs to optically line up with x height
+    # for readable word image"*.
+    #   A_TRI_GLOB    the join is a GLOB: a disc of this x the stem's width,
+    #                 its top on the o's top, merging bowl and stem at the top
+    #                 right; the bowl's point runs into its centre (0 = none)
+    #   A_TRI_BIAS    where the top's bow peaks: the cubic's first handle at
+    #                 this fraction toward the round (0.40 as drawn); larger
+    #                 carries the bulge toward the top left
+    #   A_TRI_TOPFIT  solve the bow so the bowl's ink top sits this many units
+    #                 above the o's top (the o's own overshoot line); unset =
+    #                 the bow as given
+    A_TRI_GLOB = float(os.environ.get("ALBO_ALD_A_TRI_GLOB", 0) or 0)
+    A_TRI_BIAS = float(os.environ.get("ALBO_ALD_A_TRI_BIAS", 0) or 0.40)
+    _tf = os.environ.get("ALBO_ALD_A_TRI_TOPFIT")
+    A_TRI_TOPFIT = float(_tf) if _tf not in (None, "") else None
+    A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
-    def _a_tri(c, xs, xh, u):
+    def _a_tri_at(c, xs, xh, u, bow):
         hu = hm_u(c); thick = HM_STEMW * hu * A_TRI_W; thin = HM_ARCH_T * hu * A_TRI_THIN
         x0 = S * 0.6; W = xs - x0
-        J = (xs - thick * 0.05, A_TRI_JY * xh)                     # the bowl's point, into the stem below its top
+        sw0 = HM_STEMW * hu; gr = A_TRI_GLOB * sw0
+        J = ((xs - sw0 * 0.10, A_TRI_OTOP * u - gr) if gr else
+             (xs - thick * 0.05, A_TRI_JY * xh))                   # the bowl's point: into the glob's centre, or into the stem below its top
         ry = A_TRI_RY * xh; cy = ry + thick * 0.30 - 0.02 * xh      # the round's bottom ink on the o's overshoot
         rx = A_TRI_RX * W; cx = x0 + thick * 0.45 + rx
         E = lambda t: (cx + rx * math.cos(t), cy + ry * math.sin(t))
-        Jv = (J[0], J[1] + A_TRI_BOW * xh)                          # the virtual point the top is aimed from
+        Jv = (J[0], J[1] + bow * xh)                          # the virtual point the top is aimed from
         best = None
         for q in range(900):
             t = math.radians(40 + q * 0.2)
@@ -3320,7 +3340,7 @@ if ON:
             cr = abs((ex - Jv[0]) * ty - (ey - Jv[1]) * tx) / (math.hypot(ex - Jv[0], ey - Jv[1]) * math.hypot(tx, ty) + 1e-9)
             if best is None or cr < best[0]: best = (cr, t)
         t0 = best[1]; P0 = E(t0)
-        C = (Jv[0] + (P0[0] - Jv[0]) * 0.40, Jv[1] + (P0[1] - Jv[1]) * 0.40)   # on the tangent line: C1 into the round
+        C = (Jv[0] + (P0[0] - Jv[0]) * A_TRI_BIAS, Jv[1] + (P0[1] - Jv[1]) * A_TRI_BIAS)   # on the tangent line: C1 into the round
         top = list(geom.cubic(J, C, (C[0] + (P0[0] - C[0]) * 0.5, C[1] + (P0[1] - C[1]) * 0.5), P0))[:-1]
         t1 = math.radians(352)
         arc = [E(t0 + (t1 - t0) * q / 80) for q in range(81)]
@@ -3343,7 +3363,30 @@ if ON:
             for q in range(jn + 1):
                 f = 1.0 - q / jn; f = f * f * (3 - 2 * f)   # smoothstep: full at the stem, the pen's own by JSPAN
                 ws[q] = max(ws[q], thick * A_TRI_JW * f + ws[q] * (1 - f))
-        return stroke(cl, lambda t: ws[min(n, int(round(t * n)))], raw=True)
+        g_ = stroke(cl, lambda t: ws[min(n, int(round(t * n)))], raw=True)
+        if gr:
+            from shapely.geometry import Point
+            g_ = g_.union(Point(J).buffer(gr, 48))
+        return g_
+
+    def _a_tri(c, xs, xh, u):
+        if A_TRI_TOPFIT is None:
+            return _a_tri_at(c, xs, xh, u, A_TRI_BOW)
+        # solve the bow: the bowl's ink top (ignoring the glob, which is placed) on the o's line + TOPFIT
+        target = A_TRI_OTOP * u + A_TRI_TOPFIT
+        def top_of(b):
+            g0 = _a_tri_at(c, xs, xh, u, b)
+            gr = A_TRI_GLOB * HM_STEMW * hm_u(c)
+            if gr:   # the bowl's own top: the part left of the glob
+                from shapely.geometry import box
+                g0 = g0.intersection(box(-1e4, -1e4, xs - HM_STEMW * hm_u(c) * 0.10 - gr * 1.05, 1e4))
+            return g0.bounds[3]
+        lo, hi = -0.05, 0.40
+        for _ in range(22):
+            mid = (lo + hi) / 2
+            if top_of(mid) < target: lo = mid
+            else: hi = mid
+        return _a_tri_at(c, xs, xh, u, (lo + hi) / 2)
 
     @glyph('a')
     def a_a(c):
@@ -3391,6 +3434,11 @@ if ON:
         # two overlapping shapes at the top right.
         if A_TRI in ("wdg", "dro", "rnd", "mid", "fit", "opn", "con", "trg"):
             bowl_ = _a_tri(c, xs, xh, u)
+            if A_TRI_GLOB:
+                # the glob IS the stem's head: the stem stops at the glob's centre,
+                # so no flat top or corner stands above the ball
+                gy = A_TRI_OTOP * u - A_TRI_GLOB * HM_STEMW * hm_u(c)
+                return geom.ink([bowl_, hm_stem(c, xs, 0, gy, cut=False), hm_exit(c, xs, 'a')])
         return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, 'a')])
 
     # ------------------------------------------------------------ THE b, round 132
