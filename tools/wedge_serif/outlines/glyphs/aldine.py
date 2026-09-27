@@ -3914,6 +3914,7 @@ if ON:
     #        root, 2.0 held, 2.6 into the finial
     #   lng  as hvy, and the arm REACHES to Flanker's 0.76 of the pitch
     #        (today 0.66): a flag, not a hook
+    R_ARC_END = float(os.environ.get("ALBO_ALD_R_ARC_END", 2.0))   # arc's end weight, x the arch hairline (2.0 as first drawn)
     R_OPT = os.environ.get("ALBO_ALD_R_OPT", "a")
     if R_OPT not in ("a", "geo", "fla", "arc", "hvy", "lng"): R_OPT = "a"
 
@@ -3921,7 +3922,8 @@ if ON:
         if R_OPT == "arc":
             K = [(0.0, HM_SPRING)] + HM_ARCH_K + [(0.880, 0.905)]
             arm = catmull([(x0 + fx * P, fy * xh) for fx, fy in K], tension=0.5)
-            prof = widths([(0.00, sw * 0.94), (0.14, t * 1.15), (0.36, t), (0.60, t * 1.30), (1.00, t * 2.00)])
+            _e = R_ARC_END   # owner 2026-09-27: "show me n shoulder with thicker end"
+            prof = widths([(0.00, sw * 0.94), (0.14, t * 1.15), (0.36, t), (0.60, t * (1.30 + (_e - 2.0) * 0.35)), (1.00, t * _e)])
         else:
             sp = HM_SPRING if R_OPT in ("geo", "hvy", "lng") else 0.55
             ax, ay = x0 + P * (0.76 if R_OPT == "lng" else R_ARM_X), xh * 0.876
