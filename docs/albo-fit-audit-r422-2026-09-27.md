@@ -114,3 +114,24 @@ identical at every value -- checked). Ridge median / p90: today 62.6 / 75.0,
 ~78 / ~116-127). Page (A / H1 1.20 / H2 1.35 / H3 1.50):
 https://claude.ai/artifact/M27rQEBnGr9jeYh2xLMG3V. Gates: touch 0, hairs 0,
 approved 2/2; moves seven, seveneighths, U+2077, U+2087 (BoldItalic).
+
+## The BoldItalic 1: the family's flick, not a candidate (same day)
+
+Flag: contrast (`cut` +3.0 sigma), ridge p10 14.1 where every other
+BoldItalic figure's is 27-68. The hairline is the two calligraphic flicks
+`stem()` puts on every italic lowercase stem (round 103): the entry arriving at
+the flag's top and the exit leaving the foot (round 218 shortened it on the 1,
+`ONE_EXIT_LEN` 0.70). Both taper to `S x pen.IT_TIP` (0.07: 8 units at the
+700, before the 1.2-unit ink spread). The 1's shape is ruled three times
+(round 75's buried flag, 217's curve, 215/218's brushed foot and short exit),
+and the tip is a FAMILY dial -- every italic i m n u foot is drawn from it.
+Not a candidate; recorded so it is not re-proposed.
+
+## Where the list stands after rounds 423-424
+
+The audit's unruled DRAWING flags are done: italic 2 (423), BoldItalic 7
+(424). What remains flagged is ruled construction (e, Q, I l J wedges, k K
+kick, approved g's, S, F, Bold y sweep, BoldItalic r and q, the 1's flicks),
+the metric reading old-style ascenders (6 8) and figures against their own
+family, drift of a relative metric (Bold L H r), or spacing that waits on the
+bench (Regular M j t a).
