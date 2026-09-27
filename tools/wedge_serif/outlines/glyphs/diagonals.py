@@ -231,6 +231,7 @@ Y_LEFT_W = float(__import__('os').environ.get('FJORD_Y_LEFT_W', 0.97))   # owner
 # and the y measured p10 18.1 units, -52% of the diagonals (0.49 px at the 1x
 # reading size). Roman only: the italic draws its own y (aldine.py).
 # docs/albo-round-391-2026-09-25.md.
+Y_BOLD_END = float(os.environ.get("ALBO_ROM_Y_BOLD_END", 0.0))
 Y_TAIL_FLOOR = float(os.environ.get("ALBO_ROM_Y_TAIL_FLOOR", 0.33))   # ships 0.33 (round 391; ladder 0.30/0.33/0.36)
 
 @glyph('y')
@@ -247,6 +248,13 @@ def g_y(c):
     # the tail's ink by a few units and moved a ruled letter, so the shipped
     # weight keeps -S x 0.4 exactly and only the lighter cuts take the floor.
     _yend = -max(S * 0.4, desc * 0.16) if S < 66.0 else -S * 0.4
+    # 2026-09-26, owner: *"bold y needs to have a baseline cutout on the left
+    # stroke like regular"*. At the 400 the left stroke's square end stands
+    # just above the tail's upper edge and shows as a small cut at the
+    # baseline; at the 700 the heavier tail swallows it. Y_BOLD_END lifts the
+    # stroke's end above the heavy cuts only (x of -S*0.4; 1.0 = before).
+    if S > 84.0:
+        _yend = _yend * Y_BOLD_END
     p0, p1 = (S * 0.4, xh), (w / 2 + S * 0.1, _yend)
     w_full = pw(p0, p1); w_left = w_full * Y_LEFT_W
     if Y_LEFT_W != 1.0:
@@ -306,7 +314,7 @@ def g_y(c):
 #   flr  original: today's path, the hairline floor raised to Y_FLR_FLOOR S
 # Every arm keeps the right diagonal's top, its wedge, and the left stroke.
 Y_TAIL = os.environ.get("ALBO_ROM_Y_TAIL", "a")
-if Y_TAIL not in ("a", "geo", "hoe", "pal", "alb", "flr"): Y_TAIL = "a"
+if Y_TAIL not in ("a", "geo", "hoe", "pal", "alb", "flr", "sweep", "curl", "foot", "short"): Y_TAIL = "a"
 # THE ARMS' FLOOR, x S. Pass 2 (docs/albo-poor-characters-2026-09-26.md):
 # a traced skeleton alone did not move the flag -- any hook that turns left
 # passes through the pen's thin, in the references too, and at round 391's
@@ -324,6 +332,19 @@ def _y_tail_arm(w, xh, desc):
         k = (y - P0[1]) / d[1]; return (P0[0] + d[0] * k, y)
     if Y_TAIL == "flr":
         return cubic(P0, (w * 0.52, -desc * 0.55), (w * 0.44, -desc * 1.08), (w * 0.02, -desc * 0.95))
+    # VISIBLE ARMS, drawn 2026-09-26 by the main session after the owner's
+    # "for y, i do not see a difference": each changes the tail's SHAPE by
+    # tens of units, not its floor.
+    if Y_TAIL == "sweep":   # a long calligraphic sweep, reaching well left of the letter
+        return cubic(P0, (w * 0.50, -desc * 0.70), (w * 0.30, -desc * 1.02), (-w * 0.22, -desc * 0.92))
+    if Y_TAIL == "curl":    # straight down, then a tight curl that turns back UP into the finial
+        K = at(-0.70 * desc)
+        return line(P0, K)[:-1] + cubic(K, (K[0] + d[0] * 0.20 * desc, K[1] + d[1] * 0.20 * desc),
+                                        (w * 0.10, -desc * 1.06), (w * 0.02, -desc * 0.70))
+    if Y_TAIL == "foot":    # straight to the p's line, ending in a horizontal wedge foot like the p's
+        return line(P0, at(-0.98 * desc))
+    if Y_TAIL == "short":   # a shorter, tighter tail: the turn starts higher and ends above the p's line
+        return cubic(P0, (w * 0.50, -desc * 0.45), (w * 0.40, -desc * 0.86), (w * 0.10, -desc * 0.78))
     if Y_TAIL == "alb":
         return line(P0, at(-1.02 * desc))           # pass 2: -1.10 read 2.7 sigma deep; the flat face and its flare reach past the end point
     # (K depth, h1, c2, E): depths in the DESCENDER, x in the width -- each
@@ -344,6 +365,13 @@ def _y_tail_ink(tail, wfn, tail_cut):
     base = lambda t: 0.72 + 0.28 * min(1.0, t * 2)
     if Y_TAIL == "flr":
         f = PR.finial_widths(pen_widths(tail, base, floor=S * Y_FLR_FLOOR), False, floor=c_top_width())
+        return stroke(tail, f, cut1=PR.finial_cut(tail, False))
+    if Y_TAIL == "foot":                         # a p-like foot: the family's wedge serif on the line, both sides
+        f = pen_widths(tail, base, floor=S * Y_TAIL_FLOOR)
+        return geom.ink([stroke(tail, f, cut1=_flat_face(tail[0], tail[-1])),
+                         end_wedge(tail, f(1.0), False, 1), end_wedge(tail, f(1.0), False, -1)])
+    if Y_TAIL in ("sweep", "curl", "short"):     # today's width law and the c's finial, at the owner's floor
+        f = PR.finial_widths(pen_widths(tail, base, floor=S * Y_TAIL_FLOOR), False, floor=c_top_width())
         return stroke(tail, f, cut1=PR.finial_cut(tail, False))
     if Y_TAIL == "alb":                          # the flared chisel: 1.25 over the last fifth, face horizontal
         f = pen_widths(tail, lambda t: base(t) * widths([(0.8, 1.0), (1.0, 1.25)])(t), floor=S * Y_FLR_FLOOR)
