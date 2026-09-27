@@ -94,7 +94,8 @@ def g_j(c):
     """No top flag; the tail one round arc holding the stem's weight through
     the turn and thinning to a point past the bottom (rounds 22, 25)."""
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]; r = 125 * wf; x = 120 * wf + S / 2
-    B = -desc * 0.97; y0 = B + r
+    _K = J_K.get(J_OPT) if not pen.ITALIC else None
+    B = -desc * 0.97; y0 = B + r * (_K[2] if _K else 1.0)
     # R26, owner 2026-09-18: "remove corner from bottom right (outside of
     # what you highlighted, but within what I highlighted)." The tail begins
     # at y0 on the stem's centerline with a vertical tangent, so the two
@@ -116,8 +117,11 @@ def g_j(c):
     st = stem(x, y0 - (30 if pen.ITALIC else 2), xh, top=('left' if (J_TOP and not pen.ITALIC) else None), foot=None, ent_span=(lo, xh))
     w_st = PR.stem_width(TH_V, ENT, (y0 - lo) / (xh - lo))   # the stem's width where the tail takes over
     a0, a1 = 0.0, math.radians(-118)
-    if J_OPT != "a" and not pen.ITALIC: a1 = math.radians(J_ARMS[J_OPT][0])
+    if J_OPT in J_ARMS and not pen.ITALIC: a1 = math.radians(J_ARMS[J_OPT][0])
     tail = [(x - r + r * math.cos(a0 + (a1 - a0) * i / 48), y0 + r * math.sin(a0 + (a1 - a0) * i / 48)) for i in range(49)]
+    if _K:
+        a1 = math.radians(_K[0]); rx, ry = r * _K[1], r * _K[2]
+        tail = [(x - rx + rx * math.cos(a1 * i / 48), y0 + ry * math.sin(a1 * i / 48)) for i in range(49)]
     jt = 0.9 if adj('j') else 1.0   # round 92 (adj 'j'): the heaviest letter by band (+27%) -- the tail 0.9, the dot as the i's
     wfn = widths([(0.0, TH_V * jt if pen.ITALIC else w_st), (0.45, S * jt), (1.0, S * 0.10)])
     if J_OPT != "a" and not pen.ITALIC:
@@ -153,9 +157,37 @@ J_OPT = os.environ.get("ALBO_ROM_J_OPT", "a")
 # the round-25 drawing, so it is the owner's call.
 J_TOP = os.environ.get("ALBO_ROM_J_TOP", "0") == "1"
 J_ARMS = {"geo": (-110,), "pal": (-95,), "hoe": (-95,), "fin": (-98,)}   # fin: -102 in pass 1 set "(j" 0.0086 em, under cmp_touch's floor
-if J_OPT not in J_ARMS: J_OPT = "a"
+# 2026-09-27, owner on the j page: *"J2 but give me more variations on tail"*.
+# The tail generalised: an ELLIPTICAL arc (x / y radius factors on r, the
+# bottom held at -0.97 desc, so the stem drops straighter when ry < 1), its
+# sweep, the end's width (x S), the end type and the finial's swell.
+#   end 'fin' = the c's finial (swell, face sheared 28 deg); 'sq' = the same
+#   swell with a square face (the tip does not point down); 'cut' = the
+#   family's 20-degree pen cut; 'pt' = tapered, square face.
+#        sweep  rx    ry    end_w  end   swell
+J_K = {
+    "k1": (-98,  1.00, 1.00, 0.55, "fin", 1.10),   # J2's tail (the fin arm), reference
+    "k2": (-98,  1.00, 1.00, 0.55, "sq",  1.10),   # the same, face square: no downward tip
+    "k3": (-112, 1.00, 1.00, 0.55, "fin", 1.10),   # a longer sweep, between today (-118) and fin
+    "k4": (-88,  0.80, 1.00, 0.62, "sq",  1.10),   # tucked: tight radius, ends flat under the stem
+    "k5": (-100, 0.95, 0.62, 0.55, "fin", 1.10),   # straight drop, turn in the last third (Georgia / Times)
+    "k6": (-100, 1.40, 0.85, 0.50, "fin", 1.10),   # wide calligraphic sweep well left
+    "k7": (-96,  1.00, 1.00, 0.72, "sq",  1.22),   # heavy end, Albo's ball: a big square-faced swell
+    "k8": (-138, 1.00, 1.00, 0.30, "cut", 1.00),   # curl: the tail turns back up and ends on the pen cut
+}
+if J_OPT not in J_ARMS and J_OPT not in J_K: J_OPT = "a"
 
 def _j_tail(tail, w_st, jt):
+    if J_OPT in J_K:
+        from .rounds import c_top_width
+        _, _, _, ew, end, sw = J_K[J_OPT]
+        base = widths([(0.0, w_st), (0.45, S * jt), (1.0, S * ew)])
+        if end == "pt":
+            return stroke(tail, base)
+        if end == "cut":
+            return stroke(tail, base, cut1=CUT)
+        fw = PR.finial_widths(base, False, floor=c_top_width(), swell=sw)
+        return stroke(tail, fw, cut1=(PR.finial_cut(tail, False) if end == "fin" else None))
     if J_OPT == "geo":
         return stroke(tail, widths([(0.0, w_st), (0.45, S * jt), (1.0, S * 0.10)]))
     if J_OPT == "pal":

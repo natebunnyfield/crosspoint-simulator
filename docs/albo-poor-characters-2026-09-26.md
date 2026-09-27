@@ -713,3 +713,16 @@ glitch 0. At 54 px the head reads and widens the j's left side (J2 and J5 set
 wider); the hook arms are subtle at 54 px and clear at drawing size. The
 finial and teardrop ends (J1-J3) leave the tip pointing down-left -- flagged on
 the page. B2 not refit. Awaiting a pick.
+
+**Owner 2026-09-27: *"J2 but give me more variations on tail"*.** The tail
+generalised (`stems.py` `J_K`, `ALBO_ROM_J_OPT=k1..k8`): an elliptical arc
+(x / y radius factors, bottom held at -0.97 desc), sweep, end width, end type
+(c finial / square face / pen cut / taper), finial swell. `k1` reproduces J2
+byte-for-byte (checked). All with `ALBO_ROM_J_TOP=1`. Shown (same page, v2):
+J2, K2 square face, K4 tucked, K5 straight drop, K6 wide sweep, K8 curl on the
+pen cut. Cut before showing: k3 (-112 finial, reads as J2 with a blockier end)
+and k7 (heavy square end, reads as K2). Measured: K6 and K8 put `(j` at
+0.0115 / 0.0101 em, under cmp_touch's 0.012 floor (not touching) -- a
+clearance kern if either wins. Seen at 300 px on the Bold: every sheared
+finial end (J2, K5, K6) leaves a small upward point at the face's inner corner;
+the square faces and the pen-cut curl do not. Awaiting a pick.
