@@ -6677,7 +6677,7 @@ if ON:
     #        to its edge. Labeled: it PARTLY overrides the same 2026-09-16
     #        ruling (the swash still sweeps left, but not to the edge).
     Y_OPT = os.environ.get("ALBO_ALD_Y_OPT", "a")
-    if Y_OPT not in ("a", "trc", "flb", "chn", "swa"): Y_OPT = "a"
+    if Y_OPT not in ("a", "trc", "flb", "chn", "swa", "crl"): Y_OPT = "a"
     def _y_u():
         return max(0.0, min(1.0, (S - 66.9) / (116.0 - 66.9)))
     def _y_opt_tail(TX, TY):
@@ -6752,6 +6752,18 @@ if ON:
                      [(0.00, 48), (0.05, 44), (0.13, 34), (0.35, 30),
                       (0.55, W), (1.00, W)],
                      u, tw=Y_TW, fin1=True)
+        if Y_OPT == "crl":
+            # 2026-09-26, drawn by the main session: the roman's chosen curl
+            # in the italic's pen -- the tail runs down under the fork to the
+            # p's line and curls back UP to the left into the finial, instead
+            # of the long swash to the letter's edge.
+            tail = d_pen([P(322, 0.885 + DIAG_TERM_RISE),
+                          P(336, 0.825 + DIAG_TERM_RISE * 0.5), P(341, 0.74),
+                          P(331, 0.50), P(306, 0.25), P(276, 0.05), P(248, -0.22),
+                          P(214, -0.44), P(172, -0.555), P(126, -0.54), P(98, -0.44)],
+                         [(0.00, 48), (0.05, 44), (0.13, 34), (0.35, 30),
+                          (0.55, W), (0.85, W * 1.1), (1.00, W)],
+                         u, tw=Y_TW, fin1=True)
         g_ = geom.ink([thick, tail])
         # round 269: the same inner fold at the hook's apex as the v's (two
         # pockets, 76 and 4 units of area, 2.5 wide) -- see `_solid`.
