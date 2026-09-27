@@ -113,6 +113,16 @@ void migrateFontFamilies(const char *fromRoot, const char *toRoot) {
 // virtually always moves the size, but the byte check makes same-size drift
 // impossible to miss, and a full compare of a few hundred KB from flash is
 // milliseconds.
+//
+// UPDATE FONTS DEFERS TO THIS, and depends on it. Because this pass reverts
+// any bundled file that differs on every launch, a firmware Update Fonts that
+// downloaded a bundled family's (different) release build was undone here and
+// downloaded again on the next run -- 30 files, 33 MB, every run (owner bug
+// 2026-09-26). The firmware now leaves a PRESENT family listed in
+// seeded-fonts.txt alone when it differs (FontUpdater FamilyResult::
+// SKIPPED_BUNDLED). So if this pass ever stops reverting, or stops writing
+// that ledger, the skip becomes a family that never updates.
+// crosspoint-reader docs/update-progress-2026-09-26.md section 9.
 
 bool filesIdentical(const char *a, const char *b) {
   struct stat sa{}, sb{};
