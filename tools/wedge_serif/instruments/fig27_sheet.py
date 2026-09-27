@@ -93,7 +93,27 @@ if __name__ == "__main__":
     ap.add_argument("--out", required=True)
     ap.add_argument("--extra-rom", action="append", default=[], help="LABEL=DIR, an extra roman row (a mixed recommendation)")
     ap.add_argument("--mark-it", help="the italic arm letter to star as recommended")
+    ap.add_argument("--rows", action="append", default=[],
+                    help="LABEL|DIR[|REFERENCE] -- an explicit row list for ONE style (--style), in place of --arm; round 408's variation sheet")
+    ap.add_argument("--style", default="Italic")
     A = ap.parse_args()
+    if A.rows:
+        ui = ImageFont.truetype(UI, 17); uis = ImageFont.truetype(UI, 15)
+        rows = [("today (shipped)", None, line(os.path.join(A.today, f"Albo-{A.style}.ttf")))]
+        for r in A.rows:
+            lab, d, *ref = r.split("|")
+            rows.append((lab, ref_pair(ref[0]) if ref else None, line(os.path.join(d, f"Albo-{A.style}.ttf"))))
+        LW = 430; W = LW + max(r[2].width for r in rows) + 10; RH = rows[0][2].height
+        im = Image.new("L", (W, 34 + RH * len(rows)), 255); dr = ImageDraw.Draw(im)
+        dr.text((10, 8), f"{A.style} -- 54 px, unhinted", font=ui, fill=0)
+        for j, (lab, rp, ln) in enumerate(rows):
+            y = 34 + j * RH
+            dr.text((10, y + RH // 2 - 9), lab, font=uis, fill=60)
+            if rp is not None: im.paste(rp.crop((0, 0, rp.width, min(rp.height, RH))), (LW - rp.width - 8, y))
+            im.paste(ln, (LW, y))
+        for j in range(1, len(rows)):
+            dr.line([(0, 34 + j * RH), (W, 34 + j * RH)], fill=215)
+        im.save(A.out); print(A.out, im.size); sys.exit(0)
     arms = [tuple(a.split("=", 1)) for a in A.arm]
     ui = ImageFont.truetype(UI, 17); uis = ImageFont.truetype(UI, 15)
     ex = [tuple(e.split("=", 1)) for e in A.extra_rom]

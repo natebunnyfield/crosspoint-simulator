@@ -417,3 +417,113 @@ PYTHON_GIL=0 python3 instruments/fig27_trace.py --albo OUT            # the same
 uv run --no-project --with uharfbuzz --with freetype-py --with numpy --with pillow --with fonttools \
   python instruments/fig27_sheet.py --today CONTROL --arm o=DIR ... --out sheet.png
 ```
+
+---
+
+# Round 408: six variations on the italic `p` (Palatino Italic)
+
+Owner, 2026-09-26, on round 406's sheet: *"need variations on p"*. This round
+is **italic only and nothing ships**. `FIG_SHIP_IT` is unchanged.
+
+**The letters.** `s t u w x y` are added to `TWO_OPT_IT` / `SEVEN_OPT_IT`, and
+each changes **one thing** against `p`:
+
+- `s t u` change the 7 and draw `p`'s 2.
+- `w x y` change the 2 and draw `p`'s 7.
+
+So `ALBO_FIG_2=X ALBO_FIG_7=X` on an italic build gives the variation whole. On
+a roman build these letters draw option `a`, not the shipped figure, so use them
+on italic builds only.
+
+**Proof the default is untouched.** The default build of all four cuts is
+IDENTICAL to round 407's, outlines and advances. Every row is written as
+`dict(<p's row>, change)` and was proved outline-identical to its flat-dict
+first build.
+
+## The italic 7 rulings, per arm
+
+| arm | round 212: curve to an upright foot | round 215: pressed foot | round 219: tapering bar, thinning leg |
+|---|---|---|---|
+| today | keeps | keeps | keeps |
+| p | keeps | keeps | **sets aside**: bar near flat (0.92 against 0.55); leg swells, where 219's thins |
+| s: beak shallow | keeps | keeps | sets aside, as p |
+| t: leg straight | **sets aside** | keeps | sets aside, as p |
+| u: leg even | keeps | keeps | sets aside the bar; the leg neither thins nor swells |
+| w x y (2 only) | as p | as p | as p |
+
+## What each one measures
+
+Measured with `fig27_trace.py`, in units at x-height 429, with strokes over the
+n stem.
+
+| arm | the one change | 2: arc / crown / slash / base / hang | 7: beak / leg top → low / bow |
+|---|---|---|---|
+| today | — | 1.09 / 0.74 / 0.49 / 0.71 / 0.42 | 30 / 0.80 → 0.62 / −0.033 |
+| p | — | 0.89 / 0.78 / 0.54 / 0.72 / 0.26 | 58 / 0.55 → 0.79 / −0.034 |
+| s | 7: beak shallow (`beak` 2.5 → 1.6) | as p | **38** / 0.56 → 0.80 / −0.035 |
+| t | 7: leg straight (`curve` 0) | as p | 58 / 0.55 → 0.78 / **0.000** |
+| u | 7: leg even (`diag_w` 0.80, `leg_taper` 1.0) | as p | 58 / **0.63 → 0.63** / −0.034 |
+| w | 2: terminal hangs as today (`t_start` 190) | 1.02 / 0.67 / 0.55 / 0.73 / **0.37** | as p |
+| x | 2: base heavier (`base_w` 1.25 → 1.40) | 1.00 / 0.71 / 0.53 / **0.81** / 0.26 | as p |
+| y | 2: arc and slash heavier (`top_w` 1.15, `slash_k` 0.84) | **1.10 / 0.90 / 0.62** / 0.72 / 0.27 | as p |
+
+## Weight against the other eight italic figures
+
+From `cmp_weight_survey`: stroke / color, each relative to the median of the
+other eight italic figures.
+
+| arm | Italic 2 | Italic 7 | BoldItalic 2 | BoldItalic 7 |
+|---|---|---|---|---|
+| today | −25% / −25% | −7% / −16% | −37% / −13% | −10% / −12% |
+| p | −15% / −25% | −1% / −19% | −21% / −7% | −4% / −15% |
+| s | as p | +1% / −20% | as p | −4% / −15% |
+| t | as p | +13% / −20% | as p | −1% / −15% |
+| u | as p | −22% / −17% | as p | −25% / −12% |
+| w | −15% / −22% | as p | −22% / −5% | as p |
+| x | −11% / −24% | as p | −20% / −3% | as p |
+| y | **−11% / −17%** | as p | −14% / **+2%** | as p |
+
+`y` is the variation that brings the italic 2 toward its family, at −17%
+against today's −25%. `u`'s stroke median of −22% reads the even, thinner leg
+as the 7's typical stroke. Judge the 7 by color, which moves only 2 points.
+
+## Gates, every variation and `p`, all four cuts
+
+- **Hairs** (letters and full sweep): 0.
+- **cmp_touch**: 0 touching and 0 under the floor, in all four cuts, for `p`,
+  `s`, `t`, `u`, `w`, `x`, `y` and the default.
+- **Counter dents** at 700: 0.
+- **Glitch sweep**: the 2 pre-existing findings only.
+- **approved.py**: 2 of 2 unchanged.
+- **Contour census**: unchanged.
+- **gates.sh**: UNCHANGED.
+
+## `p`'s BoldItalic `q2` floor: fixed with a clearance kern
+
+- **Fix.** `local_ai/clearance.py` was run on a build with the italic cuts at
+  `p`. It took `q two` in the BoldItalic clearance block of
+  `outlines/spacing_b2.json` from **+4 to +8**. `p`'s `q2` then reads above the
+  floor, and so do `s`, `t`, `u` and `y`, which share `p`'s 2.
+- **Effect on the shipped font.** This kern is in the SHIPPED BoldItalic too.
+  Today's italic 2 already cleared `q2` at 0.0154 em with the +4, so the pair
+  loosens by 4 units. That is the whole effect on the shipped font: outlines
+  and advances are IDENTICAL in all four cuts. If `p` is not picked, the +4 can
+  come back out.
+- **Why no geometric fix.**
+  - The closest approach is the 2's arc top-left against the q's shoulder, near
+    the top of the 2. It is not at the base.
+  - Trimming the base's left end (`base_x0` 0.15/0.30/0.45 S) made it worse:
+    0.0068 and 0.0097 em.
+  - Narrowing the arc (`rx_k` 0.44/0.42) gave 0.0082 and 0.0111.
+  - Moving the terminal (`t_start` 155/158/162) gave 0.0111 or traded it for
+    `R2` at 0.0078.
+  - Every one moved the fitter's bearing along with the ink. The `base_x0` lever
+    was removed rather than left dead.
+- **The italic 2's BoldItalic bearing is fragile under almost any change.** A
+  shorter base (`over` 30/36/44 against 62) dropped `q2` to 0.0011 or touching
+  and put `R2` at 0.0064, which is why `x` changes the base's weight and not
+  its length. `base_w` 1.45 and 1.60 dropped `q2` to 0.0025 and `R2` to
+  0.0092; 1.30, 1.35 and 1.40 are clean. Whichever italic 2 is picked, run
+  `clearance.py` on its build once more before shipping.
+
+Sheet: `fig27-italic-p.png`, in the session scratchpad `fig27/`.

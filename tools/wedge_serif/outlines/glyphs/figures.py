@@ -1160,6 +1160,18 @@ TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229'
 # thicker"). See the round-374 section of docs/albo-figures-2026-09-23.md.
 TWO_OPT_IT['g'] = dict(top_w=_E('ALBO_2G_TOPW_IT', 0.82), slash_k=0.70, slash_w=0.55)
 TWO_OPT_IT.update(TWO_TRACE_IT)
+# ROUND 408 (2026-09-26) -- SIX VARIATIONS ON THE ITALIC p (Palatino Italic).
+# Owner on round 406's sheet: *"need variations on p"*. ITALIC ONLY, letters
+# s t u w x y, each changing ONE thing against p: s t u change the 7 and draw
+# p's 2, w x y change the 2 and draw p's 7, so `ALBO_FIG_2=X ALBO_FIG_7=X`
+# builds the variation whole. (On a roman build these letters draw 'a'.)
+# Measured and gated in docs/albo-figures-2-7-2026-09-26.md, round 408.
+TWO_OPT_IT.update({
+    's': TWO_OPT_IT['p'], 't': TWO_OPT_IT['p'], 'u': TWO_OPT_IT['p'],
+    'w': dict(TWO_OPT_IT['p'], t_start=190),                # the left terminal hangs as today's does (0.37 of the height against p's 0.26)
+    'x': dict(TWO_OPT_IT['p'], base_w=1.40),                # the base heavier: 0.72 of the n -> 0.80, toward Flanker's 0.85
+    'y': dict(TWO_OPT_IT['p'], top_w=1.15, slash_k=0.84),   # the whole 2 heavier, arc and slash, toward the italic figures' weight
+})
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
 THREE_FLOOR = float(os.environ.get("ALBO_FIG3_FLOOR", 0.40))   # round 394 option (roman 3), x S; # ROUND 395: owner pick 2026-09-26 from the round-394 slider page (0 = round 393)
@@ -1837,6 +1849,18 @@ SEVEN_OPT_IT = {
     'h': dict(bar_w=2.05, diag_w=0.86),
 }
 SEVEN_OPT_IT.update(SEVEN_TRACE_IT)
+# ROUND 408 -- the 7 half of the six variations on the italic p (see the 2's
+# table). Against the italic 7's rulings: p itself KEEPS round 212's curve to
+# an upright foot and round 215's press, and SETS ASIDE round 219 -- its bar is
+# near flat (bar_mod 0.92 against 0.55) and its leg swells toward the foot
+# where 219's thins. s keeps what p keeps; t sets aside 212 as well (the leg
+# straight, the press kept); u keeps 212 and 215 and holds the leg even.
+SEVEN_OPT_IT.update({
+    's': dict(SEVEN_OPT_IT['p'], beak=1.6),                 # the beak shallow: 58 units -> 38 (today's 30)
+    't': dict(SEVEN_OPT_IT['p'], curve=0.0),                # the leg straight, as every reference italic 7 is; press kept
+    'u': dict(SEVEN_OPT_IT['p'], diag_w=0.80, leg_taper=1.0),  # the leg even, 0.63 of the n its whole run, no swell
+    'w': SEVEN_OPT_IT['p'], 'x': SEVEN_OPT_IT['p'], 'y': SEVEN_OPT_IT['p'],
+})
 
 @glyph('7')
 def g_seven(c):
