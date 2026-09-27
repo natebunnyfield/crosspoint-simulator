@@ -289,3 +289,14 @@ Fix, by the existing dials: the return leaves the round sooner (`A_TRI_T1` 300 /
 | **U4** | 285 / 0.40 / 0.41 / 0.60, 0.65 | 23 / **8** |
 
 U3 is the most legible Italic a of the series, U4 the most legible BoldItalic a and the nearest the d's join by eye. All touch 0, hairs PASS.
+
+## Smoothing U4 (same day)
+
+Owner: *"more passes to smooth out u4"*. `albo_bumps.py --chars a` on U4: Italic 4 findings -- a notch where the return meets the stem (287,76), a kink on the counter's top-left (189,362), and two at the exit (433,94 spur; 359,66 notch); BoldItalic 2, both at the exit. The exit's spur and notch are the FAMILY's: the d, u and i carry the same pair (3-12 findings each on the same sweep), so they are not the a's to fix. The polyline facets visible at 900 px are also family-wide (d: 202 points, a: 158, all straight segments).
+
+- **V1** `A_TRI_DIRSM` 8 -> 14 (the pen's direction smoothed over more of the path): the top-left kink goes (Italic 4 -> 3 findings, the 3 being the exit's).
+- **V2** + `A_TRI_SMR` 4: an opening then a closing of the bowl stroke alone (radius 4) rounds its small kinks without moving its weight -- the outer edge reads visibly smoother at 520 px.
+- V3 / V4 (a closing of the WHOLE letter, `A_TRI_JOINR` 5 / 8) left a small hook in the exit's crotch: rejected, recorded.
+- **V5** + `A_TRI_TOPFIT` 9: the bowl's top rises to meet the head (which stands on an 8-unit ascender), so the top edge runs level into it instead of stepping up. **V6** instead lowers the ascender to 3.
+
+Misread It / BI: U4 23 / 8; V1 24 / 9; V2 21 / 9; **V5 21 / 9**; V6 20 / 12. Smoothing cost no legibility. All touch 0, hairs PASS.

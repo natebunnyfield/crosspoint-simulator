@@ -3336,6 +3336,8 @@ if ON:
     A_TRI_FLICK = float(os.environ.get("ALBO_ALD_A_TRI_FLICK", 0) or 0)   # the exit's reach factor for the teardrop a (0 = the a's own 0.80)
     A_TRI_HEADCLIP = int(os.environ.get("ALBO_ALD_A_TRI_HEADCLIP", 0) or 0)   # 1 = clip the head's tip out of the counter
     A_TRI_BRW = float(os.environ.get("ALBO_ALD_A_TRI_BRW", 0) or 0)          # weight floor on the return into the stem, x the broad (0 = the pen alone)
+    A_TRI_SMR = float(os.environ.get("ALBO_ALD_A_TRI_SMR", 0) or 0)      # opening+closing radius on the bowl stroke, units (0 = none)
+    A_TRI_JOINR = float(os.environ.get("ALBO_ALD_A_TRI_JOINR", 0) or 0)  # closing radius on the whole letter, units (0 = none)
     A_TRI_OTOP = 436.0   # the italic o's ink top at xh 429 (measured, both weights: 436.0)   # the width average, +/- samples: shorter keeps the pen's thins (owner: "needs heaviness and line contrast")  # the hairline, x the arch's
 
     def _a_tri_at(c, xs, xh, u, bow):
@@ -3407,6 +3409,14 @@ if ON:
                 return round(ws[best], 1), round(cl[best][0]), round(cl[best][1])
             print("[a_tri] top-left (225 deg) w,x,y", _near(225), " bottom-right (45 deg)", _near(45), " left side (270)", _near(270), " bottom (0)", _near(0), file=_sys.stderr)
         g_ = stroke(cl, lambda t: ws[min(n, int(round(t * n)))], raw=True)
+        if A_TRI_SMR:
+            # owner 2026-09-27, "more passes to smooth out u4": an opening then a
+            # closing of radius A_TRI_SMR takes the stroke's small kinks and
+            # wobbles off both its edges without moving its weight (a buffer out
+            # and back in the same distance leaves a straight or gently curved
+            # edge where it was)
+            r_ = A_TRI_SMR
+            g_ = g_.buffer(-r_, 24).buffer(r_, 24).buffer(r_, 24).buffer(-r_, 24)
         if A_TRI_HEEL:
             from shapely.geometry import Point
             hr = A_TRI_HEEL * sw0
@@ -3515,7 +3525,14 @@ if ON:
                     base_ = geom.ink([bowl_, st_])
                     holes_ = [_Pg(h) for p_ in getattr(base_, "geoms", [base_]) for h in p_.interiors]
                     for h_ in holes_: hd_ = hd_.difference(h_.buffer(1.0))
-                return geom.ink([bowl_, st_, hd_, hm_exit(c, xs, _AEX)])
+                g_all = geom.ink([bowl_, st_, hd_, hm_exit(c, xs, _AEX)])
+                if A_TRI_JOINR:
+                    # a closing of the WHOLE letter fills the small notches where
+                    # the bowl's return and the head meet the stem; it leaves
+                    # convex edges alone
+                    r_ = A_TRI_JOINR
+                    g_all = g_all.buffer(r_, 24).buffer(-r_, 24)
+                return g_all
             if A_TRI_GLOB:
                 # the glob IS the stem's head: the stem stops at the glob's centre,
                 # so no flat top or corner stands above the ball
