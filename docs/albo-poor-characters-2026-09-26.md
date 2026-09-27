@@ -683,3 +683,5 @@ end, bowl left and bottom). Arms, all gates clean:
 | H3 | H1 + W 1.15 | 444 / 444 | 0.931 / 0.889 |
 
 Awaiting a pick.
+
+**Ruled 2026-09-27: A, as is** (*"as is, next"*). The a keeps its height and width; the dials stay default-off as the record.
