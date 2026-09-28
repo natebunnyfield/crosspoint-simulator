@@ -907,6 +907,20 @@ if _B2 is not None and _ALD is not None and _ALD.ON:
         for _r, _k in (('C', 7), ('Q', 6), ('j', 9), ('four', 5), ('g', 4), ('m', 4), ('t', 5)):
             PAIRS[('q', _r)] = _shipped('q', _r) + _k
 
+# 2026-09-28 -- FENCES SYMMETRIC ABOUT EVERY LETTER (local_ai/fences.py), per
+# cut: the open fence's pair and the close fence's pair split each letter's
+# inside-white difference, so `(x` equals `x)`. Owner: "improve letter spacing
+# with parentheses and all brackets. currently not symmetrical". Applied before
+# clearance, which stays last. ALBO_FENCES=0 builds without it (the measuring
+# build fences.py needs).
+if _B2 is not None and __import__("os").environ.get("ALBO_FENCES", "1") != "0":
+    from . import pen as _pen_fe
+    _cutf = ("Bold" if _pen_fe.S > 84.0 else "") + ("Italic" if (_ALD is not None and _ALD.ON) else "")
+    _cutf = _cutf or "Regular"
+    for _k, _d in sorted(_B2_ALL.get("fences", {}).get(_cutf, {}).items()):
+        _l, _r = _k.split(" ")
+        PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
+
 # ROUND 402 -- CLEARANCE, MEASURED PER CUT (local_ai/clearance.py). After a B2
 # refit, every pair cmp_touch finds under its 0.012 em floor in a built cut gets
 # the kern that lifts it to 0.015 em, written into the table file's
