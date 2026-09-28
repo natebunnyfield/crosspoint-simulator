@@ -1125,6 +1125,10 @@ PHASE_LEGACY = {'\u2033': 1, '\u221a': 2, '\u2660': 2, '\u2663': 2, '\u2664': 4,
 # fh (U+E001) was two islands and is one (its hook now joins the aldine h),
 # while the roman fh was always one -- a global entry would re-cut the roman.
 PHASE_LEGACY_STYLE = {('Italic', '\ue001'): 2}
+# 2026-09-28: the split fi (ligatures.FI_SPLIT) cuts the roman fi and ffi into
+# three islands where they were two; they keep consuming two phases, or every
+# glyph after them (the fl, the Greek) is re-cut.
+PHASE_LEGACY_STYLE.update({(_s, _c): 2 for _s in ('Regular', 'Bold') for _c in ('\ufb01', '\ufb03')})
 PHASE_LEGACY.update({'\u2654': 2, '\u2655': 10, '\u2656': 2, '\u2657': 4, '\u2658': 2, '\u2659': 2,
                      '\u265b': 4, '\u265d': 2, '\u265e': 1})
 # 2026-09-24 -- THE SAME CONTAINMENT FOR AN OPTION. A glyph drawn under an

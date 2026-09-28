@@ -24,6 +24,16 @@ import os as _os
 FI_PUSH = float(_os.environ.get("ALBO_FI_PUSH", 0.35))   # the i's stem centre, this many stems RIGHT of the hook's free end (first cut at -0.15 piled the hook into the stem top)
 FL_PUSH = float(_os.environ.get("ALBO_FL_PUSH", 0.40))
 FF_STEP = float(_os.environ.get("ALBO_FF_STEP", 1.38))   # the second f's stem centre, in hook radii past the first (the natural pair is ~1.47; 1.02 was cramped)
+# 2026-09-28 -- THE SPLIT fi. Owner: *"put a gap in for 'fi' to be a split lig."*
+# The hook flowed INTO the i's dot and, in the Bold, the bar ran into the i's
+# head wedge, so the pair fused into one shape. FI_SPLIT is the white left
+# between them, in design units AS BUILT: the hook is cut back from the dot
+# and the bar from the i's stem by that gap all round (a difference with the
+# other part's buffer, so the white is the same everywhere), plus the 1.2-unit
+# ink spread build.draw adds to both sides. The owner's ruled hairline (Y, P;
+# docs/albo-hairline-gap.md) is ~8 units. 0 = today. The ffi follows (it is
+# drawn through fi_parts).
+FI_SPLIT = float(_os.environ.get("ALBO_FI_SPLIT", 0))
 
 # ROUND 385: no italic ENTRY on a ligature's i or l. The hook arrives on the
 # stem's top-left, so the calligraphic entry flick `stem` draws there in the
@@ -69,7 +79,27 @@ def fi_parts(c, x_f_shift=0.0, flush=True):
     # since these hooks are the owner's ruled ligature hooks (`cmp_jogs.py`,
     # docs/albo-symbols-2026-09-24.md).
     f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=prof, parts=True, hook_cut=False, flush=flush, finial=False)
-    return f + [_i_stem(ix, c), dot(ix, dy, dr)]
+    ist, idot = _i_stem(ix, c), dot(ix, dy, dr)
+    from .. import pen as _pen_fi
+    if FI_SPLIT > 0 and not _pen_fi.ITALIC:   # roman only: the italic's fi is drawn but never substituted (round 309)
+        import math as _m
+        from shapely.geometry import box as _bx
+        g = FI_SPLIT + 4.0   # build.draw's 1.2-unit MITRE ink spread closes the white by ~2 on each side at a corner (measured: +2.4 left the Bold 2 units narrow)
+        # the HOOK stops short: its end retreats along its own last direction
+        # (square face kept) until it clears the dot by g -- a clean stroke end,
+        # not a scoop cut round the dot (the first cut)
+        ux, uy = end[0] - c2[0], end[1] - c2[1]; L = _m.hypot(ux, uy) or 1.0; ux, uy = ux / L, uy / L
+        for k in range(0, 400, 2):
+            e2 = (end[0] - ux * k, end[1] - uy * k)
+            f2 = f_ink(c, hook_end=e2, hook_c2=c2, hook_profile=prof, parts=True, hook_cut=False, flush=flush, finial=False)
+            if f2[1].distance(idot) >= g:
+                f = f2; break
+        # the BAR ends square, g short of the i's leftmost ink at the bar's height
+        bx0, by0, bx1, by1 = f[2].bounds
+        band = ist.intersection(_bx(bx0 - 400, by0, bx1 + 400, by1))
+        if not band.is_empty:
+            f[2] = f[2].intersection(_bx(bx0 - 400, by0 - 50, band.bounds[0] - g, by1 + 50))
+    return f + [ist, idot]
 
 def fl_parts(c, x_f_shift=0.0):
     """f + l: the hook rises into the l's top-left wedge."""
