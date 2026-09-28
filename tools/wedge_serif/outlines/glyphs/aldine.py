@@ -11771,6 +11771,10 @@ if ON:
     # on the 5's (FIG7_BAR_DROP under round 410's crest), clipped to the leg's outer edge so
     # bar and leg meet in one corner. Above stem 84 only.
     FIG7_BAR_CLEAN_700 = os.environ.get("ALBO_IT_FIG7_BAR_CLEAN_700", "1") == "1"   # round 425
+    # ...and the Italic (400), owner 2026-09-28: "yes, same fix". Its crest is
+    # 457 against its 5's 452, so its drop is 5 (FIG7_BAR_DROP_400).
+    FIG7_BAR_CLEAN_400 = os.environ.get("ALBO_IT_FIG7_BAR_CLEAN_400", "0") == "1"
+    FIG7_BAR_DROP_400 = float(os.environ.get("ALBO_IT_FIG7_BAR_DROP_400", 5.0))
     # how far the redrawn bar's top sits UNDER round 410's crest: measured on the
     # BoldItalic, the crest is 477 font units and the 5's top 466. Relative,
     # because figures are shifted into their old-style box after drawing, so a
@@ -11787,7 +11791,7 @@ if ON:
         bar = d_pen(bar_pts, [(0.00, 16), (0.06, 24), (0.18, 34), (0.30, 44),
                               (0.45, 52), (0.60, 54), (0.75, 50), (0.90, 42), (1.00, 34)],
                     1.0, tw=_bw7)
-        _clean = S > 84.0 and FIG7_BAR_CLEAN_700
+        _clean = (S > 84.0 and FIG7_BAR_CLEAN_700) or (S <= 84.0 and FIG7_BAR_CLEAN_400)
         if _clean:
             _crest = bar.bounds[3]
             bar = d_pen([P(0.02, 0.905), P(0.07, 0.960), P(0.20, 0.986), P(0.45, 0.990), P(0.75, 0.990), P(1.25, 0.990)],   # runs PAST the leg's edge line, which then cuts it
@@ -11855,7 +11859,7 @@ if ON:
             # the bar's top onto the 5's FIRST, then clip -- clipping first and
             # moving after slid the clipped end off the edge line (a vertical
             # face 38 units tall at the corner, measured)
-            bar = _af.translate(bar, 0, (_crest - FIG7_BAR_DROP) - bar.bounds[3])
+            bar = _af.translate(bar, 0, (_crest - (FIG7_BAR_DROP if S > 84.0 else FIG7_BAR_DROP_400)) - bar.bounds[3])
             bar = bar.intersection(_Pg([(-big, -big), (xat(-big), -big), (xat(big), big), (-big, big)]))
             # close the corner: the bar now reaches the leg's edge line, and the
             # leg's own top face left a tooth under it. Fill with the hull of
