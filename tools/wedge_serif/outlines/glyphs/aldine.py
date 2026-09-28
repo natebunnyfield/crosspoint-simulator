@@ -2001,6 +2001,92 @@ if ON:
     if os.environ.get("ALBO_ALD_C_RING"):   # "40:52,47:59,..." -- for the fitter
         C_RING = [(float(a), float(w)) for a, w in
                   (kv.split(":") for kv in os.environ["ALBO_ALD_C_RING"].split(","))]
+    # 2026-09-28 -- THE c ON THE o's PEN. Owner: *"italic c is too thick on
+    # it's bottom left, address it to match others."* Measured by DIRECTION,
+    # because under one pen a stroke's width is a function of where it goes
+    # (docs/albo-method.md, the one rule): at each stroke direction the o, the
+    # a and the e agree with one another within ~5 units, and the c ran +12.5
+    # units (+19%) over them round its lower-left quadrant at the 400 (+14.8,
+    # +17% at the 700) and +18.0 (+45%) round its upper left (+24.9, +46%).
+    # C_RING is Flanker's own c, a near-vertical stress; the o standing next to
+    # it in every word is on the Aldine nib's oblique one, and the eye compares
+    # the two directly because neither has a stem to hide behind.
+    #
+    # A REFITTED TABLE WAS TRIED FIRST AND CUT. Fitting the keys themselves to
+    # the siblings' widths (4 passes, mean |w - pen| 14.2 -> 2.2 units) put a
+    # 7-15 unit step between neighboring keys, and the smoothstep between keys
+    # turned every step into a flat and a corner on the outer contour -- plain
+    # at 700 px on the left flank. So the widths here come FROM THE NIB at
+    # every sample, as the o's and the e's do: the o's own pen (O_THICK,
+    # O_THIN re-spread by CON_O, O_PEN, and the o's sqrt(84 S) law above stem
+    # 84), read off each centerline sample's direction, then a moving average.
+    # A table of per-region widths cannot be repaired into a pen; this is the
+    # pen.
+    #
+    # C_LOW blends the lower left toward it (full over normalized angles
+    # 195-250, fading out by 300 so the bottom finial keeps the stroke it
+    # stands on -- a pen-thin 293 left it on a hairline stalk, the "weird
+    # finial" the owner has ruled out), C_UP the upper left (full 125-165,
+    # fading in from 95). The two cross over 165-195 in complementary raised
+    # cosines, so both at 1 is one continuous pen and either alone leaves no
+    # step. The top end (below 95) is NEVER blended: `fin_floor()` reads the
+    # c's width at its top end and every italic finial is sized from it.
+    # docs/albo-italic-stroke-balance-2026-09-28.md. 0 = today.
+    C_LOW = float(os.environ.get("ALBO_ALD_C_LOW", 0.0))
+    C_UP = float(os.environ.get("ALBO_ALD_C_UP", 0.0))
+
+    def _c_pen_blend(a):
+        """How far toward the pen the c is taken at normalized angle a (deg)."""
+        def rc(x, x0, x1):
+            if x <= x0: return 0.0
+            if x >= x1: return 1.0
+            return 0.5 - 0.5 * math.cos(math.pi * (x - x0) / (x1 - x0))
+        up = rc(a, 95.0, 125.0) * (1.0 - rc(a, 165.0, 195.0))
+        lo = rc(a, 165.0, 195.0) * (1.0 - rc(a, 250.0, 300.0))
+        return C_UP * up + C_LOW * lo
+
+    def _c_on_pen(p, ws, cx, cy, rx, ry):
+        """The c's widths moved toward the o's nib, by `_c_pen_blend`, and its
+        centerline moved out by half of what each sample lost."""
+        _thick, _thin = (con([O_THIN, O_THICK], CON_O)[::-1] if CON_O else (O_THICK, O_THIN))
+        _So = math.sqrt(84.0 * S) if (S > 84.0 and O_S_UP) else S
+        n = len(p); pw = []
+        for i in range(n):
+            a_ = p[max(0, i - 1)]; b_ = p[min(n - 1, i + 1)]
+            d = math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0]))
+            pw.append(_So * nib(d, _thick, _thin, O_PEN))
+        sm = 4
+        pw = [sum(pw[max(0, i - sm):i + sm + 1]) / len(pw[max(0, i - sm):i + sm + 1])
+              for i in range(n)]
+        # THE OUTER EDGE STAYS WHERE IT WAS; only the counter grows. Thinned
+        # about the centerline, the bottom's outer edge rose by half the
+        # thinning and the c lost its whole overshoot (ink bottom -8 -> 0 at
+        # the 400, -8 -> +1 at the 700), on a letter already carrying half the
+        # roman's (docs/albo-italic-size-baseline-2026-09-28.md). So each
+        # sample's center moves OUTWARD by half what its width lost -- the
+        # o's rule: a thinner ring inside the same outer contour.
+        #
+        # AND THE BOTTOM MAY NOT DIP BEFORE THE FINIAL. Past the bottom (270)
+        # the stroke turns up toward the nib's own angle, where the pen is at
+        # its thinnest, and the finial then swells it back to `fin_floor` --
+        # so the pen's minimum landed at 285-295, not at the bottom, and the
+        # counter grew a V-notch there (plain at the 700, a spike of paper
+        # into the ink). From the lowest sample onward the width is held to a
+        # running maximum: the counter's lowest point is the letter's bottom,
+        # and the stroke only thickens from there into its terminal.
+        tn = geom.tangents(p)
+        nws = []
+        for (x, y), w, q in zip(p, ws, pw):
+            a = math.degrees(math.atan2((y - cy) / ry, (x - cx) / rx)) % 360.0
+            nws.append(w + _c_pen_blend(a) * (q - w))
+        i_bot = min(range(len(p)), key=lambda i: p[i][1])
+        for i in range(i_bot + 1, len(p)):
+            nws[i] = max(nws[i], min(nws[i - 1], ws[i]))
+        outw, outp = [], []
+        for (x, y), w, nw, (tx, ty) in zip(p, ws, nws, tn):
+            sh = (w - nw) / 2.0
+            outw.append(nw); outp.append((x + ty * sh, y - tx * sh))   # (ty, -tx): outward on a CCW arc
+        return outp, outw
 
     def cs_round_end(pts, ws, at_start, amount, r_scale=1.0):
         """Trim a stroke back and report the disc that caps it, so a ROUND
@@ -2096,6 +2182,8 @@ if ON:
         # aperture.
         p = superellipse(cx, cy, rx, ry, math.radians(C_A0), math.radians(C_A1), C_K)
         ws = c_key_widths(p, cx, cy, rx, ry, C_RING, u * C_WT * ALD_WF_UP)   # round 269
+        if C_LOW or C_UP:                                                  # 2026-09-28
+            p, ws = _c_on_pen(p, ws, cx, cy, rx, ry)
         return p, ws, u
 
     @glyph('c')
@@ -2429,6 +2517,7 @@ if ON:
     # 0.12 against 0.18. The eye was not small because it was drawn small; it
     # was small because the crown and the bar had eaten it from both sides.
     E_PEN = float(os.environ.get("ALBO_ALD_E_PEN", 35.0))   # the nib's angle, the o's own
+    E_S_UP = float(os.environ.get("ALBO_ALD_E_S_UP", 0.0))   # 2026-09-28, see a_e: 1 = the o's sqrt(84 S) above stem 84
     # TWO MORE MECHANICAL FAULTS, both found by instrument rather than by eye,
     # and both fixed here because the pen correction alone would have left
     # them visible on a letter no longer hiding them under ink:
@@ -2592,12 +2681,21 @@ if ON:
         sm = 9
         base = [sum(base[max(0, i - sm):i + sm + 1]) /
                 len(base[max(0, i - sm):i + sm + 1]) for i in range(n)]
-        ws = [S * w * E_WT * E_CTR for w in base]
+        # 2026-09-28 -- THE e's PEN ABOVE STEM 84 (E_S_UP, 0 = today). Every
+        # width of this letter is a fraction of S and grows with it one for
+        # one, which is the o's fault that round 272 fixed for the o alone: at
+        # the 700 the e measured +13..+22 units over the o and the a at every
+        # direction round its lower left (95-145), where at the 400 it sits on
+        # them. E_S_UP puts the e on the o's sqrt(84 S) instead -- exactly S at
+        # 84 and below, so the Italic 400 is byte-identical at any value.
+        # docs/albo-italic-stroke-balance-2026-09-28.md.
+        _Se = S + E_S_UP * (math.sqrt(84.0 * S) - S) if S > 84.0 else S
+        ws = [_Se * w * E_WT * E_CTR for w in base]
         if E_BL:                                  # the bottom left's own press
             for i in range(n):
                 dt = abs(i / (n - 1) - E_BL_T)
                 if dt < E_BL_R:
-                    ws[i] += S * E_BL * (0.5 + 0.5 * math.cos(math.pi * dt / E_BL_R))
+                    ws[i] += _Se * E_BL * (0.5 + 0.5 * math.cos(math.pi * dt / E_BL_R))
         # THE BLUNT LOWER TERMINAL, round 135's ruling kept (owner
         # 2026-09-16: *"make the bottom right terminal blunt instead of
         # angular"*). The terminal is the path's END again, so the ramp runs
@@ -2613,7 +2711,26 @@ if ON:
             t = i / m
             if t > E_END_T0:
                 k = 0.5 - 0.5 * math.cos(math.pi * (t - E_END_T0) / run)
-                ws[i] += (S * E_END_W - ws[i]) * k
+                ws[i] += (_Se * E_END_W - ws[i]) * k
+        if _Se != S:
+            # ...AND THE LOOP THINS FROM THE INSIDE, the o's rule (a thinner
+            # ring inside the same outer contour). Thinned about its
+            # centerline, the Bold Italic e's ink bottom rose -7 -> -2 and its
+            # top fell 457 -> 452 -- five units of overshoot lost on a letter
+            # already sitting high (docs/albo-italic-size-baseline-2026-09-28.md).
+            # Past the shoulder each sample's center moves outward (right of a
+            # counter-clockwise path) by half what its width lost; along the
+            # bar it does not move, so the bar thins about its own line and the
+            # stub that rides the arc's samples still lies on them.
+            jb = min(range(n), key=lambda k: (p[k][0] - pt(P[1])[0]) ** 2 + (p[k][1] - pt(P[1])[1]) ** 2)
+            js = min(range(n), key=lambda k: (p[k][0] - pt(P[2])[0]) ** 2 + (p[k][1] - pt(P[2])[1]) ** 2)
+            tn_ = geom.tangents(p); lose = S / _Se - 1.0; q_ = []
+            for i, (x, y) in enumerate(p):
+                g = (0.0 if i <= jb else 1.0 if i >= js
+                     else 0.5 - 0.5 * math.cos(math.pi * (i - jb) / max(1, js - jb)))
+                sh = g * ws[i] * lose / 2.0
+                q_.append((x + tn_[i][1] * sh, y - tn_[i][0] * sh))
+            p = q_
         wf = widths([(i / m, w) for i, w in enumerate(ws)])
         # Two simple strokes, neither self-crossing (dial block, fault 2). The
         # bar's stub takes the arc's own width at the split -- they are
@@ -6773,14 +6890,27 @@ if ON:
     V_W = d_dial("V_W", 1.00)
     V_TW = d_dial("V_TW", 1.12)
     V_VX = d_dial("V_VX", 176.0)      # the vertex, units from the left ink edge
+    # 2026-09-28 -- THE v's THICK DIAGONAL, ON ITS OWN DIAL (V_THICK, 1 =
+    # today; scales ONLY the thick stroke's table, as W_THICK does the w's).
+    # The thick diagonal is one role in four letters and the v carries it 88
+    # units wide at the 400 where the y -- which above the baseline IS the v
+    # -- carries it 76, the x 72 and the w 72 (121 against 99-104 at the 700):
+    # V_TW is 1.12 where Y_TW is 1.02, and both strokes of the v ride it. The
+    # hairline is not the fault (v 34-48 against the y's 38-44 by direction),
+    # so V_TW is not the lever. The two END keys are held: the entry's tip,
+    # and the vertex, where the hairline starts at the same 30 units -- a
+    # thinned vertex end under an unthinned hairline start is a step.
+    # docs/albo-italic-stroke-balance-2026-09-28.md.
+    V_THICK = d_dial("V_THICK", 1.0)
 
     @glyph('v')
     def a_v(c):
         P, u = d_frame(c, V_W); X = V_VX
         thick = d_pen([P(5, entry_y('v')), P(32, 0.90), P(76, 0.95), P(109, 0.75),
                        P(138, 0.50), P(161, 0.25), P(X - 4, 0.07), P(X, -0.018)],
-                      [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 66),
-                       (0.90, 52), (1.00, 30)], u, tw=V_TW)
+                      [(t_, w_ * (V_THICK if 0.0 < t_ < 1.0 else 1.0)) for t_, w_ in
+                       [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 66),
+                        (0.90, 52), (1.00, 30)]], u, tw=V_TW)
         # ROUND 276 -- THE BALL IS THE c's TOP FINIAL (owner 2026-09-19: "that
         # italic has round finials that needs to replaced along with others").
         # `d_ball` (a 70 x 64 oval on the pen's angle, set back over the
@@ -7292,6 +7422,17 @@ if ON:
     # the k's reach is K_W and the arm's and leg's own tables, none of which
     # this dial enters.
     K_STEM_W = d_dial("K_STEM_W", 0.84)   # the stem's width, x S
+    # 2026-09-28 -- THE k's STEM ON THE STEM LETTERS' NIB (K_NIB, 0 = today).
+    # Round 409 put the i l h m n r u stems on ALD_WF x ALD_NIB; the k's stem
+    # stayed a fraction of S, so after it the k's stem measured 68 units at
+    # the 400 against the i's 62, the l's 62, the h's 62, the b's 62 and the
+    # d's 63-65 (+10%), and 116 against 104-108 at the 700 -- the same ratio,
+    # 1.095 = 1 / ALD_NIB, at both weights. K_NIB = 1 multiplies the stem by
+    # ALD_NIB, which is exactly what round 411 did for the j and the t (owner
+    # 2026-09-26, "same nib"); round 165's 0.84 (owner: "k needs it's left to
+    # be thinned out without losing its width") is the base it scales.
+    # docs/albo-italic-stroke-balance-2026-09-28.md.
+    K_NIB = d_dial("K_NIB", 0.0)
     K_JOIN = d_dial("K_JOIN", 0.52)        # where the arm and leg leave it, x xh
     # ROUND 293 -- THE k's INSIDE, AT THE HEAVY WEIGHT. Owner 2026-09-20:
     # *"BoldItalic 700 k needs spacing inside."* Measured as the widest disc
@@ -7407,7 +7548,7 @@ if ON:
                     [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
                      (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
         return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"] * K_ASC, head=True,
-                            w=K_STEM_W,
+                            w=K_STEM_W * (1.0 + K_NIB * (ALD_NIB - 1.0)),
                             foot_len=(FOOT_LEN * K_FOOT) if K_FOOT else None,
                             head_w=(HEAD_W * K_HEAD_W) if K_HEAD_W else None) + [arm, leg])
 
