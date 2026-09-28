@@ -38,6 +38,32 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-043] TestFlight builds 246-252 shipped UNDER an older marketing version, so the phone kept showing 245
+**severity: medium (every ship for a day was invisible as "latest") · scope: `ios/testflight.sh`, `ios/CMakeLists.txt` · found 2026-09-28, owner: *"is latest testflight 245?"***
+
+Measured against App Store Connect (the API, same key the deploy uses): builds
+243-245 are marketing version **0.1.1**, builds 246-252 are **0.1.0**, all
+VALID and IN_BETA_TESTING. TestFlight orders by marketing version first, so
+0.1.1 (245) stayed on top and seven later builds sat under it.
+
+Mechanism, two silent failures stacked:
+1. `testflight.sh` defaults `MARKETING_VERSION` to 0.1.0 unless
+   `CROSSPOINT_MARKETING_VERSION` is passed. A session on 2026-09-27 hit the
+   per-version daily upload cap (error 90382), and the script's own advice is
+   to re-run with a bumped version through that env var -- so 243-245 went up
+   as 0.1.1, and nothing made 0.1.1 the new default. The next deploy, without
+   the variable, went backwards to 0.1.0.
+2. The script can ask App Store Connect for the latest build, but only through
+   a python with PyJWT, and this Mac has none: it prints "could not ask App
+   Store Connect ... numbering from local tags only" and continues. The same
+   blindness skips the post-upload processing watch. So nothing in the deploy
+   could see the version go backwards.
+
+Immediate repair: the round-426 tree re-shipped as 0.1.1 (build 253). Closing
+this needs a gate, not a remembered env var: the deploy should read the highest
+marketing version App Store Connect holds and refuse (or adopt it) when asked to
+upload under a lower one -- and PyJWT has to be present for any ASC check to run.
+
 ### [S-036] The host web server is one serialized worker holding three copies of every body
 **severity: low-medium (latent DoS / memory) · scope: `src/WebServer.cpp` · found 2026-09-04 by the network-surface hunt (`docs/network-surface-hunt-2026-09-04.md`, findings 7 and 8)**
 
