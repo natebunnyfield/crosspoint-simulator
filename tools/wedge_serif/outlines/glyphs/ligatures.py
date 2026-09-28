@@ -21,19 +21,27 @@ import os as _os
 # 16.0, the ffl 18.6 and the ffi 19.7, and the Bold ran 16.8 / 18.5 / 23.8 /
 # 24.9. The italic, which he did NOT complain about, sets 0 to 11.5% tighter,
 # so the italic is the reference for how much a ligature here should save.
-FI_PUSH = float(_os.environ.get("ALBO_FI_PUSH", 0.35))   # the i's stem centre, this many stems RIGHT of the hook's free end (first cut at -0.15 piled the hook into the stem top)
+FI_PUSH = float(_os.environ.get("ALBO_FI_PUSH", 0.186))   # round 428: f->i = i->t in "fit" (183/183); 0.35 = round 427   # the i's stem centre, this many stems RIGHT of the hook's free end (first cut at -0.15 piled the hook into the stem top)
 # 2026-09-28 -- THE fi SETS EVENLY IN "fit". Owner: *"I meant equally match the
 # distances between 'fit' not squish 'fi'"*. Measured stem to stem across the
 # x-height band on round 427, f->i against i->t: Regular 194 / 183, Bold 153 /
 # 209 -- the Bold's ligature 56 units tighter than the pair beside it. The push
 # is in stems, and the stems differ by weight, so the 700 takes its own.
-FI_PUSH_700 = float(_os.environ.get("ALBO_FI_PUSH_700", FI_PUSH))
-FL_PUSH = float(_os.environ.get("ALBO_FL_PUSH", 0.40))
-FF_STEP = float(_os.environ.get("ALBO_FF_STEP", 1.38))   # the second f's stem centre, in hook radii past the first (the natural pair is ~1.47; 1.02 was cramped)
+FI_PUSH_700 = float(_os.environ.get("ALBO_FI_PUSH_700", 0.833))   # round 428: Bold fit 209/209 (was 153/209)
+FL_PUSH = float(_os.environ.get("ALBO_FL_PUSH", 0.58))   # round 428: f->l = l->i (209/209); 0.40 = round 427
+FF_STEP = float(_os.environ.get("ALBO_FF_STEP", 1.317))   # round 428: f->f = f->i (183); 1.38 = round 427   # the second f's stem centre, in hook radii past the first (the natural pair is ~1.47; 1.02 was cramped)
 # ...and the same evening for fl (f->l against l->i) and ff (f->f), whose 700s
 # measured 159 / 212 and 135 / ~209 (round 427).
-FL_PUSH_700 = float(_os.environ.get("ALBO_FL_PUSH_700", FL_PUSH))
-FF_STEP_700 = float(_os.environ.get("ALBO_FF_STEP_700", FF_STEP))
+FL_PUSH_700 = float(_os.environ.get("ALBO_FL_PUSH_700", 0.857))   # round 428: Bold flit 212/212 (was 159/212)
+FF_STEP_700 = float(_os.environ.get("ALBO_FF_STEP_700", 1.79))   # round 428: Bold ffit 209/209/209 (was 135/153/208)
+# The italic draws these glyphs but never substitutes them (round 309); it keeps
+# round 427's placement, so a literal U+FB01 in an italic text sets as before.
+_IT_PUSH = {"fi": 0.35, "fl": 0.40, "ff": 1.38}
+def _push(kind):
+    from .. import pen as _p
+    if _p.ITALIC: return _IT_PUSH[kind]
+    return {"fi": (FI_PUSH_700 if S > 84.0 else FI_PUSH), "fl": (FL_PUSH_700 if S > 84.0 else FL_PUSH),
+            "ff": (FF_STEP_700 if S > 84.0 else FF_STEP)}[kind]
 # 2026-09-28 -- THE SPLIT fi. Owner: *"put a gap in for 'fi' to be a split lig."*
 # The hook flowed INTO the i's dot and, in the Bold, the bar ran into the i's
 # head wedge, so the pair fused into one shape. FI_SPLIT is the white left
@@ -78,7 +86,7 @@ def fi_parts(c, x_f_shift=0.0, flush=True):
     read as the stem climbing into a knot -- the first cut)."""
     x, r, _ = f_geometry(c); x += x_f_shift
     dr = TIT_R_ADJ if adj('i') else TIT_R
-    ix = x + r * 1.25 + S * (FI_PUSH_700 if S > 84.0 else FI_PUSH)
+    ix = x + r * 1.25 + S * _push("fi")
     dy = dot_y(c["xh"])
     end = (ix - dr * 0.55, dy + dr * 0.55)                     # the dot's upper-left shoulder
     c2 = (x + r * 1.25, c["asc"] - r * 0.15)                   # over the crown, then down at ~50 degrees
@@ -114,7 +122,7 @@ def fi_parts(c, x_f_shift=0.0, flush=True):
 def fl_parts(c, x_f_shift=0.0):
     """f + l: the hook rises into the l's top-left wedge."""
     x, r, _ = f_geometry(c); x += x_f_shift
-    lx = x + r * 1.25 + S * (FL_PUSH_700 if S > 84.0 else FL_PUSH)
+    lx = x + r * 1.25 + S * _push("fl")
     end = (lx - S * 0.45, c["asc"] - 8)                        # inside the wedge's bracket
     c2 = (x + r * 1.1, c["asc"] + 8)
     prof = [(0.0, 1.0), (0.7, 1.0), (1.0, 1.05)]
@@ -124,7 +132,7 @@ def fl_parts(c, x_f_shift=0.0):
 def ff_first(c):
     """The first f of ff: its hook shortened into the second f's stem; its
     bar reaches the second bar so the two read as one."""
-    x, r, bar_r = f_geometry(c); x2 = x + r * (FF_STEP_700 if S > 84.0 else FF_STEP)
+    x, r, bar_r = f_geometry(c); x2 = x + r * _push("ff")
     # ROUND 267 -- at the 200 the first hook's tip only kissed the second
     # hook's edge (PINCH, 2.2 units at 379, 712): its end is S x 0.2 past the
     # second stem, an overlap sized in the stem, and at 43.8 that is 8.8
@@ -256,7 +264,7 @@ def _f_into_ascender(c, ch, push=None):
     """f + an ascending letter: the hook ends inside that letter's top-left
     wedge, exactly as it does for the l."""
     x, r, _ = f_geometry(c)
-    lx = x + r * 1.25 + S * (FL_PUSH if push is None else push)
+    lx = x + r * 1.25 + S * (_push("fl") if push is None else push)
     end = (lx - S * 0.45, c["asc"] - 8)
     c2 = (x + r * 1.1, c["asc"] + 8)
     f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=[(0.0, 1.0), (0.7, 1.0), (1.0, 1.05)],
@@ -289,7 +297,7 @@ def g_fk(c): return geom.ink(_f_into_ascender(c, 'k'))
 def g_fj(c):
     """f + j: the j's dot is the one the hook flows into, as the i's is."""
     x, r, _ = f_geometry(c)
-    jx = x + r * 1.25 + S * FI_PUSH
+    jx = x + r * 1.25 + S * _push("fi")
     dr = TIT_R_ADJ if adj('j') else TIT_R
     dy = dot_y(c["xh"])
     end = (jx - dr * 0.55, dy + dr * 0.55)
