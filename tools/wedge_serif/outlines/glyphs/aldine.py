@@ -11773,7 +11773,7 @@ if ON:
     FIG7_BAR_CLEAN_700 = os.environ.get("ALBO_IT_FIG7_BAR_CLEAN_700", "1") == "1"   # round 425
     # ...and the Italic (400), owner 2026-09-28: "yes, same fix". Its crest is
     # 457 against its 5's 452, so its drop is 5 (FIG7_BAR_DROP_400).
-    FIG7_BAR_CLEAN_400 = os.environ.get("ALBO_IT_FIG7_BAR_CLEAN_400", "0") == "1"
+    FIG7_BAR_CLEAN_400 = os.environ.get("ALBO_IT_FIG7_BAR_CLEAN_400", "1") == "1"   # round 426 (owner "proceed")
     FIG7_BAR_DROP_400 = float(os.environ.get("ALBO_IT_FIG7_BAR_DROP_400", 5.0))
     # how far the redrawn bar's top sits UNDER round 410's crest: measured on the
     # BoldItalic, the crest is 477 font units and the 5's top 466. Relative,
