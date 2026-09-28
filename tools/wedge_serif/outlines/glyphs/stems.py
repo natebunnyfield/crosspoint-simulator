@@ -211,6 +211,13 @@ def _j_tail(tail, w_st, jt):
 #   d  b with small wedge ends -- hanging from the left end, rising from the
 #      right, at half the bar-end wedge's size
 F_BAR = os.environ.get("ALBO_ROM_F_BAR", "a")
+# 2026-09-28, the parts audit (instruments/parts_audit.py; owner: "crossbars
+# like f might not be thick enough at small scale"). The roman f's bar is 0.8
+# of the pen's horizontal -- 30 units at the 400, where the t's is 42 and
+# Georgia / Charter / Palatino / Hoefler run 47-51 -- and at the reader's sizes
+# it renders one faint row (none at 8 pt). F_BAR_TH is that factor, x TH_H;
+# the ligatures draw their bar through f_ink and follow it. 0.8 = today.
+F_BAR_TH = float(os.environ.get("ALBO_ROM_F_BAR_TH", 0.8))
 F_BAR_CUT_DEG = float(os.environ.get("ALBO_ROM_F_BAR_CUT", 8.0))   # round 246: the bar's end faces lean this much, bottom-left to top-right; 0 is round 235
 def f_bar(x, xh, wf, th, opt):
     x0, x1 = x - S * 0.5 - 45 * wf, x + S * 0.5 + 120 * wf
@@ -303,7 +310,7 @@ def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_c
     if _finial:
         hw = PR.finial_widths(hw, False); hook_cut1 = PR.finial_cut(hook, False)
     hk = stroke(hook, hw, cut1=hook_cut1)
-    th = TH_H * 0.8
+    th = TH_H * F_BAR_TH
     b = f_bar(x, xh, wf, th, F_BAR if flush else 'a')
     return [st, hk, b] if parts else geom.ink([st, hk, b])
 

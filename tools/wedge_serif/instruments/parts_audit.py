@@ -45,11 +45,15 @@ def levels(a8):
     return np.where(n >= 12, 3, np.where(n >= 8, 2, np.where(n >= 4, 1, 0)))
 
 
-def holes(mask):
+def holes(mask, min_area=1):
+    """Enclosed white regions of at least min_area pixels. The master passes a
+    floor (a counter is ~0.04 em square or more) so the pinholes a union leaves
+    at a join -- the BoldItalic u carried one -- do not count as counters."""
     bg = ~mask
     lab, n = ndi.label(bg, structure=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]))
     edge = set(np.unique(np.r_[lab[0], lab[-1], lab[:, 0], lab[:, -1]]))
-    return sum(1 for i in range(1, n + 1) if i not in edge)
+    sizes = ndi.sum(bg, lab, range(1, n + 1)) if n else []
+    return sum(1 for i in range(1, n + 1) if i not in edge and sizes[i - 1] >= min_area)
 
 
 def audit(path):
@@ -69,7 +73,7 @@ def audit(path):
         lab = lab[1:-1, 1:-1]
         sizes = ndi.sum(ink, lab, range(1, nparts + 1)) if nparts else []
         parts = [i + 1 for i, s in enumerate(sizes) if s >= 0.0004 * MASTER * MASTER]   # ignore specks
-        hh = holes(np.pad(ink, 1))
+        hh = holes(np.pad(ink, 1), min_area=0.0015 * MASTER * MASTER)
         d = ndi.distance_transform_edt(ink); ridge = (d == ndi.maximum_filter(d, 3)) & (d > 1.5)
         ry, rx = np.nonzero(ridge)
         for t in TIERS:
