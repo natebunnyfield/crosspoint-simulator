@@ -2032,7 +2032,7 @@ if ON:
     # step. The top end (below 95) is NEVER blended: `fin_floor()` reads the
     # c's width at its top end and every italic finial is sized from it.
     # docs/albo-italic-stroke-balance-2026-09-28.md. 0 = today.
-    C_LOW = float(os.environ.get("ALBO_ALD_C_LOW", 0.0))
+    C_LOW = float(os.environ.get("ALBO_ALD_C_LOW", 1.0))   # round 429 (owner: "italic c is too thick on its bottom left ... address it"); 0 = round 428
     C_UP = float(os.environ.get("ALBO_ALD_C_UP", 0.0))
 
     def _c_pen_blend(a):
@@ -2517,7 +2517,7 @@ if ON:
     # 0.12 against 0.18. The eye was not small because it was drawn small; it
     # was small because the crown and the bar had eaten it from both sides.
     E_PEN = float(os.environ.get("ALBO_ALD_E_PEN", 35.0))   # the nib's angle, the o's own
-    E_S_UP = float(os.environ.get("ALBO_ALD_E_S_UP", 0.0))   # 2026-09-28, see a_e: 1 = the o's sqrt(84 S) above stem 84
+    E_S_UP = float(os.environ.get("ALBO_ALD_E_S_UP", 1.0))   # round 429 ("find similar issues in italic and address those as well"); 0 = round 428   # 2026-09-28, see a_e: 1 = the o's sqrt(84 S) above stem 84
     # TWO MORE MECHANICAL FAULTS, both found by instrument rather than by eye,
     # and both fixed here because the pen correction alone would have left
     # them visible on a letter no longer hiding them under ink:
@@ -6901,7 +6901,7 @@ if ON:
     # and the vertex, where the hairline starts at the same 30 units -- a
     # thinned vertex end under an unthinned hairline start is a step.
     # docs/albo-italic-stroke-balance-2026-09-28.md.
-    V_THICK = d_dial("V_THICK", 1.0)
+    V_THICK = d_dial("V_THICK", 0.88)   # round 429: the v thick diagonal onto the y (88 -> 77); 1.0 = round 428
 
     @glyph('v')
     def a_v(c):
@@ -7432,7 +7432,7 @@ if ON:
     # 2026-09-26, "same nib"); round 165's 0.84 (owner: "k needs it's left to
     # be thinned out without losing its width") is the base it scales.
     # docs/albo-italic-stroke-balance-2026-09-28.md.
-    K_NIB = d_dial("K_NIB", 0.0)
+    K_NIB = d_dial("K_NIB", 1.0)   # round 429: the k stem on the stem letters' nib (68 -> 63); 0 = round 428
     K_JOIN = d_dial("K_JOIN", 0.52)        # where the arm and leg leave it, x xh
     # ROUND 293 -- THE k's INSIDE, AT THE HEAVY WEIGHT. Owner 2026-09-20:
     # *"BoldItalic 700 k needs spacing inside."* Measured as the widest disc
