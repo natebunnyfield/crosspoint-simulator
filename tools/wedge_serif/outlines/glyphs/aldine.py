@@ -4684,6 +4684,7 @@ if ON:
             else float(os.environ.get("ALBO_ALD_R_SK", 0.45)))                 # the curve runs free to the cut (a knot kept there kinked it)
     R_SWE = (float(os.environ.get("ALBO_ALD_R_SWE_700", 3.7)) if S > 84.0     # round 438: option 9 (was 2.2 / 2.6)
              else float(os.environ.get("ALBO_ALD_R_SWE", 4.4)))
+    R_ENDHULL = float(os.environ.get("ALBO_ALD_R_ENDHULL", 0.0))   # x the cut's width: the zone whose hull fills the hook; 0 = off
     R_WEDGE = int(os.environ.get("ALBO_ALD_R_WEDGE", 1))          # round 439: 1 = the arm flares linearly into the cut (a pen wedge, no beak); 0 = round 438
     R_WSTART = (float(os.environ.get("ALBO_ALD_R_WSTART_700", 0.42)) if S > 84.0
                 else float(os.environ.get("ALBO_ALD_R_WSTART", 0.42)))
@@ -4744,6 +4745,14 @@ if ON:
         # climb too)
         from shapely.geometry import Point
         g = arm.difference(Point(E).buffer(t * R_SWE * 3.0, 48).difference(half))
+        if R_ENDHULL:
+            # 2026-09-29 (owner: "you are missing the good work you did on 'r' ...
+            # it needs the evident pen and metal cut edge"): round 438's arm and cut
+            # exactly, with ONLY the hook under the end filled -- the end region's
+            # convex hull, so the underside runs straight into the face as a pen
+            # wedge does, and the square cut stays as filed
+            _z = Point(E).buffer(t * R_SWE * R_ENDHULL, 48)
+            g = g.union(g.intersection(_z).convex_hull)
         if os.environ.get("ALBO_ALD_R_DEBUG"):
             print(f"[r-snip] x0 {x0:.0f} P {P:.0f} E ({E[0]:.0f},{E[1]:.0f}) travel ({tx:.2f},{ty:.2f}) face {ang:.1f} "
                   f"w_e {t * R_SWE:.0f} top {g.bounds[3]:.0f} right {g.bounds[2]:.0f}")
