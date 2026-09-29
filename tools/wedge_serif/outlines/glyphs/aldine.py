@@ -2055,11 +2055,19 @@ if ON:
     # italic so bottom is less and top is more. trace references if needed").
     # Default = the 400's, i.e. round 433.
     C_FIN_SPAN = float(os.environ.get("ALBO_ALD_C_FIN_SPAN", 0.0))   # the top swell's span; 0 = the family's FINIAL_SPAN
+    C_TOPDRAW = 0
+    C_TJ, C_TX, C_TY, C_TF, C_TFA, C_TOA, C_TLA = 95.0, 0.95, 0.55, 0.22, 225.0, -70.0, 120.0
+    C_TH1, C_TH2, C_TH3, C_TH4 = 0.45, 0.45, 0.35, 0.45
     C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL", 1.0))
     C_TAIL_T = float(os.environ.get("ALBO_ALD_C_TAIL_T", 0.25))
     if S > 84.0:
         C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL_700", C_TAIL))
         C_FIN_SPAN = float(os.environ.get("ALBO_ALD_C_FIN_SPAN_700", C_FIN_SPAN))
+        C_TOPDRAW = int(os.environ.get("ALBO_ALD_C_TOPDRAW_700", 0))
+        _e = lambda k, v: float(os.environ.get("ALBO_ALD_C_" + k + "_700", v))
+        C_TJ, C_TX, C_TY, C_TF = _e("TJ", C_TJ), _e("TX", C_TX), _e("TY", C_TY), _e("TF", C_TF)
+        C_TFA, C_TOA, C_TLA = _e("TFA", C_TFA), _e("TOA", C_TOA), _e("TLA", C_TLA)
+        C_TH1, C_TH2, C_TH3, C_TH4 = _e("TH1", C_TH1), _e("TH2", C_TH2), _e("TH3", C_TH3), _e("TH4", C_TH4)
         C_FIN_TOP = float(os.environ.get("ALBO_ALD_C_FIN_TOP_700", C_FIN_TOP))
         C_FIN_BOT = float(os.environ.get("ALBO_ALD_C_FIN_BOT_700", C_FIN_BOT))
     C_LOW_SM = int(os.environ.get("ALBO_ALD_C_LOW_SM", 20))   # round 432; 0 = round 429-431
@@ -2234,6 +2242,70 @@ if ON:
             p, ws = _c_on_pen(p, ws, cx, cy, rx, ry)
         return p, ws, u
 
+    # 2026-09-28 -- THE 700's TOP, DRAWN (owner, on the finial-swell arms:
+    # "t3 but needs top read as a c better (the top sucks)", then on the
+    # hanging-swell arms "much worse and worse, do better"). Every reference c
+    # -- Poetica and Coelacanth (the shape references), Flanker, Pagella,
+    # Georgia, Berkeley, Times -- has a ROUND CROWN that arches over, with the
+    # terminal hanging off its right end at ~0.75-0.85 xh and its underside
+    # hooking back into the counter. The swelled finial could not do that: it
+    # grows the width about the path, so at the 700's floor the top became a
+    # straight ramp ending in a horn above the x-line (T3, ink top 507), and
+    # grown inward it looped (the corner's radius is smaller than the swell).
+    # So the terminal is DRAWN, as the roman t's tail was (round 420): the
+    # stroke stops at a junction on the crown (normalized angle C_TJ) and a
+    # terminal is unioned on -- outer edge a cubic continuing the crown's arch
+    # down to the tip, a straight cut face (the family's sharp wedge, not a
+    # ball: round 276), and a concave underside curling back into the counter
+    # to meet the crown's inner edge. Modeled on Coelacanth's c, the closest
+    # reference in kind. Upright frame; draw() shears last.
+    def _c_drawn_top(c, p, ws, u, fl, i1):
+        xh = c["xh"]
+        cxy = (sum(x for x, _ in p) / len(p), 0.0)
+        # the centerline's own box, for positions
+        xs = [x for x, _ in p]; ys = [y for _, y in p]
+        x_l, x_r, y_b, y_t = min(xs), max(xs), min(ys), max(ys)
+        cx, cy = (x_l + x_r) / 2, (y_b + y_t) / 2
+        rx, ry = (x_r - x_l) / 2, (y_t - y_b) / 2
+        ang = [math.degrees(math.atan2((y - cy) / ry, (x - cx) / rx)) % 360.0 for x, y in p]
+        j = next(i for i, a in enumerate(ang) if a >= C_TJ)
+        q, qw = p[j:i1 + 1], ws[j:i1 + 1]; m = len(q) - 1
+        wf = PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], False, floor=fl * C_FIN_BOT)
+        body, Ls, Rs = stroke(q, wf, cut0=None, cut1=PR.finial_cut(q, False), raw=True, sides=True)
+        # junction: I on the inner (left-of-travel) edge, O on the outer
+        k = min(4, len(Ls) - 1)
+        I, O = Ls[0], Rs[0]
+        tx, ty = geom.tangents(q)[0]                      # travel: along the crown, leftward
+        # the terminal's tip (outer corner of the face) and the face's lower end
+        T = (cx + C_TX * rx, cy + C_TY * ry)
+        fa = math.radians(C_TFA)
+        Lw = (T[0] + C_TF * xh * math.cos(fa), T[1] + C_TF * xh * math.sin(fa))
+        # each drawn edge leaves along the stroke's OWN edge there, not the
+        # centerline's travel: a varying-width stroke's edges are not parallel
+        # to its centerline, and the difference showed as a kink on the crown
+        def _dir(a, b):
+            L_ = math.dist(a, b) or 1.0
+            return ((b[0] - a[0]) / L_, (b[1] - a[1]) / L_)
+        eo = _dir(Rs[min(3, len(Rs) - 1)], Rs[0])        # outer edge, heading rightward out of the stroke
+        ei = _dir(Ls[0], Ls[min(3, len(Ls) - 1)])        # inner edge, heading leftward into the stroke
+        # outer edge: leave O continuing the crown, arrive at T heading C_TOA
+        d_ot = math.dist(O, T)
+        oa = math.radians(C_TOA)
+        outer = cubic(O, (O[0] + eo[0] * C_TH1 * d_ot, O[1] + eo[1] * C_TH1 * d_ot),
+                      (T[0] - math.cos(oa) * C_TH2 * d_ot, T[1] - math.sin(oa) * C_TH2 * d_ot), T)
+        # underside: leave the face's lower end heading C_TLA, arrive at I along the inner edge
+        d_li = math.dist(Lw, I)
+        la = math.radians(C_TLA)
+        under = cubic(Lw, (Lw[0] + math.cos(la) * C_TH3 * d_li, Lw[1] + math.sin(la) * C_TH3 * d_li),
+                      (I[0] - ei[0] * C_TH4 * d_li, I[1] - ei[1] * C_TH4 * d_li), I)
+        ring_ = outer + [Lw] + under[1:] + Ls[1:k + 1] + Rs[k:0:-1]
+        term = geom.poly(ring_)
+        if os.environ.get("ALBO_ALD_C_TOPDEBUG"):
+            print(f"[c-top] cx {cx:.0f} cy {cy:.0f} rx {rx:.0f} ry {ry:.0f} xh {xh:.0f} j {j} a {ang[j]:.0f} "
+                  f"O ({O[0]:.0f},{O[1]:.0f}) I ({I[0]:.0f},{I[1]:.0f}) T ({T[0]:.0f},{T[1]:.0f}) Lw ({Lw[0]:.0f},{Lw[1]:.0f}) "
+                  f"w_j {math.dist(O, I):.0f} travel ({tx:.2f},{ty:.2f})")
+        return geom.close_corners(geom.ink([body, term]), C_BLEND * u)
+
     @glyph('c')
     def a_c(c):
         p, ws, u = _c_ring(c)
@@ -2273,6 +2345,8 @@ if ON:
         fl = fin_floor()
         i0, _ = cs_round_end(p, ws, True, C_CAP0)
         i1, _ = cs_round_end(p, ws, False, C_CAP1)
+        if C_TOPDRAW:
+            return _c_drawn_top(c, p, ws, u, fl, i1)
         q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
         # 2026-09-28 (owner: "c top right serif needs to be prominent and
         # bottom right serif is way too heavy"): the two ends' floors apart.
