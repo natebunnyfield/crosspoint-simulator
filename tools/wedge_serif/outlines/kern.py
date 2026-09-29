@@ -924,6 +924,22 @@ if _B2 is not None and __import__("os").environ.get("ALBO_FENCES", "1") != "0":
         _l, _r = _k.split(" ")
         PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
 
+# ROUND 438 -- THE SNIPPED r's WHITE BEFORE ROUND LETTERS, per cut. Owner: "fill
+# the space between r and the next letter (especially vowels)". The snipped arm
+# sits inside the x-band the fit reads, so the fit widened the r and the white
+# before a round letter grew (Italic ra 121 -> 140 units closest approach);
+# before a stem it did not. These put r + a round letter back to round 437's
+# closest approach, and r + a / e / o 10 units tighter than that. Measured by
+# instruments/pair_gap2d.py; added on top of whatever the pair already carries.
+# A bearing could not do it: -30 on the r's right closed the vowels and jammed
+# the stems (ri 50 -> 24).
+if _B2 is not None:
+    from . import pen as _pen_rs
+    _cutr = (("Bold" if _pen_rs.S > 84.0 else "") + ("Italic" if (_ALD is not None and _ALD.ON) else "")) or "Regular"
+    for _k, _d in sorted(_B2_ALL.get("rsnip", {}).get(_cutr, {}).items()):
+        _l, _r = _k.split(" ")
+        PAIRS[(_l, _r)] = PAIRS.get((_l, _r), _shipped(_l, _r)) + _d
+
 # ROUND 402 -- CLEARANCE, MEASURED PER CUT (local_ai/clearance.py). After a B2
 # refit, every pair cmp_touch finds under its 0.012 em floor in a built cut gets
 # the kern that lifts it to 0.015 em, written into the table file's

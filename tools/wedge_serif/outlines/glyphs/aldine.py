@@ -4606,8 +4606,12 @@ if ON:
     # 700 takes its own values. R_DRAW 0 = round 434, byte for byte.
     def _rdial(k, v, v7):
         return float(os.environ.get("ALBO_ALD_R_" + k + ("_700" if S > 84.0 else ""), v7 if S > 84.0 else v))
-    R_DRAW = (int(os.environ.get("ALBO_ALD_R_DRAW_700", 0)) if S > 84.0
-              else int(os.environ.get("ALBO_ALD_R_DRAW", 0)))
+    # ROUND 438 (owner: "9 but bring out the top right corner just a bit more to read
+    # as an r at all sizes and fill the space between r and the next letter"): the
+    # drawn, snipped arm ships in both italics -- snip 1, the cut face x4.4 / x3.7 the
+    # hairline (option 9), reach 1.03 of the pitch. 0 / 0 restores round 437's flag.
+    R_DRAW = (int(os.environ.get("ALBO_ALD_R_DRAW_700", 1)) if S > 84.0
+              else int(os.environ.get("ALBO_ALD_R_DRAW", 1)))
     R_DJ = _rdial("DJ", 0.60, 0.60)         # where the stroke stops, x the pitch (the arch's knots past it are dropped)
     R_DJA = _rdial("DJA", 0.91, 0.88)       # > 0: the junction's centreline height outright, x xh; 0 = the arch's own
     R_DCLIMB = _rdial("DCLIMB", 0.5, 0.5)   # 0 = the n's shoulder (round 417's sho); 1 = the references' steeper climb
@@ -4657,20 +4661,20 @@ if ON:
     # R_SNA sets the face's angle outright (design space, 270 = plumb before
     # the shear), R_SWE the stroke's width at the cut, x the arch hairline.
     # Needs R_DRAW; R_SNIP 0 = the drawn terminal below, byte for byte.
-    R_SNIP = (int(os.environ.get("ALBO_ALD_R_SNIP_700", 0)) if S > 84.0
-              else int(os.environ.get("ALBO_ALD_R_SNIP", 0)))
+    R_SNIP = (int(os.environ.get("ALBO_ALD_R_SNIP_700", 1)) if S > 84.0     # round 438
+              else int(os.environ.get("ALBO_ALD_R_SNIP", 1)))
     _RSP = {1: (0.95, 0.949, -22.0), 2: (0.84, 0.959, -12.0), 3: (0.92, 0.959, -6.0)}.get(R_SNIP, (0.95, 0.949, -22.0))   # ink top at the o's (443 / 444 built)
     if S > 84.0: _RSP = (_RSP[0], _RSP[1] - 0.03, _RSP[2])   # the 700's thicker stroke: centreline lower, same ink top
-    R_SX = (float(os.environ.get("ALBO_ALD_R_SX_700", _RSP[0])) if S > 84.0
-            else float(os.environ.get("ALBO_ALD_R_SX", _RSP[0])))
+    R_SX = (float(os.environ.get("ALBO_ALD_R_SX_700", 1.03)) if S > 84.0      # round 438: the corner out ("just a bit more")
+            else float(os.environ.get("ALBO_ALD_R_SX", 1.03)))
     R_SY = (float(os.environ.get("ALBO_ALD_R_SY_700", _RSP[1])) if S > 84.0
             else float(os.environ.get("ALBO_ALD_R_SY", _RSP[1])))
     R_SEA = (float(os.environ.get("ALBO_ALD_R_SEA_700", _RSP[2])) if S > 84.0
              else float(os.environ.get("ALBO_ALD_R_SEA", _RSP[2])))
     R_SK = (float(os.environ.get("ALBO_ALD_R_SK_700", 0.45)) if S > 84.0     # the climb's knots before this (x the pitch) are kept; past it
             else float(os.environ.get("ALBO_ALD_R_SK", 0.45)))                 # the curve runs free to the cut (a knot kept there kinked it)
-    R_SWE = (float(os.environ.get("ALBO_ALD_R_SWE_700", 2.2)) if S > 84.0
-             else float(os.environ.get("ALBO_ALD_R_SWE", 2.6)))
+    R_SWE = (float(os.environ.get("ALBO_ALD_R_SWE_700", 3.7)) if S > 84.0     # round 438: option 9 (was 2.2 / 2.6)
+             else float(os.environ.get("ALBO_ALD_R_SWE", 4.4)))
     R_SNA = (float(os.environ.get("ALBO_ALD_R_SNA_700", 0.0)) if S > 84.0
              else float(os.environ.get("ALBO_ALD_R_SNA", 0.0)))
 
