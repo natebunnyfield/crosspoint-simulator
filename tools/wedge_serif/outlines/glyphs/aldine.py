@@ -1900,7 +1900,10 @@ if ON:
     # ALBO_ALD_ROUND_OVER_BOT is the bottom's overshoot as a multiple of OVER
     # (0.5 = today); the top is unchanged. The e takes the same line through
     # ALBO_ALD_E_FLOOR_OVER (a y fraction taken off E_FLOOR; 0 = today).
-    ROUND_OVER_BOT = float(os.environ.get("ALBO_ALD_ROUND_OVER_BOT_700" if S > 84.0 else "ALBO_ALD_ROUND_OVER_BOT", 0.5))
+    # ROUND 435 (owner: "Ship A"): the 400 takes 1.25, the 700 1.0 -- ink bottoms
+    # o c e -16/-15/-15 (Italic) and -15/-15/-15 (Bold Italic), the roman's line.
+    ROUND_OVER_BOT = float(os.environ.get("ALBO_ALD_ROUND_OVER_BOT_700", 1.0) if S > 84.0
+                           else os.environ.get("ALBO_ALD_ROUND_OVER_BOT", 1.25))
 
     @glyph('o')
     def a_o(c):
@@ -2553,7 +2556,7 @@ if ON:
     # because the letter is. E_EYE 0.49 -> 0.53 buys it all back (0.195) and is
     # deliberately NOT taken: the ask was the baseline and the terminal, and
     # E_EYE is a fitted shape dial. Whoever needs the margin knows where it is.
-    E_FLOOR = float(os.environ.get("ALBO_ALD_E_FLOOR", 0.078)) - float(os.environ.get("ALBO_ALD_E_FLOOR_OVER_700" if S > 84.0 else "ALBO_ALD_E_FLOOR_OVER", 0.0))   # the f=0 line, x xh
+    E_FLOOR = float(os.environ.get("ALBO_ALD_E_FLOOR", 0.078)) - float(os.environ.get("ALBO_ALD_E_FLOOR_OVER_700", 0.018) if S > 84.0 else os.environ.get("ALBO_ALD_E_FLOOR_OVER", 0.055))   # round 435   # the f=0 line, x xh
     # THE LOWER TERMINAL IS BLUNT, NOT ANGULAR (the same ruling's second half).
     # It ended in a 20-degree pen shear (`cut1=CUT`) laid across a stroke the
     # nib was giving its THINNEST width -- the terminal runs at 49.6 degrees
