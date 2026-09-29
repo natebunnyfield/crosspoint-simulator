@@ -984,3 +984,59 @@ B. the pairs first answered after the bench (mean |error| vs his answer, 09-20 z
 **The "bowl" rows are ready:** `active_bench.py --force 'both:bo:bowl,both:ow:bowl,both:wl:bowl'` puts the six rows on session 7's page, with "bowl" as the carrier word, whatever their uncertainty rank. They take the places of the lowest-scored active rows, so the session stays at 50. The key marks them `kind: forced`, and ingest treats them as ordinary answers. Dry-run on round 402: all six present.
 
 **Round 405** (`docs/albo-round-405-2026-09-26.md`): refit through session 6 is the default; bench pairs held out 9.82, the first under 10. The s+ascender pattern is pair-shaped (sl/sk/sh open, si/st tight), not one s bearing; a feature for it is proposed. Session 7 carries the forced 'bowl' rows.
+
+## 14. 2026-09-28: recency, side-class terms, the tables conversion — and the refit recipe [measured]
+
+This round was a family bench:
+- 19 roman pairs: ro re rc rd ra rg · ha na ma la ta ea · um un nm mm am em im.
+- 2 italic repeats.
+- Page https://claude.ai/artifact/ECsEvaAXmFwBmPzgY73dKF, key `bench/family-2026-09-28.key.json`, zero `bench/fonts-2026-09-28-r430`.
+
+It changed B2 three ways. Full account: `docs/albo-family-bench-2026-09-28.md`; round `docs/albo-round-431-2026-09-28.md`.
+
+### 14a. What changed, and why
+
+**Recency** (owner: *"weight more recent measurements much heavier"*). In `b2_fit.combine`:
+- Each reading weighs 0.5^(age / 1 day), with age counted from his newest reading.
+- A pair's fit weight is 1 + 3 × its newest recency.
+- **Why:** his 09-20 bench and his 09-28 readings disagreed in sign (ra +17 then −15, na +29 then −12, un +14 then −14). The equal-weight mean sat where neither reading was.
+- `ALBO_B2_RECENCY=0` reproduces the old mean byte for byte.
+
+**Side-class terms, roman only** (`ALBO_B2_CLASSES` = 3, the ridge alpha; `ALBO_B2_CLASS_STYLES` = roman).
+- **What they are:** one term per (left glyph, right glyph's left-side class) and one per (left glyph's right-side class, right glyph). Classes are `LCLS` / `RCLS` in `b2_fit.py`: round / stem / diag / t / f / z / cap / mark.
+- **Why:** his r readings split by what FOLLOWS the r. Round letters want it tight (ra −15, rs −30, ro −7, re −6); ascender stems want it loose (rh +27, rt +25, rb +11, rk +10). One rsb cancels the two.
+- **Measured before adding them:**
+  - the residuals were identical at every alpha (1, 30) → (0.1, 0.3);
+  - three interaction features moved nothing (held-out error 8.84 → 8.90).
+- **With them:** held-out error roman 8.69 → 8.46; italic 8.81 → 9.06 (worse), hence roman only.
+- **What they cannot do:** um. m and n share a left class, so no class term separates um (−49 three times) from un. The pair-specific residual stays, by the no-override ruling.
+
+**Answers convert through the page's own tables** (`active_ingest.table_white`).
+- **The bug:** the bbox conversion (page white + delta − 09-20 white) read an outline change as spacing. The italic y's tail travelled 106 units in round 409's resize, so a −1 answer on ry became +99 on the fit's zero.
+- **The fix:** his slider moves a pair from what the FIT shipped on that page, so target = table value (rsb + lsb + kern, in the fit's frame) + delta.
+  - Italic rows store + `italic_delta`, which `b2_fit` subtracts again.
+  - Held and out-of-scope pairs keep the bbox conversion; each row records `conv`.
+- **Checked:** identical to the bbox conversion on all 17 roman rows that take it.
+- **Requires** the page's `spacing_b2.json` beside its zero fonts (`bench/<zero>/spacing_b2.json`). **Keep one for every future bench.**
+- **Not yet done:** older italic rows (s3–s6) whose bbox conversion jumped more than 25 units — ys jo ja up wr ps Fr ws. Their zeros' tables are recoverable from git.
+
+**A pair he re-reads leaves the HOLD list.** rd was held (round 384's +20 hand kern). His new −20 was ignored until rd was removed from `b2_fit.HOLD` and from the hand kern in `kern.py`.
+
+### 14b. The refit recipe (exact; each step has a trap)
+
+```bash
+V=<venv python with fontTools/uharfbuzz>; BG=<bigram census json>      # both named in the round docs
+cd tools/wedge_serif/local_ai
+# 1. ingest the page's answers (an ArtifactData dump of its "active" collection, or the page's Copy block)
+$V active_ingest.py <answers dir or file>        # the key's zero dir must be in TRACKED_ZEROS if it carried tracking
+# 2. fit into a SCRATCH table first -- b2_fit without --holds writes a FRESH file: no holds, fences, clearance
+ALBO_SPACING_TABLES=_fit_new.json $V b2_fit.py --census $BG --extra
+# 3. merge only letters/marks/kerns/scope/in_sample into spacing_b2.json; KEEP holds, overrides, fences, clearance
+# 4. re-measure the holds so every held pair keeps its shipped white exactly:
+#    build with the merged table (old holds), then  new_hold = old_hold + (white_old_build - white_new_build)  per held pair
+# 5. fences: build with ALBO_FENCES=0, then  $V fences.py <that build>
+# 6. build the final fonts, then  $V clearance.py <final build>   (a kern added -> rebuild)
+# 7. gates (README "Shipping a round"), then ship
+```
+
+- **Compare arms by BUILT whites, not by table arithmetic.** Held pairs, hand kerns and fences sit outside the tables. Measure `white_fn` on the built fonts, against the zero's fonts.

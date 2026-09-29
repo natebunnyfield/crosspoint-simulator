@@ -196,6 +196,47 @@ booleans; see "Limits".
 
 ## Taking a font to the reader
 
+### Shipping a round: the recipe (every Albo change ships to every channel the same day)
+
+This is the whole route, recorded 2026-09-28 after it had to be dug out of an old session transcript. Owner rulings behind it:
+- *"the most recent albo version needs to make it on update"*: fonts-latest AND the TestFlight bundle.
+- Push the simulator's `main` to the fork after every TestFlight deploy.
+- Never push upstream.
+
+```bash
+# 0. build all four cuts into a scratch dir R, from a tree holding ONLY this round's change
+cd ~/src/crosspoint-simulator/tools/wedge_serif && source build_env.sh && albo_build_all $R
+# 1. gates -- all must hold before anything leaves the machine
+bash instruments/poor_gates.sh $BASE $R "Regular Italic Bold BoldItalic"   # POOR GATES: no delta
+./gates.sh                                                                  # GATES UNCHANGED
+python3 approved.py --check
+(cd local_ai && $VENV/bin/python clearance.py $R)   # a kern added here -> rebuild R before shipping
+python3 gen_state.py                                # docs/albo-STATE.md; commit it with the round
+# 2. commit the round (docs/albo-round-NNN-<date>.md + code + STATE), then the fonts:
+cd ~/src/crosspoint-reader
+cp $R/Albo-*.ttf lib/EpdFont/local_fonts/Albo/
+python3 lib/EpdFont/scripts/build-sd-fonts.py --only Albo --output-dir fs_/fonts
+python3 lib/EpdFont/scripts/build-sd-fonts.py --only Albo --output-dir fs_/fonts --scale 2
+python3 ~/src/crosspoint-simulator/tools/validate_seed_fonts.py fs_/fonts --recipe lib/EpdFont/scripts/sd-fonts.yaml
+# 3. the fonts-latest release (Update Fonts on the device reads it)
+cd ~/src/claude-tools && python3 scripts/publish_fonts.py --skip-build --output-dir ~/src/crosspoint-reader/fs_/fonts
+# 4. TestFlight: through Terminal (codesign needs the login keychain); both KEY=VALUE args are required
+cd ~/src/crosspoint-simulator && osascript ios/deploy.applescript \
+  "CROSSPOINT_SEED_FONTS_DIR=$HOME/src/crosspoint-reader/fs_/fonts" "CROSSPOINT_MARKETING_VERSION=0.1.1"
+#    it prints a Terminal tab id; poll it for "pushed build-N" (success) or FAILED/error, e.g.
+#    osascript -e 'tell application "Terminal" to get contents of tab 1 of window id <id>'
+# 5. after "pushed build-N":
+git -C ~/src/crosspoint-simulator push origin main
+```
+
+**Traps, each paid for:**
+- **The marketing version must be 0.1.1.** App Store Connect already holds 0.1.1, and a build uploaded under a lower version is invisible as "latest" on his phone. Builds 246–252 went up as 0.1.0 and he kept seeing 245 (`BUGS.md` S-043).
+- **The seed tree must hold exactly `installed_families`.** The validator refuses a missing or unclaimed family.
+- **Deploy from `main`.** `deploy-from-repo.sh` pulls fast-forward-only on the checked-out branch.
+- **A long silence after "Verify seed fonts" is normal.** It is the seed-font compression.
+- **An AppleEvent timeout means Terminal automation was not granted.** It is not a failure of the build.
+- **Another agent in the same tree:** build the round in a clean `git worktree` and stage only your hunks (`docs/albo-method.md` §8).
+
 **Done, 2026-09-14** (owner: "install it everywhere"), and this section used to
 say "not done yet". Albo is the twelfth installed family and the first drawn
 in-house: five styles in

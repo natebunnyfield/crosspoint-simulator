@@ -257,7 +257,50 @@ pinching a counter, because thin and thick land where the stroke's *direction*
 puts them. Which is §1 again. **The 8's rings want what the g's rings got in
 round 182**, and no dial substitutes for it.
 
----
+## 1h. THE SIXTH RULE: when a letter does not read as itself, look at its structure, then DRAW the part
+
+2026-09-28, the Bold Italic c: rounds 433–434. The full record is in
+`docs/albo-round-433-2026-09-28.md` from "Follow-up" on.
+
+**How the day went:**
+- The owner asked for the top serif "more" and the bottom "less".
+- The finial floor delivered the weights: bottom 0.49 of the stem, top/bottom 2.6×, both in the references' range.
+- He then said *"the top sucks"*.
+- Two more passes on the same machinery, carrying the stroke round and growing the swell inward, came back *"much worse and worse, do better"*.
+- The next attempt started from the picture instead of a dial, and was accepted (D3) on the first set of arms.
+
+**What the picture showed** (`instruments/ref_sheet.py`, every reference c at one x-height):
+- Poetica, Coelacanth, Cancelleresca, Flanker, Pagella, Georgia, Berkeley and Times ALL have a round crown arching over.
+- In all of them the terminal hangs off the crown's right end at about 0.75–0.85 xh, and its underside hooks back into the counter.
+- Albo's c had no arch, in the 400 and the 700 alike. The crown was a straight ramp rising right, and the terminal was the highest point of the letter: a horn.
+- No width or angle dial could have produced the arch, because the structure was wrong.
+
+**Why the machinery could not fix it:**
+- `PR.finial_widths` swells a stroke's width symmetrically about its path. At a heavy floor, half the extra width stands up and out: T3's ink top reached 507, on a 444 o.
+- Shifting the path so the swell grows inward only (hang) self-intersects. The swell's half-width exceeds the inner radius at the top-right corner of a squarish superellipse, so the inner offset loops. It tore a hole in the outline and flipped the face across the counter.
+- Lowering the start angle hangs the terminal, but the swelled end still became a flag, with a long shallow face produced by `finial_cut`.
+
+**The procedure, in order:**
+1. **Look before tuning.** Render the letter from every reference at one x-height (`instruments/ref_sheet.py`). Say in one sentence what they all share and Albo lacks. If you cannot, you are not ready to change code.
+2. **Find the machinery's limit.** If the shared feature needs mass on ONE side of a stroke, or a terminal that turns against the path, no symmetric-width dial will make it.
+3. **Draw the part.** Stop the stroke at a junction and union on an explicit shape: cubics for the edges, a straight cut face (the family's wedge, never a ball — round 276). Precedents:
+   - the roman t's tail, round 420 (`_t_clean` in `stems.py`);
+   - the italic c's top, round 434 (`_c_drawn_top` in `aldine.py`).
+4. **Iterate on the live builder, not on font builds.** `instruments/glyph_view.py` draws a glyph from the current code in 0.1 s; a cut takes 1–2 min.
+   - Overlay the references unsheared by their MEASURED slant: `instruments/glyph_overlay.py` reads `refs_registry.py`.
+   - Zoom joins at 4× with the vertices and construction points marked: `instruments/glyph_zoom.py`.
+5. **Show width as a number.** A drawn terminal changes the letter's reach; the c went from 0.77 to 0.87 of its o. Offer an arm that keeps the old width. The owner chose that one (D3, 0.83).
+
+**What went wrong inside the drawn part** (each seen only at 4× zoom; no gate saw either):
+- **A junction right of the apex leaves a corner on the crown.** Where the stroke's edge is already descending, a drawn edge that rises first makes a dip. Put the junction LEFT of the apex (100° here), where the edge still rises, and the arch continues unbroken.
+- **Leave along the stroke's own EDGE, not the centerline's travel.** A varying-width stroke's edges are not parallel to its centerline, and the difference shows as a kink.
+- **Keep a cubic's control points monotonic along the curve.** The underside first left the face at 150° with a long arrival handle. Its second control point landed right of its first, so the curve went left, right, left: an S. That left the counter's top-right as a tall slot. Leaving steeply (120–125°) with a short arrival handle gives one concave hook.
+
+**Related lessons from the same day:**
+- **Smooth what was TAKEN, not the widths** (round 432). Round 429 thinned the c's lower left by reading the o's nib off each sample's direction, with a running maximum and a per-sample outward shift. The counter came out with a point (400) and a lump over a slit (700). `albo_bumps`, the hairs sweep and the glitch sweep all passed it. The fix smoothed (new width − old width), which is 0 outside the blend, so the finial stems that `fin_floor` reads stayed untouched.
+- **A floor stops governing below the swell.** `C_FIN_BOT_700` below about 0.6 changed nothing, because `finial_widths` takes max(swell, floor / end width) and the swell (1.10 × the end's width) wins. To go lighter, taper the widths themselves (`C_TAIL`).
+- **A taper must start after the bowl's lowest point,** or it thins the bottom and the overshoot goes. `C_TAIL_T` 0.25 lost the c's overshoot (−8 → −1); 0.12 kept it.
+- **A heavy weight needs its own numbers.** The 700 read "not enough" at the 400's values. Use per-weight dials that default to the 400's (`_700` suffix, read when `S > 84`).
 
 ## 2. The order of operations
 
@@ -298,6 +341,12 @@ All in `tools/wedge_serif/`, all runnable as `PYTHON_GIL=0 python3 <name>`.
 | `refs_registry.py` | **gate.** the references and their TRUE slants |
 | `proof_words.py` | a proof built from the owner's own corpus |
 | `proof.py` | the one renderer. Every row is a BASELINE. |
+| `instruments/glyph_view.py` | **the drawing loop**: glyphs straight from the live builder (`outlines.build.draw`), 0.1 s each, no font build |
+| `instruments/glyph_overlay.py` | your glyph under every reference's outline, all unsheared by MEASURED slant (`refs_registry.py`); prints c/o width |
+| `instruments/glyph_zoom.py` | 4× zoom of a join with every outline vertex dotted and the glyph's own construction points marked; where corners and S-curves show |
+| `instruments/ref_sheet.py` | one glyph from many fonts at ONE x-height; the picture that diagnosed the italic c (§1h) |
+| `instruments/terminal_weight.py` | a c's top and bottom terminal over the stem, and their ink-area ratio (a proxy; a spike inflates the run, so trust the area) |
+| `instruments/word_rows.py` / `reading_rows.py` | the compact labeled option image, and the reader-size rows (unhinted, 2-bit, NEAREST) |
 
 **Use `proof.py` for every image.** Before it existed, proofs mixed PIL's
 anchored and unanchored conventions, so the same letter sat `ascent` pixels
@@ -438,6 +487,19 @@ default that was supposed to be inert.
 - **zsh does not word-split unquoted variables** — `env $E python3` silently
   builds the wrong font. Inline the env vars.
 - **`outlines.build` takes its output dir as `sys.argv[1]`**, not `--out`.
+- **Build the control arm with NO dials.** On 2026-09-28 a helper that added the
+  arm's shared settings to every build also added them to the "default" build.
+  The default then compared DIFFERENT against the shipped font, and nearly read
+  as a regression. A default-identity check is only honest from a bare
+  environment.
+- **A script run by zsh may not get the shell's python.** `python3` there can
+  resolve to another interpreter, which died on `PYTHON_GIL=0` with "Python
+  runtime state: preinitialized". Name the interpreter by its absolute path in
+  scripts (the asdf shim). `${(P)name}` needs `${=${(P)name}}` to word-split.
+- **Another agent in the same tree: stage only your own hunks.** If someone else
+  has uncommitted edits in the file you are shipping, build in a clean
+  `git worktree` off HEAD, then `git diff > p; git apply --cached p; git apply p`
+  in the main tree. Their work stays unstaged and out of your commit (round 435).
 
 ---
 

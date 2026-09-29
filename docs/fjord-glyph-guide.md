@@ -409,6 +409,20 @@ descender length, not stroke weight, and the two levers left are the
 descender's length and the pen's contrast on the rounds -- both design
 decisions for the owner, not fixes.
 
+**A round letter's crown ARCHES, and a terminal hangs off the arch**
+(rounds 433–434, 2026-09-28). This holds for every reference c, e and a:
+- Poetica, Coelacanth, Cancelleresca, Flanker, Pagella, Georgia, Berkeley and Times alike.
+- The top of the letter is a round arch.
+- The top terminal is part of that arch: it hangs off its right end at about 0.75–0.85 xh, with its underside hooking back into the counter.
+- The terminal is never the highest point of the letter, and never a spike above the x-line.
+
+Albo's italic c broke this: its crown was a straight ramp ending in a horn. It read as a thorn, not a c, whatever its weights measured. The Bold Italic's top is now DRAWN (`_c_drawn_top`, `aldine.py`):
+- an outer cubic continuing the arch;
+- a straight cut face, the family's wedge (round 276 rules out balls);
+- one concave underside.
+
+The 400's c still has the ramp. **Before tuning any terminal, put the letter beside every reference at one x-height** (`instruments/ref_sheet.py`) and check the arch. Method: `docs/albo-method.md` §1h.
+
 ## 4. How a glyph is judged (harmonious word images)
 
 The loop for any change: **edit → build → render → LOOK → measure → repeat**,
