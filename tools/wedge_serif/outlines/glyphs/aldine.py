@@ -4645,8 +4645,8 @@ if ON:
     # so the white before a STEM grew 17-34 units; this takes it back to round 437's
     # (the round followers are then set by the rsnip kerns). The Greek sigma, which
     # borrows the r's right side, is compensated in build.fit_greek.
-    R_DRSB = (float(os.environ.get("ALBO_ALD_R_DRSB_700", -19.0)) if S > 84.0
-              else float(os.environ.get("ALBO_ALD_R_DRSB", -18.0)))
+    R_DRSB = (float(os.environ.get("ALBO_ALD_R_DRSB_700", -13.0)) if S > 84.0
+              else float(os.environ.get("ALBO_ALD_R_DRSB", -12.0)))   # round 441: -12 / -13 for option 12
 
     # 2026-09-28, round 2 of the issue sweep -- THE ARM SNIPPED (owner, on S1:
     # "snip off r serif to be without beak"). The drawn arm's arch stays -- out
@@ -4676,20 +4676,23 @@ if ON:
     # its underside dipped and the face's lower corner hung as a hook. It now
     # arrives rising (+12), the cut stands near upright, and the end sits a touch
     # lower so the top stays on the o's line. With R_WEDGE: both edges straight in.
-    R_SY = (float(os.environ.get("ALBO_ALD_R_SY_700", 0.889)) if S > 84.0
-            else float(os.environ.get("ALBO_ALD_R_SY", 0.929)))
-    R_SEA = (float(os.environ.get("ALBO_ALD_R_SEA_700", 12.0)) if S > 84.0
-             else float(os.environ.get("ALBO_ALD_R_SEA", 12.0)))
+    # round 441: back to round 438's arm (SY 0.949 / 0.919, arriving at -22); the
+    # hook round 439 fixed by bending the arm is now filled instead (R_ENDHULL)
+    R_SY = (float(os.environ.get("ALBO_ALD_R_SY_700", 0.919)) if S > 84.0
+            else float(os.environ.get("ALBO_ALD_R_SY", 0.949)))
+    R_SEA = (float(os.environ.get("ALBO_ALD_R_SEA_700", -22.0)) if S > 84.0
+             else float(os.environ.get("ALBO_ALD_R_SEA", -22.0)))
     R_SK = (float(os.environ.get("ALBO_ALD_R_SK_700", 0.45)) if S > 84.0     # the climb's knots before this (x the pitch) are kept; past it
             else float(os.environ.get("ALBO_ALD_R_SK", 0.45)))                 # the curve runs free to the cut (a knot kept there kinked it)
     R_SWE = (float(os.environ.get("ALBO_ALD_R_SWE_700", 3.7)) if S > 84.0     # round 438: option 9 (was 2.2 / 2.6)
              else float(os.environ.get("ALBO_ALD_R_SWE", 4.4)))
-    R_ENDHULL = float(os.environ.get("ALBO_ALD_R_ENDHULL", 0.0))   # x the cut's width: the zone whose hull fills the hook; 0 = off
-    R_WEDGE = int(os.environ.get("ALBO_ALD_R_WEDGE", 1))          # round 439: 1 = the arm flares linearly into the cut (a pen wedge, no beak); 0 = round 438
+    R_CHAMF = float(os.environ.get("ALBO_ALD_R_CHAMF", 1.8))        # round 441 (owner: "12 but make a cut on the lower right corner")        # the bevel on the serif's lower-right corner, x the hairline; 0 = off
+    R_ENDHULL = float(os.environ.get("ALBO_ALD_R_ENDHULL", 1.2))    # round 441: option 12 -- 438's arm, only the hook filled   # x the cut's width: the zone whose hull fills the hook; 0 = off
+    R_WEDGE = int(os.environ.get("ALBO_ALD_R_WEDGE", 0))          # round 441: off again -- 438's pen curve is back (owner: "you are missing the good work")          # round 439: 1 = the arm flares linearly into the cut (a pen wedge, no beak); 0 = round 438
     R_WSTART = (float(os.environ.get("ALBO_ALD_R_WSTART_700", 0.42)) if S > 84.0
                 else float(os.environ.get("ALBO_ALD_R_WSTART", 0.42)))
-    R_SNA = (float(os.environ.get("ALBO_ALD_R_SNA_700", 0.0)) if S > 84.0
-             else float(os.environ.get("ALBO_ALD_R_SNA", 0.0)))
+    R_SNA = (float(os.environ.get("ALBO_ALD_R_SNA_700", 283.0)) if S > 84.0   # round 441: the cut face parallel to the italic stems
+             else float(os.environ.get("ALBO_ALD_R_SNA", 283.0)))
 
     def _r_snipped_arm(c, x0, P, sw, t, xh):
         steep = [(0.22, 0.55), (0.36, 0.76), (0.50, 0.88)]
@@ -4753,6 +4756,32 @@ if ON:
             # wedge does, and the square cut stays as filed
             _z = Point(E).buffer(t * R_SWE * R_ENDHULL, 48)
             g = g.union(g.intersection(_z).convex_hull)
+        if R_CHAMF:
+            # 2026-09-29 (owner, on option 12: "make a cut on the lower right corner
+            # of the top right serif"): a filed bevel on the corner where the cut
+            # face meets the underside -- the lowest vertex of the end, cut along the
+            # bisector of its two edges, R_CHAMF x the hairline back along each
+            import shapely.geometry as _sgc
+            _poly = g if g.geom_type == 'Polygon' else max(g.geoms, key=lambda q: q.area)
+            _ring = list(_poly.exterior.coords)[:-1]
+            _near = [i for i, (px, py) in enumerate(_ring) if math.dist((px, py), E) < t * R_SWE * 2.5]
+            if _near:
+                ci = max(_near, key=lambda i: _ring[i][0] - _ring[i][1])   # the lower-RIGHT corner: furthest right-and-down
+                C = _ring[ci]
+                def _unit(q):
+                    L_ = math.dist(C, q) or 1.0
+                    return ((q[0] - C[0]) / L_, (q[1] - C[1]) / L_)
+                # walk each way to a vertex a few units off, so a near-duplicate is not the edge
+                def _away(step):
+                    j = ci
+                    for _ in range(len(_ring)):
+                        j = (j + step) % len(_ring)
+                        if math.dist(_ring[j], C) > 3.0: return _ring[j]
+                    return _ring[(ci + step) % len(_ring)]
+                a1, a2 = _unit(_away(1)), _unit(_away(-1))
+                a = t * R_CHAMF
+                tri = _sgc.Polygon([C, (C[0] + a1[0] * a, C[1] + a1[1] * a), (C[0] + a2[0] * a, C[1] + a2[1] * a)])
+                g = g.difference(tri.buffer(0.01))
         if os.environ.get("ALBO_ALD_R_DEBUG"):
             print(f"[r-snip] x0 {x0:.0f} P {P:.0f} E ({E[0]:.0f},{E[1]:.0f}) travel ({tx:.2f},{ty:.2f}) face {ang:.1f} "
                   f"w_e {t * R_SWE:.0f} top {g.bounds[3]:.0f} right {g.bounds[2]:.0f}")
