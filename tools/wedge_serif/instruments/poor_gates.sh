@@ -39,11 +39,21 @@ for c in $CUTS; do
     db=$($PY cmp_counter_dents.py "$fb" 2>/dev/null | grep -ciE 'dent'); da=$($PY cmp_counter_dents.py "$fa" 2>/dev/null | grep -ciE 'dent')
     echo "[$c] counter-dent lines: $db -> $da"; [ "$da" -gt "$db" ] && bad=1
   fi
-  chars=$(echo "$mv" | tr -d "[]', " )
+  # the moved GLYPH NAMES mapped back to characters through the font's cmap:
+  # cmp_aldine_glitch --chars takes characters, and the names concatenated
+  # ("cacuteccaron...") swept the letters of the names instead (2026-09-28)
+  chars=$($PY -c '
+import sys, ast
+from fontTools.ttLib import TTFont
+names = set(ast.literal_eval(sys.argv[2])) if sys.argv[2].strip().startswith("[") else set()
+rev = {}
+for cp, n in TTFont(sys.argv[1]).getBestCmap().items(): rev.setdefault(n, chr(cp))
+print("".join(rev[n] for n in sorted(names) if n in rev))' "$fa" "${mv:-[]}" 2>/dev/null)
   if [ -n "$chars" ]; then
     gb=$($PY cmp_aldine_glitch.py --ttf "$fb" --chars "$chars" 2>&1 | tail -1)
     ga=$($PY cmp_aldine_glitch.py --ttf "$fa" --chars "$chars" 2>&1 | tail -1)
-    echo "[$c] glitch ($chars): $gb  ->  $ga"; [ "$gb" != "$ga" ] && bad=1
+    nb=$(echo "$gb" | grep -oE '[0-9]+ with findings' | grep -oE '^[0-9]+'); na=$(echo "$ga" | grep -oE '[0-9]+ with findings' | grep -oE '^[0-9]+')
+    echo "[$c] glitch ($chars): $gb  ->  $ga"; [ "${na:-0}" -gt "${nb:-0}" ] && bad=1   # more glyphs with findings = a delta; fewer is a fix
   fi
 done
 [ $seen = 1 ] || { echo "POOR GATES: NO ARM FONT in $A for [$CUTS]"; exit 2; }
