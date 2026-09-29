@@ -1129,6 +1129,11 @@ PHASE_LEGACY_STYLE = {('Italic', '\ue001'): 2}
 # three islands where they were two; they keep consuming two phases, or every
 # glyph after them (the fl, the Greek) is re-cut.
 PHASE_LEGACY_STYLE.update({(_s, _c): 2 for _s in ('Regular', 'Bold') for _c in ('\ufb01', '\ufb03')})
+# 2026-09-28: the drawn c top (aldine._c_drawn_top) reaches the t in the italic's
+# private c-t glyph (U+E004), which goes from two islands to one; it keeps
+# consuming two phases, or the 28 glyphs after it (Greek, the f-ligatures) are
+# re-cut. Harmless while the top is off: the glyph has two contours then anyway.
+PHASE_LEGACY_STYLE[('Italic', '\ue004')] = 2
 PHASE_LEGACY.update({'\u2654': 2, '\u2655': 10, '\u2656': 2, '\u2657': 4, '\u2658': 2, '\u2659': 2,
                      '\u265b': 4, '\u265d': 2, '\u265e': 1})
 # 2026-09-24 -- THE SAME CONTAINMENT FOR AN OPTION. A glyph drawn under an

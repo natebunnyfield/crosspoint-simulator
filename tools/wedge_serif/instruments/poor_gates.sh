@@ -49,7 +49,10 @@ done
 [ $seen = 1 ] || { echo "POOR GATES: NO ARM FONT in $A for [$CUTS]"; exit 2; }
 R="$A/Albo-Regular.ttf"; [ -f "$R" ] || R="$B/Albo-Regular.ttf"
 I="$A/Albo-Italic.ttf"; [ -f "$I" ] || I="$B/Albo-Italic.ttf"
-echo "[contours] $($PY cmp_contours.py --check --regular "$R" --italic "$I" 2>&1 | tail -1)"
+CT=$($PY cmp_contours.py --check --regular "$R" --italic "$I" 2>&1)
+# a contour-count change re-cuts every later glyph in the style (cut.py's phase
+# counter): it is a DELTA, not a note -- 2026-09-28 it printed "no delta" over one
+echo "$CT" | grep -q "CHANGED" && { echo "[contours] $(echo "$CT" | grep -A3 CHANGED | tr '\n' ' ')"; bad=1; } || echo "[contours] $(echo "$CT" | tail -1)"
 echo "[approved] $($PY approved.py --check --regular "$R" --italic "$I" 2>&1 | tail -1)"
 echo "[e mouth]  $($PY etrace/e_hint_gate.py "$R" 2>&1 | tail -1)"
 [ $bad = 0 ] && echo "POOR GATES: no delta" || echo "POOR GATES: DELTA (above)"
