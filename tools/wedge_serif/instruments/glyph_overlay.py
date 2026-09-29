@@ -2,10 +2,12 @@
 (colored lines, each unsheared by its italic angle and scaled to Albo's x-height, 429).
 
     env "${ALBO_BIT_ENV[@]}" PYTHON_GIL=0 python3 instruments/glyph_overlay.py out.png c \
-        refs/poetica-std-regular.otf refs/coelacanth-italic.otf@12
+        refs/poetica-std-regular.otf refs/coelacanth-italic.otf
 
-`path@deg` forces the unshear angle: **Coelacanth's post table declares italicAngle 0**, so it must be
-unsheared by hand (12 deg fits); Poetica declares -11. Glyphs are aligned on their left extreme.
+Each reference is unsheared by its MEASURED slant from refs_registry.py (Coelacanth 14.5, Poetica 9.2,
+Flanker Griffo 11.7, Pagella 11.7, Cancelleresca 10.3) -- never post.italicAngle, which is 0 on Coelacanth
+and Cancelleresca. `path@deg` forces an angle for a face the registry does not carry (e.g. Flanker Bold
+Italic, Georgia Bold Italic). Round 433's overlays predate this and used Coelacanth 12 / Poetica 11. Glyphs are aligned on their left extreme.
 The caption prints Albo's sheared bounds and its c/o width ratio. CQ_LABEL adds a caption.
 This is how the c's terminal position, reach and face angle were matched (round 433).
 """
@@ -45,7 +47,18 @@ class Flat(BasePen):
     _endPath=_closePath
 def ref_rings(path, ch):
     path, _, force = path.partition("@")
-    f=TTFont(path); gs=f.getGlyphSet(); cm=f.getBestCmap(); ang=-float(force) if force else f['post'].italicAngle
+    f=TTFont(path); gs=f.getGlyphSet(); cm=f.getBestCmap()
+    if force:
+        ang=-float(force)
+    else:
+        # the MEASURED slant from refs_registry.py, never post.italicAngle (0 on
+        # Coelacanth and Cancelleresca, ~1.8 deg off on two more)
+        try:
+            import refs_registry
+            m={v[0]: v[1] for v in refs_registry.REFERENCES.values()}
+            ang=-m[os.path.basename(path)] if os.path.basename(path) in m else f['post'].italicAngle
+        except Exception:
+            ang=f['post'].italicAngle
     fp=Flat(gs); gs[cm[ord('x')]].draw(fp); xh=max(y for r in fp.c for _,y in r)
     fp=Flat(gs); gs[cm[ord(ch)]].draw(fp)
     k=XH/xh
