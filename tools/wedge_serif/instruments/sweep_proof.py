@@ -2,7 +2,7 @@
 READER's sizes, labeled, lossless.
 
     venv/bin/python instruments/sweep_proof.py out.png "text" "LABEL::FONT.ttf" ...
-    env: PPEM (display size, default 140), READ (1 = add the reader rows, default 1)
+    env: PPEM (display size, default 140), READ (1 = add the reader rows, default 1), LABPX (label px)
 
 Display row: HarfBuzz-shaped (kerns in), FreeType unhinted, 8-bit gray, at PPEM, native pixels.
 Reader rows: fit_audit/legib.Renderer (the reader's converter: unhinted, 2-bit levels, HarfBuzz
@@ -18,7 +18,8 @@ from legib import Renderer  # noqa: E402
 
 out = sys.argv[1]; text = sys.argv[2]; specs = [s.split("::") for s in sys.argv[3:]]
 PPEM = int(os.environ.get("PPEM", "140")); READ = os.environ.get("READ", "1") == "1"
-LAB = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
+LABPX = int(os.environ.get("LABPX", "20"))   # label size in px: 72 puts an option's NUMBER big on its row (round 2 of the sweep)
+LAB = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", LABPX)
 PAPER = (250, 249, 246)
 
 
@@ -58,7 +59,7 @@ def reader(path):
 
 parts = []
 for lab, path in specs:
-    head = Image.new("RGB", (900, 30), PAPER); ImageDraw.Draw(head).text((8, 5), lab, fill=(30, 30, 30), font=LAB)
+    head = Image.new("RGB", (1400, int(LABPX * 1.5)), PAPER); ImageDraw.Draw(head).text((8, LABPX // 4), lab, fill=(30, 30, 30), font=LAB)
     parts.append(np.array(head)); parts.append(display(path))
     if READ:
         parts += reader(path)

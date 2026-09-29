@@ -428,11 +428,129 @@ def _brace_b(c, left):
         g = aff.scale(g, -1, 1, origin='center')
     return g
 
+# 2026-09-28, round 2 -- THE BRACES, CUT RATHER THAN WRITTEN (owner, on S5:
+# "braces need a lot more work, pay attention to how handcut and filed and
+# metalworked each letter is and isn't"). Option b read as a pen's S-curve.
+# Albo is handwriting -> METAL: where a punchcutter's tools show, it shows
+# them -- straight cut faces at the family's 20-degree pen cut on stroke ends
+# (the parens' own ends), the bracketed wedge on every stem, the cut pass's
+# facets on every 400 curve, ONE filed flat on each punched dot (round 367,
+# angle and depth its own per glyph), the c's and r's terminals stopped by one
+# straight face -- and where it does not, it keeps the pen: weight follows the
+# nib's direction and the bowls run smooth. So a brace here takes its WEIGHT
+# and SPAN from the paren beside it (the paren's pen, its height, its cut
+# ends) and its CONSTRUCTION from the shop: a straight shank like a stem, a
+# middle point that is a wedge off that shank (two faces meeting, straight or
+# bracketed as the family's wedges are), ends turned or wedged. Four numbered
+# options, ALBO_BRACE_OPT = 4 | 5 | 6 | 7:
+#   4  FILED -- each end turns out of the shank in two flat facets, as a file
+#      dresses a bend, the end at the pen cut; the point two straight faces
+#   5  WEDGED -- no turns at all: a stem whose two ends carry the family's
+#      bracketed wedge (pointing out, as a stem's top wedge does) and whose
+#      middle carries the same bracket twice, meeting in a point
+#   6  PAREN -- each half is the paren's own arc (its superellipse, its pen,
+#      its cut end) and the two halves meet in a point of two straight faces
+#   7  PUNCHED -- heavier, short square-cut hooks, a straight shank with ONE
+#      filed flat on its outer face (height and depth its own per glyph, as
+#      the dots' flats are), and a short wide point of two faces
+# The italic takes the drawing sheared, as it does the parens. Dials:
+# BRACE_MW the width (x xh), BRACE_MWT the weight (x the paren's pen; 0 = the
+# option's own), BRACE_BEAK the point's half-angle (degrees; 0 = the option's
+# own). Options a and b are untouched.
+BRACE_MW = float(os.environ.get("ALBO_BRACE_MW", 0.46))
+BRACE_MWT = float(os.environ.get("ALBO_BRACE_MWT", 0.0))
+BRACE_BEAK = float(os.environ.get("ALBO_BRACE_BEAK", 0.0))
+BRACE_WDROP = float(os.environ.get("ALBO_BRACE_WDROP", 1.2))  # option 5: the end wedge's drop, x the family's DROP (0.6 left a 165-degree tip in the italic })
+BRACE_FLAT = float(os.environ.get("ALBO_BRACE_FLAT", 5.0))    # option 7: the filed flat's depth, units (albo-imperfections: 2-7 units at a 674 cap)
+
+def _brace_metal(c, left, opt):
+    import hashlib
+    import shapely.affinity as aff
+    from .marks import FENCE_RAISE
+    from ..geom import quad
+    top = CAP + 16 + FENCE_RAISE; bot = -DESC - 16 + FENCE_RAISE     # the paren's own span (marks.paren: +/- 16 over the fences)
+    mid = (top + bot) / 2; hh = (top - bot) / 2
+    W = XH * BRACE_MW
+    wt = BRACE_MWT or {"4": 0.95, "5": 0.95, "6": 1.00, "7": 1.15}[opt]
+    th = pen.PEN.th((0.0, 1.0)) * wt           # the shank's width: the pen's vertical, as at the paren's middle
+    xs = W * 0.50                               # the shank's centreline; the point is at x 0
+    xL = xs - th / 2                            # the shank's left (point-side) edge
+    beak = BRACE_BEAK or {"4": 30.0, "5": 30.0, "6": 30.0, "7": 42.0}[opt]
+    bh = (xL - 0.0) * math.tan(math.radians(beak))  # the point's half-height where its faces meet the shank
+    parts = []
+    if opt in ("4", "7"):
+        if opt == "4":   # two filed facets from the shank out to the end
+            E = (W, top - th * 0.30); F = (xs + (W - xs) * 0.45, top - th * 0.55); S1 = (xs, top - hh * 0.22)
+            up = line(E, F) + line(F, S1)[1:] + line(S1, (xs, mid))[1:]
+            floor, cut0 = th * 0.55, CUT
+        else:            # short heavy hook, square-cut
+            E = (W * 0.98, top - th * 0.42); S1 = (xs, top - hh * 0.16)
+            up = cubic(E, (E[0] - (E[0] - S1[0]) * 0.45, E[1]), (S1[0], S1[1] + (E[1] - S1[1]) * 0.45), S1) + line(S1, (xs, mid))[1:]
+            floor, cut0 = th * 0.80, None
+        up = geom.resample(up)
+        parts.append(stroke(up, pen_widths(up, None, floor=floor, scale=wt), cut0=cut0, cut1=None, raw=True))
+    elif opt == "5":
+        # the shank, with the family's entasis-free straight edge, and a
+        # bracketed wedge at its end pointing out (a stem's top wedge)
+        from ..primitives import wedge
+        from ..pen import WL, WD, DROP
+        parts.append(geom.poly([(xL, mid - 1), (xL + th, mid - 1), (xL + th, top), (xL, top)]))
+        parts.append(wedge((xL + th, top), (0.0, 1.0), (1.0, 0.0), max(WL * 1.15, W - xL - th), WD * 1.0, DROP * BRACE_WDROP))
+    else:   # "6": the paren's arc, the end's quarter into the shank
+        ry = hh * 0.62
+        a1 = superellipse(W, top - ry, W - xs, ry, math.radians(100), math.radians(180), 2.2)   # starting at 100 deg as the paren starts at 105: at 92 the cut end left a nick in the 700s
+        up = geom.resample(a1 + line(a1[-1], (xs, mid))[1:])
+        n_ = len(a1) / len(up)
+        parts.append(stroke(up, pen_widths(up, lambda t: 0.6 + 0.4 * math.sin(math.pi * 0.5 * min(1.0, t / n_)), scale=wt),
+                            cut0=CUT, cut1=None, raw=True))
+    g_up = geom.ink(parts)
+    if opt != "5":
+        # a stroke turned tighter than half its width folds its inner edge and
+        # leaves a tab there (seen at 700 px, the 700s); a closing a fifth of the
+        # shank wide takes it out and touches nothing wider
+        g_up = geom.close_corners(g_up, th * 0.20)
+    g = geom.ink([g_up, aff.scale(g_up, 1, -1, origin=(0, mid))])
+    # THE POINT: a wedge off the shank's left edge. Straight faces (4 6 7), or
+    # the family's bracket on both sides (5: `wedge`'s own quadratic, the
+    # control 0.65 of the way up the edge toward the corner)
+    if opt == "5":
+        from ..pen import FILLET
+        dep = bh * 1.9
+        cu = (xL, mid + dep); cd = (xL, mid - dep); B = (0.0, mid)
+        ctl_u = (xL, mid + dep * (1 - FILLET)); ctl_d = (xL, mid - dep * (1 - FILLET))
+        pt = quad(cu, ctl_u, B) + quad(B, ctl_d, cd)[1:]
+        g = geom.ink([g, geom.poly(pt + [(xL + 6, mid - dep), (xL + 6, mid + dep)])])
+    else:
+        g = geom.ink([g, geom.poly([(0.0, mid), (xL + 6, mid + bh + 6 * math.tan(math.radians(beak))), (xL + 6, mid - bh - 6 * math.tan(math.radians(beak)))])])
+    if opt == "7":
+        # ONE FILED FLAT on each hook's outer turn: a single chord where the
+        # round of the turn was trued on the stone, BRACE_FLAT units deep, its
+        # direction its own per hook and per glyph (md5, as the dots' flats:
+        # stable across builds). A flat on the straight shank would file nothing.
+        for sgn in (1, -1):
+            h = hashlib.md5(("brace" + ("L" if left else "R") + ("u" if sgn > 0 else "d") + str(pen.ITALIC)).encode()).digest()
+            fa = math.radians(135.0 + 12.0 * (h[0] / 255.0 * 2 - 1)); n_ = (math.cos(fa), sgn * math.sin(fa))
+            dep = BRACE_FLAT * (1.0 + 0.3 * (h[1] / 255.0 * 2 - 1))
+            win = geom.poly([(-W, mid + sgn * hh * 0.45), (W * 2, mid + sgn * hh * 0.45), (W * 2, mid + sgn * hh * 1.5), (-W, mid + sgn * hh * 1.5)])
+            reg = g.intersection(win)
+            pts_ = list(reg.exterior.coords) if reg.geom_type == "Polygon" else [p for gg in reg.geoms for p in gg.exterior.coords]
+            m = max(px * n_[0] + py * n_[1] for px, py in pts_) - dep
+            o_ = (n_[0] * m, n_[1] * m); t_ = (-n_[1], n_[0]); L_ = hh
+            shave = geom.poly([(o_[0] + t_[0] * L_, o_[1] + t_[1] * L_), (o_[0] - t_[0] * L_, o_[1] - t_[1] * L_),
+                               (o_[0] - t_[0] * L_ + n_[0] * L_, o_[1] - t_[1] * L_ + n_[1] * L_),
+                               (o_[0] + t_[0] * L_ + n_[0] * L_, o_[1] + t_[1] * L_ + n_[1] * L_)])
+            g = g.difference(shave.intersection(win))
+    if not left:
+        g = aff.scale(g, -1, 1, origin='center')
+    return g
+
 def _brace(c, left):
     """A brace on the parens' span (round 98's raised fences), its waist a
     cusp at MID and its two arms the pen's turning stroke."""
     if BRACE_OPT == "b":
         return _brace_b(c, left)
+    if BRACE_OPT in ("4", "5", "6", "7"):
+        return _brace_metal(c, left, BRACE_OPT)
     from .marks import FENCE_RAISE
     top = CAP + FENCE_RAISE; bot = -DESC + FENCE_RAISE; mid = (top + bot) / 2
     w = XH * 0.30; xw = w * 0.22          # the waist's x

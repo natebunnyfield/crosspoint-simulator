@@ -4640,6 +4640,87 @@ if ON:
     R_DRSB = (float(os.environ.get("ALBO_ALD_R_DRSB_700", 0.0)) if S > 84.0
               else float(os.environ.get("ALBO_ALD_R_DRSB", 0.0)))
 
+    # 2026-09-28, round 2 of the issue sweep -- THE ARM SNIPPED (owner, on S1:
+    # "snip off r serif to be without beak"). The drawn arm's arch stays -- out
+    # of the stem on the n's shoulder (the drawn arm's climb, knots before
+    # R_SK), over and on to the cut (R_SX, R_SY; travelling R_SEA degrees
+    # there, so the crest falls where the curve turns) -- and
+    # the hanging terminal goes: the stroke stops in ONE straight cut face
+    # across its own width, the way a file takes the end off a punch. No lobe,
+    # no underside, no point. R_SNIP picks one of three numbered variants:
+    #   1 -- the face SQUARE across the stroke, arm to 0.95 of the pitch
+    #   2 -- the face square across the stroke, a SHORT arm (0.84), stopped
+    #        just past the crest
+    #   3 -- the face UPRIGHT ON THE PAGE (plumb after the shear), on an end
+    #        run out level so the face's corners stay near square
+    # Each is also its own env (R_SX R_SY R_SEA, _700 at the 700);
+    # R_SNA sets the face's angle outright (design space, 270 = plumb before
+    # the shear), R_SWE the stroke's width at the cut, x the arch hairline.
+    # Needs R_DRAW; R_SNIP 0 = the drawn terminal below, byte for byte.
+    R_SNIP = (int(os.environ.get("ALBO_ALD_R_SNIP_700", 0)) if S > 84.0
+              else int(os.environ.get("ALBO_ALD_R_SNIP", 0)))
+    _RSP = {1: (0.95, 0.949, -22.0), 2: (0.84, 0.959, -12.0), 3: (0.92, 0.959, -6.0)}.get(R_SNIP, (0.95, 0.949, -22.0))   # ink top at the o's (443 / 444 built)
+    if S > 84.0: _RSP = (_RSP[0], _RSP[1] - 0.03, _RSP[2])   # the 700's thicker stroke: centreline lower, same ink top
+    R_SX = (float(os.environ.get("ALBO_ALD_R_SX_700", _RSP[0])) if S > 84.0
+            else float(os.environ.get("ALBO_ALD_R_SX", _RSP[0])))
+    R_SY = (float(os.environ.get("ALBO_ALD_R_SY_700", _RSP[1])) if S > 84.0
+            else float(os.environ.get("ALBO_ALD_R_SY", _RSP[1])))
+    R_SEA = (float(os.environ.get("ALBO_ALD_R_SEA_700", _RSP[2])) if S > 84.0
+             else float(os.environ.get("ALBO_ALD_R_SEA", _RSP[2])))
+    R_SK = (float(os.environ.get("ALBO_ALD_R_SK_700", 0.45)) if S > 84.0     # the climb's knots before this (x the pitch) are kept; past it
+            else float(os.environ.get("ALBO_ALD_R_SK", 0.45)))                 # the curve runs free to the cut (a knot kept there kinked it)
+    R_SWE = (float(os.environ.get("ALBO_ALD_R_SWE_700", 2.2)) if S > 84.0
+             else float(os.environ.get("ALBO_ALD_R_SWE", 2.6)))
+    R_SNA = (float(os.environ.get("ALBO_ALD_R_SNA_700", 0.0)) if S > 84.0
+             else float(os.environ.get("ALBO_ALD_R_SNA", 0.0)))
+
+    def _r_snipped_arm(c, x0, P, sw, t, xh):
+        steep = [(0.22, 0.55), (0.36, 0.76), (0.50, 0.88)]
+        arch = [(a[0] + (b[0] - a[0]) * R_DCLIMB, a[1] + (b[1] - a[1]) * R_DCLIMB)
+                for a, b in zip(HM_ARCH_K[:3], steep)] + list(HM_ARCH_K[3:])
+        ks = [(fx, fy) for fx, fy in arch if fx < R_SK - 1e-9]
+        E = (x0 + R_SX * P, R_SY * xh)
+        K = [(x0, xh * HM_SPRING)] + [(x0 + fx * P, fy * xh) for fx, fy in ks]
+        # the climb is the drawn arm's (catmull through its knots); from its last
+        # knot one cubic carries it over to the cut, leaving along the climb and
+        # arriving at E travelling R_SEA; then straight on past the cut, so the
+        # face crosses a stroke of full width
+        climb = geom.resample(catmull(K, tension=0.5))
+        c0 = climb[-1]; td = geom.tangents(climb)[-1]
+        ea = math.radians(R_SEA); de = (math.cos(ea), math.sin(ea))
+        ch = math.dist(c0, E)
+        over = cubic(c0, (c0[0] + td[0] * 0.45 * ch, c0[1] + td[1] * 0.45 * ch),
+                     (E[0] - de[0] * 0.45 * ch, E[1] - de[1] * 0.45 * ch), E)
+        ext = t * R_SWE * 1.6
+        q = geom.resample(climb[:-1] + over + [(E[0] + de[0] * ext, E[1] + de[1] * ext)])
+        iE = min(range(len(q)), key=lambda i: math.dist(q[i], E))
+        tx, ty = de                               # the travel at the cut is the one declared
+        Lc = [0.0]
+        for a_, b_ in zip(q, q[1:]): Lc.append(Lc[-1] + math.dist(a_, b_))
+        tE = Lc[iE] / (Lc[-1] or 1.0)
+        k = R_SHO_K
+        prof = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k), (0.42, t * k), (tE, t * R_SWE), (1.00, t * R_SWE)])
+        arm = stroke(q, prof, raw=True)
+        if R_SNA: ang = R_SNA
+        elif R_SNIP == 3: ang = 270.0 + abs(pen.SLANT)   # the shear x += y tan(a) stands (tan a, -1) upright
+        else: ang = math.degrees(math.atan2(tx, -ty))    # square: perpendicular to the end's travel
+        a = math.radians(ang); d = (math.cos(a), math.sin(a))
+        nrm = (-d[1], d[0])                       # a normal to the face
+        if (x0 - E[0]) * nrm[0] + (xh * 0.9 - E[1]) * nrm[1] < 0: nrm = (-nrm[0], -nrm[1])   # toward the stem
+        B = 4000.0
+        half = geom.poly([(E[0] + d[0] * B, E[1] + d[1] * B), (E[0] - d[0] * B, E[1] - d[1] * B),
+                          (E[0] - d[0] * B + nrm[0] * B, E[1] - d[1] * B + nrm[1] * B),
+                          (E[0] + d[0] * B + nrm[0] * B, E[1] + d[1] * B + nrm[1] * B)])
+        # the file takes off only the END: the far side of the face, within a few
+        # stroke widths of the cut (a face line carried to the stem would cut the
+        # climb too)
+        from shapely.geometry import Point
+        g = arm.difference(Point(E).buffer(t * R_SWE * 3.0, 48).difference(half))
+        if os.environ.get("ALBO_ALD_R_DEBUG"):
+            print(f"[r-snip] x0 {x0:.0f} P {P:.0f} E ({E[0]:.0f},{E[1]:.0f}) travel ({tx:.2f},{ty:.2f}) face {ang:.1f} "
+                  f"w_e {t * R_SWE:.0f} top {g.bounds[3]:.0f} right {g.bounds[2]:.0f}")
+        return g
+
     def _r_drawn_arm(c, x0, P, sw, t, xh):
         u = hm_u(c)
         # the climb: the n's own shoulder knots, blended toward the references'
@@ -4691,7 +4772,7 @@ if ON:
 
     def _r_arm(c, x0, P, sw, t, xh):
         if R_DRAW:
-            return _r_drawn_arm(c, x0, P, sw, t, xh)
+            return _r_snipped_arm(c, x0, P, sw, t, xh) if R_SNIP else _r_drawn_arm(c, x0, P, sw, t, xh)
         if R_OPT == "sho":
             ax, ay = x0 + P * R_ARM_X, xh * 0.876
             px, py = x0 + P * 0.47, xh * 0.850
