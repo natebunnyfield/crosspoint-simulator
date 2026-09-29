@@ -61,7 +61,7 @@ Z409 = {s: white_fn(os.path.join(BENCH, "fonts-2026-09-26-r409", f)) for s, f in
 # capital pairs) -- round 397 and 398 carry that.
 TRACKED_ZEROS = {"fonts-2026-09-26", "fonts-2026-09-26-r396", "fonts-2026-09-26-r397",
                  "fonts-2026-09-26-r398", "fonts-2026-09-26-r399", "fonts-2026-09-26-r402", "fonts-2026-09-26-r405",
-                 "fonts-2026-09-26-r409"}
+                 "fonts-2026-09-26-r409", "fonts-2026-09-28-r430"}
 
 
 def track_c(pair):

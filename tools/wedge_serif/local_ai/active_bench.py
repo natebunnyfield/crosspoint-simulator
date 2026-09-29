@@ -49,7 +49,7 @@ BENCH = os.path.join(WS, "bench")
 # were round 395 (fonts-2026-09-26); round 396 (B2 shipped) is
 # fonts-2026-09-26-r396; session 3 is round 397 (fonts-2026-09-26-r397), session 4 on round 398 (fonts-2026-09-26-r398). Each key file records its own zero and every row's
 # white there, so active_ingest.py converts each session from ITS zero.
-ZERO_DIR = "fonts-2026-09-26-r409"   # s5 on r398, s6 on r402, s7 on r405, s8 on r409 (the resized italic)
+ZERO_DIR = os.environ.get("ALBO_BENCH_ZERO", "fonts-2026-09-26-r409")   # s5 on r398, s6 on r402, s7 on r405, s8 on r409 (the resized italic); the 2026-09-28 family bench on r430 via ALBO_BENCH_ZERO
 ZERO = {"roman": os.path.join(BENCH, ZERO_DIR, "Albo-Regular.ttf"),
         "italic": os.path.join(BENCH, ZERO_DIR, "Albo-Italic.ttf")}
 B0920 = FT.FONTS
@@ -220,7 +220,7 @@ def main():
     data = json.load(open(a.census))
     census = {p: c for p, c in data["pairs"]}
     carriers = data["carriers"]
-    tag = f"active-2026-09-26-{a.session}"
+    tag = os.environ.get("ALBO_BENCH_TAG", f"active-2026-09-26-{a.session}")
     force = []
     for spec in filter(None, a.force.split(",")):
         st, p, w = spec.split(":")
@@ -255,8 +255,9 @@ def main():
           f"roman {sum(r['style'] == 'roman' for r in items)}, italic {sum(r['style'] == 'italic' for r in items)}")
     print(f"candidates {summary['candidates']}, visible {summary['visible']}; bootstrap sd over candidates: "
           f"min {summary['sd_min']:.2f}, median {summary['sd_median']:.2f}, p90 {summary['sd_p90']:.2f}, max {summary['sd_max']:.2f}")
-    print(f"chosen active rows' sd: {min(summary['chosen_sd']):.2f}..{max(summary['chosen_sd']):.2f} "
-          f"(median {np.median(summary['chosen_sd']):.2f})")
+    if summary['chosen_sd']:
+        print(f"chosen active rows' sd: {min(summary['chosen_sd']):.2f}..{max(summary['chosen_sd']):.2f} "
+              f"(median {np.median(summary['chosen_sd']):.2f})")
     for r in items:
         print(f"  {r['kind']:6s} {r['style']:6s} {r['pair']:3s} n={r['n']:6d} sd={r['sd'] if r['sd'] is None else round(r['sd'], 1)} "
               f"move={r['move']} word={r['word']}")
