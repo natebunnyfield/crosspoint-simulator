@@ -373,7 +373,7 @@ def g_guilsinglright(c): return _guillemet(c, False, single=True)
 # the end (x the half-height), BRACE_NECK where the shank starts its turn into
 # the beak (x the half-height, above the middle), BRACE_WT the weight (x the
 # pen). The italic takes the same drawing, sheared, as it does the parens.
-BRACE_OPT = os.environ.get("ALBO_BRACE_OPT", "a")
+BRACE_OPT = os.environ.get("ALBO_BRACE_OPT", "4")   # round 437, owner "braces 4 wins" (filed); "a" = the round-436 braces
 BRACE_W = float(os.environ.get("ALBO_BRACE_W", 0.42))
 BRACE_SHANK = float(os.environ.get("ALBO_BRACE_SHANK", 0.50))
 BRACE_HOOK = float(os.environ.get("ALBO_BRACE_HOOK", 0.30))
