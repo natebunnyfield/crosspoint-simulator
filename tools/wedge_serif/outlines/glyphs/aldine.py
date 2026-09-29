@@ -2048,6 +2048,15 @@ if ON:
     C_UP = float(os.environ.get("ALBO_ALD_C_UP", 0.0))
     C_FIN_TOP = float(os.environ.get("ALBO_ALD_C_FIN_TOP", 1.4))    # round 433, owner "F2"; 1.0 = round 432
     C_FIN_BOT = float(os.environ.get("ALBO_ALD_C_FIN_BOT", 0.65))   # round 433, owner "F2"; 1.0 = round 432
+    # The 700 takes its own pair (owner: "not enough rebalancing for bold
+    # italic so bottom is less and top is more. trace references if needed").
+    # Default = the 400's, i.e. round 433.
+    C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL", 1.0))
+    C_TAIL_T = float(os.environ.get("ALBO_ALD_C_TAIL_T", 0.25))
+    if S > 84.0:
+        C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL_700", C_TAIL))
+        C_FIN_TOP = float(os.environ.get("ALBO_ALD_C_FIN_TOP_700", C_FIN_TOP))
+        C_FIN_BOT = float(os.environ.get("ALBO_ALD_C_FIN_BOT_700", C_FIN_BOT))
     C_LOW_SM = int(os.environ.get("ALBO_ALD_C_LOW_SM", 20))   # round 432; 0 = round 429-431
 
     def _c_pen_blend(a):
@@ -2246,6 +2255,16 @@ if ON:
         # the top's face stood 15 units further along the path than the
         # ball's centre and the built c came out 19 units wider. C_CAP0_R
         # now sizes `fin_floor` and nothing else; C_CAP0_DROP is gone.
+        # THE BOTTOM END TAPERS (2026-09-28, the 700's rebalance): below the
+        # floor the stroke's own width governs the bottom terminal, so C_TAIL
+        # scales the widths over the last C_TAIL_T of the path, raised-cosine
+        # to C_TAIL at the end. 1.0 = no taper (round 433).
+        if C_TAIL != 1.0:
+            for i in range(n + 1):
+                t = i / n
+                if t < 1.0 - C_TAIL_T: continue
+                k = 0.5 - 0.5 * math.cos(math.pi * (t - (1.0 - C_TAIL_T)) / C_TAIL_T)
+                ws[i] *= 1.0 + (C_TAIL - 1.0) * k
         fl = fin_floor()
         i0, _ = cs_round_end(p, ws, True, C_CAP0)
         i1, _ = cs_round_end(p, ws, False, C_CAP1)
