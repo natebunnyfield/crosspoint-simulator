@@ -2061,15 +2061,20 @@ if ON:
     C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL", 1.0))
     C_TAIL_T = float(os.environ.get("ALBO_ALD_C_TAIL_T", 0.25))
     if S > 84.0:
-        C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL_700", C_TAIL))
+        C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL_700", 0.5))    # round 434: T3's bottom (owner "t3", then "d3 wins")
         C_FIN_SPAN = float(os.environ.get("ALBO_ALD_C_FIN_SPAN_700", C_FIN_SPAN))
-        C_TOPDRAW = int(os.environ.get("ALBO_ALD_C_TOPDRAW_700", 0))
+        # ROUND 434 (owner "t3 but needs top read as a c better", then "d3 wins"): the
+        # 700 ships the DRAWN top, arm D3 -- junction 100 deg, tip at (cx + 1.10 rx,
+        # cy + 0.80 ry), a 0.17 xh face at 238 deg, arriving at -78, the underside
+        # leaving at 120 -- with T3's bottom (FIN_BOT 0.3, TAIL 0.5, just below).
+        # ALBO_ALD_C_TOPDRAW_700=0 gives round 433's swelled top.
+        C_TOPDRAW = int(os.environ.get("ALBO_ALD_C_TOPDRAW_700", 1))
         _e = lambda k, v: float(os.environ.get("ALBO_ALD_C_" + k + "_700", v))
-        C_TJ, C_TX, C_TY, C_TF = _e("TJ", C_TJ), _e("TX", C_TX), _e("TY", C_TY), _e("TF", C_TF)
-        C_TFA, C_TOA, C_TLA = _e("TFA", C_TFA), _e("TOA", C_TOA), _e("TLA", C_TLA)
-        C_TH1, C_TH2, C_TH3, C_TH4 = _e("TH1", C_TH1), _e("TH2", C_TH2), _e("TH3", C_TH3), _e("TH4", C_TH4)
+        C_TJ, C_TX, C_TY, C_TF = _e("TJ", 100.0), _e("TX", 1.10), _e("TY", 0.80), _e("TF", 0.17)
+        C_TFA, C_TOA, C_TLA = _e("TFA", 238.0), _e("TOA", -78.0), _e("TLA", 120.0)
+        C_TH1, C_TH2, C_TH3, C_TH4 = _e("TH1", 0.3), _e("TH2", 0.4), _e("TH3", 0.45), _e("TH4", 0.3)
         C_FIN_TOP = float(os.environ.get("ALBO_ALD_C_FIN_TOP_700", C_FIN_TOP))
-        C_FIN_BOT = float(os.environ.get("ALBO_ALD_C_FIN_BOT_700", C_FIN_BOT))
+        C_FIN_BOT = float(os.environ.get("ALBO_ALD_C_FIN_BOT_700", 0.3))   # round 434: T3's bottom
     C_LOW_SM = int(os.environ.get("ALBO_ALD_C_LOW_SM", 20))   # round 432; 0 = round 429-431
 
     def _c_pen_blend(a):
