@@ -204,12 +204,18 @@ def _second_f_step(g, c, dx):
 def g_ff(c):
     first, dx = ff_first(c); second = [aff.translate(g, dx, 0) for g in f_ink(c, parts=True)]
     j = _bridge(first[2], second[2])
-    return _second_f_step(geom.ink(first + second + ([j] if j is not None else [])), c, dx)
+    # round 430: the heavier f bar (stems.F_BAR_TH 1.15) left the first f's hook a
+    # slit against the bar in the Bold -- the ffl's round-384 slit, closed the same way
+    g = _second_f_step(geom.ink(first + second + ([j] if j is not None else [])), c, dx)
+    from .. import pen as _pff
+    return g if _pff.ITALIC else _close_slits(g)
 @glyph('\ufb03')
 def g_ffi(c):
     first, dx = ff_first(c); rest = [aff.translate(g, dx, 0) for g in fi_parts(c, flush=False)]
     j = _bridge(first[2], rest[2])
-    return _second_f_step(geom.ink(first + rest + ([j] if j is not None else [])), c, dx)
+    g = _second_f_step(geom.ink(first + rest + ([j] if j is not None else [])), c, dx)
+    from .. import pen as _pffi
+    return g if _pffi.ITALIC else _close_slits(g)   # round 430, as g_ff (roman only: the italic's are unsubstituted and must not re-cut its Greek)
 def _close_slits(g, r=6.0):
     """ROUND 384: a MITRE closing -- dilate by r, erode by r -- which fills a
     feature narrower than 2r and nothing else: a square inside corner comes back
