@@ -218,9 +218,13 @@ F_BAR = os.environ.get("ALBO_ROM_F_BAR", "a")
 # it renders one faint row (none at 8 pt). F_BAR_TH is that factor, x TH_H;
 # the ligatures draw their bar through f_ink and follow it. 0.8 = today.
 F_BAR_TH = float(os.environ.get("ALBO_ROM_F_BAR_TH", 0.8))
+# ...and its RIGHT reach (owner: "crossbar seems a bit short on right side"):
+# units added to the bar's right end, lone f only. Measured right of the stem at
+# 1000 px: Albo 116, Georgia 124, Palatino 125, Hoefler 124, Charter 140. 0 = today.
+F_BAR_R = float(os.environ.get("ALBO_ROM_F_BAR_R", 0.0))
 F_BAR_CUT_DEG = float(os.environ.get("ALBO_ROM_F_BAR_CUT", 8.0))   # round 246: the bar's end faces lean this much, bottom-left to top-right; 0 is round 235
-def f_bar(x, xh, wf, th, opt):
-    x0, x1 = x - S * 0.5 - 45 * wf, x + S * 0.5 + 120 * wf
+def f_bar(x, xh, wf, th, opt, reach_r=0.0):
+    x0, x1 = x - S * 0.5 - 45 * wf, x + S * 0.5 + 120 * wf + reach_r
     if opt == 'b':
         return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th, cut0=CUT, cut1=CUT)
     if opt == 'c':
@@ -311,7 +315,9 @@ def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_c
         hw = PR.finial_widths(hw, False); hook_cut1 = PR.finial_cut(hook, False)
     hk = stroke(hook, hw, cut1=hook_cut1)
     th = TH_H * F_BAR_TH
-    b = f_bar(x, xh, wf, th, F_BAR if flush else 'a')
+    # F_BAR_R lengthens the LONE f's bar to the right only (hook_end is None): a
+    # ligature's bar runs toward its second letter and must not grow into it
+    b = f_bar(x, xh, wf, th, F_BAR if flush else 'a', reach_r=(F_BAR_R if hook_end is None else 0.0))
     return [st, hk, b] if parts else geom.ink([st, hk, b])
 
 def f_geometry(c):
