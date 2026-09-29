@@ -1150,7 +1150,7 @@ if ON:
     # held (0 grows it about its centre). The 700 takes its own scale. 1.0 =
     # round 434, byte for byte.
     HM_DOT_SCALE = (float(os.environ.get("ALBO_ALD_DOT_SCALE_700", 1.0)) if S > 84.0
-                    else float(os.environ.get("ALBO_ALD_DOT_SCALE", 1.0)))
+                    else float(os.environ.get("ALBO_ALD_DOT_SCALE", 1.26)))   # round 440, owner "DOT 1.26 wins" (was 1.0)
     HM_DOT_KEEP_FLOOR = float(os.environ.get("ALBO_ALD_DOT_KEEP_FLOOR", 1.0))
 
     def hm_u(c):

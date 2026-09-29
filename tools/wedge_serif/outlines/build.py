@@ -140,6 +140,7 @@ COMBINING = {'\u0300': '\u0060', '\u0301': '\u00b4', '\u0302': '\u02c6', '\u0303
 # The keys are LOWERCASE, so the capitals A and E are untouched -- the
 # measurement was taken on lowercase and says nothing about them.
 ACC_OPTICAL_ON = float(os.environ.get("ALBO_ACC_OPTICAL", 1.0))
+ACC_SLANT = float(os.environ.get("ALBO_ACC_SLANT", 1.0))    # round 440: marks follow the italic's slope; 0 = round 439
 ACC_OPTICAL = {'a': -0.030, 'e': +0.030}    # x the x-height; + moves the mark RIGHT
 # ROUND 392 -- A MARK OVER THE DOTLESS j SITS OVER ITS STEM, NOT OVER ITS
 # TAIL. The mark is centred on the base's whole ink box, and the j's tail
@@ -1291,6 +1292,18 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             dx += ACC_OPTICAL.get(base, 0.0) * pen.XH * ACC_OPTICAL_ON
             top = max(by1, C if isCap else pen.XH)
             dy = top + (ACC_GAP_CAP if isCap else ACC_GAP_LC) - my0
+            # ROUND 440 -- ON A SLANTED LETTER THE MARK FOLLOWS THE SLANT (owner:
+            # "center the accents on letters optically more, they seem too far to
+            # the left"). The mark was centred on the italic letter's whole ink box,
+            # whose centre is at the letter's MIDDLE height; the mark sits well
+            # above it, so it landed left of the letter's axis by the shear times
+            # that height -- measured 37-108 units left in both italics
+            # (instruments/acc_offset.py). It now moves along the slope from the
+            # base's reference height to its own centre.
+            if pen.SHEAR and ACC_SLANT:
+                cy_ref = (by0 + by1) / 2 if base not in inkband else (pen.XH * 0.6 + pen.XH + pen.OVER) / 2
+                cy_mark = dy + (my0 + my1) / 2
+                dx += pen.SHEAR * (cy_mark - cy_ref) * ACC_SLANT
         elif kind == 'below':
             dx = (bx0 + bx1) / 2 - (mx0 + mx1) / 2
             dy = -my1            # the mark's own top to the baseline (it is drawn hanging from 0)
