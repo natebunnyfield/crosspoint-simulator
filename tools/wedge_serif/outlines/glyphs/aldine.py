@@ -2046,6 +2046,8 @@ if ON:
     # docs/albo-italic-stroke-balance-2026-09-28.md. 0 = today.
     C_LOW = float(os.environ.get("ALBO_ALD_C_LOW", 1.0))   # round 429 (owner: "italic c is too thick on its bottom left ... address it"); 0 = round 428
     C_UP = float(os.environ.get("ALBO_ALD_C_UP", 0.0))
+    C_FIN_TOP = float(os.environ.get("ALBO_ALD_C_FIN_TOP", 1.4))    # round 433, owner "F2"; 1.0 = round 432
+    C_FIN_BOT = float(os.environ.get("ALBO_ALD_C_FIN_BOT", 0.65))   # round 433, owner "F2"; 1.0 = round 432
     C_LOW_SM = int(os.environ.get("ALBO_ALD_C_LOW_SM", 20))   # round 432; 0 = round 429-431
 
     def _c_pen_blend(a):
@@ -2248,8 +2250,12 @@ if ON:
         i0, _ = cs_round_end(p, ws, True, C_CAP0)
         i1, _ = cs_round_end(p, ws, False, C_CAP1)
         q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
-        wf = PR.finial_widths(PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], True, floor=fl),
-                              False, floor=fl)
+        # 2026-09-28 (owner: "c top right serif needs to be prominent and
+        # bottom right serif is way too heavy"): the two ends' floors apart.
+        # C_FIN_TOP / C_FIN_BOT multiply `fin_floor` at the top / the bottom
+        # end only; 1.0 = both held to the family's finial, as round 276.
+        wf = PR.finial_widths(PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], True, floor=fl * C_FIN_TOP),
+                              False, floor=fl * C_FIN_BOT)
         parts = [stroke(q, wf, cut0=PR.finial_cut(q, True), cut1=PR.finial_cut(q, False), raw=True)]
         return geom.close_corners(geom.ink(parts), C_BLEND * u)
 
