@@ -819,6 +819,7 @@ else:
 #   Pa -27 -> white 4 (was -24) +28 · Po -19 -> 11 (was -22) +33 · Pr -9 -> 64 (was 37) +27
 #   Wa +12 -> -117 (was -106) -11 · Wh +11 -> -54 (was -42) -12 · Wi +15 -> -27 (was -15) -12
 #   Am +6 -> 88 (was 94) -6 · An +2 -> 92 (was 98) -6 · Av +16 -> 73 (was 79) -6
+_SPACING_FIT_EARLY = os.environ.get("ALBO_SPACING_FIT", "b2").strip().lower() or "b2"
 if _ALD is not None and _ALD.ON:
     for _p, _d in ((('P', 'a'), 28), (('P', 'o'), 33), (('P', 'r'), 27),
                    (('W', 'a'), -11), (('W', 'h'), -12), (('W', 'i'), -12),
@@ -826,7 +827,9 @@ if _ALD is not None and _ALD.ON:
                    (('o', 'r'), -16), (('e', 's'), 22)):
         PAIRS[_p] = _shipped(*_p) + _d
 else:
-    for _p, _d in ((('o', 'r'), -20), (('r', 'd'), 20)):
+    # rd's +20 left 2026-09-28: he read rd again on the family bench (-20 from
+    # round 430's white), so rd is no longer held and B2 fits it from his readings.
+    for _p, _d in ((('o', 'r'), -20),) + (((('r', 'd'), 20),) if _SPACING_FIT_EARLY != "b2" else ()):
         PAIRS[_p] = _shipped(*_p) + _d
 
 # ROUND 390 -- HIS FIFTY OUTLIER ANSWERS, AS EXPLICIT KERNS. Owner 2026-09-25

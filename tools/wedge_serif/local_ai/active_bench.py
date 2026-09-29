@@ -163,7 +163,7 @@ def select(census, carriers, b2_dir, n, seed, repeat_frac=0.1, force=(), italic_
         reps = []
         for p in best:
             # previous0920 on the SAME basis as active_ingest's d0920 (unshifted): the mean reading + delta(p)
-            prev = float(np.mean([d for d, _ in reads[p]])) + (b2_fit.italic_delta(p) if repeat_style == "italic" else 0.0)
+            prev = float(np.mean([r[0] for r in reads[p]])) + (b2_fit.italic_delta(p) if repeat_style == "italic" else 0.0)
             reps.append(dict(style=repeat_style, pair=p, n=census[p], sd=None, move=None, visible=None, score=None,
                              white0=int(wz(p[0], p[1])), white0920=int(w20(p[0], p[1])), kind="repeat",
                              previous0920=round(prev, 2), answered=cnt[p]))

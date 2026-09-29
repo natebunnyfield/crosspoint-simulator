@@ -35,7 +35,7 @@ HOW A PREDICTION BECOMES A FONT. The prediction for a pair is
     (build with ALBO_SPACING_FIT=b2)
     $VENV/bin/python b2_fit.py --census bigrams.json --holds BASE_DIR B2_DIR
 """
-import argparse, json, os, sys
+import argparse, re, json, os, sys
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
@@ -58,7 +58,7 @@ AGL = {'.': 'period', ',': 'comma', ':': 'colon', ';': 'semicolon', "'": 'quotes
 
 # The pairs set by hand after the bench, per style (kern.py rounds 384-390).
 HOLD = {
-    "roman": ["fT", "'s", "'t", "or", "rd", "gr", "Vo", "Yo", "oc", "Jo", "Th", "Qu", "ba", "t.",
+    "roman": ["fT", "'s", "'t", "or", "gr", "Vo", "Yo", "oc", "Jo", "Th", "Qu", "ba", "t.",
               "ed", "pa", "En", "ry", "Ka", "of", "ty", "wo", "ki", "ec", "rh", "hy", "th", "hm"],
     "italic": ["q'", "q\"", "Fi", "Fo", "Ye", "Yo", "Pa", "Po", "Pr", "Wa", "Wh", "Wi", "Am", "An",
                "Av", "or", "es", "r,", "fi", "gs", "y.", "El", "um", "rg", "ki", "ta", "Jo", "n'",
@@ -186,6 +186,29 @@ def in_scope(p):
     return (a.isalpha() or a in MARKS) and (b.islower() or b in MARKS)
 
 
+# 2026-09-28, SHIPPED (round 431, owner chose arm B): ALBO_B2_CLASSES=<alpha> adds SIDE-CLASS
+# terms -- one per (left glyph, right glyph's left-side class) and one per (left
+# glyph's right-side class, right glyph), ridge-penalised at alpha. The family
+# bench showed the r's right side wanting -15..-30 before a round letter and
+# +10..+27 before a stem (rh rt rb rk), which one rsb cannot say and the shape
+# features did not learn at any alpha. Held-out (10-fold) 8.82 -> 8.65 at 3.
+# The terms land in KERNS (they are pair-level), never in bearings.
+CLASSES = float(os.environ.get("ALBO_B2_CLASSES", "3") or 0)   # owner 2026-09-28: "B recency + classes" ships; 0 = off
+CLASS_STYLES = os.environ.get("ALBO_B2_CLASS_STYLES", "roman").split(",")   # italic held-out 8.81 -> 9.06 with them
+LCLS = {**{c: "round" for c in "ocedqasg"}, **{c: "stem" for c in "hbklnmripuj"},
+        **{c: "diag" for c in "vwyx"}, "t": "t", "f": "f", "z": "z"}      # a glyph's LEFT side
+RCLS = {**{c: "round" for c in "ocbpes"}, **{c: "stem" for c in "hdlnmiauqj"},
+        **{c: "diag" for c in "vwyx"}, "r": "r", "t": "t", "f": "f", "k": "k", "z": "z"}  # its RIGHT side
+
+
+def lcls(c):
+    return LCLS.get(c, "cap" if c.isupper() else "mark")
+
+
+def rcls(c):
+    return RCLS.get(c, "cap" if c.isupper() else "mark")
+
+
 def fit(style, J, feats, W=None):
     """W: optional {pair: weight} (weighted ridge); missing pairs weigh 1."""
     pairs = sorted(J)
@@ -198,18 +221,31 @@ def fit(style, J, feats, W=None):
     A = np.zeros((len(pairs), 2 * G))
     for r, p in enumerate(pairs):
         A[r, 2 * gi[p[0]] + 1] = 1; A[r, 2 * gi[p[1]]] = 1
-    Z = np.hstack([A, sc.transform(Xf), np.ones((len(pairs), 1))])
-    pen = np.r_[np.full(2 * G, ALPHA_ID), np.full(len(names), ALPHA_F), 0.0]
+    on = CLASSES and style in CLASS_STYLES
+    k1 = sorted({(p[0], lcls(p[1])) for p in pairs}) if on else []
+    k2 = sorted({(rcls(p[0]), p[1]) for p in pairs}) if on else []
+    i1 = {k: i for i, k in enumerate(k1)}; i2 = {k: i for i, k in enumerate(k2)}
+    C = np.zeros((len(pairs), len(k1) + len(k2)))
+    for r, p in enumerate(pairs):
+        if on:
+            C[r, i1[(p[0], lcls(p[1]))]] = 1; C[r, len(k1) + i2[(rcls(p[0]), p[1])]] = 1
+    Z = np.hstack([A, C, sc.transform(Xf), np.ones((len(pairs), 1))])
+    pen = np.r_[np.full(2 * G, ALPHA_ID), np.full(len(k1) + len(k2), CLASSES or 1.0), np.full(len(names), ALPHA_F), 0.0]
     y = np.array([J[p] for p in pairs])
     sw = np.array([(W or {}).get(p, 1.0) for p in pairs])
     w = np.linalg.solve(Z.T @ (Z * sw[:, None]) + np.diag(pen), Z.T @ (sw * y))
     lsb = {c: w[2 * gi[c]] for c in glyphs}
     rsb = {c: w[2 * gi[c] + 1] for c in glyphs}
-    wf, c0 = w[2 * G:-1], w[-1]
+    wc = w[2 * G:2 * G + len(k1) + len(k2)]
+    wf, c0 = w[2 * G + len(k1) + len(k2):-1], w[-1]
 
     def feat_term(p):
         x = sc.transform(np.array([[feats[p][n] for n in names]]))[0]
-        return float(x @ wf + c0)
+        t = float(x @ wf + c0)
+        if on:
+            j1, j2 = i1.get((p[0], lcls(p[1]))), i2.get((rcls(p[0]), p[1]))
+            t += (wc[j1] if j1 is not None else 0.0) + (wc[len(k1) + j2] if j2 is not None else 0.0)
+        return t
 
     def predict(p):
         return lsb.get(p[1], 0.0) + rsb.get(p[0], 0.0) + feat_term(p)
@@ -297,31 +333,66 @@ def consolidate(side, letters, marks, scope, predict, style, min_n=4, min_v=4):
           ", ".join(f"{c} {s} {m:+d} (n{n})" for c, s, m, n in moved))
 
 
+def _when(r):
+    """A reading's time in days (UTC). Rows carry `at`; an older row without one
+    takes its bench's date at noon."""
+    import datetime as _dt
+    t = r.get("at")
+    if not t:
+        m = re.search(r"(\d{4}-\d{2}-\d{2})", r.get("bench", "")) or re.search(r"(\d{4}-\d{2}-\d{2})", BENCH_DATE)
+        t = m.group(1) + "T12:00:00Z"
+    return _dt.datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp() / 86400.0
+
+
+BENCH_DATE = "2026-09-20"
+
+
 def readings(style, drop=("g",)):
-    """{pair: [(d on the 09-20 zero, weight class)]}: the bench (class "bench")
-    plus every ingested row (active_ingest.py), class "skip" for a skipped
-    active row (verdict skipped-ok), "extra" otherwise. g stays out, as in
-    bench_fit (owner 2026-09-21)."""
-    reads = {p: [(d, "bench")] for p, d in judgments0(style, drop).items()}
+    """{pair: [(d on the 09-20 zero, weight class, days)]}: the bench (class
+    "bench", 2026-09-20) plus every ingested row (active_ingest.py), class
+    "skip" for a skipped active row (verdict skipped-ok), "extra" otherwise.
+    g stays out, as in bench_fit (owner 2026-09-21)."""
+    t0 = _when({"bench": BENCH_DATE})
+    reads = {p: [(d, "bench", t0)] for p, d in judgments0(style, drop).items()}
     ex = os.path.join(WS, "bench", "answers", "extra-judgments.json")
     if os.path.exists(ex):
         for r in json.load(open(ex))["rows"]:
             if r["style"] == style and not any(c in drop for c in r["pair"]):
                 cls = "skip" if r.get("verdict") == "skipped-ok" else "extra"
                 sh = italic_delta(r["pair"]) if style == "italic" else 0.0
-                reads.setdefault(r["pair"], []).append((r["d0920"] - sh, cls))
+                reads.setdefault(r["pair"], []).append((r["d0920"] - sh, cls, _when(r)))
     return reads
+
+
+# RECENCY (owner 2026-09-28, on the family bench: *"weight more recent
+# measurements much heavier"*). Why: the family bench read ra -15 / na -12 /
+# un -14 where his 09-20 bench read +17 / +29 / +14, and an equal-weight mean
+# left the model where neither reading is. Each reading weighs
+# 0.5 ** (age / HALF_LIFE days), age counted from his NEWEST reading, so a
+# pair's judgment follows what he says now (the 09-20 bench, ~8.5 days older
+# than the family bench, weighs ~0.003 of it where the pair was read again).
+# A pair's weight in the fit is 1 + BOOST * its newest reading's recency, so a
+# pair read today pulls the shared bearings and classes 1 + BOOST times as
+# hard as one read only on 09-20 -- which still counts: it is most of the data.
+# Still training data: the fit ships its prediction, not his number.
+# ALBO_B2_RECENCY=0 = the equal-weight mean shipped through round 430.
+RECENCY = os.environ.get("ALBO_B2_RECENCY", "1") != "0"
+HALF_LIFE = float(os.environ.get("ALBO_B2_HALF_LIFE", "1.0"))
+BOOST = float(os.environ.get("ALBO_B2_BOOST", "3.0"))
 
 
 def combine(reads, skip_w=1.0):
     """Each pair: the weighted MEAN of its readings (skip weight skip_w, all
-    others 1) and, as the pair's weight in the fit, its largest reading weight
-    -- a pair he only skipped weighs skip_w, one he touched weighs 1."""
+    others 1; times recency when RECENCY) and its weight in the fit (the
+    largest reading weight; 1 + BOOST * newest recency when RECENCY)."""
+    tn = max(t for rs in reads.values() for _, _, t in rs)
     J, W = {}, {}
     for p, rs in reads.items():
-        w = np.array([skip_w if c == "skip" else 1.0 for _, c in rs])
-        J[p] = float(np.average([d for d, _ in rs], weights=w)) if w.sum() else 0.0
-        W[p] = float(w.max())
+        base = np.array([skip_w if c == "skip" else 1.0 for _, c, _ in rs])
+        rec = np.array([0.5 ** ((tn - t) / HALF_LIFE) for _, _, t in rs]) if RECENCY else np.ones(len(rs))
+        w = base * rec
+        J[p] = float(np.average([d for d, _, _ in rs], weights=w)) if w.sum() else 0.0
+        W[p] = float(base.max()) * ((1.0 + BOOST * rec.max()) if RECENCY else 1.0)
     return J, W
 
 

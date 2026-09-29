@@ -126,17 +126,55 @@ def read_answers(src):
     return blob["bench"], blob["answers"]
 
 
+# THROUGH THE TABLES (2026-09-28). The bbox conversion above reads an outline
+# change as a spacing change wherever a glyph was redrawn after the fit's zero:
+# the family bench's italic `ry` came out +99 on the fit's zero where he moved
+# it -1, because the italic y's tail travelled 106 units in round 409's resize.
+# His slider moves a pair from the white the FIT shipped on that page, so where
+# the page's own spacing tables are kept beside its fonts (bench/<zero>/
+# spacing_b2.json) the target on the fit's zero is exactly
+#     table value (rsb + lsb + kern, the fit's frame) + his delta
+# -- no outline enters. The italic row stores + italic_delta, which b2_fit
+# subtracts again. Held pairs (their white carries a hold) and pairs outside
+# the fit's scope keep the bbox conversion. Rows say which: conv="tables"/"bbox".
+def table_white(tables, style, p):
+    import b2_fit
+    T = tables[style]
+    if p in HELD_AT_ZERO.get(style, ()) or not b2_fit.in_scope(p):
+        return None
+    side = {**T["letters"], **T["marks"]}
+    return side.get(p[0], [0, 0])[1] + side.get(p[1], [0, 0])[0] + T["kerns"].get(p, 0)
+
+
+# b2_fit.HOLD as it stood when those tables were built (round 430 held the roman rd)
+HELD_AT_ZERO = {"roman": {"fT", "'s", "'t", "or", "rd", "gr", "Vo", "Yo", "oc", "Jo", "Th", "Qu", "ba", "t.",
+                          "ed", "pa", "En", "ry", "Ka", "of", "ty", "wo", "ki", "ec", "rh", "hy", "th", "hm"},
+                "italic": {"q'", "q\"", "Fi", "Fo", "Ye", "Yo", "Pa", "Po", "Pr", "Wa", "Wh", "Wi", "Am", "An",
+                           "Av", "or", "es", "r,", "fi", "gs", "y.", "El", "um", "rg", "ki", "ta", "Jo", "n'",
+                           "ru", "qu", "tr", "cy", "rh", "hy", "hm"}}
+
+
 def active(src):
     bench, ans = read_answers(src)
     key = json.load(open(os.path.join(BENCH, bench + ".key.json")))
     rows_k = {(r["style"], r["id"]): r for r in key["rows"]}
+    tpath = os.path.join(BENCH, zero_dir(key.get("zero")) or "", "spacing_b2.json")
+    tables = json.load(open(tpath)) if key.get("zero") and os.path.exists(tpath) else None
     rows = []
     for a in ans:
         r = rows_k[(a["style"], a["id"])]
+        tw = table_white(tables, a["style"], r["pair"]) if tables else None
+        if tw is not None:
+            import b2_fit
+            d_t = tw + a["delta"] + (b2_fit.italic_delta(r["pair"]) if a["style"] == "italic" else 0.0)
         rows.append(dict(bench=bench, style=a["style"], pair=r["pair"], id=a["id"], delta=a["delta"],
                          white_zero=r["white0"], white0920=r["white0920"],
-                         d0920=int(r["white0"] + a["delta"] - r["white0920"]
-                                   - (track_c(r["pair"]) if zero_dir(key.get("zero")) in TRACKED_ZEROS else 0)),
+                         d0920=(int(round(d_t)) if tw is not None else
+                                int(r["white0"] + a["delta"] - r["white0920"]
+                                    - (track_c(r["pair"]) if zero_dir(key.get("zero")) in TRACKED_ZEROS else 0))),
+                         d0920_bbox=int(r["white0"] + a["delta"] - r["white0920"]
+                                        - (track_c(r["pair"]) if zero_dir(key.get("zero")) in TRACKED_ZEROS else 0)),
+                         conv=("tables" if tw is not None else "bbox"),
                          track_removed=(track_c(r["pair"]) if zero_dir(key.get("zero")) in TRACKED_ZEROS else 0),
                          d_r395=int(r["white0"] + a["delta"] - Z395[a["style"]](*r["pair"])),
                          d_r396=int(r["white0"] + a["delta"] - Z396[a["style"]](*r["pair"])),
