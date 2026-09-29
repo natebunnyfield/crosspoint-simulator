@@ -1892,11 +1892,23 @@ if ON:
     # byte-identical.
     O_S_UP = float(os.environ.get("ALBO_ALD_O_S_UP", 1.0))      # 0 = the pen on S at every weight, as before
 
+    # 2026-09-28 -- THE ROUND LETTERS' BOTTOM OVERSHOOT, option A of
+    # docs/albo-italic-size-baseline-2026-09-28.md. The italic o, c, e carry
+    # half the roman's overshoot or less (ink bottom -7 / -8 / +6 against the
+    # roman's -15 / -13 / -15), so the italic body sits 7.5 units higher and at
+    # 12-18 pt on the X3 lights no row under the baseline where the roman does.
+    # ALBO_ALD_ROUND_OVER_BOT is the bottom's overshoot as a multiple of OVER
+    # (0.5 = today); the top is unchanged. The e takes the same line through
+    # ALBO_ALD_E_FLOOR_OVER (a y fraction taken off E_FLOOR; 0 = today).
+    ROUND_OVER_BOT = float(os.environ.get("ALBO_ALD_ROUND_OVER_BOT_700" if S > 84.0 else "ALBO_ALD_ROUND_OVER_BOT", 0.5))
+
     @glyph('o')
     def a_o(c):
-        xh = c["xh"]; rx = O_W * xh / 2; ry = xh / 2 + OVER * 0.5
+        xh = c["xh"]; rx = O_W * xh / 2
+        _top, _bot = xh + OVER * 0.5, -OVER * ROUND_OVER_BOT
+        ry = (_top - _bot) / 2
         cx = S * 0.6 + rx
-        outer = superellipse(cx, ry - OVER * 0.5, rx, ry, 0.0, 2 * math.pi, O_K)[:-1]
+        outer = superellipse(cx, (_top + _bot) / 2, rx, ry, 0.0, 2 * math.pi, O_K)[:-1]
         phi = math.radians(O_PEN)
         _thick, _thin = (con([O_THIN, O_THICK], CON_O)[::-1] if CON_O else (O_THICK, O_THIN))
         _So = math.sqrt(84.0 * S) if (S > 84.0 and O_S_UP) else S
@@ -2034,6 +2046,7 @@ if ON:
     # docs/albo-italic-stroke-balance-2026-09-28.md. 0 = today.
     C_LOW = float(os.environ.get("ALBO_ALD_C_LOW", 1.0))   # round 429 (owner: "italic c is too thick on its bottom left ... address it"); 0 = round 428
     C_UP = float(os.environ.get("ALBO_ALD_C_UP", 0.0))
+    C_LOW_SM = int(os.environ.get("ALBO_ALD_C_LOW_SM", 20))   # round 432; 0 = round 429-431
 
     def _c_pen_blend(a):
         """How far toward the pen the c is taken at normalized angle a (deg)."""
@@ -2082,6 +2095,25 @@ if ON:
         i_bot = min(range(len(p)), key=lambda i: p[i][1])
         for i in range(i_bot + 1, len(p)):
             nws[i] = max(nws[i], min(nws[i - 1], ws[i]))
+        # 2026-09-28 -- SMOOTH WHAT WAS TAKEN, NOT THE WIDTHS (owner, on build
+        # 258: "italic c got very fucked up"). The nib read off each sample's
+        # direction, the running maximum and the per-sample outward shift left
+        # the counter a kink and a point where the bottom joins at the 400 and
+        # a lump with a notch under it at the 700. The THINNING (nw - w) is
+        # smoothed with a raised-cosine window of C_LOW_SM samples each side;
+        # it is 0 outside the blend, so the top end `fin_floor` reads and both
+        # finials' stems are untouched. 0 = round 429's unsmoothed pen.
+        if C_LOW_SM > 0:
+            dl = [nw - w for nw, w in zip(nws, ws)]
+            k = [0.5 + 0.5 * math.cos(math.pi * j / (C_LOW_SM + 1)) for j in range(-C_LOW_SM, C_LOW_SM + 1)]
+            sm_dl = []
+            for i in range(len(dl)):
+                acc = wt_ = 0.0
+                for j, kk in zip(range(-C_LOW_SM, C_LOW_SM + 1), k):
+                    if 0 <= i + j < len(dl):
+                        acc += kk * dl[i + j]; wt_ += kk
+                sm_dl.append(acc / wt_)
+            nws = [w + d for w, d in zip(ws, sm_dl)]
         outw, outp = [], []
         for (x, y), w, nw, (tx, ty) in zip(p, ws, nws, tn):
             sh = (w - nw) / 2.0
@@ -2173,7 +2205,7 @@ if ON:
         # top and the bottom are inset by DIFFERENT amounts, because the crown
         # is 24 units and the bottom arc 60. Same outer band as the o
         # (-OVER/2 .. xh+OVER/2), so the two round letters sit on one line.
-        y0, y1 = -OVER * 0.5 + wb / 2, xh + OVER * 0.5 - wt / 2
+        y0, y1 = -OVER * ROUND_OVER_BOT + wb / 2, xh + OVER * 0.5 - wt / 2
         cy = (y0 + y1) / 2; ry = (y1 - y0) / 2
         half = C_W * xh / 2
         cx = S * 0.6 + half; rx = half - wl / 2
@@ -2411,7 +2443,7 @@ if ON:
     # because the letter is. E_EYE 0.49 -> 0.53 buys it all back (0.195) and is
     # deliberately NOT taken: the ask was the baseline and the terminal, and
     # E_EYE is a fitted shape dial. Whoever needs the margin knows where it is.
-    E_FLOOR = float(os.environ.get("ALBO_ALD_E_FLOOR", 0.078))   # the f=0 line, x xh
+    E_FLOOR = float(os.environ.get("ALBO_ALD_E_FLOOR", 0.078)) - float(os.environ.get("ALBO_ALD_E_FLOOR_OVER_700" if S > 84.0 else "ALBO_ALD_E_FLOOR_OVER", 0.0))   # the f=0 line, x xh
     # THE LOWER TERMINAL IS BLUNT, NOT ANGULAR (the same ruling's second half).
     # It ended in a 20-degree pen shear (`cut1=CUT`) laid across a stroke the
     # nib was giving its THINNEST width -- the terminal runs at 49.6 degrees
