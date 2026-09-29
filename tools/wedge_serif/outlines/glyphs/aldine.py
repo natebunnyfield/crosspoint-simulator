@@ -1962,6 +1962,9 @@ if ON:
     C_W = float(os.environ.get("ALBO_ALD_C_W", 0.675))      # outer width, x xh
     C_K = float(os.environ.get("ALBO_ALD_C_K", 1.88))      # squareness, as the o's
     C_A0 = float(os.environ.get("ALBO_ALD_C_A0", 50.0))    # the top terminal's end, parametric deg
+    if S > 84.0:   # 2026-09-28: the 700's top carried further round so it hangs (owner: "needs top read as a c better")
+        C_A0 = float(os.environ.get("ALBO_ALD_C_A0_700", C_A0))
+        C_W = float(os.environ.get("ALBO_ALD_C_W_700", C_W))   # and the body narrowed so the hanging top keeps the width
     C_A1 = float(os.environ.get("ALBO_ALD_C_A1", 322.0))   # the bottom terminal's end
     C_WT = float(os.environ.get("ALBO_ALD_C_WT", 1.00))    # scales every key
     # THE TERMINALS ARE ROUNDED, and that is drawn rather than left to the
@@ -2051,10 +2054,12 @@ if ON:
     # The 700 takes its own pair (owner: "not enough rebalancing for bold
     # italic so bottom is less and top is more. trace references if needed").
     # Default = the 400's, i.e. round 433.
+    C_FIN_SPAN = float(os.environ.get("ALBO_ALD_C_FIN_SPAN", 0.0))   # the top swell's span; 0 = the family's FINIAL_SPAN
     C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL", 1.0))
     C_TAIL_T = float(os.environ.get("ALBO_ALD_C_TAIL_T", 0.25))
     if S > 84.0:
         C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL_700", C_TAIL))
+        C_FIN_SPAN = float(os.environ.get("ALBO_ALD_C_FIN_SPAN_700", C_FIN_SPAN))
         C_FIN_TOP = float(os.environ.get("ALBO_ALD_C_FIN_TOP_700", C_FIN_TOP))
         C_FIN_BOT = float(os.environ.get("ALBO_ALD_C_FIN_BOT_700", C_FIN_BOT))
     C_LOW_SM = int(os.environ.get("ALBO_ALD_C_LOW_SM", 20))   # round 432; 0 = round 429-431
@@ -2273,7 +2278,8 @@ if ON:
         # bottom right serif is way too heavy"): the two ends' floors apart.
         # C_FIN_TOP / C_FIN_BOT multiply `fin_floor` at the top / the bottom
         # end only; 1.0 = both held to the family's finial, as round 276.
-        wf = PR.finial_widths(PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], True, floor=fl * C_FIN_TOP),
+        wf = PR.finial_widths(PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], True, floor=fl * C_FIN_TOP,
+                                               **({"span": C_FIN_SPAN} if C_FIN_SPAN else {})),
                               False, floor=fl * C_FIN_BOT)
         parts = [stroke(q, wf, cut0=PR.finial_cut(q, True), cut1=PR.finial_cut(q, False), raw=True)]
         return geom.close_corners(geom.ink(parts), C_BLEND * u)
