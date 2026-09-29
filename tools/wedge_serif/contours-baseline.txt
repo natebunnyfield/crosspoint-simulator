@@ -1025,7 +1025,7 @@ Italic uniE000 2
 Italic uniE001 1
 Italic uniE002 2
 Italic uniE003 1
-Italic uniE004 2
+Italic uniE004 1
 Italic uniE005 2
 Italic uniFB00 2
 Italic uniFB01 2

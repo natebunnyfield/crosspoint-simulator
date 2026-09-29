@@ -2058,12 +2058,13 @@ if ON:
     # italic so bottom is less and top is more. trace references if needed").
     # Default = the 400's, i.e. round 433.
     C_FIN_SPAN = float(os.environ.get("ALBO_ALD_C_FIN_SPAN", 0.0))   # the top swell's span; 0 = the family's FINIAL_SPAN
-    # the 400's drawn top: OFF by default (round 435 ships the 400 on its swelled
-    # F2 top); the env names are the 700's without the _700 suffix, starting from
-    # the 700's D3 geometry
-    C_TOPDRAW = int(os.environ.get("ALBO_ALD_C_TOPDRAW", 0))
+    # ROUND 436 (owner "E1"): the 400 ships the drawn top too -- the 700's D3
+    # geometry with a finer terminal (face 0.14 xh, tip at 0.82 ry). The env names
+    # are the 700's without the _700 suffix; ALBO_ALD_C_TOPDRAW=0 restores the
+    # swelled F2 top of rounds 433-435.
+    C_TOPDRAW = int(os.environ.get("ALBO_ALD_C_TOPDRAW", 1))
     _e4 = lambda k, v: float(os.environ.get("ALBO_ALD_C_" + k, v))
-    C_TJ, C_TX, C_TY, C_TF = _e4("TJ", 100.0), _e4("TX", 1.10), _e4("TY", 0.80), _e4("TF", 0.17)
+    C_TJ, C_TX, C_TY, C_TF = _e4("TJ", 100.0), _e4("TX", 1.10), _e4("TY", 0.82), _e4("TF", 0.14)
     C_TFA, C_TOA, C_TLA = _e4("TFA", 238.0), _e4("TOA", -78.0), _e4("TLA", 120.0)
     C_TH1, C_TH2, C_TH3, C_TH4 = _e4("TH1", 0.3), _e4("TH2", 0.4), _e4("TH3", 0.45), _e4("TH4", 0.3)
     C_TAIL = float(os.environ.get("ALBO_ALD_C_TAIL", 1.0))
