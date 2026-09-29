@@ -1136,6 +1136,22 @@ if ON:
     HM_DOT_LEN = _hm("DOT_LEN", 84.0) * ALD_WF   # its long axis, units
     HM_DOT_TH = _hm("DOT_TH", 88.0) * ALD_WF     # its short axis, units -- 2 x the 44 drawn to round 134
     HM_DOT_CY = _hm("DOT_CY", 1.343)    # its center, x xh above the baseline (Cancelleresca's)
+    # 2026-09-28 -- THE DOT SHRANK WITH THE NIB (owner: the italic i/j tittle
+    # is too small; docs/albo-parts-audit-2026-09-28.md, the i's dot under 4
+    # dark px at every 1x size 8-16 pt). Both axes ride ALD_WF, which is the
+    # STEM's scale -- so when the 400 moved to S 66.9 and the 0.92 nib (rounds
+    # 408-409) the dot went from the 86 x 87 box round 135 judged to 75 x 61.
+    # Measured on the round-434 build (instruments/tittle_measure.py, the dot
+    # as an equivalent disc over the i's own stem): Italic 66.9 / 59.4 = 1.12
+    # and 0.146 xh, Regular 1.41 and 0.201 xh; the italic references run
+    # 1.16-1.69 (median 1.44) and 0.198-0.262 xh -- the 400's dot is under
+    # every one of them by x-height. HM_DOT_SCALE multiplies both axes;
+    # HM_DOT_KEEP_FLOOR 1 grows it UPWARD, its floor's clearance over the stem
+    # held (0 grows it about its centre). The 700 takes its own scale. 1.0 =
+    # round 434, byte for byte.
+    HM_DOT_SCALE = (float(os.environ.get("ALBO_ALD_DOT_SCALE_700", 1.0)) if S > 84.0
+                    else float(os.environ.get("ALBO_ALD_DOT_SCALE", 1.0)))
+    HM_DOT_KEEP_FLOOR = float(os.environ.get("ALBO_ALD_DOT_KEEP_FLOOR", 1.0))
 
     def hm_u(c):
         return c["xh"] / HM_UNIT
@@ -1490,6 +1506,12 @@ if ON:
         said so in the j's own comment and then drew a second one anyway -- so
         the construction is a function now and the j calls it."""
         xh = c["xh"]; u = hm_u(c)
+        if HM_DOT_SCALE != 1.0:   # 2026-09-28, see HM_DOT_SCALE
+            a0, b0, r = HM_DOT_LEN * u / 2, HM_DOT_TH * u / 2, math.radians(HEAD_DEG)
+            half = math.hypot(a0 * math.sin(r), b0 * math.cos(r))   # the rotated oval's vertical half-extent
+            cy = HM_DOT_CY * xh + (HM_DOT_SCALE - 1.0) * half * HM_DOT_KEEP_FLOOR
+            return geom.poly(superellipse(xc, cy, a0 * HM_DOT_SCALE, b0 * HM_DOT_SCALE,
+                                          0.0, 2 * math.pi, 2.1, rot=r))
         return geom.poly(superellipse(xc, HM_DOT_CY * xh, HM_DOT_LEN * u / 2,
                                       HM_DOT_TH * u / 2, 0.0, 2 * math.pi, 2.1,
                                       rot=math.radians(HEAD_DEG)))
@@ -1891,6 +1913,29 @@ if ON:
     # 116 (the a's 99), the contrast arm CON_O untouched. The Italic 400 is
     # byte-identical.
     O_S_UP = float(os.environ.get("ALBO_ALD_O_S_UP", 1.0))      # 0 = the pen on S at every weight, as before
+    # 2026-09-28 -- THE BOLD ITALIC's COUNTERS ARE LOZENGES (issue sweep;
+    # docs/albo-issue-sweep-2026-09-28.md). A counter is the outline offset
+    # inward by the pen's width, and at the 700 that width (up to ~100 units)
+    # is large against the outline's curvature, so the offset bends in beside
+    # the thin points; round 270's convex hull (owner: "for 700 and 900,
+    # counters should not have indentations") then bridges each dent with a
+    # straight chord. What is left is a counter with flat sides and corners --
+    # the o's top right and bottom left, the b's, p's and q's bowl side --
+    # where every reference o and bowl (Poetica, Coelacanth, Flanker, Pagella,
+    # Berkeley, Georgia, their bolds) is a smooth oval. (Rounding the |cos|
+    # minimum of the o's width was tried first and moved nothing: the corners
+    # are the hull's, not the width's.) The fix is round 204's, which the g
+    # already takes (owner 2026-09-17, "smooth out counters to be even oval"):
+    # `PR.ovalise` pulls the counter onto its own best-fit ellipse, the outer
+    # untouched, never thinning the wall past OVAL_WALL x the stem. O_OVAL is
+    # the o's amount (1 = the ellipse), BOWL_OVAL the b d p q bowls'. The 700
+    # takes its own. 0 = today.
+    O_OVAL = (float(os.environ.get("ALBO_ALD_O_OVAL_700", 0.0)) if S > 84.0
+              else float(os.environ.get("ALBO_ALD_O_OVAL", 0.0)))
+    BOWL_OVAL = (float(os.environ.get("ALBO_ALD_BOWL_OVAL_700", 0.0)) if S > 84.0
+                 else float(os.environ.get("ALBO_ALD_BOWL_OVAL", 0.0)))
+    OVAL_WALL = float(os.environ.get("ALBO_ALD_OVAL_WALL", 0.25))   # the thinnest wall ovalise may leave in the o, x S
+    BOWL_OVAL_WALL = float(os.environ.get("ALBO_ALD_BOWL_OVAL_WALL", 0.40))   # ... and in the b d p q bowls: at 0.25 the ellipse thinned the b and p bottoms 47 -> 33 and dropped the b counter 18 units into the crotch; 0.40 holds both (47, 37)
 
     # 2026-09-28 -- THE ROUND LETTERS' BOTTOM OVERSHOOT, option A of
     # docs/albo-italic-size-baseline-2026-09-28.md. The italic o, c, e carry
@@ -1918,6 +1963,10 @@ if ON:
         def wf(t):
             th = t * 2 * math.pi
             return _So * (_thin + (_thick - _thin) * abs(math.cos(th - phi)))
+        if O_OVAL:   # 2026-09-28, see O_OVAL
+            _sol, _out, _inn = PR.ring_from(outer, widths_fn=wf, smooth_w=3)
+            _inn = PR.ovalise(_inn, _out, O_OVAL, OVAL_WALL * S)
+            return geom.ink([geom.poly(_out, [_inn[::-1]])])
         return geom.ink([PR.ring_from(outer, widths_fn=wf, smooth_w=3)[0]])
 
     # ------------------------------------------------------------ THE c, round 132
@@ -2706,6 +2755,18 @@ if ON:
     E_SPLIT = float(os.environ.get("ALBO_ALD_E_SPLIT", 0.34))   # where the bar is cut, x its length
     E_LAP = float(os.environ.get("ALBO_ALD_E_LAP", 0.22))       # how far the two strokes overlap
     E_BAR_BURY = float(os.environ.get("ALBO_ALD_E_BAR_BURY", 1.035))  # the stub, x the arc's width over the overlap
+    # 2026-09-28 -- THE BAR, HEAVIER FOR THE READER'S SIZES (owner, parts-audit
+    # follow-up: "the e bar breaking at small sizes"; docs/albo-issue-sweep-
+    # 2026-09-28.md). The bar is the pen's thin -- 24 units in the built Italic,
+    # 0.40 of the stem, inside the references' 0.37-0.45 (Flanker 30, Pagella 26,
+    # Coelacanth 25, Poetica 22) -- and at 8-14 pt on the X3 it lands at level 1
+    # and the eye closes (parts_check COUNTERS: 4 of 12 sizes, Bold Italic 3).
+    # E_BAR_K multiplies the widths along the bar -- the arc from its start to
+    # the bar's right end, then a raised cosine out to the shoulder -- and the
+    # stub reads the same widths, so the two stay one bar. The 700 takes its
+    # own. 1.0 = round 435.
+    E_BAR_K = (float(os.environ.get("ALBO_ALD_E_BAR_K_700", 1.0)) if S > 84.0
+               else float(os.environ.get("ALBO_ALD_E_BAR_K", 1.0)))
     # ---------------------------------------------------------- ROUND 151, RESULT
     # Against the scan crop (`cmp_aldine_shape.py --ref scan`) IoU **0.650 ->
     # 0.730**. Against the macro scan's own counter (`cmp_aldine_counter.py`,
@@ -2863,6 +2924,13 @@ if ON:
             if t > E_END_T0:
                 k = 0.5 - 0.5 * math.cos(math.pi * (t - E_END_T0) / run)
                 ws[i] += (_Se * E_END_W - ws[i]) * k
+        if E_BAR_K != 1.0:   # 2026-09-28, see E_BAR_K
+            jb_ = min(range(n), key=lambda k: (p[k][0] - pt(P[1])[0]) ** 2 + (p[k][1] - pt(P[1])[1]) ** 2)
+            js_ = min(range(n), key=lambda k: (p[k][0] - pt(P[2])[0]) ** 2 + (p[k][1] - pt(P[2])[1]) ** 2)
+            for i in range(n):
+                g = (1.0 if i <= jb_ else 0.0 if i >= js_
+                     else 0.5 + 0.5 * math.cos(math.pi * (i - jb_) / max(1, js_ - jb_)))
+                ws[i] *= 1.0 + (E_BAR_K - 1.0) * g
         if _Se != S:
             # ...AND THE LOOP THINS FROM THE INSIDE, the o's rule (a thinner
             # ring inside the same outer contour). Thinned about its
@@ -4146,7 +4214,8 @@ if ON:
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + (B_STEM_X + (B_CX - B_STEM_X) * B_COND) * u,
                            B_CY * u, B_RX * B_COND * u, ry, _hair(B_BOWL_RING, BOWL_HAIR),
-                           k=B_K, skew=B_SKEW, unit=u, wscale=ALD_WF_UP)
+                           k=B_K, skew=B_SKEW, unit=u, wscale=ALD_WF_UP,
+                           **({"oval": BOWL_OVAL, "oval_wall": BOWL_OVAL_WALL * S} if BOWL_OVAL else {}))   # 2026-09-28, see BOWL_OVAL
         # ROUND 343 -- close the crotch. `ink` adds the bowl to the stem and
         # leaves a notch where they meet at a shallow angle: the gate reads a
         # 6.4-unit spike at (132, 286). `geom.close_corners` is what round 205
@@ -4204,7 +4273,8 @@ if ON:
         head = bd_head(xs - sw / 2, xs + sw / 2, c["asc"], u)
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + D_RX * u, D_CY * u, D_RX * u, ry, _hair(D_RING, BOWL_HAIR),
-                           k=A_K, skew=D_SKEW, unit=u, wscale=ALD_WF_UP)
+                           k=A_K, skew=D_SKEW, unit=u, wscale=ALD_WF_UP,
+                           **({"oval": BOWL_OVAL, "oval_wall": BOWL_OVAL_WALL * S} if BOWL_OVAL else {}))   # 2026-09-28, see BOWL_OVAL
         tip = (x0 + D_TAIL_X * u, xh * D_TAIL_Y)
         tp = catmull([(xs, xh * 0.30), (xs + 4 * u, xh * 0.10), (xs + 30 * u, 26 * u),
                       (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
@@ -4396,7 +4466,8 @@ if ON:
                        reach=P_HEAD_R, drop=P_HEAD_D, foot=P_HEAD_F)
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + P_CX * u, P_CY * u, P_RX * u, ry, _hair(B_RING, BOWL_HAIR),
-                           k=B_K, skew=P_SKEW, unit=u, wscale=ALD_WF_UP)
+                           k=B_K, skew=P_SKEW, unit=u, wscale=ALD_WF_UP,
+                           **({"oval": BOWL_OVAL, "oval_wall": BOWL_OVAL_WALL * S} if BOWL_OVAL else {}))   # 2026-09-28, see BOWL_OVAL
         # ROUND 343 -- as the b, and this one the gate also calls a REVERSAL:
         # a 4.5-unit spike at (162, 285), arms 4.5 / 148.7.
         g_ = geom.ink([bowl_, stem, head, pq_foot(xs, ybot, u)])
@@ -4441,7 +4512,8 @@ if ON:
         stem = stroke([(xs, ybot + PQ_FOOT_T * u * 1.30), (xs, xh)], sw, cut1=CUT)
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + Q_RX * u, Q_CY * u, Q_RX * u, ry, _hair(A_RING, BOWL_HAIR),
-                           k=A_K, skew=Q_SKEW, unit=u, wscale=ALD_WF_UP)
+                           k=A_K, skew=Q_SKEW, unit=u, wscale=ALD_WF_UP,
+                           **({"oval": BOWL_OVAL, "oval_wall": BOWL_OVAL_WALL * S} if BOWL_OVAL else {}))   # 2026-09-28, see BOWL_OVAL
         # ROUND 343 -- the same crotch closing as the b. The q raises no gate
         # finding of its own; it is here because it is the same construction
         # and a blend on three of the four bowl letters would be the kind of
@@ -4515,7 +4587,111 @@ if ON:
     R_OPT = os.environ.get("ALBO_ALD_R_OPT", "sho")   # round 417: sho ships in the Italic (owner: "1.16 for italic"); round 418 the BoldItalic too (owner: "Contrast 1.0")
     if R_OPT not in ("a", "geo", "fla", "arc", "hvy", "lng", "sho"): R_OPT = "a"
 
+    # 2026-09-28 -- THE ARM, DRAWN (issue sweep; docs/albo-issue-sweep-2026-09-28.md).
+    # Every reference r -- Poetica, Coelacanth, Cancelleresca, Flanker, Pagella,
+    # Berkeley, Georgia, at one x-height -- ARCHES OVER: the arm crests at the
+    # x-line and its terminal HANGS on the right, its lowest point at 0.72-0.76
+    # xh. Since round 276 Albo's has been the c's old fault: the family finial
+    # grows width about the path, so the arm is a straight ramp rising right that
+    # ends in a flag, the highest point of the letter (ink 458 at the 400 against
+    # the o's 444), with a notch under its tip where the swell's lower corner
+    # meets the underside. Drawn as the Bold Italic c's top was (round 434,
+    # `_c_drawn_top`): the arm is the n's own shoulder, stopped at a junction
+    # before the crest (R_DJ, fraction of the pitch along HM_ARCH_K), and a
+    # terminal is unioned on -- an outer cubic continuing the arch over and down
+    # to the tip (R_DTX x the pitch right of the stem's centre, R_DTY x xh), a
+    # straight cut face R_DTF xh long at R_DTFA degrees (the family's wedge, not
+    # a ball: round 276), and one concave underside back to the arm's lower edge.
+    # Both drawn edges leave along the stroke's OWN edges at the junction. The
+    # 700 takes its own values. R_DRAW 0 = round 434, byte for byte.
+    def _rdial(k, v, v7):
+        return float(os.environ.get("ALBO_ALD_R_" + k + ("_700" if S > 84.0 else ""), v7 if S > 84.0 else v))
+    R_DRAW = (int(os.environ.get("ALBO_ALD_R_DRAW_700", 0)) if S > 84.0
+              else int(os.environ.get("ALBO_ALD_R_DRAW", 0)))
+    R_DJ = _rdial("DJ", 0.60, 0.60)         # where the stroke stops, x the pitch (the arch's knots past it are dropped)
+    R_DJA = _rdial("DJA", 0.91, 0.88)       # > 0: the junction's centreline height outright, x xh; 0 = the arch's own
+    R_DCLIMB = _rdial("DCLIMB", 0.5, 0.5)   # 0 = the n's shoulder (round 417's sho); 1 = the references' steeper climb
+    R_DWJ = _rdial("DWJ", 2.4, 2.2)         # the stroke's width at the junction, x the arch hairline
+    R_DTX = _rdial("DTX", 0.95, 0.95)       # the tip (the face's outer corner), x the pitch right of the stem centre
+    R_DTY = _rdial("DTY", 0.90, 0.87)       # ... and its height, x xh
+    R_DTF = _rdial("DTF", 0.24, 0.24)       # the face's length, x xh (before the point is cut back by R_DTB)
+    R_DTFA = _rdial("DTFA", 262.0, 262.0)   # the face's direction from the tip, degrees (270 = plumb)
+    R_DTOA = _rdial("DTOA", -88.0, -88.0)   # the outer edge's arrival at the tip, degrees
+    R_DTLA = _rdial("DTLA", 95.0, 95.0)     # the underside's departure from the face's lower end, degrees
+    R_DTH1, R_DTH2 = _rdial("DTH1", 0.65, 0.60), _rdial("DTH2", 0.65, 0.60)   # outer cubic's handles, x the chord
+    R_DTH3, R_DTH4 = _rdial("DTH3", 0.50, 0.50), _rdial("DTH4", 0.50, 0.50)   # underside's handles, x the chord
+    R_DTB = _rdial("DTB", 20.0, 20.0)        # the terminal's lowest point is cut this far back along both edges, units: at a
+    #                                          plumb face the point is 13 degrees and cmp_contour_hairs reads it as a REVERSAL
+    # THE RIGHT BEARING IS LEFT ALONE, and the advance grows. build.fit_aldine
+    # prices only the ink inside the x-height band; round 434's flag stood
+    # above it (tip 458 against the band's 443) where the drawn terminal hangs
+    # inside it, so the band's right edge moves +22.4 in the built Italic (the
+    # cut facets the terminal's rightmost curve) and +13.8 in the Bold Italic,
+    # and with the bench's bearing unchanged the r's advance goes 388 -> 410
+    # and 422 -> 437. Measured on the shaped pairs (instruments/pair_gap2d.py,
+    # closest approach): against the ROUND letters that is today's white
+    # within 5 units (ra re ro rc rd rs), against the HEADED ones 8-22 looser
+    # (rn ri ru rt rm rr rk) -- the terminal now hangs away from their heads
+    # where the flag reached toward them. R_DRSB takes units off the right
+    # bearing; -15 matched the headed letters and left the round ones 12-18
+    # tight. NOTE build.py spaces the Greek sigma's right side FROM THE r's
+    # final bearing ('σ': ('o', 'r')), so any value here also moves the sigma's
+    # advance by the same units. 0 = the bench's bearing.
+    R_DRSB = (float(os.environ.get("ALBO_ALD_R_DRSB_700", 0.0)) if S > 84.0
+              else float(os.environ.get("ALBO_ALD_R_DRSB", 0.0)))
+
+    def _r_drawn_arm(c, x0, P, sw, t, xh):
+        u = hm_u(c)
+        # the climb: the n's own shoulder knots, blended toward the references'
+        # (Flanker 0.55 / 0.76 / 0.88 xh at 0.22 / 0.36 / 0.50 P -- the r's
+        # comment above: "the same curve, and above the arch's")
+        steep = [(0.22, 0.55), (0.36, 0.76), (0.50, 0.88)]
+        arch = [(a[0] + (b[0] - a[0]) * R_DCLIMB, a[1] + (b[1] - a[1]) * R_DCLIMB)
+                for a, b in zip(HM_ARCH_K[:3], steep)] + list(HM_ARCH_K[3:])
+        ks = [(fx, fy) for fx, fy in arch if fx < R_DJ - 1e-9]
+        jy = next((fy for fx, fy in arch if abs(fx - R_DJ) < 1e-9), None)
+        if jy is None:   # a junction between two knots: interpolate the arch there
+            k0 = max((k for k in arch if k[0] < R_DJ), default=(0.0, HM_SPRING))
+            k1 = min((k for k in arch if k[0] > R_DJ), default=(0.930, HM_ARCH_TOP))
+            jy = k0[1] + (k1[1] - k0[1]) * (R_DJ - k0[0]) / (k1[0] - k0[0])
+        if R_DJA > 0.0: jy = R_DJA
+        K = [(x0, xh * HM_SPRING)] + [(x0 + fx * P, fy * xh) for fx, fy in ks] + [(x0 + R_DJ * P, jy * xh)]
+        q = geom.resample(catmull(K, tension=0.5))
+        k = R_SHO_K
+        prof = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k), (0.42, t * k), (1.00, t * R_DWJ)])
+        body, Ls, Rs = stroke(q, prof, raw=True, sides=True)
+        O, I = Ls[-1], Rs[-1]                   # travel is rightward: L is the upper (outer) edge
+        def _dir(a, b):
+            L_ = math.dist(a, b) or 1.0
+            return ((b[0] - a[0]) / L_, (b[1] - a[1]) / L_)
+        eo = _dir(Ls[-min(4, len(Ls))], Ls[-1])   # outer edge, heading out of the stroke
+        ei = _dir(Rs[-1], Rs[-min(4, len(Rs))])   # inner edge, heading back into the stroke
+        T = (x0 + R_DTX * P, R_DTY * xh)
+        fa = math.radians(R_DTFA)
+        Lw = (T[0] + R_DTF * xh * math.cos(fa), T[1] + R_DTF * xh * math.sin(fa))
+        d_ot = math.dist(O, T); oa = math.radians(R_DTOA)
+        outer = cubic(O, (O[0] + eo[0] * R_DTH1 * d_ot, O[1] + eo[1] * R_DTH1 * d_ot),
+                      (T[0] - math.cos(oa) * R_DTH2 * d_ot, T[1] - math.sin(oa) * R_DTH2 * d_ot), T)
+        d_li = math.dist(Lw, I); la = math.radians(R_DTLA)
+        La, Lb = Lw, Lw
+        if R_DTB > 0.0:   # the point's own cut: back off along the face and along the underside
+            La = (Lw[0] - math.cos(fa) * R_DTB, Lw[1] - math.sin(fa) * R_DTB)
+            Lb = (Lw[0] + math.cos(la) * R_DTB, Lw[1] + math.sin(la) * R_DTB)
+            d_li = math.dist(Lb, I)
+        under = cubic(Lb, (Lb[0] + math.cos(la) * R_DTH3 * d_li, Lb[1] + math.sin(la) * R_DTH3 * d_li),
+                      (I[0] - ei[0] * R_DTH4 * d_li, I[1] - ei[1] * R_DTH4 * d_li), I)
+        kk = min(4, len(Ls) - 1)
+        tip = [La] + under if R_DTB > 0.0 else [Lw] + under[1:]   # blunted: the face stops at La, the underside starts at Lb
+        term = geom.poly(outer + tip + Rs[-2:-kk - 2:-1] + Ls[-kk - 1:-1])
+        if os.environ.get("ALBO_ALD_R_DEBUG"):
+            print(f"[r-arm] x0 {x0:.0f} P {P:.0f} xh {xh:.0f} O ({O[0]:.0f},{O[1]:.0f}) I ({I[0]:.0f},{I[1]:.0f}) "
+                  f"T ({T[0]:.0f},{T[1]:.0f}) Lw ({Lw[0]:.0f},{Lw[1]:.0f}) w_j {math.dist(O, I):.0f} "
+                  f"top {max(y for _, y in outer):.0f}")
+        return geom.ink([body, term])
+
     def _r_arm(c, x0, P, sw, t, xh):
+        if R_DRAW:
+            return _r_drawn_arm(c, x0, P, sw, t, xh)
         if R_OPT == "sho":
             ax, ay = x0 + P * R_ARM_X, xh * 0.876
             px, py = x0 + P * 0.47, xh * 0.850
@@ -4967,6 +5143,33 @@ if ON:
     J_W = d_dial("J_W", 0.97)
     J_TW = d_dial("J_TW", 1.10) * _jt_k("j")   # 2026-09-26: see JT_OPT above
     J_TAIL = d_dial("J_TAIL", -0.62)  # the tail's floor, x xh
+    # 2026-09-28 -- THE j WEARS THE i's HEAD (issue sweep; docs/albo-issue-sweep-
+    # 2026-09-28.md). The block above says the j "takes the i's rather than a
+    # second drawing of the same thing", and that was true when both wore
+    # `wedge_head`. Rounds 233-278 rebuilt the i's head as `hm_head` -- an entry
+    # stroke from the lower left, across a stem top cut to follow it -- and the
+    # j kept the old wedge, which now shows only as a nub on the stem's left: a
+    # 10-unit tab with a flat underside that meets the stem in a square notch
+    # (cmp_jogs: BoldItalic j t180 off 9.4 at (219, 385)). Every reference j
+    # wears its own i's head. J_HEAD_I draws the j's top as the i's: `hm_head`
+    # on the stem's top width, the body's top face cut by `hm_follow_cut`
+    # exactly as `hm_stem` cuts the i's. J_HEAD_I_W scales the stem's top key:
+    # at the j's own 42 the stem flares 42 -> 58 in its first 8% right under
+    # the head (a bulge on the right edge, a kink on the left, seen at 4x), so
+    # it starts at 58 (1.38), the stem's next key -- one width from the head
+    # down, as the i's. THE LEFT BEARING FOLLOWS THE HEAD: build.fit_aldine
+    # measures from the band's leftmost ink, which was the nub (lsb 20.7 in
+    # the built Italic, 21.3 Bold Italic) and is now the head's tip, 73.0 /
+    # 76.5 units further left. J_HEAD_I_LSB puts the tip where the i's is
+    # (-35.5 / -34.9, both built): -56.2 at both weights. The stem then sits
+    # 16.8 / 20.3 units further from the letter before it than today -- the
+    # i's relation between its head and its stem. -73.0 / -76.5 would hold the
+    # stem instead and leave the head's tip 17-20 units closer than an i's.
+    # The 700 takes its own switch. 0 = round 435.
+    J_HEAD_I = (int(os.environ.get("ALBO_ALD_J_HEAD_I_700", 0)) if S > 84.0
+                else int(os.environ.get("ALBO_ALD_J_HEAD_I", 0)))
+    J_HEAD_I_W = float(os.environ.get("ALBO_ALD_J_HEAD_I_W", 1.38))
+    J_HEAD_I_LSB = float(os.environ.get("ALBO_ALD_J_HEAD_I_LSB", -56.2))
 
     @glyph('j')
     def a_j(c):
@@ -4977,12 +5180,12 @@ if ON:
         # flat face, the f's tail's lobe. The hairline now eases to 42 and
         # `fin1` ends it in the family's finial held to `fin_floor` (65.6 at
         # the 400 for the lobe's 52.8). The head's cut is not a finial.
-        body = d_pen([P(216, 1.00), P(224, 0.72), P(229, 0.40), P(233, 0.05),
-                      P(229, -0.16), P(214, -0.36), P(168, B + 0.07), P(98, B),
-                      P(38, B + 0.02), P(10, B + 0.09)],
-                     [(0.00, 42), (0.08, 58), (0.30, 62), (0.50, 61), (0.60, 56),
-                      (0.70, 46), (0.79, 36), (0.90, 40), (1.00, 42)],
-                     u, cut0=CUT, tw=J_TW, fin1=True)
+        _jpts = [P(216, 1.00), P(224, 0.72), P(229, 0.40), P(233, 0.05),
+                 P(229, -0.16), P(214, -0.36), P(168, B + 0.07), P(98, B),
+                 P(38, B + 0.02), P(10, B + 0.09)]
+        _jkeys = [(0.00, 42), (0.08, 58), (0.30, 62), (0.50, 61), (0.60, 56),
+                  (0.70, 46), (0.79, 36), (0.90, 40), (1.00, 42)]
+        body = d_pen(_jpts, _jkeys, u, cut0=CUT, tw=J_TW, fin1=True)
         xs = P(218, 0.0)[0]
         # THE i's DOT, not a second drawing of one (round 135). This was a
         # `stroke` on I_DOT_W / I_DOT_T and rendered 88 x 76 px where the i's
@@ -5002,6 +5205,14 @@ if ON:
         # itself (factor exactly 1.0: the Italic j is untouched), and the
         # head's intent -- J_HEAD_LEAN, J_HEAD_LEN -- is unchanged.
         _jk = ALD_WF_UP * min(S, J_HEAD_REF_S) / S
+        if J_HEAD_I:   # 2026-09-28, see J_HEAD_I: the i's own head on the j's stem
+            pts = list(_jpts); keys = list(_jkeys)
+            xt = pts[0][0]; wt = keys[0][1] * u * J_TW * ALD_WF_UP * J_HEAD_I_W
+            ytr, ang = hm_follow_cut(c, xt, xh, wt)
+            pts[0] = (xt, ytr - math.tan(ang) * wt / 2)
+            body = d_pen(pts, [(t_, w_ * (J_HEAD_I_W if t_ == 0.0 else 1.0)) for t_, w_ in keys],
+                         u, cut0=-ang, tw=J_TW, fin1=True)
+            return geom.ink([body, hm_head(c, xt, xh, wtop=wt), ij_dot(c, xs)])
         head = wedge_head(xs, xh * 0.875, lean=J_HEAD_LEAN,
                           length=I_HEAD_LEN * J_HEAD_LEN * _jk, w=HEAD_W * _jk)
         return geom.ink([body, head, ij_dot(c, xs)])
@@ -7493,6 +7704,25 @@ if ON:
     # round 135 set up; it is not the ribboning being undone.
     Z_DIAG = d_dial("Z_DIAG", 36.0)   # the diagonal's width, units
 
+    # 2026-09-28 -- THE z's BOTTOM LEFT (issue sweep; docs/albo-issue-sweep-
+    # 2026-09-28.md). The diagonal ends on a square face across its own thick
+    # foot (D x 1.52) while the bottom bar starts there on a 14-unit hook, so
+    # the face's two corners stand out of the bar: a notch under the foot the
+    # block below already records ("the notch stays"), and at the 700 a zigzag
+    # of three turns along the corner (cmp_junctions: STEP 8.4 at (84,-14);
+    # seen at 4x). Z_FOOT_FILL fills the corner's notches: inside a window
+    # round the foot -- from Z_FOOT_WIN units right of it, and up to Z_FOOT_TOP
+    # x xh, which keeps the crotch between the diagonal and the bar's TOP edge
+    # out of it -- the ink is replaced by its own convex hull, so the corner's
+    # outer points stay and the white bites between them go. (Cutting the
+    # foot's face level was tried first: the shear that levels it throws the
+    # face's upper corner 36 units out along the diagonal at the 700.)
+    # 0 = today.
+    Z_FOOT_FILL = (int(os.environ.get("ALBO_ALD_Z_FOOT_FILL_700", 0)) if S > 84.0
+                   else int(os.environ.get("ALBO_ALD_Z_FOOT_FILL", 0)))
+    Z_FOOT_WIN = float(os.environ.get("ALBO_ALD_Z_FOOT_WIN", 70.0))
+    Z_FOOT_TOP = float(os.environ.get("ALBO_ALD_Z_FOOT_TOP", 0.06))
+
     @glyph('z')
     def a_z(c):
         P, u = d_frame(c, Z_W); D = Z_DIAG
@@ -7523,7 +7753,13 @@ if ON:
                     [(0.00, 14), (0.17, 40), (0.28, 50), (0.42, 55),
                      (0.56, 55), (0.64, 53), (0.72, 48), (0.81, 38),
                      (0.88, 27), (0.97, 16), (1.00, 13)], u, tw=Z_TW)
-        return geom.ink([top, diag, bot])
+        g_ = geom.ink([top, diag, bot])
+        if Z_FOOT_FILL:   # 2026-09-28, see Z_FOOT_FILL
+            from shapely.geometry import box as _box
+            fx, fy = P(32, 0.012)
+            win = _box(fx - 120 * u, fy - 80 * u, fx + Z_FOOT_WIN * u, fy + Z_FOOT_TOP * c["xh"])
+            g_ = geom.ink([g_.difference(win), g_.intersection(win).convex_hull])
+        return g_
 
     # ---------------------------------------------------------------- THE k
     # POETICA for the shape, and this is the letter where that choice is a
@@ -10400,6 +10636,10 @@ BEARINGS = {
 }
 if ON:
     BEARINGS['ı'] = BEARINGS['i']   # round 274 (both weights since round 278): the dotless i is the i's stem, head and exit, fitted as the i
+    if R_DRAW and R_OPT != "a":   # 2026-09-28, the r's drawn arm: see R_DRSB (R_OPT "a" never draws it)
+        BEARINGS['r'] = (BEARINGS['r'][0], BEARINGS['r'][1] + R_DRSB)
+    if J_HEAD_I:   # 2026-09-28, the j wears the i's head: see J_HEAD_I_LSB
+        BEARINGS['j'] = (BEARINGS['j'][0] + J_HEAD_I_LSB, BEARINGS['j'][1])
 
 # A comment asking the next editor to be careful would not have caught it.
 # This does: the module declares what it is FOR -- the complete lowercase --

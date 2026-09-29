@@ -355,9 +355,84 @@ def g_guilsinglleft(c): return _guillemet(c, True, single=True)
 @glyph('›')
 def g_guilsinglright(c): return _guillemet(c, False, single=True)
 
+# 2026-09-28 -- THE BRACES, DRAWN AS BRACES (owner: "curly brackets need to
+# work to match style"; docs/albo-issue-sweep-2026-09-28.md). Option a is the
+# brace every build drew until today: two thin cubics meeting at a shallow cusp,
+# 0.30 xh wide with the waist 0.22 of that in -- measured beside the references
+# at one x-height it reads as a parenthesis with a dent (the ends run straight
+# out as hairlines; nothing hooks). Every reference brace -- Pagella, Georgia,
+# Times, Flanker, Berkeley, Poetica, STIX, Palatino, roman and italic -- is two
+# S-curves: the end HOOKS outward, the shank runs down on the pen's thick
+# stroke, and the shank turns INTO a sharp beak at the middle, the lower half
+# the upper's mirror. Option b draws that in Albo's own terms: the pen's
+# widths (thick shank, thin turns), the family's pen CUT on both ends as the
+# parens have, and a beak that is the two strokes tapering into one point.
+# BRACE_W is the whole width (x xh; the references run 0.95-1.3 x their own
+# paren, and Albo's paren is 0.32 xh), BRACE_SHANK where the shank stands
+# (x the width, from the beak), BRACE_HOOK how far the hook's turn drops below
+# the end (x the half-height), BRACE_NECK where the shank starts its turn into
+# the beak (x the half-height, above the middle), BRACE_WT the weight (x the
+# pen). The italic takes the same drawing, sheared, as it does the parens.
+BRACE_OPT = os.environ.get("ALBO_BRACE_OPT", "a")
+BRACE_W = float(os.environ.get("ALBO_BRACE_W", 0.42))
+BRACE_SHANK = float(os.environ.get("ALBO_BRACE_SHANK", 0.50))
+BRACE_HOOK = float(os.environ.get("ALBO_BRACE_HOOK", 0.30))
+BRACE_NECK = float(os.environ.get("ALBO_BRACE_NECK", 0.30))
+BRACE_WT = float(os.environ.get("ALBO_BRACE_WT", 0.85))
+BRACE_END = float(os.environ.get("ALBO_BRACE_END", 0.55))    # the end's width, x the shank's
+BRACE_TIP = float(os.environ.get("ALBO_BRACE_TIP", 0.18))    # the width at the beak, x the shank's: at 0.30 the italic } took a 4.9-unit step at its tip (cmp_junctions); 0.18 leaves none over 2.2 units in any cut
+BRACE_BLEND = float(os.environ.get("ALBO_BRACE_BLEND", 0.15))  # the closing that joins the two strokes' ends into one beak, x the shank's width (0 = off)
+BRACE_BOW = float(os.environ.get("ALBO_BRACE_BOW", 0.0))       # the shank's bow toward the beak, x the width (0 = a straight shank)
+
+def _brace_b(c, left):
+    from .marks import FENCE_RAISE
+    top = CAP + FENCE_RAISE; bot = -DESC + FENCE_RAISE; mid = (top + bot) / 2; hh = (top - bot) / 2
+    W = XH * BRACE_W; xs = W * BRACE_SHANK
+    sw = TH_V * BRACE_WT                    # the shank's width, before the pen's direction takes it
+    e = sw * BRACE_END / 2                  # the end's centre sits half its width under the top
+    # the upper half, from the end down to the beak: a quarter-turn out of the
+    # end into the shank, the shank itself, and the turn into the beak
+    E = (W, top - e); S1 = (xs, top - hh * BRACE_HOOK); S2 = (xs, mid + hh * BRACE_NECK); B = (0.0, mid)
+    k = 0.5523
+    hook = cubic(E, (E[0] - (E[0] - S1[0]) * k, E[1]), (S1[0], S1[1] + (E[1] - S1[1]) * k), S1)
+    if BRACE_BOW:
+        b_ = W * BRACE_BOW; d_ = (S1[1] - S2[1]) / 3
+        shank = cubic(S1, (S1[0] - b_, S1[1] - d_), (S2[0] - b_, S2[1] + d_), S2)
+    else:
+        shank = line(S1, S2)
+    beak = cubic(S2, (S2[0], S2[1] - (S2[1] - B[1]) * k), (B[0] + (S2[0] - B[0]) * k, B[1]), B)
+    up = hook + shank[1:] + beak[1:]
+    n = len(up) - 1
+    L_hook, L_sh = len(hook) - 1, len(shank) - 1
+    t1, t2 = L_hook / n, (L_hook + L_sh) / n
+    def prof(t):
+        # thin at the end, full on the shank, tapering into the beak's point
+        if t < t1: return BRACE_END + (1.0 - BRACE_END) * (0.5 - 0.5 * math.cos(math.pi * t / t1))
+        if t <= t2: return 1.0
+        return 1.0 + (BRACE_TIP - 1.0) * (0.5 - 0.5 * math.cos(math.pi * (t - t2) / (1.0 - t2)))
+    w_up = pen_widths(up, prof, scale=BRACE_WT)
+    upper = stroke(up, w_up, cut0=CUT, cut1=None)
+    dn = [(x, 2 * mid - y) for x, y in reversed(up)]
+    w_dn = pen_widths(dn, lambda t: prof(1.0 - t), scale=BRACE_WT)
+    lower = stroke(dn, w_dn, cut0=None, cut1=-CUT)
+    g = geom.ink([upper, lower])
+    if BRACE_BLEND:
+        # the two strokes end side by side at the beak, each on its own face,
+        # and leave a slit between their inner edges running into the point
+        # (seen at 3x); a closing a fraction of the stroke wide makes the two
+        # ends one point, and touches nothing else -- every other concave turn
+        # in the brace is far wider than the closing
+        g = geom.close_corners(g, sw * BRACE_BLEND)
+    if not left:
+        import shapely.affinity as aff
+        g = aff.scale(g, -1, 1, origin='center')
+    return g
+
 def _brace(c, left):
     """A brace on the parens' span (round 98's raised fences), its waist a
     cusp at MID and its two arms the pen's turning stroke."""
+    if BRACE_OPT == "b":
+        return _brace_b(c, left)
     from .marks import FENCE_RAISE
     top = CAP + FENCE_RAISE; bot = -DESC + FENCE_RAISE; mid = (top + bot) / 2
     w = XH * 0.30; xw = w * 0.22          # the waist's x

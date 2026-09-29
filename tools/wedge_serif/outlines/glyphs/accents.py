@@ -36,8 +36,33 @@ ACC_LIGHT = 0.86           # the marks' strokes, x the pen (a mark is lighter th
 def _stroke(pts, prof=None, cut0=CUT, cut1=CUT, light=ACC_LIGHT):
     return stroke(pts, pen_widths(pts, (prof or (lambda t: 1.0)), scale=light), cut0=cut0, cut1=cut1)
 
+# 2026-09-28 -- THE ACUTE IS THE GRAVE'S MIRROR (issue sweep; docs/albo-issue-
+# sweep-2026-09-28.md; owner's parts-audit follow-up "thin accents"). Drawn on
+# the pen, the acute rises along the nib's own angle and comes out the pen's
+# THIN: mean width 19 units in the built Regular (0.29 of the stem), 20 in the
+# Italic, against the grave's 50 / 56 -- a third of its ink. Every reference
+# draws the two as mirror images of one weight: acute / grave mean width over
+# the stem Pagella 0.64 / 0.63, Flanker 0.65 / 0.65, Georgia 0.70 / 0.70,
+# Berkeley 0.67 / 0.67, their italics 0.62-0.72 (instruments/mark_measure.py).
+# On the X3 the acute of e-acute had ZERO dark pixels at 8, 10 and 12 pt in
+# both 400s where every reference's had 1-10 (instruments/parts_check.py) --
+# the most-used accent in a Spanish or French book, and the Greek tonos with
+# it. ACUTE_OPT b draws it as the grave reflected left for right, so the two
+# are one weight; the double acute's two strokes follow (each DA_WT of it,
+# spread so their white holds DA_WHITE of a stroke). a = today.
+ACUTE_OPT = os.environ.get("ALBO_ACUTE_OPT", "a")
+DA_WT = float(os.environ.get("ALBO_DA_WT", 0.80))
+DA_WHITE = float(os.environ.get("ALBO_DA_WHITE", 0.60))
+
+def _mirror(g):
+    import shapely.affinity as aff
+    g = aff.scale(g, -1, 1, origin=(0, 0))
+    return aff.translate(g, -g.bounds[0], 0)
+
 @glyph('´')      # acute
 def g_acute(c):
+    if ACUTE_OPT == "b":
+        return _mirror(g_grave(c))
     return _stroke(line((0, 0), (ACC_W, ACC_H)))
 
 @glyph('`')      # grave
@@ -56,15 +81,48 @@ def g_caron(c):
     right = _stroke(line((ACC_W / 2, 0), (ACC_W, ACC_H)), cut0=None)
     return geom.ink([left, right])
 
+# 2026-09-28 -- THE TILDE, AT THE REFERENCES' SIZE (issue sweep; the same
+# follow-up). The wave is drawn in the acute's box (ACC_W x ACC_H) and comes
+# out 185 x 63 units in the built Regular, 0.41 x 0.14 of the x-height, with a
+# mean width 0.41 of the stem; the references run 0.65-0.84 x 0.22-0.30 of
+# theirs and 0.58-0.73 of the stem (Pagella, Flanker, Georgia, Berkeley, the
+# italics alike). n-tilde had 1-3 dark pixels at 8-12 pt on the X3 against the
+# references' 4-17. TILDE_OPT b draws the same wave in a box TILDE_W wide and
+# TILDE_H tall (x xh) at TILDE_WT the stroke. A cubic's controls are not on its
+# curve, so the ink is shorter than the box: at 0.36 it measured 0.68 x 0.20 xh in
+# the 400s, still under the references' 0.22-0.30; 0.44 is the box for ~0.24.
+# a = today.
+TILDE_OPT = os.environ.get("ALBO_TILDE_OPT", "a")
+TILDE_W = float(os.environ.get("ALBO_TILDE_W", 0.62))
+TILDE_H = float(os.environ.get("ALBO_TILDE_H", 0.44))
+TILDE_WT = float(os.environ.get("ALBO_TILDE_WT", 1.35))
+
 @glyph('˜')      # tilde
 def g_tilde(c):
     """A wave: up out of the left, over, down into the right. Thin at the
     ends as a pen stroke turning through the horizontal is."""
+    if TILDE_OPT == "b":
+        W, H = XH * TILDE_W, XH * TILDE_H
+        p = cubic((0, H * 0.30), (W * 0.28, H * 1.15), (W * 0.60, -H * 0.18), (W, H * 0.72))
+        return _stroke(p, widths([(0.0, 0.62 * TILDE_WT), (0.5, 1.0 * TILDE_WT), (1.0, 0.62 * TILDE_WT)]))
     p = cubic((0, ACC_H * 0.30), (ACC_W * 0.28, ACC_H * 1.15), (ACC_W * 0.60, -ACC_H * 0.18), (ACC_W, ACC_H * 0.72))
     return _stroke(p, widths([(0.0, 0.62), (0.5, 1.0), (1.0, 0.62)]))
 
+# 2026-09-28 -- THE MACRON, AT THE REFERENCES' LENGTH (issue sweep; the same
+# follow-up). 172 x 32 units in the built Regular -- 0.38 of the x-height long
+# and 0.43 of the stem thick -- against Pagella 0.67 xh / 0.54, Georgia 0.70 /
+# 0.58, Flanker 0.72 / 0.46 (their italics alike); a-macron had 0-3 dark
+# pixels at 8-10 pt on the X3 against their 4-7. MACRON_OPT b draws it MACRON_W
+# of the x-height long at MACRON_TH of today's weight. a = today.
+MACRON_OPT = os.environ.get("ALBO_MACRON_OPT", "a")
+MACRON_W = float(os.environ.get("ALBO_MACRON_W", 0.62))
+MACRON_TH = float(os.environ.get("ALBO_MACRON_TH", 1.25))
+
 @glyph('¯')      # macron
 def g_macron(c):
+    if MACRON_OPT == "b":
+        th = TH_H * ACC_LIGHT * MACRON_TH
+        return bar(0, XH * MACRON_W, th / 2, th)
     return bar(0, ACC_W * 1.04, TH_H * ACC_LIGHT / 2, TH_H * ACC_LIGHT)
 
 @glyph('˘')      # breve
@@ -116,6 +174,15 @@ def g_ring(c):
 
 @glyph('˝')      # double acute
 def g_hungarumlaut(c):
+    if ACUTE_OPT == "b":   # 2026-09-28, see ACUTE_OPT: two of the grave's strokes, reflected
+        import shapely.affinity as aff
+        one = _mirror(_stroke(line((0, ACC_H), (ACC_W * 0.58, 0)), light=ACC_LIGHT * DA_WT))
+        w = one.area / max(1.0, math.hypot(ACC_W * 0.58, ACC_H))   # the stroke's mean width
+        ang = math.atan2(ACC_H, ACC_W * 0.58)
+        # the two strokes are parallel: their centres a horizontal `dx` apart
+        # leave (dx sin(ang) - w) of white between them
+        dx = w * (1.0 + DA_WHITE) / math.sin(ang)
+        return geom.ink([one, aff.translate(one, dx, 0)])
     a = _stroke(line((0, 0), (ACC_W * 0.58, ACC_H)))
     b = _stroke(line((ACC_W * 0.52, 0), (ACC_W * 1.10, ACC_H)))
     return geom.ink([a, b])
