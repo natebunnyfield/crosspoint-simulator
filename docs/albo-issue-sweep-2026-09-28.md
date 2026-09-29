@@ -516,3 +516,15 @@ Seen at 700 px with vertices (`sweep/round2/look/`): every defect named above. N
 option 7's filed flats at reading size (5 units is under a pixel on the X3, by the rule in
 albo-imperfections -- they are meant to be seen only up close); how the looser r spacing reads in
 running text beyond the proof lines.
+
+## PARKED, 2026-09-29 (owner: "leave for later, none of these are viewable on mobile")
+
+**Nothing from this sweep is ruled.** Two items are in the owner's court:
+- S1–S8 (page https://claude.ai/artifact/VWZBp8iMikenxioXbyh3ii).
+- The numbered r options 1–3 and brace options 4–7 (https://claude.ai/artifact/XThDDUMnT8SE8SCjC4mGRT).
+
+Standing notes so far:
+- The r must end WITHOUT a beak ("snip off r serif").
+- The braces must look handcut, filed and metalworked, like the rest of the face.
+
+Both pages were republished with images scaled to the screen width (`width:100%; height:auto`), because the 1:1 horizontally-scrolled figures could not be read on a phone. Every dial stays off.
