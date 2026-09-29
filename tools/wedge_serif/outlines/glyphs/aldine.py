@@ -4641,8 +4641,12 @@ if ON:
     # tight. NOTE build.py spaces the Greek sigma's right side FROM THE r's
     # final bearing ('σ': ('o', 'r')), so any value here also moves the sigma's
     # advance by the same units. 0 = the bench's bearing.
-    R_DRSB = (float(os.environ.get("ALBO_ALD_R_DRSB_700", 0.0)) if S > 84.0
-              else float(os.environ.get("ALBO_ALD_R_DRSB", 0.0)))
+    # round 439: the wedge end made the fit widen the r (Italic advance 417 -> 446),
+    # so the white before a STEM grew 17-34 units; this takes it back to round 437's
+    # (the round followers are then set by the rsnip kerns). The Greek sigma, which
+    # borrows the r's right side, is compensated in build.fit_greek.
+    R_DRSB = (float(os.environ.get("ALBO_ALD_R_DRSB_700", -19.0)) if S > 84.0
+              else float(os.environ.get("ALBO_ALD_R_DRSB", -18.0)))
 
     # 2026-09-28, round 2 of the issue sweep -- THE ARM SNIPPED (owner, on S1:
     # "snip off r serif to be without beak"). The drawn arm's arch stays -- out
@@ -4667,14 +4671,22 @@ if ON:
     if S > 84.0: _RSP = (_RSP[0], _RSP[1] - 0.03, _RSP[2])   # the 700's thicker stroke: centreline lower, same ink top
     R_SX = (float(os.environ.get("ALBO_ALD_R_SX_700", 1.03)) if S > 84.0      # round 438: the corner out ("just a bit more")
             else float(os.environ.get("ALBO_ALD_R_SX", 1.03)))
-    R_SY = (float(os.environ.get("ALBO_ALD_R_SY_700", _RSP[1])) if S > 84.0
-            else float(os.environ.get("ALBO_ALD_R_SY", _RSP[1])))
-    R_SEA = (float(os.environ.get("ALBO_ALD_R_SEA_700", _RSP[2])) if S > 84.0
-             else float(os.environ.get("ALBO_ALD_R_SEA", _RSP[2])))
+    # ROUND 439 (owner: "get rid of beak on R_DRAW for italic r, keep it a pen
+    # wedge", "bold italic too"): the arm ARRIVED at the cut travelling -22 deg, so
+    # its underside dipped and the face's lower corner hung as a hook. It now
+    # arrives rising (+12), the cut stands near upright, and the end sits a touch
+    # lower so the top stays on the o's line. With R_WEDGE: both edges straight in.
+    R_SY = (float(os.environ.get("ALBO_ALD_R_SY_700", 0.889)) if S > 84.0
+            else float(os.environ.get("ALBO_ALD_R_SY", 0.929)))
+    R_SEA = (float(os.environ.get("ALBO_ALD_R_SEA_700", 12.0)) if S > 84.0
+             else float(os.environ.get("ALBO_ALD_R_SEA", 12.0)))
     R_SK = (float(os.environ.get("ALBO_ALD_R_SK_700", 0.45)) if S > 84.0     # the climb's knots before this (x the pitch) are kept; past it
             else float(os.environ.get("ALBO_ALD_R_SK", 0.45)))                 # the curve runs free to the cut (a knot kept there kinked it)
     R_SWE = (float(os.environ.get("ALBO_ALD_R_SWE_700", 3.7)) if S > 84.0     # round 438: option 9 (was 2.2 / 2.6)
              else float(os.environ.get("ALBO_ALD_R_SWE", 4.4)))
+    R_WEDGE = int(os.environ.get("ALBO_ALD_R_WEDGE", 1))          # round 439: 1 = the arm flares linearly into the cut (a pen wedge, no beak); 0 = round 438
+    R_WSTART = (float(os.environ.get("ALBO_ALD_R_WSTART_700", 0.42)) if S > 84.0
+                else float(os.environ.get("ALBO_ALD_R_WSTART", 0.42)))
     R_SNA = (float(os.environ.get("ALBO_ALD_R_SNA_700", 0.0)) if S > 84.0
              else float(os.environ.get("ALBO_ALD_R_SNA", 0.0)))
 
@@ -4704,6 +4716,18 @@ if ON:
         tE = Lc[iE] / (Lc[-1] or 1.0)
         k = R_SHO_K
         prof = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k), (0.42, t * k), (tE, t * R_SWE), (1.00, t * R_SWE)])
+        if R_WEDGE:
+            # 2026-09-29 (owner: "get rid of beak on R_DRAW for italic r, keep it a
+            # pen wedge" -- both italics): widths() SMOOTHSTEPS between keys, so the
+            # arm stayed thin, then swelled all at once just before the cut and the
+            # underside dipped into a hook -- the beak. A pen wedge widens STEADILY:
+            # the width runs LINEARLY from the arm's own at R_WSTART to the cut's at
+            # tE, so both edges are straight into the face.
+            _base = prof; _w0 = _base(R_WSTART); _w1 = t * R_SWE
+            def prof(tt, _b=_base, _s=R_WSTART, _e=tE, _w0=_w0, _w1=_w1):
+                if tt <= _s: return _b(tt)
+                if tt >= _e: return _w1
+                return _w0 + (_w1 - _w0) * (tt - _s) / max(1e-9, _e - _s)
         arm = stroke(q, prof, raw=True)
         if R_SNA: ang = R_SNA
         elif R_SNIP == 3: ang = 270.0 + abs(pen.SLANT)   # the shear x += y tan(a) stands (tan a, -1) upright

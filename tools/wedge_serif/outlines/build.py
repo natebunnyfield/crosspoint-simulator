@@ -883,6 +883,9 @@ def fit_greek(ch, conts):
     lsb, _, ls = _FITTED[la]; _, rsb, rs = _FITTED[ra]
     _adj = GREEK_SIDE_ADJ['ald' if (ALD is not None and ALD.ON) else ('bold' if pen.S > 84.0 else 'rom')].get(ch)
     if _adj: lsb += _adj[0]; rsb += _adj[1]
+    # round 439: the r's right bearing takes R_DRSB for the r's own sake (its drawn
+    # arm); a Greek letter borrowing that side (the sigma) must not inherit it
+    if ra == 'r' and ALD is not None and ALD.ON: rsb -= getattr(ALD, 'R_DRSB', 0.0) if getattr(ALD, 'R_DRAW', 0) else 0.0
     # both analogues of a letter are fitted in one space (a lowercase pair is
     # both 'ald' in the aldine italic, everything else 'rom'); the glyph is read
     # in the LEFT one's, which is where its origin sits.
