@@ -4730,7 +4730,12 @@ if ON:
     def _rt(k, v, v7=None):
         return float(os.environ.get("ALBO_ALD_R_T" + k + ("_700" if S > 84.0 else ""),
                                     v7 if (S > 84.0 and v7 is not None) else v))
-    R_TJF, R_TJW = _rt("JF", 0.64), _rt("JW", 3.6, 3.9)
+    # ROUND 443 (owner: "thin out r top right serif from its left"): the end joins
+    # the arm further along (R_TJF 0.64 -> 0.74), so the V where its underside meets
+    # the arm moves right and the end's left flank comes off; the face, tip and filed
+    # corner do not move. R_TJW eases with it (3.6 / 3.9 -> 2.8 / 3.1) or the later
+    # join would widen the root it was meant to thin.
+    R_TJF, R_TJW = _rt("JF", 0.74), _rt("JW", 2.8, 3.1)
     R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.30), _rt("FA", 249.0)
     R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -82.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 1.5)
     R_TH1, R_TH2 = _rt("H1", 0.40), _rt("H2", 0.45)
