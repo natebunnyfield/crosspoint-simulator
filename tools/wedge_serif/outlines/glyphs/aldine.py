@@ -4703,13 +4703,25 @@ if ON:
     # unioned on -- the outer edge a cubic carrying the arch over and down to the
     # tip T, a flat blunt cut face (never a point: no beak), and an underside
     # back to the arm (R_TUB 0 = straight chord, > 0 bows it concave).
+    #
+    # 2026-09-29, the picks D1 / F2 / B20b and after (owner: "f2 but it needs more
+    # on it and adjust line contrast to match rest of word images", then "bigger to
+    # right not like that"): options R1-R3 grow F2's end to the RIGHT (R_TTX) and
+    # thicken the arm's hairline (R_TK), recipes in docs/albo-round-441-2026-09-29.md.
+    # `_rt` takes an optional 700 default (the second value) for the round that ships.
     R_TERM = int(os.environ.get("ALBO_ALD_R_TERM_700" if S > 84.0 else "ALBO_ALD_R_TERM", 0))
-    def _rt(k, v):
-        return float(os.environ.get("ALBO_ALD_R_T" + k + ("_700" if S > 84.0 else ""), v))
+    def _rt(k, v, v7=None):
+        return float(os.environ.get("ALBO_ALD_R_T" + k + ("_700" if S > 84.0 else ""),
+                                    v7 if (S > 84.0 and v7 is not None) else v))
     R_TJF, R_TJW = _rt("JF", 0.75), _rt("JW", 1.3)
     R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 0.92), _rt("TY", 0.93), _rt("F", 0.16), _rt("FA", 283.0)
     R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -75.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 0.0)
     R_TH1, R_TH2 = _rt("H1", 0.40), _rt("H2", 0.45)
+    # 2026-09-29 (owner, on F2: "adjust line contrast to match rest of word images"):
+    # the drawn-terminal arm's own weight, x the solved shoulder factor R_SHO_K. F2's
+    # hairline climb was the thinnest stroke in the word (thin 24.1 against the
+    # word's letters' 26-47, cut 2.72 against their 1.65-2.91); 1.0 = as solved.
+    R_TK = _rt("K", 1.0)
 
     def _r_drawn_term(c, x0, P, sw, t, xh):
         # the arm is round 441's own arch (the snipped arm's path, R_SX/R_SY/R_SEA),
@@ -4731,7 +4743,7 @@ if ON:
         for a_, b_ in zip(full, full[1:]): Lc.append(Lc[-1] + math.dist(a_, b_))
         j = max(2, min(len(full) - 1, next(i for i, v in enumerate(Lc) if v >= R_TJF * Lc[-1])))
         q = full[:j + 1]; tj = Lc[j] / Lc[-1]
-        k = R_SHO_K
+        k = R_SHO_K * R_TK
         _pf = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k), (0.42, t * k), (1.00, t * k * R_TJW)])
         prof = lambda tt: _pf(tt * tj)
         body, Ls, Rs = stroke(q, prof, raw=True, sides=True)
