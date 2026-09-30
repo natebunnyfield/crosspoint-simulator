@@ -4736,10 +4736,15 @@ if ON:
     # corner do not move. R_TJW eases with it (3.6 / 3.9 -> 2.8 / 3.1) or the later
     # join would widen the root it was meant to thin.
     R_TJF, R_TJW = _rt("JF", 0.74), _rt("JW", 2.8, 3.1)
-    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.30), _rt("FA", 249.0)
+    # ROUND 445 (owner, on 444's knee: "extend it to the right not left"; then, of
+    # the ladder 254 / 258 / 262, "R3 wins"): the bottom grows RIGHT, not into the
+    # notch -- the face stands up (R_TFA 249 -> 262) about the fixed tip, so its
+    # lower end and the filed corner move right, and the straight underside from
+    # there to 443's notch takes a slant like 442's.
+    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.30), _rt("FA", 262.0)
     R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -82.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 1.5)
     R_TH1, R_TH2 = _rt("H1", 0.40), _rt("H2", 0.45)
-    R_TUL, R_TUK = _rt("UL", 129.0, 124.0), _rt("UK", 0.62, 0.66)    # round 444: the underside's knee -- its angle out of the filed bottom (442's own underside line; 0 = the straight chord) and its length x the chord
+    R_TUL, R_TUK = _rt("UL", 0.0), _rt("UK", 0.62)                   # round 444's underside knee (129 / 124 then), OFF since round 445 ("extend it to the right not left"): its angle out of the filed bottom (0 = the straight chord) and its length x the chord
     # 2026-09-29 (owner, on F2: "adjust line contrast to match rest of word images"):
     # the drawn-terminal arm's own weight, x the solved shoulder factor R_SHO_K. F2's
     # hairline climb was the thinnest stroke in the word (thin 24.1 against the
