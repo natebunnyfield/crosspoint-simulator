@@ -55,7 +55,7 @@ def measure(path, c, left="r"):
     if c.isalnum() and c not in OVERHANG: return closest(cv), "ca"
     rg = rowgap(cv)
     return (rg, "row") if rg is not None else (closest(cv), "ca")
-q = 'outlines/spacing_b2.json'; d = json.loads(open(q).read())
+q = os.environ.get('TABLE', 'outlines/spacing_b2.json'); d = json.loads(open(q).read())
 for st in ("Italic", "BoldItalic"):
     fa, fb = f"{REF}/Albo-{st}.ttf", f"{NEW}/Albo-{st}.ttf"
     cm = TTFont(fb).getBestCmap(); blk = d["rsnip"].setdefault(st, {}); moved = []

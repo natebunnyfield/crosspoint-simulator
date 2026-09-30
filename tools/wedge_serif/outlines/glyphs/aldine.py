@@ -4697,6 +4697,16 @@ if ON:
                 else float(os.environ.get("ALBO_ALD_R_WSTART", 0.42)))
     R_SNA = (float(os.environ.get("ALBO_ALD_R_SNA_700", 283.0)) if S > 84.0   # round 441: the cut face parallel to the italic stems
              else float(os.environ.get("ALBO_ALD_R_SNA", 283.0)))
+    # round 447: the snipped arm made able to carry the stroke over the crest and DOWN
+    # (owner: "446 is terrible. please do this well, no shitty terminal"). Defaults
+    # reproduce round 441's arm byte for byte:
+    def _rs(k, v, v7=None):
+        return float(os.environ.get("ALBO_ALD_R_S" + k + ("_700" if S > 84.0 else ""),
+                                    v7 if (S > 84.0 and v7 is not None) else v))
+    R_SOH1, R_SOH2 = _rs("OH1", 0.45), _rs("OH2", 0.45)   # the over-cubic's handles, x the chord: out along the climb / back from the end
+    R_SCLIP = _rs("CLIP", 3.0)                            # the file's reach past the face, x the cut's width
+    R_SABS = int(_rs("ABS", 0))                           # 1 = the arm's thin keys held at 441's arc length
+    R_SCAP = int(_rs("CAP", 0))                           # 1 = no file: the stroke stops at E and its own square cap is the cut
 
     # 2026-09-29 -- THE r's TERMINAL, DRAWN (owner: "more options on r top right
     # that match historical references better"). Every reference r (Griffo's
@@ -4837,19 +4847,33 @@ if ON:
         # face crosses a stroke of full width
         climb = geom.resample(catmull(K, tension=0.5))
         c0 = climb[-1]; td = geom.tangents(climb)[-1]
-        ea = math.radians(R_SEA); de = (math.cos(ea), math.sin(ea))
-        ch = math.dist(c0, E)
-        over = cubic(c0, (c0[0] + td[0] * 0.45 * ch, c0[1] + td[1] * 0.45 * ch),
-                     (E[0] - de[0] * 0.45 * ch, E[1] - de[1] * 0.45 * ch), E)
-        ext = t * R_SWE * 1.6
-        q = geom.resample(climb[:-1] + over + [(E[0] + de[0] * ext, E[1] + de[1] * ext)])
+        def _path(E_, sea, h1, h2, swe):
+            ea_ = math.radians(sea); de_ = (math.cos(ea_), math.sin(ea_))
+            ch_ = math.dist(c0, E_)
+            over_ = cubic(c0, (c0[0] + td[0] * h1 * ch_, c0[1] + td[1] * h1 * ch_),
+                          (E_[0] - de_[0] * h2 * ch_, E_[1] - de_[1] * h2 * ch_), E_)
+            if R_SCAP:
+                q_ = geom.resample(climb[:-1] + over_)       # the stroke ENDS at E: its own cap is the cut
+            else:
+                ext_ = t * swe * 1.6
+                q_ = geom.resample(climb[:-1] + over_ + [(E_[0] + de_[0] * ext_, E_[1] + de_[1] * ext_)])
+            L_ = [0.0]
+            for a_, b_ in zip(q_, q_[1:]): L_.append(L_[-1] + math.dist(a_, b_))
+            return q_, de_, L_
+        q, de, Lc = _path(E, R_SEA, R_SOH1, R_SOH2, R_SWE)
         iE = min(range(len(q)), key=lambda i: math.dist(q[i], E))
         tx, ty = de                               # the travel at the cut is the one declared
-        Lc = [0.0]
-        for a_, b_ in zip(q, q[1:]): Lc.append(Lc[-1] + math.dist(a_, b_))
         tE = Lc[iE] / (Lc[-1] or 1.0)
         k = R_SHO_K
-        prof = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k), (0.42, t * k), (tE, t * R_SWE), (1.00, t * R_SWE)])
+        _k1, _k2 = 0.16, 0.42
+        if R_SABS:
+            # round 447: the arm's thin keys at the ARC LENGTH round 441's path put them,
+            # so a longer path (over the crest and down) cannot drag the root's
+            # thickening out along the climb -- the tooth at the stem H1/H2 left
+            _E0 = (x0 + 1.03 * P, (0.919 if S > 84.0 else 0.949) * xh)
+            _L0 = _path(_E0, -22.0, 0.45, 0.45, 3.7 if S > 84.0 else 4.4)[2][-1]
+            _k1, _k2 = 0.16 * _L0 / Lc[-1], 0.42 * _L0 / Lc[-1]
+        prof = widths([(0.00, sw * 0.94), (_k1, t * 1.15 * k), (_k2, t * k), (tE, t * R_SWE), (1.00, t * R_SWE)])
         if R_WEDGE:
             # 2026-09-29 (owner: "get rid of beak on R_DRAW for italic r, keep it a
             # pen wedge" -- both italics): widths() SMOOTHSTEPS between keys, so the
@@ -4877,7 +4901,15 @@ if ON:
         # stroke widths of the cut (a face line carried to the stem would cut the
         # climb too)
         from shapely.geometry import Point
-        g = arm.difference(Point(E).buffer(t * R_SWE * 3.0, 48).difference(half))
+        if R_SCAP:
+            # the pen's inner edge can fold into a hair where the path turns tighter
+            # than the end's half-width (the Bold Italic's heavier hairline did, at the
+            # inner apex): an opening of 1.5 units with MITRED joins removes any spike
+            # under 3 units and gives every real corner -- the cut's included -- back sharp
+            from shapely.geometry import JOIN_STYLE as _JS
+            g = arm.buffer(-1.5, join_style=_JS.mitre, mitre_limit=10.0).buffer(1.5, join_style=_JS.mitre, mitre_limit=10.0)
+        else:
+            g = arm.difference(Point(E).buffer(t * R_SWE * R_SCLIP, 48).difference(half))
         if R_ENDHULL:
             # 2026-09-29 (owner: "you are missing the good work you did on 'r' ...
             # it needs the evident pen and metal cut edge"): round 438's arm and cut
