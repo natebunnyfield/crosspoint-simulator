@@ -4735,14 +4735,19 @@ if ON:
     # the arm moves right and the end's left flank comes off; the face, tip and filed
     # corner do not move. R_TJW eases with it (3.6 / 3.9 -> 2.8 / 3.1) or the later
     # join would widen the root it was meant to thin.
-    R_TJF, R_TJW = _rt("JF", 0.74), _rt("JW", 2.8, 3.1)
-    # ROUND 445 (owner, on 444's knee: "extend it to the right not left"; then, of
-    # the ladder 254 / 258 / 262, "R3 wins"): the bottom grows RIGHT, not into the
-    # notch -- the face stands up (R_TFA 249 -> 262) about the fixed tip, so its
-    # lower end and the filed corner move right, and the straight underside from
-    # there to 443's notch takes a slant like 442's.
-    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.30), _rt("FA", 262.0)
-    R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -82.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 1.5)
+    R_TJF, R_TJW = _rt("JF", 0.74), _rt("JW", 3.4, 3.9)              # round 446: the stroke fuller into the pen cut (443: 2.8 / 3.1)
+    # ROUND 445 ("extend it to the right not left", "R3 wins") stood the face up to
+    # 262 so the bottom grew right -- which made the end a BEAK: an upright cut
+    # meeting a rising underside in a point that hung down.
+    # ROUND 446 (owner: "improve further to be less of a beak and more pen edge"):
+    # the face is the NIB'S OWN EDGE. Albo's italic pen sits at 50 degrees (nib()),
+    # so a stroke that stops is cut by a line at 230 / 50; R_TFA 232. The point
+    # goes, the end reads as a broad-nib stroke cut by the pen, the filed corner
+    # (R_TCH) takes the sharpness off its lower end. The underside stays straight:
+    # a curved one (R_TUB) that flows out of the arm must loop back to the notch
+    # once the cut's lower end falls below-left of it, and leaves a slit.
+    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.30, 0.34), _rt("FA", 232.0)
+    R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -82.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 2.0, 1.2)
     R_TH1, R_TH2 = _rt("H1", 0.40), _rt("H2", 0.45)
     R_TUL, R_TUK = _rt("UL", 0.0), _rt("UK", 0.62)                   # round 444's underside knee (129 / 124 then), OFF since round 445 ("extend it to the right not left"): its angle out of the filed bottom (0 = the straight chord) and its length x the chord
     # 2026-09-29 (owner, on F2: "adjust line contrast to match rest of word images"):
