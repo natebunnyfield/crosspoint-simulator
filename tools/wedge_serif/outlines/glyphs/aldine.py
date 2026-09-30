@@ -4745,7 +4745,7 @@ if ON:
     # the arm moves right and the end's left flank comes off; the face, tip and filed
     # corner do not move. R_TJW eases with it (3.6 / 3.9 -> 2.8 / 3.1) or the later
     # join would widen the root it was meant to thin.
-    R_TJF, R_TJW = _rt("JF", 0.74), _rt("JW", 3.4, 3.9)              # round 446: the stroke fuller into the pen cut (443: 2.8 / 3.1)
+    R_TJF, R_TJW = _rt("JF", 0.66), _rt("JW", 4.0, 4.4)              # round 448: the c's terminal takes over earlier (446: 0.74, 3.4 / 3.9)
     # ROUND 445 ("extend it to the right not left", "R3 wins") stood the face up to
     # 262 so the bottom grew right -- which made the end a BEAK: an upright cut
     # meeting a rising underside in a point that hung down.
@@ -4756,9 +4756,26 @@ if ON:
     # (R_TCH) takes the sharpness off its lower end. The underside stays straight:
     # a curved one (R_TUB) that flows out of the arm must loop back to the notch
     # once the cut's lower end falls below-left of it, and leaves a slit.
-    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.30, 0.34), _rt("FA", 232.0)
-    R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -82.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 2.0, 1.2)
-    R_TH1, R_TH2 = _rt("H1", 0.40), _rt("H2", 0.45)
+    # ROUND 448 (owner, on 446: "terrible ... no shitty terminal"; on round 447's
+    # pen-stroke drops: "nope, try again"; on this: "c wins"): THE r ENDS THE WAY
+    # THE c's TOP DOES. Laid c beside r at one x-height (instruments/cr_grid.py),
+    # every reference repeats its own c's top at the r's end -- Coelacanth's pen
+    # terminal, Pagella's short drop, Poetica's lobe, Flanker's ball -- and Albo's
+    # r was the one that did not. So the drawn terminal takes the c's own dials
+    # (_c_drawn_top, round 436): the outer arriving at -78 (C_TOA), the underside
+    # a concave CUBIC leaving the face's lower end at 120 (C_TLA; R_TUB ~ the c's
+    # 0.45 / 0.30 handles), no filed corner (the c has none), the tip hanging
+    # below the crest (R_TTY 0.93, R_TTX 1.10) with the outer's handles raised
+    # (R_TH1 / R_TH2) so the crest stays where 446 had it (443 / 450). Option C: the
+    # face at 250, a little more upright than the c's 238, so the bottom reaches
+    # right as 445's did. The face is longer than the c's 0.14 / 0.17 xh because the r
+    # feeds it from a hairline, not a heavy crown. The slit above does not occur
+    # here: at 250 the cut's lower end stays right of the notch (zoomed 2.4x in
+    # both italics). Env names are ALBO_ALD_R_TTX / _TTY (the prefix is "T"),
+    # not _TX / _TY. docs/albo-round-448-2026-09-30.md.
+    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.10), _rt("TY", 0.93), _rt("F", 0.20, 0.23), _rt("FA", 250.0)
+    R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -78.0), _rt("UA", 120.0), _rt("UB", 0.40), _rt("CH", 0.0, 0.0)
+    R_TH1, R_TH2 = _rt("H1", 0.55), _rt("H2", 0.50)
     R_TUL, R_TUK = _rt("UL", 0.0), _rt("UK", 0.62)                   # round 444's underside knee (129 / 124 then), OFF since round 445 ("extend it to the right not left"): its angle out of the filed bottom (0 = the straight chord) and its length x the chord
     # 2026-09-29 (owner, on F2: "adjust line contrast to match rest of word images"):
     # the drawn-terminal arm's own weight, x the solved shoulder factor R_SHO_K. F2's
