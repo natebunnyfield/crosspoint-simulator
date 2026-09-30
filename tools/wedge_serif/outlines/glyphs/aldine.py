@@ -4664,7 +4664,11 @@ if ON:
     # Each is also its own env (R_SX R_SY R_SEA, _700 at the 700);
     # R_SNA sets the face's angle outright (design space, 270 = plumb before
     # the shear), R_SWE the stroke's width at the cut, x the arch hairline.
-    # Needs R_DRAW; R_SNIP 0 = the drawn terminal below, byte for byte.
+    # Needs R_DRAW and R_TERM 0: round 442 made the drawn terminal (R_TERM) the
+    # default, so the snipped arm's CUT -- R_SNIP's face, R_SWE, R_SNA, R_ENDHULL,
+    # R_CHAMF, R_WEDGE, R_WSTART -- is inert unless R_TERM=0. Its ARCH dials (R_SK,
+    # R_SX, R_SY, R_SEA) are not: _r_drawn_term follows the same arch and reads them.
+    # R_SNIP 0 = the drawn arm below, byte for byte.
     R_SNIP = (int(os.environ.get("ALBO_ALD_R_SNIP_700", 1)) if S > 84.0     # round 438
               else int(os.environ.get("ALBO_ALD_R_SNIP", 1)))
     _RSP = {1: (0.95, 0.949, -22.0), 2: (0.84, 0.959, -12.0), 3: (0.92, 0.959, -6.0)}.get(R_SNIP, (0.95, 0.949, -22.0))   # ink top at the o's (443 / 444 built)
@@ -4704,39 +4708,37 @@ if ON:
     # tip T, a flat blunt cut face (never a point: no beak), and an underside
     # back to the arm (R_TUB 0 = straight chord, > 0 bows it concave).
     #
-    # ROUND 442 (owner, on the picks D1 / F2 / B20b: "f2 but it needs more on it
-    # and adjust line contrast to match rest of word images"; on R1-R3, F2 grown to
-    # the right: "halfway between R1 F2 wins. take multiple passes to make it create
-    # the strongest word image and match coelacanth"). F2's construction -- the
+    # ROUND 442 (owner: "f2 but it needs more on it and adjust line contrast to match
+    # rest of word images"; "halfway between R1 F2 wins. take multiple passes to make
+    # it create the strongest word image and match coleancanth"; "P2a but reduced to
+    # be optically correct"; "increase line contrast of bold italic r to match
+    # others"; on the first build of it, "442 is worse than the others, figure out
+    # what is going to make this successful and do that"). F2's construction -- the
     # pen's curve over the crest, a flat face cut down-left, a straight underside
     # meeting the arm in a crisp V, the lower corner filed (R_TCH) -- with:
     #   the reach halfway between F2 and R1 (R_TTX 1.065);
-    #   the Italic arm's hairline heavier (R_TK 1.15), so its thick/thin sits with the
-    #   word; the Bold Italic's lighter (0.93), its stem/hairline the n's (2.51);
-    #   the end COMPACT, as Coelacanth's is: a shorter face turned 6 degrees more
-    #   upright (R_TFA 252), a fuller arm into it and an earlier junction (R_TJF
-    #   0.60) -- then REDUCED to be optically correct (owner: "P2a but reduced to be
-    #   optically correct"): the end is sized to Coelacanth's END-TO-STEM proportion,
-    #   not its per-mille of the x-height. Albo's italic stem is lighter than
-    #   Coelacanth's, so matching the absolute 217 made the end 1.43 x the stem
-    #   against Coelacanth's 1.25. Now 1.25 (Italic) and 0.97 (Bold Italic, the bold
-    #   references Pagella 1.00 / Flanker 0.93), measured on built fonts by one
-    #   instrument on all of them.
+    #   the end compact like P2a's and between F2's and P2a's in weight (the face at
+    #   249, between F2's 246 and P2a's 252, R_TF 0.30, the junction R_TJF 0.64);
+    #   the ARM AT THE n's SHOULDER (R_TK 1.0; 0.93 at the 700) -- Coelacanth goes
+    #   further and makes its r's arm FINER than its own n's (stem/hairline 2.65
+    #   against 2.29), never heavier. The first 442 had thickened it (1.15) on a
+    #   whole-letter p10 that compared the r with a / f / t instead of with the n,
+    #   and that -- the r the lowest-contrast letter in the word -- made it worse.
     # The 700 takes its own default where a second value is given.
     # docs/albo-round-442-2026-09-29.md.
     R_TERM = int(os.environ.get("ALBO_ALD_R_TERM_700" if S > 84.0 else "ALBO_ALD_R_TERM", 1))
     def _rt(k, v, v7=None):
         return float(os.environ.get("ALBO_ALD_R_T" + k + ("_700" if S > 84.0 else ""),
                                     v7 if (S > 84.0 and v7 is not None) else v))
-    R_TJF, R_TJW = _rt("JF", 0.60), _rt("JW", 3.1, 4.3)
-    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.21, 0.26), _rt("FA", 252.0)
+    R_TJF, R_TJW = _rt("JF", 0.64), _rt("JW", 3.6, 3.9)
+    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.30), _rt("FA", 249.0)
     R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -82.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 1.5)
     R_TH1, R_TH2 = _rt("H1", 0.40), _rt("H2", 0.45)
     # 2026-09-29 (owner, on F2: "adjust line contrast to match rest of word images"):
     # the drawn-terminal arm's own weight, x the solved shoulder factor R_SHO_K. F2's
     # hairline climb was the thinnest stroke in the word (thin 24.1 against the
     # word's letters' 26-47, cut 2.72 against their 1.65-2.91); 1.0 = as solved.
-    R_TK = _rt("K", 1.15, 0.93)                                      # round 442; the 700 at 0.93 (owner: "increase line contrast of bold italic r to match others": the arm's climb now stands to the stem as the n's shoulder does, 2.51; R_TJW 4.3 there holds the end's size)
+    R_TK = _rt("K", 1.0, 0.93)                                       # round 442: the arm at the n's shoulder (the 700's 0.93 matches its n's stem/hairline, 2.51)
 
     def _r_drawn_term(c, x0, P, sw, t, xh):
         # the arm is round 441's own arch (the snipped arm's path, R_SX/R_SY/R_SEA),

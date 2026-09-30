@@ -22,6 +22,15 @@ import argparse, ast, os, re, subprocess, sys, datetime
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DOC = os.path.normpath(os.path.join(ROOT, "..", "..", "docs", "albo-STATE.md"))
 PAT = re.compile(r'os\.environ\.get\(\s*["\'](ALBO_[A-Z0-9_]+|FJORD_[A-Z0-9_]+)["\']\s*,\s*([^)]+?)\s*\)')
+# Two idioms PAT cannot see, both carrying the italic r that ships (round 442; the
+# adversarial review found this table listing the snipped arm's cut dials, which are
+# inert at default, and none of the drawn terminal's): a name chosen per weight,
+# `os.environ.get("A_700" if S > 84.0 else "A", DEFAULT)`, and aldine's
+# `_rt("K", DEFAULT[, DEFAULT_700])`, which reads ALBO_ALD_R_T<K> (and <K>_700 at
+# the 700). STILL UNREAD, and live in that r: R_SHO_K (an `or` default, no second
+# argument), R_DCLIMB (read through `_rdial`) and HM_SPRING (through `_hm`).
+PAT_EITHER = re.compile(r'os\.environ\.get\(\s*"(ALBO_[A-Z0-9_]+)"\s+if\s+[^"]+?\s+else\s+"(ALBO_[A-Z0-9_]+)"\s*,\s*([^)]+?)\s*\)')
+PAT_RT = re.compile(r'\b_rt\(\s*"([A-Z0-9]+)"\s*,\s*([^,)]+?)\s*(?:,\s*([^,)]+?)\s*)?\)')
 
 
 def scan():
@@ -33,17 +42,25 @@ def scan():
             p = os.path.join(dirpath, n)
             rel = os.path.relpath(p, ROOT)
             for i, line in enumerate(open(p, encoding="utf-8"), 1):
+                found = []
                 m = PAT.search(line)
-                if not m:
-                    continue
-                var, raw = m.group(1), m.group(2).strip()
-                try:
-                    val = ast.literal_eval(raw)
-                except Exception:
-                    val = raw
-                row = (var, val, f"{rel}:{i}")
-                (arms if isinstance(val, str) and val and not val[0].isdigit()
-                 else dials).append(row)
+                if m:
+                    found.append((m.group(1), m.group(2)))
+                for m in PAT_EITHER.finditer(line):
+                    found += [(m.group(1), m.group(3)), (m.group(2), m.group(3))]
+                if "def _rt" not in line:
+                    for m in PAT_RT.finditer(line):
+                        found.append(("ALBO_ALD_R_T" + m.group(1), m.group(2)))
+                        found.append(("ALBO_ALD_R_T" + m.group(1) + "_700", m.group(3) or m.group(2)))
+                for var, raw in found:
+                    raw = raw.strip()
+                    try:
+                        val = ast.literal_eval(raw)
+                    except Exception:
+                        val = raw
+                    row = (var, val, f"{rel}:{i}")
+                    (arms if isinstance(val, str) and val and not val[0].isdigit()
+                     else dials).append(row)
     return arms, dials
 
 

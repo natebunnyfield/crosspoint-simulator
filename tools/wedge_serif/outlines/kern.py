@@ -933,12 +933,14 @@ if _B2 is not None and __import__("os").environ.get("ALBO_FENCES", "1") != "0":
 # instruments/pair_gap2d.py; added on top of whatever the pair already carries.
 # A bearing could not do it: -30 on the r's right closed the vowels and jammed
 # the stems (ri 50 -> 24).
+RSNIP_HOLDS = []   # (left, right, delta) as applied above; apply() extends them to the composites
 if _B2 is not None:
     from . import pen as _pen_rs
     _cutr = (("Bold" if _pen_rs.S > 84.0 else "") + ("Italic" if (_ALD is not None and _ALD.ON) else "")) or "Regular"
     for _k, _d in sorted(_B2_ALL.get("rsnip", {}).get(_cutr, {}).items()):
         _l, _r = _k.split(" ")
         PAIRS[(_l, _r)] = PAIRS.get((_l, _r), _shipped(_l, _r)) + _d
+        RSNIP_HOLDS.append((_l, _r, _d))
 
 # ROUND 402 -- CLEARANCE, MEASURED PER CUT (local_ai/clearance.py). After a B2
 # refit, every pair cmp_touch finds under its 0.012 em floor in a built cut gets
@@ -1010,12 +1012,38 @@ def feature_text():
                      '} liga;')
     return '\n'.join(lines) + '\n'
 
+def _extend_holds(font):
+    """ROUND 442 (the second adversarial review): the rsnip holds are exact glyph
+    pairs, and an exact pair reaches neither the follower's accented composites
+    (r e held, r eacute not: Bold Italic re +8 units against round 441) nor the r's
+    own composites on the left (racute rcaron uni0157). A composite IS its base
+    plus a mark, so each hold is given to every (left-composite, right-composite)
+    of its pair, by Unicode decomposition over the font's own cmap -- what a
+    kerning class would do. Added on top of whatever the pair already carries,
+    once per process."""
+    if getattr(_extend_holds, "done", False) or not RSNIP_HOLDS: return
+    import unicodedata
+    cmap = font.getBestCmap(); byname = {}
+    for cp, g in cmap.items(): byname.setdefault(g, cp)
+    fam = {}
+    for cp, g in cmap.items():
+        base = unicodedata.normalize("NFD", chr(cp))[0]
+        if base != chr(cp) and ord(base) in cmap:
+            fam.setdefault(cmap[ord(base)], set()).add(g)
+    for l, r, d in RSNIP_HOLDS:
+        for l2 in {l} | fam.get(l, set()):
+            for r2 in {r} | fam.get(r, set()):
+                if (l2, r2) == (l, r): continue
+                PAIRS[(l2, r2)] = PAIRS.get((l2, r2), _shipped(l2, r2)) + d
+    _extend_holds.done = True
+
 def apply(path, out=None):
     """Write the kern feature into the TTF at `path` (a fresh GPOS; any
     previous one is replaced). Returns the output path."""
     font = TTFont(path)
     for t in ('GPOS', 'GDEF', 'GSUB'):
         if t in font: del font[t]
+    _extend_holds(font)
     names = set(font.getGlyphOrder())
     for cls in list(LEFT.values()) + list(RIGHT.values()):
         missing = [g for g in cls if g not in names]
