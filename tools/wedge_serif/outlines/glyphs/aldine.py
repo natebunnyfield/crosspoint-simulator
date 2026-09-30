@@ -4694,6 +4694,81 @@ if ON:
     R_SNA = (float(os.environ.get("ALBO_ALD_R_SNA_700", 283.0)) if S > 84.0   # round 441: the cut face parallel to the italic stems
              else float(os.environ.get("ALBO_ALD_R_SNA", 283.0)))
 
+    # 2026-09-29 -- THE r's TERMINAL, DRAWN (owner: "more options on r top right
+    # that match historical references better"). Every reference r (Griffo's
+    # scan, Pagella, Coelacanth, Cancelleresca, Poetica) peaks and then DROPS into
+    # a terminal hanging to ~0.75-0.8 xh, sitting under the end of the arch, not
+    # out beyond it -- the snipped arm ran on past the peak and barely hung. So,
+    # as the c's top (round 434): the arm stops at a junction J and a terminal is
+    # unioned on -- the outer edge a cubic carrying the arch over and down to the
+    # tip T, a flat blunt cut face (never a point: no beak), and an underside
+    # back to the arm (R_TUB 0 = straight chord, > 0 bows it concave).
+    R_TERM = int(os.environ.get("ALBO_ALD_R_TERM_700" if S > 84.0 else "ALBO_ALD_R_TERM", 0))
+    def _rt(k, v):
+        return float(os.environ.get("ALBO_ALD_R_T" + k + ("_700" if S > 84.0 else ""), v))
+    R_TJF, R_TJW = _rt("JF", 0.75), _rt("JW", 1.3)
+    R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 0.92), _rt("TY", 0.93), _rt("F", 0.16), _rt("FA", 283.0)
+    R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -75.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 0.0)
+    R_TH1, R_TH2 = _rt("H1", 0.40), _rt("H2", 0.45)
+
+    def _r_drawn_term(c, x0, P, sw, t, xh):
+        # the arm is round 441's own arch (the snipped arm's path, R_SX/R_SY/R_SEA),
+        # cut at the fraction R_TJF of its length; only the end is replaced
+        steep = [(0.22, 0.55), (0.36, 0.76), (0.50, 0.88)]
+        arch = [(a[0] + (b[0] - a[0]) * R_DCLIMB, a[1] + (b[1] - a[1]) * R_DCLIMB)
+                for a, b in zip(HM_ARCH_K[:3], steep)] + list(HM_ARCH_K[3:])
+        ks = [(fx, fy) for fx, fy in arch if fx < R_SK - 1e-9]
+        E = (x0 + R_SX * P, R_SY * xh)
+        K = [(x0, xh * HM_SPRING)] + [(x0 + fx * P, fy * xh) for fx, fy in ks]
+        climb = geom.resample(catmull(K, tension=0.5))
+        c0 = climb[-1]; td = geom.tangents(climb)[-1]
+        ea = math.radians(R_SEA); de = (math.cos(ea), math.sin(ea))
+        ch = math.dist(c0, E)
+        over = cubic(c0, (c0[0] + td[0] * 0.45 * ch, c0[1] + td[1] * 0.45 * ch),
+                     (E[0] - de[0] * 0.45 * ch, E[1] - de[1] * 0.45 * ch), E)
+        full = geom.resample(climb[:-1] + over)
+        Lc = [0.0]
+        for a_, b_ in zip(full, full[1:]): Lc.append(Lc[-1] + math.dist(a_, b_))
+        j = max(2, min(len(full) - 1, next(i for i, v in enumerate(Lc) if v >= R_TJF * Lc[-1])))
+        q = full[:j + 1]; tj = Lc[j] / Lc[-1]
+        k = R_SHO_K
+        _pf = widths([(0.00, sw * 0.94), (0.16, t * 1.15 * k), (0.42, t * k), (1.00, t * k * R_TJW)])
+        prof = lambda tt: _pf(tt * tj)
+        body, Ls, Rs = stroke(q, prof, raw=True, sides=True)
+        J = q[-1]
+        n = len(Ls) - 1; kk = min(4, n)
+        O, I = Ls[-1], Rs[-1]                    # top (left of travel) and underside at the junction
+        def _dir(a, b):
+            L_ = math.dist(a, b) or 1.0
+            return ((b[0] - a[0]) / L_, (b[1] - a[1]) / L_)
+        eo = _dir(Ls[max(0, n - 3)], Ls[-1])     # the top edge, travelling on out of the arm
+        ei = _dir(Rs[max(0, n - 3)], Rs[-1])     # the underside, travelling on out of the arm
+        T = (x0 + R_TTX * P, R_TTY * xh)
+        fa = math.radians(R_TFA)
+        Lw = (T[0] + R_TF * xh * math.cos(fa), T[1] + R_TF * xh * math.sin(fa))
+        d1 = math.dist(O, T); oa = math.radians(R_TOA)
+        outer = cubic(O, (O[0] + eo[0] * R_TH1 * d1, O[1] + eo[1] * R_TH1 * d1),
+                      (T[0] - math.cos(oa) * R_TH2 * d1, T[1] - math.sin(oa) * R_TH2 * d1), T)
+        d2 = math.dist(Lw, I); ua = math.radians(R_TUA)
+        if R_TUB:
+            under = cubic(Lw, (Lw[0] + math.cos(ua) * R_TUB * d2, Lw[1] + math.sin(ua) * R_TUB * d2),
+                          (I[0] + ei[0] * R_TUB * d2, I[1] + ei[1] * R_TUB * d2), I)
+        else:
+            under = [Lw, I]
+        ring_ = Ls[n - kk:] + outer[1:] + [Lw] + under[1:] + Rs[n - 1:n - kk - 1:-1]
+        term = geom.poly(ring_)
+        g = geom.ink([body, term])
+        if R_TCH:
+            import shapely.geometry as _sgc
+            a1 = _dir(Lw, T); a2 = _dir(Lw, under[1] if len(under) > 1 else I)
+            a = t * R_TCH
+            g = g.difference(_sgc.Polygon([Lw, (Lw[0] + a1[0] * a, Lw[1] + a1[1] * a),
+                                           (Lw[0] + a2[0] * a, Lw[1] + a2[1] * a)]).buffer(0.01))
+        if os.environ.get("ALBO_ALD_R_DEBUG"):
+            print(f"[r-term] x0 {x0:.0f} P {P:.0f} J ({J[0]:.0f},{J[1]:.0f}) O ({O[0]:.0f},{O[1]:.0f}) I ({I[0]:.0f},{I[1]:.0f}) "
+                  f"T ({T[0]:.0f},{T[1]:.0f}) Lw ({Lw[0]:.0f},{Lw[1]:.0f}) top {g.bounds[3]:.0f}")
+        return g
+
     def _r_snipped_arm(c, x0, P, sw, t, xh):
         steep = [(0.22, 0.55), (0.36, 0.76), (0.50, 0.88)]
         arch = [(a[0] + (b[0] - a[0]) * R_DCLIMB, a[1] + (b[1] - a[1]) * R_DCLIMB)
@@ -4838,6 +4913,7 @@ if ON:
 
     def _r_arm(c, x0, P, sw, t, xh):
         if R_DRAW:
+            if R_TERM: return _r_drawn_term(c, x0, P, sw, t, xh)
             return _r_snipped_arm(c, x0, P, sw, t, xh) if R_SNIP else _r_drawn_arm(c, x0, P, sw, t, xh)
         if R_OPT == "sho":
             ax, ay = x0 + P * R_ARM_X, xh * 0.876
