@@ -4739,6 +4739,7 @@ if ON:
     R_TTX, R_TTY, R_TF, R_TFA = _rt("TX", 1.065), _rt("TY", 0.95), _rt("F", 0.30), _rt("FA", 249.0)
     R_TOA, R_TUA, R_TUB, R_TCH = _rt("OA", -82.0), _rt("UA", 160.0), _rt("UB", 0.0), _rt("CH", 1.5)
     R_TH1, R_TH2 = _rt("H1", 0.40), _rt("H2", 0.45)
+    R_TUL, R_TUK = _rt("UL", 129.0, 124.0), _rt("UK", 0.62, 0.66)    # round 444: the underside's knee -- its angle out of the filed bottom (442's own underside line; 0 = the straight chord) and its length x the chord
     # 2026-09-29 (owner, on F2: "adjust line contrast to match rest of word images"):
     # the drawn-terminal arm's own weight, x the solved shoulder factor R_SHO_K. F2's
     # hairline climb was the thinnest stroke in the word (thin 24.1 against the
@@ -4787,6 +4788,16 @@ if ON:
         if R_TUB:
             under = cubic(Lw, (Lw[0] + math.cos(ua) * R_TUB * d2, Lw[1] + math.sin(ua) * R_TUB * d2),
                           (I[0] + ei[0] * R_TUB * d2, I[1] + ei[1] * R_TUB * d2), I)
+        elif R_TUL:
+            # ROUND 444 (owner: "make 443 serif closer to 442 on the bottom"): a KNEE.
+            # The underside runs straight out of the filed bottom at R_TUL -- 442's own
+            # underside line, which left this same corner at 129 / 124 degrees (443's
+            # runs at 107 / 106) -- for R_TUK of the chord's length, then straight up to
+            # 443's notch: the bottom is 442's, the thinned upper left stays 443's, and
+            # the turn between them is a facet, as a file leaves one
+            ul = math.radians(R_TUL)
+            K = (Lw[0] + math.cos(ul) * R_TUK * d2, Lw[1] + math.sin(ul) * R_TUK * d2)
+            under = [Lw, K, I]
         else:
             under = [Lw, I]
         ring_ = Ls[n - kk:] + outer[1:] + [Lw] + under[1:] + Rs[n - 1:n - kk - 1:-1]
