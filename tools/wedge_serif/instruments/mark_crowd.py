@@ -3,7 +3,7 @@ Round 453 (2026-10-01), owner: *"reduce umlaut and other marks to not be so clos
 letters and marks"*.
 
     venv/bin/python instruments/mark_crowd.py FONT ... [--pairs "Wö Tö Të ěš"] [--top 25]
-    venv/bin/python instruments/mark_crowd.py --clear BUILD_DIR [--k 0.8] [--cuts Italic,BoldItalic] [--dry]
+    venv/bin/python instruments/mark_crowd.py --clear BUILD_DIR [--k 0.95] [--cuts Italic,BoldItalic] [--dry]
     venv/bin/python instruments/mark_crowd.py --zoom OUT.png "Të Tö í?" [LABEL::]FONT ...
 
 WHY IT EXISTS. The touch gate (cmp_touch.py) and the composite clearance it drives
@@ -243,10 +243,13 @@ def clear(build, K, cuts, dry=False):
     block local_ai/clearance.py --composites writes, applied by kern.py after the inheritance.
     Iterate with a rebuild, alongside clearance.py, until both add nothing.
 
-    K = 0.8 by default: beside a T, V, W, Y or F, Pagella and Coelacanth bring no mark closer
-    than 0.83 and 0.78 of its own gap (Times 0.92; Georgia 0.47, Flanker 0.16 at its T). 1.0 was
-    built first: stricter than every reference, and in the Bold Italic it pushed Wö and Fö to
-    POSITIVE kerns (+19, +14). docs/albo-round-453-2026-09-30.md has the measurements.
+    K = 0.95 by default, since round 456 (owner 2026-10-01, on the italic í? he had opened +9 on
+    the words bench, which read 0.95 of the acute's gap: "B is fine" -- the rule raised for every
+    mark rather than the one pair pinned). Round 453 shipped 0.8: beside a T, V, W, Y or F,
+    Pagella and Coelacanth bring no mark closer than 0.83 and 0.78 of its own gap (Times 0.92;
+    Georgia 0.47, Flanker 0.16 at its T). 1.0 was built first and rejected: in the Bold Italic it
+    pushed Wö and Fö to POSITIVE kerns (+19, +14). docs/albo-round-453-2026-09-30.md has the
+    measurements; docs/albo-round-456-2026-10-01.md the raise.
 
     WATCH THE READER'S KERN CLASSES. fontconvert_sdcard.py folds the pairs into classes by
     identical rows and columns, and over 255 either way it DROPS THE STYLE'S KERNING ENTIRELY
@@ -356,7 +359,7 @@ def main():
         return zoom(out, pairs, args)
     if '--clear' in args:
         i = args.index('--clear'); build = args[i + 1]
-        K = float(args[args.index('--k') + 1]) if '--k' in args else 0.8
+        K = float(args[args.index('--k') + 1]) if '--k' in args else 0.95
         cuts = args[args.index('--cuts') + 1].split(',') if '--cuts' in args else ["Italic", "BoldItalic"]
         return clear(build, K, cuts, dry='--dry' in args)
     if '--pairs' in args:

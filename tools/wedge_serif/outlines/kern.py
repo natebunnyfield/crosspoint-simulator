@@ -986,12 +986,18 @@ def feature_text():
         lines.append('feature liga {\n    sub f i by uniFB01;\n} liga;'.replace(
             '    sub f i by uniFB01;\n', ''))          # an empty feature: no rule at all
     else:
-        lines.append('feature liga {\n'
-                     '    sub f f i by uniFB03;\n'
-                     '    sub f f l by uniFB04;\n'
-                     '    sub f f by uniFB00;\n'
-                     '    sub f i by uniFB01;\n'
-                     '    sub f l by uniFB02;\n'
+        # ROUND 456 -- A LIGATURE SHIPS ONLY WHERE IT KEEPS THE STEM RHYTHM. Owner 2026-10-01:
+        # *"don't do ligatures if they aren't aligned with stem rhythm of words"*. Measured by
+        # instruments/lig_rhythm.py (the stems' x in the x-height's middle band, against the
+        # spread of the face's own stem-to-stem intervals between plain stem letters): in the
+        # REGULAR the ff, fi and ffi ligatures set the next stem 246-248 units after the f's,
+        # under the 262-289 the face's words use, and ffl carries the ff join; fl sets 274. In
+        # the BOLD all five fall inside its 312-338 (319-323). The glyphs stay drawn and encoded.
+        from . import pen as _pen_l
+        bold = _pen_l.S > 84.0
+        rules = (['    sub f f i by uniFB03;\n', '    sub f f l by uniFB04;\n', '    sub f f by uniFB00;\n',
+                  '    sub f i by uniFB01;\n'] if bold else []) + ['    sub f l by uniFB02;\n']
+        lines.append('feature liga {\n' + ''.join(rules) +
                      # ROUND 309b -- fb fh fj fk are DRAWN and NOT substituted:
                      # counted over his own books they appear 13 times in two
                      # million pairs (six of them in `Kafka`), where `st` alone

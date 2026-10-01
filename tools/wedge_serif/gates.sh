@@ -51,6 +51,9 @@ for st in Regular Italic; do
   # only a warning. Every explicit composite-clearance pair can split a class; round 453's 2-D
   # mark clearance moved the Italic from 86/106 to 105/152. ok / NEAR-LIMIT (230+) / DROPPED.
   echo "kernclasses.$st $(PYTHON_GIL=0 python3 instruments/kern_classes.py "$F" 2>/dev/null | awk '{print $NF}')" >>"$REP"
+  # every LIGATURE the font substitutes keeps the stem rhythm (round 456, owner: "don't do ligatures
+  # if they aren't aligned with stem rhythm of words"): the list of those that do not, or none
+  echo "ligrhythm.$st $(PYTHON_GIL=0 python3 instruments/lig_rhythm.py --check "$F" 2>/dev/null | tail -1 | sed 's/.*out of rhythm: //')" >>"$REP"
 done
 sed -i '' -E 's/[[:space:]]+$//' "$REP" 2>/dev/null || sed -i -E 's/[[:space:]]+$//' "$REP"
 

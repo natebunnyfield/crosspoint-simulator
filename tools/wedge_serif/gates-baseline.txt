@@ -3,8 +3,10 @@ hairs.all.Regular
 touch.Regular          0 pair(s) TOUCHING, 0 below
 touch.composites.Regular 0 pair(s) TOUCHING, 0 below
 kernclasses.Regular ok
+ligrhythm.Regular none
 hairs.letters.Italic
 hairs.all.Italic
 touch.Italic          0 pair(s) TOUCHING, 0 below
 touch.composites.Italic 0 pair(s) TOUCHING, 0 below
 kernclasses.Italic ok
+ligrhythm.Italic none
