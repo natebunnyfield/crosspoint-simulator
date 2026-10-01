@@ -398,3 +398,7 @@ Reading the numbers:
   extra layer. A hairline overlap narrower than a quarter pixel is not drawn.
 - **The instrument covers these 30 glyphs.** It runs on any word, but its role rules were checked
   on these 30 glyphs only. On another letter, read its `--table` output before trusting a color.
+
+## Published
+
+The six sheets: https://claude.ai/artifact/K3DT57ZTZtwfM2LJZCd8a8 (2026-10-01).

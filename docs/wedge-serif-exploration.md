@@ -8,7 +8,7 @@
   - *"raise just the top stroke of roman 'a' so it matches the same x height and interior spacing of others"* -- the Regular a's top stroke only (not its bowl), up to the x-height the other letters reach, with its interior white matching theirs.
   - *"reduce tittles slightly without losing them at small scale"* -- the i and j dots a little smaller, every cut, without dropping under `instruments/parts_check.py`'s 4-dark-pixel floor at 8-12 pt on the X3 (the round-451 constraint that set the bold dots).
   - *"subagent to improve question mark middle to bottom stroke"* -- IN PROGRESS (subagent, worktree; doc to come: `docs/albo-question-mark-2026-10-01.md`).
-  - *"subagent to draw multicolor visualization of strokes for top twenty words in corpus"* -- IN PROGRESS (subagent, worktree; doc to come: `docs/albo-stroke-colors-2026-10-01.md`).
+  - *"subagent to draw multicolor visualization of strokes for top twenty words in corpus"* -- DONE 2026-10-01: `tools/wedge_serif/instruments/stroke_colors.py`, `docs/albo-stroke-colors-2026-10-01.md`; sheets at https://claude.ai/artifact/K3DT57ZTZtwfM2LJZCd8a8.
 
 - **2026-09-26 (rounds 393-405) -- WHAT SHIPS NOW, and where each decision lives.**
   **Spacing is B2** (round 396 on): the per-glyph ridge fit plus 38 measured
