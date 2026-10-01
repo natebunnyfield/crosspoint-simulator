@@ -58,11 +58,13 @@ AGL = {'.': 'period', ',': 'comma', ':': 'colon', ';': 'semicolon', "'": 'quotes
 
 # The pairs set by hand after the bench, per style (kern.py rounds 384-390).
 HOLD = {
+    # 2026-10-01: roman ed and italic qu left -- he read both again on the words bench (ed a
+    # repeat, -8; qu in "aquí?", +1), so B2 fits them from his readings (round 431's rule)
     "roman": ["fT", "'s", "'t", "or", "gr", "Vo", "Yo", "oc", "Jo", "Th", "Qu", "ba", "t.",
-              "ed", "pa", "En", "ry", "Ka", "of", "ty", "wo", "ki", "ec", "rh", "hy", "th", "hm"],
+              "pa", "En", "ry", "Ka", "of", "ty", "wo", "ki", "ec", "rh", "hy", "th", "hm"],
     "italic": ["q'", "q\"", "Fi", "Fo", "Ye", "Yo", "Pa", "Po", "Pr", "Wa", "Wh", "Wi", "Am", "An",
                "Av", "or", "es", "r,", "fi", "gs", "y.", "El", "um", "rg", "ki", "ta", "Jo", "n'",
-               "ru", "qu", "tr", "cy", "rh", "hy", "hm"],
+               "ru", "tr", "cy", "rh", "hy", "hm"],
 }
 
 
@@ -357,10 +359,16 @@ def readings(style, drop=("g",)):
     ex = os.path.join(WS, "bench", "answers", "extra-judgments.json")
     if os.path.exists(ex):
         for r in json.load(open(ex))["rows"]:
-            if r["style"] == style and not any(c in drop for c in r["pair"]):
+            # an ACCENTED pair counts as its base pair's reading only where active_ingest set
+            # fit_pair (its mark far from the neighbour); fit_pair None = the mark was judged,
+            # and B2, which fits plain letters, must not see it (2026-10-01)
+            pair = r.get("fit_pair", r["pair"])
+            if pair is None or any(c.isalpha() and not c.isascii() for c in pair):
+                continue
+            if r["style"] == style and not any(c in drop for c in pair):
                 cls = "skip" if r.get("verdict") == "skipped-ok" else "extra"
-                sh = italic_delta(r["pair"]) if style == "italic" else 0.0
-                reads.setdefault(r["pair"], []).append((r["d0920"] - sh, cls, _when(r)))
+                sh = italic_delta(pair) if style == "italic" else 0.0
+                reads.setdefault(pair, []).append((r["d0920"] - sh, cls, _when(r)))
     return reads
 
 

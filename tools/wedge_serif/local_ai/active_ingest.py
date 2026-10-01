@@ -143,6 +143,8 @@ def table_white(tables, style, p):
     T = tables[style]
     if p in HELD_AT_ZERO.get(style, ()) or not b2_fit.in_scope(p):
         return None
+    if any(c.isalpha() and not c.isascii() for c in p):
+        return None      # an accented letter is in no B2 table: its pair was never in a fit's scope (2026-10-01)
     side = {**T["letters"], **T["marks"]}
     return side.get(p[0], [0, 0])[1] + side.get(p[1], [0, 0])[0] + T["kerns"].get(p, 0)
 
@@ -155,6 +157,42 @@ HELD_AT_ZERO = {"roman": {"fT", "'s", "'t", "or", "rd", "gr", "Vo", "Yo", "oc", 
                            "ru", "qu", "tr", "cy", "rh", "hy", "hm"}}
 
 
+# ACCENTED PAIRS (2026-10-01, the "sextile" / "aquí?" bench, the first to ask one). B2 fits plain
+# letters only; an accented letter takes its BASE letter's kerning in the build (kern.py
+# _extend_composites) plus the mark clearances on top. So an answer on an accented pair is
+# fitted as a reading of its BASE pair when the mark is FAR from the neighbour -- its 2-D
+# nearest approach at the page's zero at least FAR x its own gap to its own letter (then the
+# white he judged is the letters', as in "uí", acute 3.5x its gap from the u) and the two pairs
+# kerned alike at that zero. Otherwise the mark is what he judged (the italic "í?", acute 0.82x
+# its gap from the ?): the row is kept with fit_pair None and no fit sees it -- the clearance
+# rule owns that white, and how his answer should move it is his ruling, not the fit's.
+FAR = 2.0
+
+
+def composite_base(p):
+    """'uí' -> 'ui', 'í?' -> 'i?'; None when no letter is accented."""
+    import unicodedata
+    out, hit = [], False
+    for c in p:
+        if c.isalpha() and not c.isascii():
+            c = unicodedata.normalize("NFD", c)[0]; hit = True
+        out.append(c)
+    return "".join(out) if hit else None
+
+
+def far_mark(zero_font, p):
+    """(ratio, same_kern): the accented letter's mark, nearest approach / own gap, at the zero."""
+    sys.path.insert(0, os.path.join(WS, "instruments"))
+    from mark_crowd import Font, nearest
+    F = Font(zero_font); b = composite_base(p)
+    w = next(i for i, c in enumerate(p) if c.isalpha() and not c.isascii())
+    d = nearest(F, p, w, 0.0, what=False); g = F.own(p[w])
+    def kern(q):
+        sh = F.shape(q); cm = F.t.getBestCmap()
+        return sh[1][1] - F.t["hmtx"][cm[ord(q[0])]][0]
+    return (d[0] / g if d and g else 0.0), kern(p) == kern(b)
+
+
 def active(src):
     bench, ans = read_answers(src)
     key = json.load(open(os.path.join(BENCH, bench + ".key.json")))
@@ -164,10 +202,16 @@ def active(src):
     rows = []
     for a in ans:
         r = rows_k[(a["style"], a["id"])]
-        tw = table_white(tables, a["style"], r["pair"]) if tables else None
+        fit_pair, mark_ratio = r["pair"], None
+        base = composite_base(r["pair"])
+        if base is not None:
+            zf = os.path.join(BENCH, zero_dir(key.get("zero")), FN[a["style"]])
+            mark_ratio, same = far_mark(zf, r["pair"])
+            fit_pair = base if (mark_ratio >= FAR and same) else None
+        tw = table_white(tables, a["style"], fit_pair or r["pair"]) if tables else None
         if tw is not None:
             import b2_fit
-            d_t = tw + a["delta"] + (b2_fit.italic_delta(r["pair"]) if a["style"] == "italic" else 0.0)
+            d_t = tw + a["delta"] + (b2_fit.italic_delta(fit_pair or r["pair"]) if a["style"] == "italic" else 0.0)
         rows.append(dict(bench=bench, style=a["style"], pair=r["pair"], id=a["id"], delta=a["delta"],
                          white_zero=r["white0"], white0920=r["white0920"],
                          d0920=(int(round(d_t)) if tw is not None else
@@ -186,6 +230,7 @@ def active(src):
                          d_r405=int(r["white0"] + a["delta"] - Z405[a["style"]](*r["pair"])),
                          d_r409=int(r["white0"] + a["delta"] - Z409[a["style"]](*r["pair"])),
                          zero=key.get("zero"),
+                         **({"fit_pair": fit_pair, "mark_ratio": round(mark_ratio, 2)} if base is not None else {}),
                          session=a.get("session"), at=a.get("at"), kind=r["kind"],
                          verdict=a.get("verdict", "") or "",
                          previous0920=r.get("previous0920")))

@@ -211,6 +211,20 @@ ACC_BASES = set(); ACC_MARKS = set()      # filled from ACCENTED below
 # the R's left (-0.141, its leg); the acute's own lean +0.042, the grave's -0.063.
 STEM_AXIS = int(os.environ.get("ALBO_STEM_AXIS", 1))
 AXIS_BOX = set('cCsSzZGEF')
+# ROUND 454 -- CENTRED IN AN ANGLED BOX. Owner 2026-10-01, on the macron page: *"italic needs more
+# centering, especially E and A. make a angled box using stems and axis for reference during
+# placement"*. Measured against that box (instruments/angled_box.py), round 453's marks sat where
+# the REFERENCES set theirs -- the E's 0.14 of the x-height left of its centre, the A's 0.09 right
+# (the references: E -0.06 to -0.16, A -0.05 to +0.13) -- and that is what his eye calls
+# uncentred. So the box replaces the references' per-letter offsets: its sides run on the font's
+# stem axis (the I's slope for a capital, the dotless i's for a lowercase) and touch the leftmost
+# and rightmost ink of the letter's STEM BAND, 0.15-0.85 of the cap height (x-height) -- the
+# stems, bowls and diagonals, not the arms and serifs at the very top and bottom; over an
+# ascender (h, l) it is the ascender's straight stem under its head serif, the stem the mark sits
+# on (round 453's band, 0.25-0.55 of the x-height below the top). Every symmetric mark
+# is centred on the box's centre line at its own height; the acute, grave and double acute keep
+# only their lean (glyphs/mark_axis_it.py M). ALBO_MARK_BOX=0 restores round 453's axis and offsets.
+MARK_BOX = int(os.environ.get("ALBO_MARK_BOX", 1))
 
 def _rows_at(g, ys, dx):
     import shapely.geometry as _sga
@@ -251,7 +265,16 @@ def stem_axis_line(g, ch, dx, href, kfont):
     arrive under the mark -- and a letter with no stems' (AXIS_BOX) unslanted whole body."""
     k = kfont         # the FONT's stem slope for every letter (see stem_slope's note)
     ymid = 0.5 * href
-    if ch in AXIS_BOX:
+    if MARK_BOX:      # round 454: the angled box over the stem band (or the ascender's)
+        top = g.bounds[3]
+        if top > 1.15 * href:
+            # the ascender's straight stem, 0.25-0.55 of the x-height below its top: its head
+            # serif reaches left above that (taken in, it set h-circumflex and l-acute 0.09 left)
+            ys = [top - href * (0.25 + 0.30 * i / 60) for i in range(61)]
+        else:
+            ys = [href * (0.15 + 0.70 * i / 140) for i in range(141)]
+        rows = _rows_at(g, ys, dx)
+    elif ch in AXIS_BOX:
         rows = _rows_at(g, [href * (0.15 + 0.70 * i / 60) for i in range(61)], dx)
     else:
         top = g.bounds[3]
@@ -1565,7 +1588,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
                 cy = dy + mcy
                 _bl = 'i' if base == '\u0131' else ('j' if base == '\u0237' else base)
                 _mk = {'\u00b4': 'acute', '\u0060': 'grave', '\u02dd': 'dblacute'}.get(mark)
-                _off = _AXB.get(_bl, 0.0) + (_AXM.get(f"{_mk}.{'uc' if base.isupper() else 'lc'}", 0.0) if _mk else 0.0)
+                _off = (0.0 if MARK_BOX else _AXB.get(_bl, 0.0)) + (_AXM.get(f"{_mk}.{'uc' if base.isupper() else 'lc'}", 0.0) if _mk else 0.0)
                 if ACUTE_I_DX is not None and mark == '\u00b4' and base in ('i', '\u0131'): _off = ACUTE_I_DX
                 dx = k_ * cy + c_ - mcx + _off * pen.XH
             elif _AF and STEM_CENTER and pen.SHEAR and base in stemruns and mark in markcen:   # round 452's rule (ALBO_STEM_AXIS=0)

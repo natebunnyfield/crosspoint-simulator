@@ -846,8 +846,11 @@ if _ALD is not None and _ALD.ON:
     for _p, _d in ((('r', 'comma'), -3), (('f', 'i'), 9), (('g', 's'), 6), (('y', 'period'), 18),
                    (('E', 'l'), 16), (('u', 'm'), -16), (('r', 'g'), 4), (('k', 'i'), -21),
                    (('t', 'a'), 4), (('J', 'o'), 8), (('n', 'quotesingle'), -23), (('n', 'quoteright'), -23),
-                   (('r', 'u'), 8), (('q', 'u'), -16), (('t', 'r'), 17), (('c', 'y'), 5),
-                   (('r', 'h'), -16), (('h', 'y'), -11), (('h', 'm'), 14)):
+                   (('r', 'u'), 8), (('t', 'r'), 17), (('c', 'y'), 5),
+                   (('r', 'h'), -16), (('h', 'y'), -11), (('h', 'm'), 14)) + \
+                  (((('q', 'u'), -16),) if _SPACING_FIT_EARLY != "b2" else ()):
+        # qu's -16 left 2026-10-01: he read qu again in "aquí?" (+1 from round 453's white), so qu
+        # is no longer held and B2 fits it (round 431's rule; the clearance sweep guards the touch)
         if _p == ('q', 'u') and _pen_4.S > 84.0:
             # BoldItalic: qu measures 14.9 units of white (cmp_touch); the
             # 400's -16 closes it to -1.1, TOUCHING. -2 is the most it takes
@@ -857,10 +860,12 @@ if _ALD is not None and _ALD.ON:
 else:
     for _p, _d in ((('g', 'r'), -27), (('V', 'o'), -4), (('Y', 'o'), 3), (('o', 'c'), -18),
                    (('J', 'o'), -6), (('T', 'h'), 6), (('Q', 'u'), 10), (('b', 'a'), 6),
-                   (('t', 'period'), -3), (('e', 'd'), 25), (('p', 'a'), -13), (('E', 'n'), -5),
+                   (('t', 'period'), -3), (('p', 'a'), -13), (('E', 'n'), -5),
                    (('r', 'y'), -3), (('K', 'a'), 24), (('o', 'f'), -14), (('t', 'y'), -6),
                    (('w', 'o'), 3), (('k', 'i'), 8), (('e', 'c'), 36), (('r', 'h'), 27),
-                   (('h', 'y'), -35), (('t', 'h'), -11), (('h', 'm'), -15)):
+                   (('h', 'y'), -35), (('t', 'h'), -11), (('h', 'm'), -15)) + \
+                  (((('e', 'd'), 25),) if _SPACING_FIT_EARLY != "b2" else ()):
+        # ed's +25 left 2026-10-01: he read ed again on the words bench (-8), so B2 fits it
         PAIRS[_p] = _shipped(*_p) + _d
 
 # B2 HOLDS: the pairs he set explicitly after the bench (rounds 384-390, above)

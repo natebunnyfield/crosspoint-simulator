@@ -239,7 +239,13 @@ def g_tilde(c):
 # of the x-height long at MACRON_TH of today's weight. a = today.
 MACRON_OPT = os.environ.get("ALBO_MACRON_OPT", "b" if ACC_FIT else "a")   # round 450: b ships
 MACRON_W = float(os.environ.get("ALBO_MACRON_W", 0.68 if ACC_FIT else 0.62))
-MACRON_TH = float(os.environ.get("ALBO_MACRON_TH", 1.25))
+# ROUND 454 -- B (owner 2026-10-01, "B wins"): Pagella's thickness, 0.113 of the x-height, in the
+# 400s, where the 1.25 bar (0.091) fell across two pixel rows on the X3 at 1x and printed the
+# lightest gray (Regular 13 of 60 macron cells at 8-14 pt, Italic 9; B: 5 and 0). The 700s were
+# already full black and keep 1.25: the dial eases with the stem as the tilde's and the double
+# acute's do. An explicit ALBO_MACRON_TH still sets every weight.
+_MK = max(0.0, min(1.0, (S - 66.9) / 49.1))
+MACRON_TH = float(os.environ["ALBO_MACRON_TH"]) if "ALBO_MACRON_TH" in os.environ else 1.55 + (1.25 - 1.55) * _MK
 
 @glyph('¯')      # macron
 def g_macron(c):
