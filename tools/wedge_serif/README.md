@@ -212,6 +212,9 @@ bash instruments/poor_gates.sh $BASE $R "Regular Italic Bold BoldItalic"   # POO
 python3 approved.py --check
 (cd local_ai && $VENV/bin/python clearance.py $R)   # a kern added here -> rebuild R before shipping
 (cd local_ai && $VENV/bin/python clearance.py $R --composites)   # the accented pairs (round 449): iterate build -> this until it adds 0
+$VENV/bin/python instruments/mark_crowd.py --clear $R    # the marks in 2-D (round 453, italics): no mark nearer a neighbor than
+                                                         # 0.8 of its own gap; alternate with the line above, rebuilding, until both add 0
+python3 instruments/kern_classes.py $R/Albo-*.ttf      # the reader drops a style's kerning over 255 classes: must print ok
 python3 gen_state.py                                # docs/albo-STATE.md; commit it with the round
 # 2. commit the round (docs/albo-round-NNN-<date>.md + code + STATE), then the fonts:
 cd ~/src/crosspoint-reader

@@ -46,6 +46,11 @@ for st in Regular Italic; do
   # side, the accent at fault -- the default sweep above never sees them, so a redrawn mark
   # or a moved accent could touch its neighbor under GATES UNCHANGED (round 452's review, F3)
   echo "touch.composites.$st $(PYTHON_GIL=0 python3 cmp_touch.py "$F" --composites 2>/dev/null | grep -oE '[0-9]+ pair\(s\) TOUCHING, [0-9]+ below' | head -1)" >>"$REP"
+  # the READER'S KERN CLASSES (round 453): fontconvert_sdcard.py folds the GPOS pairs into
+  # classes stored as uint8 and, over 255 either way, drops the style's kerning ENTIRELY with
+  # only a warning. Every explicit composite-clearance pair can split a class; round 453's 2-D
+  # mark clearance moved the Italic from 86/106 to 105/152. ok / NEAR-LIMIT (230+) / DROPPED.
+  echo "kernclasses.$st $(PYTHON_GIL=0 python3 instruments/kern_classes.py "$F" 2>/dev/null | awk '{print $NF}')" >>"$REP"
 done
 sed -i '' -E 's/[[:space:]]+$//' "$REP" 2>/dev/null || sed -i -E 's/[[:space:]]+$//' "$REP"
 

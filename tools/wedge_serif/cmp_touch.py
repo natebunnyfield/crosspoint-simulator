@@ -171,6 +171,38 @@ def composite_chars(ttf):
     return out
 
 
+def script(ch):
+    """A pair across two scripts (Greek eta then an Esperanto j-circumflex) does
+    not occur in text either: letters of different scripts are not paired."""
+    o = ord(ch)
+    if not ch.isalpha(): return None
+    if 0x370 <= o <= 0x3FF or 0x1F00 <= o <= 0x1FFF: return "grek"
+    if 0x400 <= o <= 0x52F: return "cyrl"
+    return "latn"
+
+
+def composite_neighbors(comp):
+    """Every character an accented letter is swept beside (round 449 and its three
+    reviews), plus the bases of `comp`. Shared with instruments/mark_crowd.py."""
+    U = [chr(c) for c in range(ord('A'), ord('Z') + 1)]
+    L = [chr(c) for c in range(ord('a'), ord('z') + 1)]
+    # the curly quotes, guillemets, ellipsis and dashes too: an accented letter
+    # is quoted as often as a plain one, and the first review of this sweep found
+    # a Bold Italic o-dieresis touching its closing curly quote that the ASCII
+    # quote beside it in the list did not show
+    base_set = U + L + list("0123456789") + list(".,;:!?'\"()-") + list("\u2018\u2019\u201c\u201d\u00ab\u00bb\u2026\u2013\u2014")
+    # and the neighbours the second review found untried: * and the letters with
+    # no decomposition (round 451: italic i-circumflex before * touched unseen)
+    base_set += list("*\u0111\u00f8\u0142\u00df\u00e6\u0153\u00fe\u00f0\u00bf\u00a1\u0110\u00d8\u0141\u00c6\u0152")
+    # and the third review's: the rest of the encoded Latin letters with no decomposition
+    # -- Turkish dotless i (which meets c-cedilla, s-cedilla and g-breve in real words), the
+    # dotless j, Dutch ij, Maltese h-bar, Sami t-bar and eng, the long s. Round 452 had left
+    # 15 contacts under the floor among them unseen (italic c-caron before h-bar 1.5 units)
+    base_set += list("\u0131\u0237\u0133\u0132\u0127\u0126\u0167\u0166\u014b\u014a\u017f")
+    base_set += [b for b in sorted(set(comp.values())) if b not in base_set]
+    return base_set
+
+
 def composite_sweep(a):
     """ROUND 449 -- THE ACCENTED PAIRS, which the default sweep never saw.
 
@@ -194,30 +226,7 @@ def composite_sweep(a):
     BELOW = set("\u0323\u0324\u0325\u0326\u0327\u0328\u032d\u032e\u0330\u0331")
     def q_tail(x, y):
         return x == "Q" and any(m in BELOW for m in unicodedata.normalize("NFD", y))
-    # A pair across two scripts (Greek eta then an Esperanto j-circumflex) does
-    # not occur in text either: letters of different scripts are not paired.
-    def script(ch):
-        o = ord(ch)
-        if not ch.isalpha(): return None
-        if 0x370 <= o <= 0x3FF or 0x1F00 <= o <= 0x1FFF: return "grek"
-        if 0x400 <= o <= 0x52F: return "cyrl"
-        return "latn"
-    U = [chr(c) for c in range(ord('A'), ord('Z') + 1)]
-    L = [chr(c) for c in range(ord('a'), ord('z') + 1)]
-    # the curly quotes, guillemets, ellipsis and dashes too: an accented letter
-    # is quoted as often as a plain one, and the first review of this sweep found
-    # a Bold Italic o-dieresis touching its closing curly quote that the ASCII
-    # quote beside it in the list did not show
-    base_set = U + L + list("0123456789") + list(".,;:!?'\"()-") + list("\u2018\u2019\u201c\u201d\u00ab\u00bb\u2026\u2013\u2014")
-    # and the neighbours the second review found untried: * and the letters with
-    # no decomposition (round 451: italic i-circumflex before * touched unseen)
-    base_set += list("*\u0111\u00f8\u0142\u00df\u00e6\u0153\u00fe\u00f0\u00bf\u00a1\u0110\u00d8\u0141\u00c6\u0152")
-    # and the third review's: the rest of the encoded Latin letters with no decomposition
-    # -- Turkish dotless i (which meets c-cedilla, s-cedilla and g-breve in real words), the
-    # dotless j, Dutch ij, Maltese h-bar, Sami t-bar and eng, the long s. Round 452 had left
-    # 15 contacts under the floor among them unseen (italic c-caron before h-bar 1.5 units)
-    base_set += list("\u0131\u0237\u0133\u0132\u0127\u0126\u0167\u0166\u014b\u014a\u017f")
-    base_set += [b for b in sorted(set(comp.values())) if b not in base_set]
+    base_set = composite_neighbors(comp)
     chars = base_set + sorted(comp)
     prof, fnt, size = profiles(a.ttf, chars, a.xh)
     have = [c for c in chars if c in prof]

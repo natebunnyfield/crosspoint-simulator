@@ -107,15 +107,54 @@ def _mirror(g):
     g = aff.scale(g, -1, 1, origin=(0, 0))
     return aff.translate(g, -g.bounds[0], 0)
 
+# ROUND 453 -- THE ITALIC ACUTE, STEEPER AND SHORTER. Owner 2026-09-30, on the italic "aquí?"
+# (the collision check had opened its ? to +47 to clear the acute's tip): *"reduce the accent
+# length and/or make angle of stroke to avoid near collision"*. Measured on its own letters
+# (í é á ó ú, the set acute after the shear), Albo's italic acute leaned 57 degrees from
+# vertical and ran 0.580 of the x-height long; the italic references lean 36-52 (median 45:
+# Pagella 52, Georgia 45, Flanker 45, Coelacanth 41, Times 36) and run 0.518-0.640 (median
+# 0.550). So in the italics the acute is drawn to SET at ACUTE_IT_LEAN from vertical, its
+# centerline ACUTE_IT_LEN of today's: the box is solved from the shear, so the lean is the
+# one the reader sees. The grave, the roman and every other mark are untouched.
+ACUTE_IT_LEAN = float(os.environ.get("ALBO_ACUTE_IT_LEAN", 47.0))   # degrees from vertical, as set; 0 = today's
+ACUTE_IT_LEN = float(os.environ.get("ALBO_ACUTE_IT_LEN", 0.95))     # x today's set centerline length
+ACUTE_IT_WT = float(os.environ.get("ALBO_ACUTE_IT_WT", 0.96))       # the pen runs ~4% heavier on the steeper
+                                                                    # stroke; this holds round 450's measured weight
+
+# ROUND 453 -- THE ITALIC MARKS, SMALLER. Owner 2026-10-01, on the italic Wörter / Töne / Të /
+# Těšín proof: *"reduce umlaut and other marks to not be so close to other letters and marks"*.
+# Measured on their own letters (instruments/acc_fit.py), the italic marks sat at or above the
+# italic references' median width -- the grave wider than all five, the circumflex, caron,
+# ring and double acute in their upper half -- and the dieresis 0.636 of the x-height wide
+# against Pagella's 0.527. MARK_IT_K scales every ABOVE mark's DRAWING in the italics -- its
+# width and height, never its stroke weight (a stroke's width follows its direction, which a
+# uniform scale keeps) -- with the tilde's height held (already the references' lowest). The
+# dieresis's dots take DOT_IT_K and the white between them DIE_IT_W; the dot above takes the
+# same dots. The roman, the marks below and the gaps under the marks are untouched.
+# Owner 2026-10-01, on the A/B proof: "A wins" -- drawn 10% smaller (8-10% narrower as set),
+# the dieresis 12% (0.636 -> 0.559 of the x-height). B was 0.80 / 0.90 / 0.55. Their spacing is
+# instruments/mark_crowd.py --clear's (no mark nearer a neighbor than 0.8 of its own gap), in
+# spacing_b2.json's clearance_composite. docs/albo-round-453-2026-09-30.md.
+MARK_IT_K = float(os.environ.get("ALBO_MARK_IT_K", 0.90)) if (_IT and ACC_FIT) else 1.0
+DOT_IT_K = float(os.environ.get("ALBO_DOT_IT_K", 0.95)) if (_IT and ACC_FIT) else 1.0
+DIE_IT_W = float(os.environ.get("ALBO_DIE_IT_W", 0.70)) if (_IT and ACC_FIT) else 1.0
+_KH, _KW = ACC_H * MARK_IT_K, ACC_W * MARK_IT_K        # the stroke marks' box, scaled
+
 @glyph('´')      # acute
 def g_acute(c):
     if ACUTE_OPT == "b":
+        if _IT and ACC_FIT and ACUTE_IT_LEAN > 0:
+            k = pen.SHEAR
+            L = math.hypot(ACC_W + k * ACC_H, ACC_H) * ACUTE_IT_LEN * MARK_IT_K
+            th = math.radians(ACUTE_IT_LEAN)
+            H = L * math.cos(th); W = H * (math.tan(th) - k)
+            return _mirror(_stroke(line((0, H), (W, 0)), light=ACC_LIGHT * ACUTE_WT * ACUTE_IT_WT))
         return _mirror(_stroke(line((0, ACC_H), (ACC_W, 0)), light=ACC_LIGHT * ACUTE_WT))
     return _stroke(line((0, 0), (ACC_W, ACC_H)))
 
 @glyph('`')      # grave
 def g_grave(c):
-    return _stroke(line((0, ACC_H), (ACC_W, 0)), light=ACC_LIGHT * GRAVE_WT)
+    return _stroke(line((0, _KH), (_KW, 0)), light=ACC_LIGHT * GRAVE_WT)
 
 def _chev(a, p, b):
     # ROUND 451 (owner: "also fix chevron glitches"): one polygon mitered at the
@@ -128,7 +167,8 @@ def _chev(a, p, b):
 @glyph('ˆ')      # circumflex
 def g_circumflex(c):
     if ACC_FIT:
-        return _chev((0, 0), (CIRC_W / 2, ACC_H), (CIRC_W, 0))
+        w = CIRC_W * MARK_IT_K
+        return _chev((0, 0), (w / 2, _KH), (w, 0))
     left = _stroke(line((0, 0), (CIRC_W / 2, ACC_H)), cut1=None)
     right = _stroke(line((CIRC_W / 2, ACC_H), (CIRC_W, 0)), cut0=None)
     return geom.ink([left, right])
@@ -136,7 +176,8 @@ def g_circumflex(c):
 @glyph('ˇ')      # caron
 def g_caron(c):
     if ACC_FIT:
-        return _chev((0, ACC_H), (CARON_W / 2, 0), (CARON_W, ACC_H))
+        w = CARON_W * MARK_IT_K
+        return _chev((0, _KH), (w / 2, 0), (w, _KH))
     left = _stroke(line((0, ACC_H), (CARON_W / 2, 0)), cut1=None)
     right = _stroke(line((CARON_W / 2, 0), (CARON_W, ACC_H)), cut0=None)
     return geom.ink([left, right])
@@ -177,7 +218,7 @@ def g_tilde(c):
     """A wave: up out of the left, over, down into the right. Thin at the
     ends as a pen stroke turning through the horizontal is."""
     if TILDE_EVEN:
-        W, H = XH * TILDE_EW, XH * TILDE_EH
+        W, H = XH * TILDE_EW * MARK_IT_K, XH * TILDE_EH
         p = cubic((0, H * 0.25), (W * 0.30, H * 1.35), (W * 0.70, -H * 0.35), (W, H * 0.75))
         k = max(0.0, min(1.0, (S - 66.9) / 49.1))
         mean = S * (TILDE_MW + (TILDE_MW7 - TILDE_MW) * k)
@@ -204,13 +245,14 @@ MACRON_TH = float(os.environ.get("ALBO_MACRON_TH", 1.25))
 def g_macron(c):
     if MACRON_OPT == "b":
         th = TH_H * ACC_LIGHT * MACRON_TH
-        return bar(0, XH * MACRON_W, th / 2, th)
+        return bar(0, XH * MACRON_W * MARK_IT_K, th / 2, th)
     return bar(0, ACC_W * 1.04, TH_H * ACC_LIGHT / 2, TH_H * ACC_LIGHT)
 
 @glyph('˘')      # breve
 def g_breve(c):
     """A cup: heavier at the bottom of the turn, the two ends cut."""
-    p = cubic((0, ACC_H), (BREVE_W * 0.12, -ACC_H * 0.16), (BREVE_W * 0.88, -ACC_H * 0.16), (BREVE_W, ACC_H))
+    W, H = BREVE_W * MARK_IT_K, _KH
+    p = cubic((0, H), (W * 0.12, -H * 0.16), (W * 0.88, -H * 0.16), (W, H))
     return _stroke(p, widths([(0.0, 0.70), (0.5, 1.12), (1.0, 0.70)]))
 
 @glyph('\u00a8')      # dieresis
@@ -229,20 +271,20 @@ def g_dieresis(c):
     # quantised to one bar. DIE_GAP is the centre-to-centre distance in dot
     # RADII, so white/dot is (DIE_GAP - 2) / 2: the shipped 2.1 is 0.05 and
     # the references' middle is 3.7.
-    r = TIT_R * 0.92 * DOT_K * DOT_W
-    gap = (2 * r + DIE_WHITE) if ACC_FIT else r * DIE_GAP   # centre to centre
+    r = TIT_R * 0.92 * DOT_K * DOT_W * DOT_IT_K
+    gap = (2 * r + DIE_WHITE * DIE_IT_W) if ACC_FIT else r * DIE_GAP   # centre to centre
     return geom.ink([dot(r, r, r), dot(r + gap, r, r)])
 
 @glyph('˙')      # dot above
 def g_dotaccent(c):
-    r = TIT_R * 0.92 * DOT_K * DOT_W
+    r = TIT_R * 0.92 * DOT_K * DOT_W * DOT_IT_K
     return dot(r, r, r)
 
 @glyph('˚')      # ring above
 def g_ring(c):
     """A small bowl, its counter open enough to survive 13 pt: the ring is
     the family's, at a radius that makes the mark ACC_H*1.25 tall."""
-    ry = ACC_H * RING_K; rx = ry * 1.02
+    ry = _KH * RING_K; rx = ry * 1.02
     # ROUND 268 -- THE RING'S COUNTER COLLAPSES AT THE HEAVY END, the same
     # class as the theta's and the phi's (round 267): the radius is on the
     # accent grid (ACC_H, which does not move with weight) and the wall is
@@ -259,15 +301,15 @@ def g_ring(c):
 def g_hungarumlaut(c):
     if ACUTE_OPT == "b":   # 2026-09-28, see ACUTE_OPT: two of the grave's strokes, reflected
         import shapely.affinity as aff
-        one = _mirror(_stroke(line((0, ACC_H), (ACC_W * 0.58, 0)), light=ACC_LIGHT * DA_WT))
-        w = one.area / max(1.0, math.hypot(ACC_W * 0.58, ACC_H))   # the stroke's mean width
-        ang = math.atan2(ACC_H, ACC_W * 0.58)
+        one = _mirror(_stroke(line((0, _KH), (_KW * 0.58, 0)), light=ACC_LIGHT * DA_WT))
+        w = one.area / max(1.0, math.hypot(_KW * 0.58, _KH))   # the stroke's mean width
+        ang = math.atan2(_KH, _KW * 0.58)
         # the two strokes are parallel: their centres a horizontal `dx` apart
         # leave (dx sin(ang) - w) of white between them
         dx = w * (1.0 + DA_WHITE) / math.sin(ang)
         if DA_TW:   # round 450: spread to the references' whole width, never under DA_WHITE of white
             ow = one.bounds[2] - one.bounds[0]
-            dx = max(dx, DA_TW * XH - ow)
+            dx = max(dx, DA_TW * MARK_IT_K * XH - ow)
         return geom.ink([one, aff.translate(one, dx, 0)])
     a = _stroke(line((0, 0), (ACC_W * 0.58, ACC_H)))
     b = _stroke(line((ACC_W * 0.52, 0), (ACC_W * 1.10, ACC_H)))
