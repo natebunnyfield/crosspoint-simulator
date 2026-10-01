@@ -3074,7 +3074,37 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     return;
   }
 
-  const Palette &p = palette();
+  // THE TABLET'S PAPER IS THE PANEL, OUT OF ZEN TOO (owner 2026-09-30, from a
+  // screenshot: "it should just cover the panel, not everything under the top
+  // black rectangle"). The clear above is the field tone, which IS the paper,
+  // and only the zen branch ever painted the surround black -- so outside zen
+  // the margins and the band below the page read as one paper-colored slab.
+  // Everything but the page goes black here, and the pad draws on it with its
+  // existing palette (owner, same day: "on black"). Phone untouched: its
+  // sheet bleeds to the glass by the 2026-08-20 ruling.
+  if (s_isPad && g_zenPanel.w > 0.0f && g_zenPanel.h > 0.0f) {
+    const SDL_FRect &q = g_zenPanel;
+    const float W = static_cast<float>(outW);
+    const float H = static_cast<float>(outH);
+    const float bot = q.y + q.h;
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+    const SDL_FRect rects[] = {
+        {0.0f, q.y, q.x, q.h},                 // left margin
+        {q.x + q.w, q.y, W - (q.x + q.w), q.h},  // right margin
+        {0.0f, bot, W, H - bot},               // below the page
+    };
+    for (const SDL_FRect &rc : rects)
+      if (rc.w > 0.0f && rc.h > 0.0f) SDL_RenderFillRect(r, &rc);
+    paintBottomFillets(r, outW, q, /*intoBlack=*/true);
+  }
+
+  // The face is HOLLOW by design (padpalette: face == field, the paper), which
+  // on the tablet's black surround drew every control as a solid paper block.
+  // Owner 2026-09-30: "don't color the background of buttons weird,
+  // transparent is best" -- so on the tablet the face takes the ground it now
+  // sits on. The pressed wash (faceDown) is untouched.
+  Palette p = palette();
+  if (s_isPad) p.face[0] = p.face[1] = p.face[2] = 0;
   const float S = g_ptScale;
   // 8 pt — the 8 pt grid the pad aligns to. CrossPointKeyboardBar.mm already
   // uses cornerRadius = 8 with that exact comment. 12 pt was the old value;
