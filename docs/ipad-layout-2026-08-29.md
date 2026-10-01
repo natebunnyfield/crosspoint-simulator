@@ -1103,3 +1103,37 @@ capture is pixel-identical to the chosen tile (inset 35, first card row
 "because X" is worse than no rationale, because it survives review — a reader
 checking whether the code matches the ruling finds that it does. The only thing
 that exposed it was a rendered comparison against the owner's actual choice.
+
+## RULING, owner 2026-09-30: outside zen, the paper is the panel and the surround is black
+
+Owner, from a dark-mode screenshot on an iPad: *"it should just cover the
+panel, not everything under the top black rectangle."* Cause: the screen is
+cleared to the pad's field color (`applyPanel` -> `setClearColor`), which is
+the paper by design, and the black side margins and bottom band were painted
+only inside `paintPad`'s `if (g_zen)` branch. Fix: `paintPad`, tablet only,
+outside zen, fills left margin, right margin and everything below the page
+black, and cuts the bottom corners into black (`paintBottomFillets`,
+`intoBlack=true`). Phone unchanged (its sheet bleeds to the glass, 2026-08-20).
+
+Asked whether the pad should keep its colors on black or get colors made for
+black, the owner said **"on black"**, so the pad draws with its existing
+palette.
+
+Verified on an iPad Pro 13 (M5) simulator, iOS 26.5, zen off, LIGHT mode:
+every pixel outside the panel reads (0,0,0) except the pad's capsules, which
+render as paper-tone blocks. Dark mode NOT rendered (the app did not follow
+`simctl ui appearance` mid-run, and `CROSSPOINT_SIM_DARK=1` darkens only the
+page, not the pad palette), so the dark pad on black is UNCONFIRMED.
+Capture trap found on the way: a fresh install ships `zenModeEnabled=true`,
+and editing the container's preferences plist does nothing until cfprefsd is
+restarted (`simctl spawn <udid> launchctl kickstart -k
+system/com.apple.cfprefsd.xpc.daemon`); the boot log's `[zen] seed: pref=`
+line is the confirmation.
+
+Same day, from that render: *"don't color the background of buttons weird,
+transparent is best."* The pad's face is hollow by design (`face == field`,
+the paper), so on black every control rendered as a solid paper block. On the
+tablet `paintPad` now draws with a palette copy whose `face` is black, the
+ground it sits on, so a control reads as outline and tick only; the keyboard
+chip takes the same palette. The pressed wash (`faceDown`) is unchanged.
+Verified light mode on the same simulator.
