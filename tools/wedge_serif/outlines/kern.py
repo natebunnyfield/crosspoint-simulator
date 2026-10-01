@@ -933,14 +933,16 @@ if _B2 is not None and __import__("os").environ.get("ALBO_FENCES", "1") != "0":
 # instruments/pair_gap2d.py; added on top of whatever the pair already carries.
 # A bearing could not do it: -30 on the r's right closed the vowels and jammed
 # the stems (ri 50 -> 24).
-RSNIP_HOLDS = []   # (left, right, delta) as applied above; apply() extends them to the composites
+# The accented composites (ŕ ř ŗ on the left, é á ó ... on the right) are NOT
+# given the delta here: since round 449 every composite pair inherits its base
+# pair's FINAL value in apply() (`_extend_composites`), and that value already
+# carries the delta once.
 if _B2 is not None:
     from . import pen as _pen_rs
     _cutr = (("Bold" if _pen_rs.S > 84.0 else "") + ("Italic" if (_ALD is not None and _ALD.ON) else "")) or "Regular"
     for _k, _d in sorted(_B2_ALL.get("rsnip", {}).get(_cutr, {}).items()):
         _l, _r = _k.split(" ")
         PAIRS[(_l, _r)] = PAIRS.get((_l, _r), _shipped(_l, _r)) + _d
-        RSNIP_HOLDS.append((_l, _r, _d))
 
 # ROUND 402 -- CLEARANCE, MEASURED PER CUT (local_ai/clearance.py). After a B2
 # refit, every pair cmp_touch finds under its 0.012 em floor in a built cut gets
@@ -1012,30 +1014,73 @@ def feature_text():
                      '} liga;')
     return '\n'.join(lines) + '\n'
 
-def _extend_holds(font):
-    """ROUND 442 (the second adversarial review): the rsnip holds are exact glyph
-    pairs, and an exact pair reaches neither the follower's accented composites
-    (r e held, r eacute not: Bold Italic re +8 units against round 441) nor the r's
-    own composites on the left (racute rcaron uni0157). A composite IS its base
-    plus a mark, so each hold is given to every (left-composite, right-composite)
-    of its pair, by Unicode decomposition over the font's own cmap -- what a
-    kerning class would do. Added on top of whatever the pair already carries,
-    once per process."""
-    if getattr(_extend_holds, "done", False) or not RSNIP_HOLDS: return
+# ROUND 449 -- EVERY ACCENTED LETTER KERNS AS ITS BASE DOES. Owner 2026-09-30:
+# *"fix all accented letters"*, in all four cuts, on both sides. The classes and
+# the exact pairs above name BASE glyphs only, so a composite -- its base plus a
+# mark, with its base's sidebearings -- took none of its base's kerning: WA -216
+# against WÁ 0; 2,010 of the Regular's 2,632 kerned base pairs had an accented
+# form 10 units or more off; some 5-6k letter pairs in his own books, mostly
+# Spanish (ía ué rá). Round 442's `_extend_holds` reached the composites with
+# the r's rsnip DELTAS only, so the Italic's ř. carried -8 where r. carries -90.
+#
+# Per font, from its own cmap: a COMPOSITE is an encoded glyph whose NFD starts
+# with a DIFFERENT character that is a LETTER the font also encodes. í is i's
+# (i + U+0301, though it is drawn on the dotless i); ≠ is nobody's.
+#   * CLASSES: a composite joins its base's class on each side, unless that side
+#     already names it. Never a second class on one side: feaLib does not refuse
+#     one, it opens a second class subtable, and HarfBuzz stops at the first
+#     subtable that covers the FIRST glyph -- measured (fontTools 4.64, uharfbuzz
+#     0.56), a pair defined only in the second subtable shaped 0.
+#   * EXACT PAIRS: every exact pair's FINAL value -- after the B2 kerns, holds,
+#     fences, clearance and the rsnip holds above -- goes to every combination of
+#     the two glyphs' composites that is not already set. An explicit composite
+#     pair is a ruling and stays.
+# The rsnip deltas are therefore counted once: they are in the base pair's value,
+# and nothing adds them again. Base pairs are not touched; only composite pairs
+# are written.
+
+def _composite_family(font):
+    """{base glyph: [its composites]} over the font's own cmap, by Unicode NFD."""
     import unicodedata
-    cmap = font.getBestCmap(); byname = {}
-    for cp, g in cmap.items(): byname.setdefault(g, cp)
-    fam = {}
-    for cp, g in cmap.items():
-        base = unicodedata.normalize("NFD", chr(cp))[0]
-        if base != chr(cp) and ord(base) in cmap:
-            fam.setdefault(cmap[ord(base)], set()).add(g)
-    for l, r, d in RSNIP_HOLDS:
-        for l2 in {l} | fam.get(l, set()):
-            for r2 in {r} | fam.get(r, set()):
-                if (l2, r2) == (l, r): continue
-                PAIRS[(l2, r2)] = PAIRS.get((l2, r2), _shipped(l2, r2)) + d
-    _extend_holds.done = True
+    cmap = font.getBestCmap(); fam = {}
+    for cp, g in sorted(cmap.items()):
+        ch = chr(cp); base = unicodedata.normalize("NFD", ch)[0]
+        if base != ch and base.isalpha() and ord(base) in cmap and cmap[ord(base)] != g:
+            fam.setdefault(cmap[ord(base)], []).append(g)
+    return fam
+
+def _extend_composites(font):
+    """Round 449: give every composite its base's class membership and exact
+    pairs (above). Once per process -- the second call would find every
+    composite pair already set and keep it, so it is idempotent, but a font
+    with a different cmap must not graft its composites onto the first."""
+    if getattr(_extend_composites, "done", False): return
+    fam = _composite_family(font)
+    base_of = {c: b for b, cs in fam.items() for c in cs}
+    for side in (LEFT, RIGHT):
+        named = {g for gs in side.values() for g in gs}
+        for k in list(side):
+            joins = [c for b in side[k] for c in fam.get(b, ()) if c not in named]
+            side[k] = side[k] + joins
+            named.update(joins)
+    explicit = {p for p in PAIRS if p[0] in base_of or p[1] in base_of}
+    for (l, r), v in list(PAIRS.items()):
+        if l in base_of or r in base_of: continue      # an explicit composite pair: a ruling, not a base
+        for l2 in [l] + fam.get(l, []):
+            for r2 in [r] + fam.get(r, []):
+                if (l2, r2) != (l, r) and (l2, r2) not in explicit:
+                    PAIRS[(l2, r2)] = v
+    # The accented pairs' CLEARANCE (local_ai/clearance.py --composites, which
+    # reads cmp_touch.py --composites): where an inherited kern lets the accent
+    # meet its neighbor (Tä, Yë, Ïl), the kern that lifts the pair to 0.015 em.
+    # Applied HERE, after the inheritance, so each value is a delta on what the
+    # composite pair inherited -- `_shipped` now finds the composite in its
+    # base's class or in the copied exact pairs.
+    if _B2 is not None:
+        for _k, _d in sorted(_B2_ALL.get("clearance_composite", {}).get(_cut, {}).items()):
+            _l, _r = _k.split(" ")
+            PAIRS[(_l, _r)] = _shipped(_l, _r) + _d
+    _extend_composites.done = True
 
 def apply(path, out=None):
     """Write the kern feature into the TTF at `path` (a fresh GPOS; any
@@ -1043,7 +1088,7 @@ def apply(path, out=None):
     font = TTFont(path)
     for t in ('GPOS', 'GDEF', 'GSUB'):
         if t in font: del font[t]
-    _extend_holds(font)
+    _extend_composites(font)
     names = set(font.getGlyphOrder())
     for cls in list(LEFT.values()) + list(RIGHT.values()):
         missing = [g for g in cls if g not in names]

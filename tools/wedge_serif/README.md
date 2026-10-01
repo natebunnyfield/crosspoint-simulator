@@ -211,6 +211,7 @@ bash instruments/poor_gates.sh $BASE $R "Regular Italic Bold BoldItalic"   # POO
 ./gates.sh                                                                  # GATES UNCHANGED
 python3 approved.py --check
 (cd local_ai && $VENV/bin/python clearance.py $R)   # a kern added here -> rebuild R before shipping
+(cd local_ai && $VENV/bin/python clearance.py $R --composites)   # the accented pairs (round 449): iterate build -> this until it adds 0
 python3 gen_state.py                                # docs/albo-STATE.md; commit it with the round
 # 2. commit the round (docs/albo-round-NNN-<date>.md + code + STATE), then the fonts:
 cd ~/src/crosspoint-reader

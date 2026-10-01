@@ -42,6 +42,10 @@ for st in Regular Italic; do
   echo "hairs.letters.$st  $(PYTHON_GIL=0 python3 cmp_contour_hairs.py "$F" --letters 2>/dev/null | rows)" >>"$REP"
   echo "hairs.all.$st      $(PYTHON_GIL=0 python3 cmp_contour_hairs.py "$F" 2>/dev/null | rows)" >>"$REP"
   echo "touch.$st          $(PYTHON_GIL=0 python3 cmp_touch.py "$F" 2>/dev/null | grep -oE '[0-9]+ pair\(s\) TOUCHING, [0-9]+ below' | head -1)" >>"$REP"
+  # the ACCENTED pairs (round 449's sweep): every pair with an accented letter on either
+  # side, the accent at fault -- the default sweep above never sees them, so a redrawn mark
+  # or a moved accent could touch its neighbor under GATES UNCHANGED (round 452's review, F3)
+  echo "touch.composites.$st $(PYTHON_GIL=0 python3 cmp_touch.py "$F" --composites 2>/dev/null | grep -oE '[0-9]+ pair\(s\) TOUCHING, [0-9]+ below' | head -1)" >>"$REP"
 done
 sed -i '' -E 's/[[:space:]]+$//' "$REP" 2>/dev/null || sed -i -E 's/[[:space:]]+$//' "$REP"
 
@@ -87,6 +91,12 @@ EHINT_OUT="$(PYTHON_GIL=0 python3 etrace/e_hint_gate.py "$OUT/Albo-Regular.ttf" 
 EHINT_RC=$?
 echo "e mouth (unhinted, as the reader renders): $EHINT_OUT"
 
+# Every OGONEK touches its letter (round 452): the traced mark is hung by a search over
+# shifts, and a redrawn foot can leave it floating. Hard: any gap fails the run.
+JOIN_OUT="$(PYTHON_GIL=0 python3 instruments/ogonek_join.py "$OUT" 2>/dev/null)"
+JOIN_RC=$?
+echo "ogonek joins:"; echo "$JOIN_OUT"
+
 if [ "$ACCEPT" = "1" ]; then
   cp "$REP" "$BASE"; echo "baseline written to $BASE:"; cat "$BASE"; exit 0
 fi
@@ -105,6 +115,10 @@ if diff -u "$BASE" "$REP" >"$OUT/diff"; then
     echo "GATES unchanged, but the roman e falls in an AUTOHINTER WINDOW (above):"
     echo "its mouth inks at small sizes and machine readers take it for o."
     echo "Move the e's outline off the window (round 400: ALBO_ROM_E_BAR_TOP)."; exit 1
+  fi
+  if [ "$JOIN_RC" != "0" ]; then
+    echo "GATES unchanged, but an OGONEK no longer touches its letter (above)."
+    echo "Check the foot it hangs from: python3 instruments/ogonek_join.py <dir> --zoom out.png"; exit 1
   fi
   if [ "$CONTOUR_RC" != "0" ]; then
     echo "GATES unchanged, but a glyph's CONTOUR COUNT moved (above), which"

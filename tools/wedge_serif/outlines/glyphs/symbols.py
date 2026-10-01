@@ -34,7 +34,7 @@ import math, os
 from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line, superellipse
-from ..primitives import stroke, pen_widths, widths, dot, ring, bar, stem, diagonal
+from ..primitives import stroke, pen_widths, widths, dot, ring, bar, stem, diagonal, miter_chevron
 from ..pen import S, XH, CAP, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K
 from .stems import DOT_R
 
@@ -310,8 +310,7 @@ def _guillemet(c, left, single=False):
         apex = (x0, MID) if left else (x0 + w, MID)
         a = (x0 + w, MID + h / 2) if left else (x0, MID + h / 2)
         b = (x0 + w, MID - h / 2) if left else (x0, MID - h / 2)
-        parts.append(_s(line(a, apex), w=sw, cut1=None))
-        parts.append(_s(line(apex, b), w=sw, cut0=None))
+        parts.append(miter_chevron(a, apex, b, sw, sw, cut_a=CUT, cut_b=CUT))   # round 451: one mitered polygon, not two square ends ("chevron glitches")
     return geom.ink(parts)
 
 GUIL_PEN_ABOVE = 84.0   # the 400s (stem 66.9) keep the construction above, byte for byte
@@ -711,7 +710,7 @@ def _rel(c, eq_below=True, gt=False):
     apex = (w, cy) if gt else (0, cy)
     a = (0, cy + h) if gt else (w, cy + h)
     b = (0, cy - h) if gt else (w, cy - h)
-    parts = [_s(line(a, apex), w=MATH * 0.95, cut1=None), _s(line(apex, b), w=MATH * 0.95, cut0=None)]
+    parts = [miter_chevron(a, apex, b, MATH * 0.95, MATH * 0.95, cut_a=CUT, cut_b=CUT)]   # round 451
     parts.append(bar(0, w, MID - XH * 0.36, MATH))
     return geom.ink(parts)
 @glyph('≤')
@@ -721,13 +720,11 @@ def g_greaterequal(c): return _rel(c, gt=True)
 @glyph('<')
 def g_less(c):
     w = XH * 0.74; h = XH * 0.34
-    return geom.ink([_s(line((w, MID + h), (0, MID)), w=MATH * 0.95, cut1=None),
-                     _s(line((0, MID), (w, MID - h)), w=MATH * 0.95, cut0=None)])
+    return miter_chevron((w, MID + h), (0, MID), (w, MID - h), MATH * 0.95, MATH * 0.95, cut_a=CUT, cut_b=CUT)   # round 451
 @glyph('>')
 def g_greater(c):
     w = XH * 0.74; h = XH * 0.34
-    return geom.ink([_s(line((0, MID + h), (w, MID)), w=MATH * 0.95, cut1=None),
-                     _s(line((w, MID), (0, MID - h)), w=MATH * 0.95, cut0=None)])
+    return miter_chevron((0, MID + h), (w, MID), (0, MID - h), MATH * 0.95, MATH * 0.95, cut_a=CUT, cut_b=CUT)   # round 451
 @glyph('~')
 def g_asciitilde(c):
     w = XH * 0.86
@@ -736,8 +733,7 @@ def g_asciitilde(c):
 @glyph('^')
 def g_asciicircum(c):
     w = XH * 0.62; y0 = XH * 0.42
-    return geom.ink([_s(line((0, y0), (w / 2, y0 + XH * 0.46)), w=MATH * 0.95, cut1=None),
-                     _s(line((w / 2, y0 + XH * 0.46), (w, y0)), w=MATH * 0.95, cut0=None)])
+    return miter_chevron((0, y0), (w / 2, y0 + XH * 0.46), (w, y0), MATH * 0.95, MATH * 0.95, cut_a=CUT, cut_b=CUT)   # round 451
 @glyph('∞')      # infinity
 def g_infinity(c):
     r = XH * 0.24

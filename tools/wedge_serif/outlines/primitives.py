@@ -121,6 +121,42 @@ def stroke(center, width, cut0=None, cut1=None, raw=False, pieces=False, sides=F
     solid = geom.poly(L + R[::-1])
     return (solid, L, R) if sides else solid
 
+def miter_chevron(a, p, b, w1, w2, cut_a=None, cut_b=None):
+    """ROUND 451 -- TWO STRAIGHT ARMS a -> p -> b AS ONE POLYGON, MITERED AT p.
+    Owner 2026-09-30: *"also fix chevron glitches"*. The circumflex, the caron,
+    the 400s' guillemets and < > <= >= ^ were two `stroke`s unioned at the
+    point, each ending SQUARE there: the two square ends overlapped at an angle
+    and left a stepped notch on the outer corner and a spur beside it -- worst
+    at the bold weights, where a circumflex read as a broken hat. Here each
+    arm's two edges are offset lines (width w1 on a->p, w2 on p->b), the outer
+    edges meet at the miter point and the inner edges at the crotch, and the
+    free ends are cut as `stroke` cuts them (cut_a / cut_b, radians; None =
+    square). Arms of different widths -- the pen's thick and thin -- miter
+    cleanly too."""
+    import shapely.geometry as _sg
+    def _u(u, v):
+        L = math.hypot(v[0] - u[0], v[1] - u[1]) or 1.0
+        return ((v[0] - u[0]) / L, (v[1] - u[1]) / L)
+    d1 = _u(a, p); d2 = _u(p, b)
+    n1 = (-d1[1], d1[0]); n2 = (-d2[1], d2[0])
+    off = lambda q, n, w, s: (q[0] + n[0] * w / 2 * s, q[1] + n[1] * w / 2 * s)
+    def _x(p1, e1, p2, e2):
+        den = e1[0] * e2[1] - e1[1] * e2[0]
+        if abs(den) < 1e-9: return p2
+        t = ((p2[0] - p1[0]) * e2[1] - (p2[1] - p1[1]) * e2[0]) / den
+        return (p1[0] + t * e1[0], p1[1] + t * e1[1])
+    La, Ra = off(a, n1, w1, +1), off(a, n1, w1, -1)
+    Lb, Rb = off(b, n2, w2, +1), off(b, n2, w2, -1)
+    ML = _x(La, d1, off(p, n2, w2, +1), d2)
+    MR = _x(Ra, d1, off(p, n2, w2, -1), d2)
+    if cut_a is not None:
+        dd = math.tan(cut_a) * w1 / 2
+        La = (La[0] + d1[0] * dd, La[1] + d1[1] * dd); Ra = (Ra[0] - d1[0] * dd, Ra[1] - d1[1] * dd)
+    if cut_b is not None:
+        dd = -math.tan(cut_b) * w2 / 2
+        Lb = (Lb[0] + d2[0] * dd, Lb[1] + d2[1] * dd); Rb = (Rb[0] - d2[0] * dd, Rb[1] - d2[1] * dd)
+    return _sg.Polygon([La, ML, Lb, Rb, MR, Ra]).buffer(0)
+
 def edge_stroke(outer, width, side=1, cut0=None, cut1=None):
     """A stroke drawn from its OUTER edge (the silhouette the designer
     draws) and a declared width toward `side` (+1 = left of travel, -1 =

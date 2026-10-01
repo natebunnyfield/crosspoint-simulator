@@ -85,6 +85,7 @@ for _ch, _b in [('\u010f','d'),('\u0165','t'),('\u013e','l')]:
 for _ch, _b in [('\u0219','s'),('\u021b','t'),('\u0218','S'),('\u021a','T')]:
     ACCENTED[_ch] = (_b, "\u0326", 'below')
 
+
 # ROUND 379 -- THE GREEK THAT IS THE LATIN LETTER. Owner 2026-09-24 ("yes to
 # all", round 374's item a): fourteen Greek capitals and the omicron ARE the
 # Latin letter, and the reference Greek fonts build them as the Latin glyph.
@@ -153,6 +154,92 @@ ACC_BAND = {'\u0237'}
 
 ACC_GAP_LC = 0.10 * pen.XH      # the mark's foot over the x-height
 ACC_GAP_CAP = 0.055 * pen.XH
+# ROUND 450 -- WHERE EACH MARK SITS (owner 2026-09-30: "resize accents to fit
+# rest and center the marks"; instruments/acc_fit.py, docs/albo-round-450-
+# 2026-09-30.md). Read off the references' own letters, per x-height:
+#   * THE OBLIQUES ARE NOT CENTRED ON THEIR BOX. Every reference sets the acute
+#     right of the letter's centre and the grave left of it -- acute +0.057,
+#     grave -0.050 (roman medians; italic +0.056 / -0.054, bold +0.066 /
+#     -0.075) -- and the double acute further right (+0.08 to +0.14): the eye
+#     reads an oblique stroke by its lower end, the one nearest the letter.
+#     Albo centred every box (0.000), so its acute read left and its grave
+#     right of every reference's.
+#   * THE GAP depends on the mark. A stroke mark sits 0.11 of the x-height over
+#     its letter in the references (Albo 0.10); a flat or round one sits
+#     higher -- dieresis and dot 0.20, tilde 0.18, macron 0.25, breve 0.13 --
+#     and every mark sits higher over a CAPITAL than Albo's 0.055 (references
+#     0.10-0.19, about 0.85 of their lowercase gap).
+#   * THE OGONEK hangs from the letter's right foot (Pagella, Georgia, Times:
+#     a +0.20, e +0.15, u +0.30 of the x-height right of centre); Albo centred
+#     it. In the italic, a mark below follows the slant down, as the marks
+#     above follow it up (round 440): Albo's italic cedilla read +0.16 of the
+#     x-height right of the slanted axis, the references 0.00.
+_AF = int(os.environ.get("ALBO_ACC_FIT", 1))   # the same switch accents.py reads; 0 = round 449's marks and placement
+MARK_DX = {'\u00b4': +0.06, '\u0060': -0.06, '\u02dd': +0.08} if _AF else {}       # x XH; + = right
+# ROUND 452: the italic's own -- the six italic references' medians on their stem-and-
+# slope axis: acute +0.075, grave -0.086, double acute +0.045 (acc_center_it.py)
+MARK_DX_IT = {'\u00b4': +0.06, '\u0060': -0.08, '\u02dd': +0.05} if _AF else {}
+# round 452, review F1 ("aquí?" in the italic): the acute's offset over the i ALONE, as an
+# option for the owner. Unset = MARK_DX_IT's +0.06; 0 = centered on the i's stem (Georgia)
+_ACUTE_I = os.environ.get("ALBO_ACUTE_I_DX")
+ACUTE_I_DX = float(_ACUTE_I) if _ACUTE_I not in (None, "") else None
+STEM_CENTER = int(os.environ.get("ALBO_STEM_CENTER", 1))
+# where the stems are read: just below where the mark sits, before an arch or a
+# bowl's top closes -- the y's arms near their tops, not at mid-height where a V's
+# arms converge (read at 0.5, the italic y's acute landed 0.23 of the x-height off
+# its opening); a short carry up the slope is also the least sensitive to it
+STEM_AT = float(os.environ.get("ALBO_STEM_AT", 0.75))
+ACC_BASES = set(); ACC_MARKS = set()      # filled from ACCENTED below
+
+STEM_ONLY_R = set('r')            # round 452: one stem and an arm -- the stem and the arm's root
+# round 452: NO STEMS -- the box is the axis. The z (a scrap of its top and its diagonal), and
+# the c s C S G, whose second run at STEM_AT is a TERMINAL grazing the band, not a stem: in the
+# Bold Italic those terminal slivers (12-28 units) made c/s/C/S take a different branch from the
+# Italic's and set the s-acute +0.11 against the references' +0.04..+0.07 (adversarial review F4).
+# A width threshold cannot tell them apart from a real hairline (the italic X's is 15 units).
+BOX_ONLY_Z = set('zZcCsSG')
+def stem_axis(base, runs, box_cx, box_w):
+    """The letter's axis from its ink runs at STEM_AT of its height (round 452), and whether it fell back
+    to the BOX: a sheared letter's box centre is its centre at MID-height, not at the runs'
+    height, so the caller carries a box axis up the slope from there (it was carried from
+    0.75 of the height, which set the mark on c, z and their kin 0.06 x-height left).
+    Two letters the runs misread, measured against five italic references (the top-band
+    instrument, instruments/acc_center_it.py): the r's arm and its terminal are runs too, so
+    the outer midpoint sat out over the arm (r-caron +0.09 against the references' -0.09 to
+    +0.03, median -0.06) while the stem alone sat left of every one of them (-0.18); the stem
+    and the arm's root, the first two runs, is where the r's top is and where they set it
+    (-0.07, Bold Italic -0.03). The z has no stems at all (a scrap of its top and its
+    diagonal; z-caron -0.14 against -0.10 to +0.04) -- its axis is its box."""
+    if base in STEM_ONLY_R and runs:
+        # the stem and the arm's root -- the next run only when it ADJOINS the stem; a far
+        # run is the arm's terminal, and taking it when stem and root merge into one run
+        # threw the axis 80 units right (review F4)
+        r0 = runs[0]; adj = [r for r in runs[1:] if r[0] - r0[1] < 0.15 * pen.XH]
+        r_ = [r0] + adj[:1]
+        return sum((a + b) / 2 for a, b in r_) / len(r_), False
+    if base in BOX_ONLY_Z:
+        return box_cx, True
+    if len(runs) >= 2:
+        return ((runs[0][0] + runs[0][1]) / 2 + (runs[-1][0] + runs[-1][1]) / 2) / 2, False
+    if len(runs) == 1:
+        r0, r1 = runs[0]
+        if base in set('cC') or (r1 - r0 < 0.45 * box_w and base not in set('il\u0131\u0237rIJLTY')):
+            return box_cx, True    # a lone side (the c's back): the box
+        return (r0 + r1) / 2, False
+    return box_cx, True
+for _ch_, _v_ in ACCENTED.items():
+    if _v_[2] in ('above',):
+        ACC_BASES.add(_v_[0]); ACC_MARKS.add(_v_[1])
+MARK_GAP = ({'\u00a8': 0.18, '\u02d9': 0.18, '\u02dc': 0.16, '\u00af': 0.20, '\u02d8': 0.13} if _AF else {})
+ACC_GAP_STROKE = (0.11 if _AF else 0.10) * pen.XH
+CAP_GAP_K = 0.85 if _AF else None    # a capital's gap, x the mark's lowercase gap -- the flat and round marks
+CAP_GAP_STROKE_K = 1.0               # the stroke marks: the references' capital gap equals their lowercase one (0.96-1.03)
+OGO_IN = float(os.environ.get("ALBO_OGO_IN", 0.15))   # round 451: the hooked ogonek's attach, x xh inside the rightmost foot ink
+OGO_BASES = set("aeiuAEIU")      # the letters an ogonek hangs from
+ACC_TOP_MAX = 1015               # round 451: no accented letter above the reader's declared ascent (sd-fonts.yaml metrics, ascent 1023)
+OGO_OVERLAP = float(os.environ.get("ALBO_OGO_OVERLAP", 0.03))   # how far it reaches up into the foot, x xh
+OGO_TRACED = bool(os.environ.get("ALBO_OGO_TRACE", "pagella" if _AF else ""))   # round 452: the same switch accents.py reads
+OGO_TROOT = float(os.environ.get("ALBO_OGO_TROOT", 0.0))   # round 452: the traced root's cut above its baseline, x xh (accents.py reads the same)
 S_GAP_RIGHT = 0.10 * pen.S     # the apostrophe-caron's gap off the letter's right ink    # tighter over a capital: the eye reads the cap line as the ceiling
 
 LIGS = list("\ufb00\ufb01\ufb02\ufb03\ufb04") if os.environ.get("ALBO_LIGS") == "1" else []   # round 96: drawn; round 96b (owner): "no to ligatures for now" -- opt-in only
@@ -1202,6 +1289,12 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     glyphs, metrics, report = {}, {}, {}
     ink, advances = {}, {}      # round 99: per-char ink bbox and advance, for the accent composites
     inkband = {}                # round 392: ACC_BAND's stem-top extent
+    inktop = {}                 # round 451: the hooked ogonek's attach point
+    footgeom = {}               # round 452: each ogonek base's foot underside, (x0, lowest ink y per unit column)
+    markup = {}                 # round 452: the traced ogonek's top edge (its cut), as an x-range
+    footruns = {}               # round 451: each ogonek base's ink runs at the foot
+    stemruns = {}               # round 452: each accent base's ink runs at STEM_AT of its height (its stems)
+    markcen = {}                # round 452: each mark's ink centroid
     for ch in CHARS:
         c = ctx(ch, W)
         if ch in GLYPHS and (only is None or ch in only):
@@ -1266,6 +1359,61 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             if ch in ACC_BAND:
                 bxs = [x for pts, _ in conts for x, y in pts if pen.XH * 0.6 <= y <= pen.XH + pen.OVER]
                 if bxs: inkband[ch] = (min(bxs) + dx, max(bxs) + dx)
+            if _AF and STEM_CENTER and (ch in ACC_BASES or ch in ACC_MARKS):
+                # ROUND 452: the ink runs at STEM_AT of the letter's height (stems, bowl sides)
+                # for the stem rule below, and each mark's own ink centroid
+                import shapely.geometry as _sgs
+                _gs = None
+                for _pts, _hole in conts:
+                    if len(_pts) < 3: continue
+                    _q = _sgs.Polygon(_pts).buffer(0)
+                    _gs = _q if _gs is None else (_gs.difference(_q) if _hole else _gs.union(_q))
+                if _gs is not None and not _gs.is_empty:
+                    if ch in ACC_MARKS:
+                        markcen[ch] = (_gs.centroid.x + dx, _gs.centroid.y)
+                    if ch in ACC_BASES:
+                        _h = C if ch.isupper() else pen.XH
+                        def _runs(_ym):
+                            _band = _gs.intersection(_sgs.box(-1e4, _ym - 0.02 * pen.XH, 1e4, _ym + 0.02 * pen.XH))
+                            _parts = [_band] if _band.geom_type == 'Polygon' else list(getattr(_band, 'geoms', []))
+                            return sorted((p_.bounds[0] + dx, p_.bounds[2] + dx) for p_ in _parts if p_.area > 1)
+                        stemruns[ch] = (STEM_AT * _h, _runs(STEM_AT * _h))
+            if ch in OGO_BASES:      # round 451: the foot's ink runs, where the ogonek may hang
+                import shapely.geometry as _sgf
+                _g = None
+                for _pts, _hole in conts:
+                    if len(_pts) < 3: continue
+                    _q = _sgf.Polygon(_pts).buffer(0)
+                    _g = _q if _g is None else (_g.difference(_q) if _hole else _g.union(_q))
+                if _g is not None:
+                    _band = _g.intersection(_sgf.box(-1e4, -pen.OVER - 4, 1e4, 0.05 * pen.XH))
+                    _parts = [_band] if _band.geom_type == 'Polygon' else list(getattr(_band, 'geoms', []))
+                    footruns[ch] = sorted((p.bounds[0] + dx, p.bounds[2] + dx) for p in _parts if p.area > 1)
+                    if OGO_TRACED:      # round 452: the foot's bottom profile, per unit column, for the placement below
+                        _fg = _g.intersection(_sgf.box(-1e4, -pen.OVER - 4, 1e4, 0.10 * pen.XH))
+                        if not _fg.is_empty:
+                            _fx0, _fx1 = int(_fg.bounds[0]) - 1, int(_fg.bounds[2]) + 2
+                            _prof = []
+                            for _x in range(_fx0, _fx1):
+                                _c = _fg.intersection(_sgf.box(_x, -1e4, _x + 1, 1e4))
+                                _prof.append(_c.bounds[1] if not _c.is_empty and _c.area > 0.05 else float('inf'))
+                            footgeom[ch] = (_fx0 + dx, _prof)
+            if ch == '\u02db':      # round 451: the hooked ogonek's ATTACH point, the middle of its top
+                _ty = max(y for pts, _ in conts for x, y in pts)
+                _tx = [x for pts, _ in conts for x, y in pts if y >= _ty - 0.05 * pen.XH]
+                inktop[ch] = sum(_tx) / len(_tx) + dx
+                if OGO_TRACED:      # round 452: the traced ogonek hangs by its ROOT, its ink at its own baseline
+                    import shapely.geometry as _sgo
+                    _g = None
+                    for _pts, _hole in conts:
+                        if len(_pts) < 3: continue
+                        _q = _sgo.Polygon(_pts).buffer(0)
+                        _g = _q if _g is None else (_g.difference(_q) if _hole else _g.union(_q))
+                    _b = _g.intersection(_sgo.box(-1e4, -0.01 * pen.XH, 1e4, 0.01 * pen.XH))
+                    if not _b.is_empty:
+                        inktop[ch] = (_b.bounds[0] + _b.bounds[2]) / 2 + dx
+                    _tb = _g.intersection(_sgo.box(-1e4, _ty - 0.5, 1e4, _ty + 1)).bounds
+                    markup[ch] = (_tb[0] + dx, _tb[2] + dx)      # its top edge, the cut, as an x-range
         advances[ch] = adv
         glyphs[gname(ch)] = _despur(pen_.glyph()); metrics[gname(ch)] = (int(round(adv)), int(round(lsb_ink)))
     # ------------------------------------------------ round 99: the composites
@@ -1290,8 +1438,21 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             dx = (bx0 + bx1) / 2 - (mx0 + mx1) / 2
             if base in inkband: dx = sum(inkband[base]) / 2 - (mx0 + mx1) / 2
             dx += ACC_OPTICAL.get(base, 0.0) * pen.XH * ACC_OPTICAL_ON
+            dx += MARK_DX.get(mark, 0.0) * pen.XH
             top = max(by1, C if isCap else pen.XH)
-            dy = top + (ACC_GAP_CAP if isCap else ACC_GAP_LC) - my0
+            if CAP_GAP_K is None:
+                gap = ACC_GAP_CAP if isCap else ACC_GAP_LC
+            else:
+                gap = MARK_GAP.get(mark, 0.0) * pen.XH or ACC_GAP_STROKE
+                if isCap: gap *= (CAP_GAP_K if mark in MARK_GAP else CAP_GAP_STROKE_K)
+            dy = top + gap - my0
+            if _AF and dy + my1 > ACC_TOP_MAX:
+                # ROUND 451 (round 450's review): the reader lays lines out on the
+                # ascent sd-fonts.yaml declares for Albo (1023), and the larger marks
+                # took the bold h-circumflex to 1024 / 1038 and the Bold Italic
+                # l-acute to 1025. Over an ascender the mark comes down to fit, never
+                # nearer the letter than 0.03 of the x-height.
+                dy = max(dy - (dy + my1 - ACC_TOP_MAX), top + 0.03 * pen.XH - my0)
             # ROUND 440 -- ON A SLANTED LETTER THE MARK FOLLOWS THE SLANT (owner:
             # "center the accents on letters optically more, they seem too far to
             # the left"). The mark was centred on the italic letter's whole ink box,
@@ -1304,6 +1465,28 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
                 cy_ref = (by0 + by1) / 2 if base not in inkband else (pen.XH * 0.6 + pen.XH + pen.OVER) / 2
                 cy_mark = dy + (my0 + my1) / 2
                 dx += pen.SHEAR * (cy_mark - cy_ref) * ACC_SLANT
+            # ROUND 452 -- CENTRED ON THE STEMS (owner: "italic marks are not
+            # centered", then "center marks according to stems"). A letter's axis
+            # is read off its STEMS: the ink runs in a thin band at STEM_AT (0.75) of
+            # its height (x-height, or cap height for a capital) -- the midpoint
+            # between the outer two (n u m a o y A O U N ...), or the one run when
+            # there is one stem (i j l I T L); the box where a single run is a lone
+            # side, and always for the letters with no stems (BOX_ONLY_Z); the r
+            # takes its stem and its arm's root (stem_axis). In the italic the axis
+            # is carried up the slope from that height (a box axis from the box's
+            # mid-height) to the mark's own centroid, and the mark is placed by its
+            # INK CENTROID: measured against six italic references
+            # (instruments/acc_center_it.py) the box rule left the circumflex
+            # +0.085 of the x-height right, the dot +0.057, the breve -0.088.
+            if _AF and STEM_CENTER and pen.SHEAR and base in stemruns and mark in markcen:   # the italics (the roman's box rule already sat with its references)
+                ym, runs = stemruns[base]
+                ax, _frombox = stem_axis(base, runs, (bx0 + bx1) / 2, bx1 - bx0)
+                mcx, mcy = markcen[mark]
+                cy = dy + mcy
+                ax += pen.SHEAR * (cy - ((by0 + by1) / 2 if _frombox else ym))
+                _k = MARK_DX_IT.get(mark, 0.0)
+                if ACUTE_I_DX is not None and mark == '\u00b4' and base in ('i', '\u0131'): _k = ACUTE_I_DX
+                dx = ax - mcx + _k * pen.XH
         elif kind == 'below':
             dx = (bx0 + bx1) / 2 - (mx0 + mx1) / 2
             dy = -my1            # the mark's own top to the baseline (it is drawn hanging from 0)
@@ -1314,6 +1497,63 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             # Romanian reader must be able to tell apart. The cedilla and the
             # ogonek attach by design and are untouched.
             if mark == "\u0326": dy -= pen.OVER + pen.S * 0.30
+            if _AF and mark == "\u02db" and mark in inktop:      # (ALBO_ACC_FIT=0 is round 449's placement: the box below)
+                # ROUND 451: the hooked ogonek hangs by its ATTACH point -- from the
+                # stem's middle on i and I, from OGO_IN of the x-height inside the
+                # rightmost foot ink elsewhere -- and reaches OGO_OVERLAP up into
+                # the foot. Measured at the foot itself, so the italic needs no
+                # slope correction.
+                # ON THE FOOT'S OWN INK (round 451, from the review: the first rule
+                # hung it from a point OGO_IN inside the rightmost foot ink, which on
+                # the italic a, i and U fell past the foot and left the hook floating
+                # 2-11 units off its letter). The foot runs are the base's ink in a
+                # thin band at the baseline: the stem's on i and I, the rightmost
+                # elsewhere; a narrow run takes the hook at its middle, a wide one
+                # (an arm, a bowl's bottom) OGO_IN of the x-height in from its end.
+                runs = footruns.get(base) or [(bx0, bx1)]
+                if base in ('i', 'I', '\u0131'):
+                    cxb = (bx0 + bx1) / 2
+                    r0, r1 = min(runs, key=lambda r: abs((r[0] + r[1]) / 2 - cxb))
+                else:
+                    r0, r1 = runs[-1]
+                tx = (r0 + r1) / 2 if r1 - r0 <= 0.30 * pen.XH else r1 - OGO_IN * pen.XH
+                dx = tx - inktop[mark]
+                dy = -my1 + (OGO_TROOT if OGO_TRACED else OGO_OVERLAP) * pen.XH
+                if OGO_TRACED and base in footgeom and mark in markup:
+                    # ROUND 452: THE LETTER LIES OVER THE MARK'S WHOLE TOP EDGE. The traced root
+                    # is cut flat at the stroke's own angle, so its top edge is wider than the
+                    # stroke, and a letter's foot is not always flat on the line: the A's leg is
+                    # cut obliquely, the italic a's exit lifts off it, and the Italic a's stem
+                    # bottoms out 6 units ABOVE it. For each shift (2 units at a time, -0.15 to
+                    # +0.05 x-height) the mark's top goes to the highest point of the foot's
+                    # underside over that edge -- never below the baseline -- so the letter's
+                    # ink lies over every unit of it; the shift that keeps the mark lowest wins,
+                    # then the nearest. No ink pokes out and no shelf of the cut shows.
+                    _fx0, _prof = footgeom[base]; _x0, _x1 = markup[mark]
+                    def _rise(_s):
+                        _a = int(round(_x0 + dx + _s - _fx0)) + 1; _b = int(round(_x1 + dx + _s - _fx0)) - 1
+                        if _a < 0 or _b >= len(_prof) or _b < _a: return float('inf')
+                        return max(0.0, max(_prof[_a:_b + 1]))
+                    _cands = [_k * 2.0 for _k in range(-int(0.15 * pen.XH / 2), int(0.05 * pen.XH / 2) + 1)]
+                    _r, _s = min(((_rise(_v), _v) for _v in _cands), key=lambda _t: (round(min(_t[0], 1e9)), abs(_t[1]), _t[1]))
+                    if os.environ.get("ALBO_OGO_DEBUG"):
+                        _cs = sorted(((_rise(_v), _v) for _v in _cands), key=lambda _t: (round(min(_t[0], 1e9)), abs(_t[1])))[:4]
+                        print(f"[ogo] {base} edge {_x1 - _x0:.0f} shift {_s:+.0f} rise {_r:.1f} best {[(round(min(a, 999), 1), b) for a, b in _cs]}")
+                    if _r == float('inf'):
+                        # no shift leaves the root under the letter: a redrawn foot or a
+                        # redrawn mark broke the join. Stop here -- falling back to the
+                        # plain attach would float or poke the mark with nothing said
+                        # (round 452's adversarial review, F3)
+                        raise SystemExit(f"ogonek on {base!r}: no shift in -0.15..+0.05 x-height puts the root under the foot "
+                                         f"(mark top edge {_x0:.0f}..{_x1:.0f}); run ALBO_OGO_DEBUG=1")
+                    dx += _s; dy += round(_r)
+            else:
+                if pen.SHEAR and ACC_SLANT and _AF and mark != "\u0326":      # round 450: down the slope, as the marks above go up it
+                    # (not the comma below: carried left under the S's lower bowl it
+                    # fused into the italic S-comma -- 22 units of white to 1, and an
+                    # overlap in the Bold Italic -- against round 375's ruling that it
+                    # stands free; round 451, from round 450's adversarial review)
+                    dx += pen.SHEAR * ((dy + (my0 + my1) / 2) - (by0 + by1) / 2) * ACC_SLANT
         else:                    # 'right': the Czech apostrophe-caron at the shoulder
             dx = bx1 + S_GAP_RIGHT - mx0; dy = pen.XH * 0.52 - my0
         cp = TTGlyphPen(glyphs)   # a composite pen needs the glyph set it references
@@ -1322,7 +1562,16 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         glyphs[gname(ch)] = cp.glyph()
         adv = advances[base]
         if kind == 'right': adv = max(adv, bx1 + S_GAP_RIGHT + (mx1 - mx0) + 20)
-        metrics[gname(ch)] = (int(round(adv)), int(round(bx0)))
+        # ROUND 450 -- THE LEFT SIDEBEARING IS THE COMPOSITE'S OWN LEFT EDGE.
+        # It was the BASE's, and a TrueType rasteriser places an outline so that
+        # its xMin lands on hmtx's lsb (phantom point pp1 = xMin - lsb), so every
+        # composite whose mark reaches further left than its letter -- a dieresis
+        # over the narrow i, the bold dieresis over the a -- was DRAWN SHIFTED
+        # RIGHT by the difference, letter and mark together: the Regular's i
+        # dieresis by 44 units, the Bold's by 113, the Bold's a-dieresis by 40
+        # (FreeType, which is what the reader's font converter rasterises with).
+        # HarfBuzz ignores lsb, which is why every shaped measurement looked right.
+        metrics[gname(ch)] = (int(round(adv)), int(round(min(bx0, mx0 + round(dx)))))
     # The combining marks: the spacing mark's outline at ZERO advance, placed
     # where it would sit over a lowercase letter. A composite, so it is the
     # same drawing.
@@ -1336,7 +1585,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         dx = -(mx0 + mx1) / 2
         cp = TTGlyphPen(glyphs)
         cp.addComponent(gname(src), (1, 0, 0, 1, int(round(dx)), int(round(dy))))
-        glyphs[gname(ch)] = cp.glyph(); metrics[gname(ch)] = (0, 0)
+        glyphs[gname(ch)] = cp.glyph(); metrics[gname(ch)] = (0, int(round(mx0 + round(dx))))   # round 450: lsb = the mark's own xMin (see the composites above)
     p = TTGlyphPen(None); p.moveTo((50, 0)); p.lineTo((50, 700)); p.lineTo((450, 700)); p.lineTo((450, 0)); p.closePath()
     glyphs['.notdef'] = p.glyph(); metrics['.notdef'] = (500, 50)
     # THE WORD SPACE (round 100, owner: "fix the space being way too wide").
