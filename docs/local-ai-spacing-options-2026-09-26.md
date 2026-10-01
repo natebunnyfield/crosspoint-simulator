@@ -983,6 +983,8 @@ B. the pairs first answered after the bench (mean |error| vs his answer, 09-20 z
 
 **The "bowl" rows are ready:** `active_bench.py --force 'both:bo:bowl,both:ow:bowl,both:wl:bowl'` puts the six rows on session 7's page, with "bowl" as the carrier word, whatever their uncertainty rank. They take the places of the lowest-scored active rows, so the session stays at 50. The key marks them `kind: forced`, and ingest treats them as ordinary answers. Dry-run on round 402: all six present.
 
+**Owner, 2026-10-01: *"'sextile' and 'aquí?' need my kerning input"*.** Bench `words-2026-10-01` (https://claude.ai/artifact/VMUP2ga6k9jqGmhWTkRYnS, `db` collection `active`): every pair of the two words in both styles, forced (`se ex xt ti il le aq qu uí í?`, 20 rows) plus 2 repeats (italic `un`, roman `ed`), on a new zero `bench/fonts-2026-10-01-r453` (the round-453 fonts that shipped as build 279, added to `active_ingest.py` TRACKED_ZEROS). Built with `ALBO_BENCH_ZERO=fonts-2026-10-01-r453 ALBO_BENCH_TAG=words-2026-10-01 active_bench.py --n 22 --force 'both:se:sextile,...,both:í?:aquí?'`. **Watch the italic í? at ingest**: its kern is also set by round 453's 2-D mark clearance (no mark nearer a neighbor than 0.8 of its own gap), which re-opens the pair after B2 if his answer asks for less; that conflict is his to rule on, not the fit's.
+
 **Round 405** (`docs/albo-round-405-2026-09-26.md`): refit through session 6 is the default; bench pairs held out 9.82, the first under 10. The s+ascender pattern is pair-shaped (sl/sk/sh open, si/st tight), not one s bearing; a feature for it is proposed. Session 7 carries the forced 'bowl' rows.
 
 ## 14. 2026-09-28: recency, side-class terms, the tables conversion — and the refit recipe [measured]
