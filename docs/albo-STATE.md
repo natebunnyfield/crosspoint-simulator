@@ -34,8 +34,8 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_ALT051_FIN` | **albo** | `outlines/glyphs/ampersands.py:1523` |
 | `ALBO_ALT051_PATH` | **c** | `outlines/glyphs/ampersands.py:1270` |
 | `ALBO_AMP_BALANCE` | **balance** | `outlines/glyphs/ampersands.py:539` |
-| `ALBO_AMP_OPT` | **"a" if pen.ITALIC else "e"** | `outlines/glyphs/marks.py:879` |
-| `ALBO_APOS_IT_STRAIGHT` | **j** | `outlines/glyphs/marks.py:643` |
+| `ALBO_AMP_OPT` | **"a" if pen.ITALIC else "e"** | `outlines/glyphs/marks.py:1015` |
+| `ALBO_APOS_IT_STRAIGHT` | **j** | `outlines/glyphs/marks.py:779` |
 | `ALBO_CORPUS` | **os.path.expanduser('~/src/claude-tools'** | `outlines/cmp/corpus.py:21` |
 | `ALBO_DOT_PUNCH` | **d** | `outlines/primitives.py:887` |
 | `ALBO_G_EAR_EXTEND` | **G_EAR_EXTEND** | `outlines/glyphs/stems.py:73` |
@@ -49,10 +49,10 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_G_OPEN_TRACE` | **_GO.get('trace', "futura"** | `outlines/glyphs/stems.py:1451` |
 | `ALBO_G_QS_TOP` | **left** | `outlines/glyphs/stems.py:1639` |
 | `ALBO_G_STYLE` | **open** | `outlines/glyphs/stems.py:1107` |
-| `ALBO_HYPHEN_OPT` | **"a" if pen.ITALIC else "c"** | `outlines/glyphs/marks.py:737` |
-| `ALBO_HYPHEN_RISE` | **units** | `outlines/glyphs/marks.py:739` |
+| `ALBO_HYPHEN_OPT` | **"a" if pen.ITALIC else "c"** | `outlines/glyphs/marks.py:873` |
+| `ALBO_HYPHEN_RISE` | **units** | `outlines/glyphs/marks.py:875` |
 | `ALBO_ITALIC` | **_DEFAULT** | `outlines/glyphs/aldine.py:209` |
-| `ALBO_IT_AMP` | **h** | `outlines/glyphs/marks.py:878` |
+| `ALBO_IT_AMP` | **h** | `outlines/glyphs/marks.py:1014` |
 | `ALBO_IT_AMP_H_CURL_MODE` | **ascent** | `outlines/glyphs/ampersands.py:1810` |
 | `ALBO_IT_FIG2_PEN` | **d** | `outlines/glyphs/aldine.py:12787` |
 | `ALBO_IT_FIG7_PEN` | **b** | `outlines/glyphs/aldine.py:12786` |
@@ -60,7 +60,7 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_MACRON_OPT` | **"b" if ACC_FIT else "a"** | `outlines/glyphs/accents.py:240` |
 | `ALBO_OGO_TRACE` | **"pagella" if ACC_FIT else ""** | `outlines/glyphs/accents.py:371` |
 | `ALBO_OGO_TRACE` | **"pagella" if _AF else ""** | `outlines/build.py:332` |
-| `ALBO_QUOTE_OPT` | **"a" if pen.ITALIC else "b"** | `outlines/glyphs/marks.py:525` |
+| `ALBO_QUOTE_OPT` | **"a" if pen.ITALIC else "b"** | `outlines/glyphs/marks.py:661` |
 | `ALBO_ROM_A_OPT` | **b** | `outlines/glyphs/stems.py:613` |
 | `ALBO_ROM_C_TOP` | **a** | `outlines/glyphs/rounds.py:142` |
 | `ALBO_ROM_F_BAR` | **a** | `outlines/glyphs/stems.py:213` |
@@ -98,7 +98,7 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_YEN_GAP` | **"b" if pen.ITALIC else "a"** | `outlines/glyphs/symbols.py:905` |
 | `FJORD_ADJ` | **ADJ_DEFAULT** | `outlines/pen.py:172` |
 
-## The numeric dials (889)
+## The numeric dials (890)
 
 | variable | default | defined |
 |---|---|---|
@@ -498,7 +498,7 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_ALD_P_SKEW` | 0.13 | `outlines/glyphs/aldine.py:4315` |
 | `ALBO_ALD_P_STEMW` | 70.0 | `outlines/glyphs/aldine.py:4311` |
 | `ALBO_ALD_P_STEM_X` | 114.0 | `outlines/glyphs/aldine.py:4310` |
-| `ALBO_ALD_QUOTE_DROP` | 50 | `outlines/glyphs/marks.py:484` |
+| `ALBO_ALD_QUOTE_DROP` | 50 | `outlines/glyphs/marks.py:620` |
 | `ALBO_ALD_Q_CY` | 215.0 | `outlines/glyphs/aldine.py:4505` |
 | `ALBO_ALD_Q_DROP` | 0.045 | `outlines/glyphs/aldine.py:9026` |
 | `ALBO_ALD_Q_FOOT_LMUL` | 0.65 | `outlines/glyphs/aldine.py:4353` |
@@ -661,13 +661,13 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_ALT051_THICK` | 0.86 | `outlines/glyphs/ampersands.py:1423` |
 | `ALBO_ALT051_THIN` | 0.2 | `outlines/glyphs/ampersands.py:1424` |
 | `ALBO_ALT051_WEIGHT` | 1.36 | `outlines/glyphs/ampersands.py:1473` |
-| `ALBO_APOS_DOUBLES` | 0 | `outlines/glyphs/marks.py:465` |
-| `ALBO_APOS_HEAD` | 0.85 | `outlines/glyphs/marks.py:460` |
-| `ALBO_APOS_SCALE` | 1.0 | `outlines/glyphs/marks.py:454` |
-| `ALBO_APOS_STRAIGHT` | 1.0 | `outlines/glyphs/marks.py:464` |
-| `ALBO_APOS_STRAIGHT_W` | 1.0 if pen.ITALIC else 0.75 | `outlines/glyphs/marks.py:463` |
-| `ALBO_APOS_TAIL` | 1.0 | `outlines/glyphs/marks.py:461` |
-| `ALBO_APOS_TAIL_W` | 1.0 | `outlines/glyphs/marks.py:462` |
+| `ALBO_APOS_DOUBLES` | 0 | `outlines/glyphs/marks.py:601` |
+| `ALBO_APOS_HEAD` | 0.85 | `outlines/glyphs/marks.py:596` |
+| `ALBO_APOS_SCALE` | 1.0 | `outlines/glyphs/marks.py:590` |
+| `ALBO_APOS_STRAIGHT` | 1.0 | `outlines/glyphs/marks.py:600` |
+| `ALBO_APOS_STRAIGHT_W` | 1.0 if pen.ITALIC else 0.75 | `outlines/glyphs/marks.py:599` |
+| `ALBO_APOS_TAIL` | 1.0 | `outlines/glyphs/marks.py:597` |
+| `ALBO_APOS_TAIL_W` | 1.0 | `outlines/glyphs/marks.py:598` |
 | `ALBO_ARCH_BLEND` | 3.0 | `outlines/glyphs/arches.py:187` |
 | `ALBO_BOWL_BLEND` | 0.0 | `outlines/glyphs/stems.py:13` |
 | `ALBO_BOWL_HAIR` | 0.46 | `outlines/primitives.py:688` |
@@ -697,7 +697,7 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_COMMA_W` | 2.4 | `outlines/glyphs/marks.py:144` |
 | `ALBO_COUNTER_CONVEX` | 1.0 | `outlines/primitives.py:423` |
 | `ALBO_CT_PUSH` | 0.1 | `outlines/glyphs/ligatures.py:376` |
-| `ALBO_CURLY_SCALE` | 0.86 | `outlines/glyphs/marks.py:427` |
+| `ALBO_CURLY_SCALE` | 0.86 | `outlines/glyphs/marks.py:563` |
 | `ALBO_CURVES` | 0 | `outlines/build.py:1095` |
 | `ALBO_CURVE_CLEAR` | 44 | `outlines/build.py:1099` |
 | `ALBO_CURVE_DEV` | 1.2 | `outlines/build.py:1098` |
@@ -724,7 +724,7 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_DOT_PUNCH_N` | 40 | `outlines/primitives.py:892` |
 | `ALBO_DOT_PUNCH_SCALE` | 0.98 | `outlines/primitives.py:902` |
 | `ALBO_DOT_WEXP` | 0.25 | `outlines/glyphs/accents.py:70` |
-| `ALBO_DQ_WHITE` | 0.63 | `outlines/glyphs/marks.py:495` |
+| `ALBO_DQ_WHITE` | 0.63 | `outlines/glyphs/marks.py:631` |
 | `ALBO_EXCL_BOT` | 0.74 | `outlines/glyphs/marks.py:57` |
 | `ALBO_EXCL_DOT` | 1.0 | `outlines/glyphs/marks.py:59` |
 | `ALBO_EXCL_NIB` | 0 | `outlines/glyphs/marks.py:67` |
@@ -799,7 +799,7 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_G_OPEN_TRACE_DEP` | 1.0 | `outlines/glyphs/stems.py:1452` |
 | `ALBO_G_OPEN_TRACE_X` | 1.14 | `outlines/glyphs/stems.py:1459` |
 | `ALBO_HAND_SCALE` | 0.0 | `outlines/primitives.py:32` |
-| `ALBO_HYPHEN_RISE_DEG` | 1.0 | `outlines/glyphs/marks.py:738` |
+| `ALBO_HYPHEN_RISE_DEG` | 1.0 | `outlines/glyphs/marks.py:874` |
 | `ALBO_IT_AMP_CON` | 5.0 | `outlines/glyphs/ampersands.py:817` |
 | `ALBO_IT_AMP_FLOOR` | 0.3 | `outlines/glyphs/ampersands.py:818` |
 | `ALBO_IT_AMP_H_ARM_PULL` | 70.0 | `outlines/glyphs/ampersands.py:1813` |
@@ -865,16 +865,17 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_OGO_TW` | 1.0 | `outlines/glyphs/accents.py:372` |
 | `ALBO_OGO_W` | 0.9 | `outlines/glyphs/accents.py:345` |
 | `ALBO_OGO_W7` | 0.66 | `outlines/glyphs/accents.py:346` |
-| `ALBO_Q8_CROWN_IT` | 0.4 | `outlines/glyphs/marks.py:383` |
-| `ALBO_Q8_CROWN_T` | 0.28 | `outlines/glyphs/marks.py:398` |
-| `ALBO_Q8_FLOOR` | 0.24 if pen.ITALIC else 0.46 | `outlines/glyphs/marks.py:382` |
-| `ALBO_Q8_LIGHT` | 0.7 | `outlines/glyphs/marks.py:385` |
-| `ALBO_Q8_RIGHT_IT` | 0.6 | `outlines/glyphs/marks.py:384` |
-| `ALBO_Q8_W` | 0.86 | `outlines/glyphs/marks.py:409` |
-| `ALBO_QUOTE_B_TALL` | 1.15 | `outlines/glyphs/marks.py:535` |
-| `ALBO_QUOTE_SIZE` | 1.75 | `outlines/glyphs/marks.py:425` |
-| `ALBO_QUOTE_SYM_TILT` | 20.0 | `outlines/glyphs/marks.py:696` |
-| `ALBO_QUOTE_W` | 1.65 | `outlines/glyphs/marks.py:426` |
+| `ALBO_Q8_CROWN_IT` | 0.4 | `outlines/glyphs/marks.py:519` |
+| `ALBO_Q8_CROWN_T` | 0.28 | `outlines/glyphs/marks.py:534` |
+| `ALBO_Q8_FLOOR` | 0.24 if pen.ITALIC else 0.46 | `outlines/glyphs/marks.py:518` |
+| `ALBO_Q8_LIGHT` | 0.7 | `outlines/glyphs/marks.py:521` |
+| `ALBO_Q8_RIGHT_IT` | 0.6 | `outlines/glyphs/marks.py:520` |
+| `ALBO_Q8_W` | 0.86 | `outlines/glyphs/marks.py:545` |
+| `ALBO_QUOTE_B_TALL` | 1.15 | `outlines/glyphs/marks.py:671` |
+| `ALBO_QUOTE_SIZE` | 1.75 | `outlines/glyphs/marks.py:561` |
+| `ALBO_QUOTE_SYM_TILT` | 20.0 | `outlines/glyphs/marks.py:832` |
+| `ALBO_QUOTE_W` | 1.65 | `outlines/glyphs/marks.py:562` |
+| `ALBO_Q_NECK` |  | `outlines/glyphs/marks.py:423` |
 | `ALBO_REF_DIR` |  | `outlines/cmp/weights.py:54` |
 | `ALBO_ROM_A_APEX_CLIP` | 0 | `outlines/glyphs/caps_straight.py:48` |
 | `ALBO_ROM_A_RISE` | 0 | `outlines/glyphs/stems.py:595` |
@@ -951,7 +952,7 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `ALBO_STEM_AT` | 0.75 | `outlines/build.py:191` |
 | `ALBO_STEM_AXIS` | 1 | `outlines/build.py:212` |
 | `ALBO_STEM_CENTER` | 1 | `outlines/build.py:186` |
-| `ALBO_STRAIGHT_TALL` | 1.66 if pen.ITALIC else 1.44 | `outlines/glyphs/marks.py:533` |
+| `ALBO_STRAIGHT_TALL` | 1.66 if pen.ITALIC else 1.44 | `outlines/glyphs/marks.py:669` |
 | `ALBO_ST_ARC` | 0.92 | `outlines/glyphs/ligatures.py:330` |
 | `ALBO_ST_ARC_TOP` | 1.06 | `outlines/glyphs/ligatures.py:332` |
 | `ALBO_ST_ARC_W` | 0.78 | `outlines/glyphs/ligatures.py:333` |
@@ -989,5 +990,5 @@ cannot be. If a doc disagrees with this table, this table is right.
 | `FJORD_E_ARM_OUT` | 0.0 | `outlines/glyphs/rounds.py:298` |
 | `FJORD_E_ARM_THIN` | 0.92 | `outlines/glyphs/rounds.py:297` |
 | `FJORD_LIFE` | 0.06 | `outlines/primitives.py:33` |
-| `FJORD_Q_VARIANT` | 0 | `outlines/glyphs/marks.py:412` |
+| `FJORD_Q_VARIANT` | 0 | `outlines/glyphs/marks.py:548` |
 | `FJORD_VF_JOBS` | 3 | `outlines/variable.py:72` |

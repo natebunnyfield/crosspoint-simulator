@@ -359,6 +359,8 @@ def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and 
     P = upper[-1]; tn = geom.tangents(upper)[-1]; E = (w * 0.5, end_y); L = math.dist(P, E)
     hook = geom.resample(upper + cubic(P, (P[0] + tn[0] * Q8_TAIL_K1 * L, P[1] + tn[1] * Q8_TAIL_K1 * L), (E[0], E[1] + Q8_TAIL_K2 * L), E)[1:])
     wf = _smooth_wf(PR.bowl_widths(hook, widths(Q8_PLAN), floor=S * Q8_FLOOR), len(hook) - 1)
+    if Q_NECK:   # 2026-10-01: a new neck below the curl's 3 o'clock; the curl itself is untouched (see _q8_neck)
+        return geom.ink([dot(w * 0.5, BY, MDOT), _raise(_q8_neck(c, hook, wf, w, end_y), c, w, end_y)])
     return geom.ink([dot(w * 0.5, BY, MDOT),   # round 375: the period's dot (was 1.1x, 10% over every other)
                      _raise(stroke(hook, wf, cut0=CUT, cut1=CUT), c, w, end_y)])
 def _smooth_wf(wf, n, passes=4):
@@ -370,6 +372,140 @@ def _smooth_wf(wf, n, passes=4):
     for _ in range(passes):
         ws = [ws[0]] + [(ws[i - 1] + 2 * ws[i] + ws[i + 1]) / 4 for i in range(1, n)] + [ws[-1]]
     return lambda t: ws[min(n, int(round(t * n)))]
+
+# 2026-10-01 -- THE NECK: THE STROKE FROM THE MIDDLE OF THE CURL TO JUST ABOVE
+# THE DOT. Owner: *"subagent to improve question mark middle to bottom
+# stroke."* Measured before drawing, every face unsheared at Albo's x-height
+# by instruments/qmark_neck.py; the full account and the negative results are
+# docs/albo-question-mark-2026-10-01.md. The four faults, in all four cuts:
+#  - THE NECK ENDS AT ITS HEAVIEST. Its foot reads 1.28 n (roman) and 1.15 n
+#    (italic) -- the widest point of the whole neck -- where 22 of 26 reference
+#    400s end at 0.25-0.64 n (median 0.47; the four others are Berkeley's flared
+#    kick in both styles, Poetica's curl, and Albertus, whose neck closes to a
+#    0.31 n point 20 units lower), and 13 of 15 text faces end their ? within
+#    0.08 n of their own !'s foot. Albo's own ! ends at 0.79 (roman) / 0.71 n.
+#  - IT STANDS TOO CLOSE TO ITS DOT. 34-37 units of white at the 400s (0.31-0.35
+#    of the dot) against the references' 41-105 (medians 64 roman, 71 italic)
+#    and Albo's own !'s 52-54: Q_DOT_CLEAR's docstring says the two marks clear
+#    identically, round 375 set it to 0.55 S against the !'s 0.8 S, and the pen
+#    cut then dips the low corner a further 12 units toward the dot.
+#  - THE HEEL IS ITS DIRECTION. The descent turns vertical in its last 85
+#    units, and the bowl profile (vertical stress) gives a vertical stroke its
+#    full width, times the plan's 1.05: the turn is what swells the foot.
+#  - AT THE 700s THE NECK FOLDS. The clearance lifts the foot with S while the
+#    descent still starts at 0.5 C: 87 units of height for a 110-unit stroke
+#    moving 90 units left, so the centreline runs at 25 degrees and turns
+#    vertical in 30 units -- a notch on the counter side, another at the foot,
+#    and a 125-unit slanted boot.
+# ALBO_Q_NECK picks a neck. '' -- the default -- is today's, untouched. Every
+# arm keeps the curl EXACTLY: the same samples and the same widths up to the
+# curl's 3 o'clock, raised about today's origin, so only the stroke below the
+# 3 o'clock is new. Each arm is one idea, not a rung:
+#   Q1  "like its own !": an S off the bowl into a vertical drop that tapers to
+#       the !'s own foot (EXCL_BOT of the pen) and ends square, as the ! does --
+#       the shape the text faces share: in all 15 the lower neck runs within 24
+#       degrees of vertical (Georgia, Charter, Times, Palatino, Coelacanth).
+#   Q2  "Albertus wedge": the same S, but the drop's left edge runs straight
+#       down while its right edge closes in a straight line to a chisel point
+#       on the pen cut -- how Albertus ends both its ! and its ?.
+#   Q3  "the original gesture": no S and no drop. The stroke leaves the 3
+#       o'clock as today's does and stays on its diagonal to the end, so the
+#       pen thins it by direction; it stops on the family's pen cut, which on
+#       a 66-degree stroke lies nearly level (Albertus's own centreline runs at
+#       55-59 degrees to its end, Golden Cockerel's at 61).
+# All three end at the !'s foot width or lighter and stand over the dot by the
+# 400 !'s white (0.8 x REF_S = 53.5), never by less than 0.40 of the dot's
+# diameter -- where today's 700s already stand, so a bold dot keeps its air
+# (Bold 64-73 against today's 71, Bold Italic 55-62 against 56, font units).
+# A turned foot (the old-style kick of Palatino and Pagella) was drawn as a
+# fourth idea and cut: it is not in the roman's vocabulary, and at the 700s its
+# bend left a 12-unit inner radius -- a notch.
+Q_NECK = os.environ.get("ALBO_Q_NECK", "").strip().upper()
+def _qn(name, default): return float(os.environ.get("ALBO_Q_NECK_" + name, default))
+Q_NECK_GAP = _qn("GAP", 0.8)       # the white over the dot, x REF_S: the 400 !'s 0.8 S = 53.5 units ...
+Q_NECK_GAP_D = _qn("GAP_D", 0.40)  # ... and never under this x the dot's diameter -- where today's 700s already
+                                   # stand (0.41 Bold, 0.38 Bold Italic), so no arm closes a bold dot
+
+def _q8_neck(c, hook, wf, w, end_y):
+    """The ? from its 3 o'clock down: today's curl kept sample for sample, a
+    new neck below it (Q_NECK = Q1 / Q2 / Q3, block comment above). Returns
+    the hook's solid, unraised -- _q8 raises it about today's end_y, so the
+    curl lands exactly where it does today and the neck is placed for that."""
+    C = CAP(c)
+    k = (C + MARK_TALL * (ASC - C)) / C if MARK_TALL > 0 else 1.0   # _raise's factor: every width is drawn /k
+    pts = geom.resample(hook); n1 = len(pts) - 1            # what today's stroke() draws, sample for sample
+    ws = [wf(i / n1) for i in range(n1 + 1)]
+    i0 = max(range(n1 + 1), key=lambda i: pts[i][0])        # the curl's 3 o'clock: the neck starts here
+    N0 = pts[i0]; T0 = geom.tangents(pts)[i0]
+    gap = max(Q_NECK_GAP * REF_S, Q_NECK_GAP_D * 2 * MDOT)
+    yf = end_y + (BY + MDOT + gap - end_y) / k              # the neck's lowest ink, before the raise
+    xf = w * 0.5                                            # over the dot's centre (the raise holds x = w/2)
+    foot = EXCL_BOT * pen.PEN.th((0.0, 1.0)) / k            # the !'s own foot, before the raise
+    down = (0.0, -1.0)
+
+    def s_to(K, kdir, ka, kb):
+        """The S off the bowl: one cubic leaving the 3 o'clock on the curl's own
+        tangent and arriving at K travelling `kdir`; handles x the S's height."""
+        h = N0[1] - K[1]; a, b = ka * h, kb * h
+        return cubic(N0, (N0[0] + T0[0] * a, N0[1] + T0[1] * a), (K[0] - kdir[0] * b, K[1] - kdir[1] * b), K)
+
+    def widths_on(neck, end_w, end_dir):
+        """The bowl profile by DIRECTION, as on the whole hook, times a declared
+        taper from today's width at the 3 o'clock, through PEAK at PEAK_U, to
+        end_w -- the ! is drawn the same way, the pen times a taper."""
+        tn = geom.tangents(neck); m = len(neck) - 1
+        sl = [0.0]
+        for p, q in zip(neck, neck[1:]): sl.append(sl[-1] + math.dist(p, q))
+        plan = widths([(0.0, ws[i0] / PR.bowl_th(tn[0])), (_qn("PEAK_U", 0.30), _qn("PEAK", 1.0)), (1.0, end_w / PR.bowl_th(end_dir))])
+        nw = [max(S * Q8_FLOOR, PR.bowl_th(tn[j]) * plan(sl[j] / sl[-1])) for j in range(m + 1)]
+        for _ in range(4):                                  # round the junction and any floor crossing, as _smooth_wf does
+            nw = [nw[0]] + [(nw[j - 1] + 2 * nw[j] + nw[j + 1]) / 4 for j in range(1, m)] + [nw[-1]]
+        return nw
+
+    def assemble(neck, nw, cut1):
+        """Today's samples and widths up to the 3 o'clock, the new neck after it,
+        stroked as ONE stroke (raw: no re-sampling, so the curl's points stay)."""
+        center = pts[:i0 + 1] + neck[1:]; wsn = ws[:i0 + 1] + nw[1:]; N = len(center) - 1
+        return stroke(center, lambda t: wsn[min(N, int(round(t * N)))], cut0=CUT, cut1=cut1, raw=True)
+
+    if Q_NECK == "Q1":
+        K = (xf, yf + _qn("DROP", 0.26) * (N0[1] - yf))    # the drop: straight down over the dot
+        neck = geom.resample(s_to(K, down, _qn("A", 0.60), _qn("B", 0.50)) + line(K, (xf, yf))[1:])
+        return assemble(neck, widths_on(neck, foot, down), None)   # square, as the !'s foot
+    if Q_NECK == "Q2":
+        tip = _qn("TIP", 0.30) * S / k                      # the chisel's end, before the raise
+        wk = _qn("KNEE", 0.72) * S / k                      # the drop's width where it leaves the S: no heavier than the
+                                                            # S's own diagonal, or the knee swells (0.80+ notches the counter side at the 700)
+        xs = xf - 0.5 * tip                                 # the drop's straight, counter-side edge
+        drop = _qn("DROP", 0.32) * (N0[1] - yf)
+        yk = yf + drop + 0.5 * tip * math.tan(CUT)          # the knee; the chisel's low corner lands on yf
+        K = (xs + 0.5 * wk, yk)
+        sneck = geom.resample(s_to(K, down, _qn("A", 0.65), _qn("B", 0.55)))
+        sw = widths_on(sneck, wk, down)
+        # the drop: ONE stroke on (a union of a drawn spur left a seam and a
+        # corner at the knee), its width closing from wk to the chisel, and its
+        # centreline riding at xs + w/2 so the counter-side edge stays straight
+        # while the right edge does all the closing. POW 1 closes it in a
+        # straight line -- the wedge; a convex 2.2 (hold, then sweep in) left a
+        # waist above a bulb at the 700.
+        pw = _qn("POW", 1.0); rows = max(6, int(drop / 9.0))
+        dw = [tip + (wk - tip) * (1 - (i / rows) ** pw) for i in range(rows + 1)]
+        dc = [(xs + 0.5 * dw[i], yk - (yk - yf - 0.5 * tip * math.tan(CUT)) * i / rows) for i in range(rows + 1)]
+        return assemble(sneck + dc[1:], sw + dw[1:], CUT)
+    if Q_NECK == "Q3":
+        # the original gesture, without its heel: the stroke leaves the 3
+        # o'clock as today's does and stays on its DIAGONAL to the end, so the
+        # bowl profile thins it by direction instead of swelling it at a
+        # vertical turn; it ends over the dot on the family's pen cut, which on
+        # a 66-degree stroke lies within 5 degrees of level.
+        ang = math.radians(_qn("ANG", 66.0))                # the end's direction, from horizontal
+        dv = (-math.cos(ang), -math.sin(ang))
+        fe = foot
+        lo = min(-math.cos(ang) + math.tan(CUT) * math.sin(ang), math.cos(ang) - math.tan(CUT) * math.sin(ang))
+        Fe = (xf + _qn("END_X", 0.0) * S / k, yf - 0.5 * fe * lo)   # the face's low corner on yf
+        neck = geom.resample(s_to(Fe, dv, _qn("A", 0.45), _qn("B", 0.40)))
+        return assemble(neck, widths_on(neck, fe, dv), CUT)
+    raise SystemExit(f"ALBO_Q_NECK={Q_NECK!r}: the arms are Q1, Q2, Q3 ('' is today's neck)")
 Q8_SCALE = 1.15   # owner 2026-09-13: "make the question mark back into its original question mark shape and albertus heavy, larger to read correctly in a sentence"
 # ROUND 380 -- THE ? GETS THE FACE'S CONTRAST. Owner 2026-09-24: *"question
 # marks do not fit albo style (mostly line contrast)."* The 0.78 S floor held
