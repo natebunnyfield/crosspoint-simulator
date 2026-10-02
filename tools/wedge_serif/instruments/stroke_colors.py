@@ -804,8 +804,9 @@ def render_sheet(words, placed, coloring, style, meta, out_path, px_xh, xh):
     from shapely import affinity
     sc = px_xh / xh; SS = 4; pad = 10
     try:
-        fnt = ImageFont.truetype(UI_FONT, 30); fsm = ImageFont.truetype(UI_FONT, 24)
-        fbd = ImageFont.truetype(UI_BOLD, 36); flab = ImageFont.truetype(UI_BOLD, 30)
+        k = (px_xh / 200.0) if meta.get('poster') else 1.0     # --poster: everything scales with the letters
+        fnt = ImageFont.truetype(UI_FONT, int(30 * k)); fsm = ImageFont.truetype(UI_FONT, int(24 * k))
+        fbd = ImageFont.truetype(UI_BOLD, int(36 * k * (1.6 if meta.get('poster') else 1))); flab = ImageFont.truetype(UI_BOLD, int(30 * k))
     except OSError:
         fnt = fsm = fbd = flab = ImageFont.load_default()
     # vertical extent of the ink actually set
@@ -837,8 +838,10 @@ def render_sheet(words, placed, coloring, style, meta, out_path, px_xh, xh):
         for k in stats: stats[k] += st[k]
         blocks.append((w, img))
     # flow layout, rows on baselines
-    maxw = 2400; gapx = 70; margin = 40
-    label_h = 44
+    poster = meta.get('poster'); k = (px_xh / 200.0) if poster else 1.0
+    maxw = int(18 * px_xh) if poster else 2400      # a poster's row: 18 x-heights, about a 3:4 sheet for a 100-letter pangram
+    gapx = int((0.33 * px_xh / 0.45) if poster else 70); margin = int(40 * k * (2 if poster else 1))
+    label_h = 0 if poster else 44
     rows = []; cur = []; cw = 0
     for w, img in blocks:
         bw = max(img.shape[1], 10)
@@ -850,6 +853,8 @@ def render_sheet(words, placed, coloring, style, meta, out_path, px_xh, xh):
     # header: title, legend, notes -- measured and wrapped before anything is placed
     title = (f"Albo {style}: the {len(words)} most frequent words in {meta['books']} books "
              f"({meta['words']:,} words), every stroke colored by {'ROLE' if coloring == 'roles' else 'STROKE'}")
+    if poster:
+        title = f"{poster}  ·  Albo {style}, every stroke colored by {'role' if coloring == 'roles' else 'stroke'}"
     if coloring == 'roles':
         used = {s.role for wl in placed for _, _, _, G in wl for s in G.strokes}
         legend = [r for r in ROLES if r in used]
@@ -863,16 +868,16 @@ def render_sheet(words, placed, coloring, style, meta, out_path, px_xh, xh):
                  "word.  Where two strokes overlap the color is a darker blend of both: those are the joins.  "
                  "Hatched = drawn as a raw polygon in glyph code, not by a stroke primitive.")
     dm = ImageDraw.Draw(Image.new('RGB', (8, 8)))
-    y = margin + 36; title_base = y; y += 24
+    y = margin + int(36 * k * (1.6 if poster else 1)); title_base = y; y += int(24 * k)
     items = []
     if legend:
-        x = margin; y += 44
+        x = margin; y += int(44 * k)
         for r in legend:
-            wt = 48 + int(dm.textlength(ROLE_LABEL[r], font=fnt)) + 44
+            wt = int(48 * k) + int(dm.textlength(ROLE_LABEL[r], font=fnt)) + int(44 * k)
             if x > margin and x + wt > maxw - margin:
-                x = margin; y += 48
+                x = margin; y += int(48 * k)
             items.append((x, y, r)); x += wt
-        y += 18
+        y += int(18 * k)
     note_lines = []; cur_l = ''
     for wd in notes.split(' '):
         t = (cur_l + ' ' + wd).strip()
@@ -881,25 +886,26 @@ def render_sheet(words, placed, coloring, style, meta, out_path, px_xh, xh):
         else:
             cur_l = t
     if cur_l: note_lines.append(cur_l)
-    y += 40; notes_base = y; y += 32 * (len(note_lines) - 1) + 30
+    y += int(40 * k); notes_base = y; y += int(32 * k) * (len(note_lines) - 1) + int(30 * k)
     head_h = y
-    total_h = head_h + len(rows) * (label_h + word_h + 30) + margin
+    total_h = head_h + len(rows) * (label_h + word_h + int(30 * k)) + margin
     sheet = Image.new('RGB', (maxw, total_h), (255, 255, 255)); d = ImageDraw.Draw(sheet)
     d.text((margin, title_base), title, font=fbd, fill=(20, 20, 20), anchor='ls')
     for x, yb, r in items:
-        d.rectangle([x, yb - 30, x + 38, yb + 4], fill=ROLE_COLOR[r])
-        d.text((x + 48, yb), ROLE_LABEL[r], font=fnt, fill=(30, 30, 30), anchor='ls')
-    for k, ln in enumerate(note_lines):
-        d.text((margin, notes_base + 32 * k), ln, font=fsm, fill=(70, 70, 70), anchor='ls')
+        d.rectangle([x, yb - int(30 * k), x + int(38 * k), yb + int(4 * k)], fill=ROLE_COLOR[r])
+        d.text((x + int(48 * k), yb), ROLE_LABEL[r], font=fnt, fill=(30, 30, 30), anchor='ls')
+    for j, ln in enumerate(note_lines):
+        d.text((margin, notes_base + int(32 * k) * j), ln, font=fsm, fill=(70, 70, 70), anchor='ls')
     y = head_h
     for row in rows:
         x = margin
         for w, img in row:
-            lab = f"{w['rank']}  {w['form']}  {w['count']:,}"
-            d.text((x + 10, y + label_h - 8), lab, font=flab, fill=(40, 40, 40), anchor='ls')
+            if not poster:
+                lab = f"{w['rank']}  {w['form']}  {w['count']:,}"
+                d.text((x + 10, y + label_h - 8), lab, font=flab, fill=(40, 40, 40), anchor='ls')
             sheet.paste(Image.fromarray(img), (x, y + label_h))
             x += img.shape[1] + gapx
-        y += label_h + word_h + 30
+        y += label_h + word_h + int(30 * k)
     sheet = sheet.crop((0, 0, maxw, y + margin))
     sheet.save(out_path)
     return stats
@@ -1002,6 +1008,10 @@ def run_style(style, words, meta, out, fonts_dir, px_xh, table):
             g, strokes, tr = glyph_strokes(G.ch, W, xh)
             dx, cost = align_dx(g, G.ttf)
             parts = unary_union([s.geom for s in strokes]) if strokes else None
+            if parts is None:      # nothing captured for this glyph: it is drawn in the built outline's gray
+                G.check = dict(uncaptured=True)
+                cache[gname] = G
+                return G
             for s in strokes:
                 s.geom_built = affinity.translate(s.geom, dx, 0).intersection(G.ttf)
             strokes = [s for s in strokes if not s.geom_built.is_empty and s.geom_built.area > 0.5]
@@ -1130,6 +1140,7 @@ def main():
     ap.add_argument('--fonts', help='a directory holding Albo-<Style>.ttf (default: build from the live tree)')
     ap.add_argument('--px-xh', type=float, default=200.0, help='pixels per x-height (default 200)')
     ap.add_argument('--table', action='store_true')
+    ap.add_argument('--poster', help='a POSTER of --words under this title: sized by --px-xh, no per-word counts')
     ap.add_argument('--child', help=argparse.SUPPRESS)
     a = ap.parse_args()
     out = os.path.abspath(a.out)
@@ -1146,6 +1157,7 @@ def main():
         for w in words:
             w['count'] = cnt.get(w['word'], 0)
         meta = dict(books=len(books), words=sum(cnt.values()), distinct=len(cnt))
+        if a.poster: meta['poster'] = a.poster
     else:
         words, meta = top_words(a.top)
     json.dump(dict(words=words, meta=meta), open(wpath, 'w'), indent=1, ensure_ascii=False)
