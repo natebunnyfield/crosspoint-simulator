@@ -7731,9 +7731,14 @@ if ON:
     X_PEN_THICK = d_dial("X_PEN_THICK", 57.0 + (66.0 - 57.0) * _XS)   # across the nib's edge
     X_PEN_THIN = d_dial("X_PEN_THIN", 20.0 + (22.0 - 20.0) * _XS)     # along it
     X_PEN_PHI = d_dial("X_PEN_PHI", 50.0)       # the edge's angle: nib()'s own
+    # ROUND 460 -- THE BOTTOM LEFT HEAVIER, on X1C and X1F only. Owner
+    # 2026-10-02: *"make C and F options with thicker bottom left serifs"*. The
+    # weight of the terminal (the first ~quarter of the hairline's stroke), x
+    # today's drawing of that option: 1.0 is X1C / X1F as shown on 2026-10-02.
+    X_BL_W = d_dial("X_BL_W", 1.0)
 
     def x_nib(pts, u, cut0=None, cut1=None, fin0=False, fin1=False, ends=(True, True), sm=6,
-              tip0=None, tip_run=0.22, grow=None, cap0=None):
+              tip0=None, tip_run=0.22, grow=None, cap0=None, boost0=None):
         """One movement of the x's pen: a catmull through `pts` whose width at
         every sample is the nib's for the direction the path runs there,
         averaged over `sm` samples either side (a wider window turns a sharp
@@ -7745,7 +7750,9 @@ if ON:
         nib's edge (49 degrees, on the nib's 50) just before it. `cap0` =
         (t, width): the start may not exceed that width (reference units) up
         to t, eased out over the next 0.08 -- a turn kept at hairline weight
-        where the pen would swell it."""
+        where the pen would swell it. `boost0` = (t, factor): the start's
+        widths x factor up to 0.6 t, easing back to x1 at t -- a heavier
+        terminal on the same path."""
         p = catmull(list(pts), tension=0.5)
         n = len(p); k = u * X_TW * ALD_WF_UP
         raw = []
@@ -7758,6 +7765,14 @@ if ON:
         ws = [w * m for w, m in zip(ws, _taper(n, ends=ends))]
         if tip0 is not None:
             ws = [w * m for w, m in zip(ws, _taper(n, tip=tip0, run=tip_run, ends=(True, False)))]
+        if boost0:
+            t_b, f_b = boost0
+            def _boost(i, w):
+                t = i / (n - 1)
+                if t >= t_b: return w
+                v = 0.0 if t <= 0.6 * t_b else (t - 0.6 * t_b) / (0.4 * t_b)
+                return w * (f_b + (1.0 - f_b) * (3 * v * v - 2 * v * v * v))
+            ws = [_boost(i, w) for i, w in enumerate(ws)]
         if cap0:
             t_c, w_c = cap0
             def _cap(i, w):
@@ -7817,8 +7832,18 @@ if ON:
             thin = x_nib([P(44, 0.065), P(66, 0.11), P(112, 0.235)] + rise[1:], u,
                          fin0=True, fin1=True, sm=8, grow=grow)
         elif bl == "C":
-            thin = x_nib([P(12, 0.13), P(22, 0.05), P(52, 0.016), P(86, 0.08), P(112, 0.235)] + rise[1:],
-                         u, fin1=True, sm=6, tip0=0.40, tip_run=0.14, grow=grow)
+            # a heavier cup is lifted by half what it gained, so its underside
+            # stays on the letter's own overshoot, and opened a little, or the
+            # Bold Italic's counter closes into a notch at the tip
+            # (the Bold Italic's pen already swells this cup, so it takes 60%
+            # of the extra weight, and twice the opening)
+            _w = 1.0 + (X_BL_W - 1.0) * (1.0 - 0.4 * _XS)
+            _dy = 0.05 * (_w - 1.0) + 0.02 * _XS * (X_BL_W - 1.0) / 0.5
+            _dx = -(12.0 + 12.0 * _XS) * (X_BL_W - 1.0)
+            thin = x_nib([P(12 + _dx, 0.13 + _dy), P(22 + _dx, 0.05 + _dy), P(52, 0.016 + _dy),
+                          P(86, 0.08 + _dy * 0.5), P(112, 0.235)] + rise[1:],
+                         u, fin1=True, sm=(6 if _w == 1.0 else 11), tip0=min(1.0, 0.40 + 0.6 * (_w - 1.0)), tip_run=0.14,
+                         grow=grow, boost0=((0.34, _w) if _w != 1.0 else None))
         elif bl == "D":
             thin = x_nib([P(28, 0.028), P(60, 0.03), P(90, 0.10), P(120, 0.26)] + rise[1:], u,
                          cut0=CUT, fin1=True, sm=3, ends=(False, True), tip0=0.55, tip_run=0.10,
@@ -7827,7 +7852,14 @@ if ON:
             thin = x_nib([P(58, 0.02), P(84, 0.11), P(112, 0.235)] + rise[1:], u,
                          cut0=CUT, fin1=True, sm=8, grow=grow)
         elif bl == "F":
-            thin = x_nib(hook + rise, u, cut0=CUT, fin1=True, sm=8, grow=grow, cap0=(0.20, 30.0))
+            # the cap at 30 x the weight, until at 1.5 it no longer binds (that IS
+            # X1A, measured: 47.6 units at the turn either way); from 1.5 the
+            # turn is X1A's carried a fifth heavier
+            if X_BL_W < 1.5:
+                thin = x_nib(hook + rise, u, cut0=CUT, fin1=True, sm=8, grow=grow, cap0=(0.20, 30.0 * X_BL_W))
+            else:
+                thin = x_nib(hook + rise, u, cut0=CUT, fin1=True, sm=8, grow=grow,
+                             boost0=(0.22, 1.2 + (X_BL_W - 1.5)))
         else:
             thin = x_nib(hook + rise, u, cut0=CUT, fin1=True, sm=8, grow=grow)
         return geom.ink([thin, thick])

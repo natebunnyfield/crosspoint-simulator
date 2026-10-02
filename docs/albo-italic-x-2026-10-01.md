@@ -197,3 +197,49 @@ bottom left meets the letter before it (ex is the commonest x pair in his
 books, 4,760).
 
 Proof page: https://claude.ai/artifact/7Aq2A2qVwLCGbrgXV11RCB
+
+## 9. Round 460: X1C and X1F with heavier bottom-left ends (2026-10-02)
+
+Owner: *"make C and F options with thicker bottom left serifs"*. One dial,
+`ALBO_ALD_X_BL_W` (default 1.0 = X1C / X1F exactly as shown in round 459),
+scales the terminal's weight on those two options only. The terminal width
+below is the largest perpendicular width (twice the distance transform)
+within the left 30% of the ink and below .25 xh, unsheared, in units at
+xh 429.
+
+| option | dial | terminal width (I / Z) | x / n ink (I / Z) | advance (I / Z) | touch (R x) |
+|---|---|---|---|---|---|
+| X1A (reference) | -- | 47.6 / 71.1 | 0.851 / 0.792 | 533 / 542 | clean |
+| C1 = X1C | X1C 1.0 | 42.9 / 62.4 | 0.856 / 0.798 | 533 / 542 | Z touches (-0.0019 em); I under the floor |
+| C2 | X1C 1.25 | 49.4 / 70.0 | 0.878 / 0.813 | 534 / 546 | Z touches (-0.0019); I under the floor (0.0065) |
+| C3 | X1C 1.5 | 58.0 / 78.7 | 0.899 / 0.833 | 544 / 559 | Z under the floor (0.0039); I clean |
+| F1 = X1F | X1F 1.0 | 34.6 / 46.3 | 0.833 / 0.771 | 533 / 542 | clean |
+| F2 | X1F 1.25 | 43.0 / 57.2 | 0.845 / 0.783 | 533 / 542 | clean |
+| F3 | X1F 1.5 | 56.8 / 83.7 | 0.863 / 0.804 | 533 / 542 | Z under the floor (0.0053); I clean |
+
+No contour hairs, composites 0, kern classes ok, on all six. Only x and χ
+move against today.
+
+How the weight is carried, and what each step cost to get right:
+
+- **C (the upturn).** Widths over the first third of the stroke are boosted
+  (`boost0`), easing off along the rising diagonal rather than in the cup.
+  Easing off inside the cup put a hump in the counter's floor, and the
+  Bold Italic showed it. The tip tapers less as the weight grows.
+- **Two things kept the heavier C level and open.** Grown about its
+  centerline, the cup sank: its underside reached -26 (I) and -45 (Z),
+  where the rest of the letter bottoms at -15 / -28. So the cup is lifted
+  by half what it gains. The Bold Italic's pen already swells this cup, so
+  there it takes 60% of the extra weight and twice the opening; at x1.5 its
+  counter otherwise folded into a V-notch at the tip. The Bold Italic C3
+  still carries a gentle wave in that floor (no gate reads it).
+- **F (the thin turn)** was X1A's turn capped at 30 units. Raising the cap
+  converges on X1A: at x1.5 the cap no longer binds and F3 measured
+  identical to X1A (47.6 units, same ink and bearing to three decimals).
+  So F3 instead carries X1A's own turn a fifth heavier (`boost0` 1.2), and
+  X1A sits between F2 and F3.
+- **C2 and C3 are re-spaced by the model.** Their cups reach further left,
+  and the advance grows 1 / 4 units (C2) and 11 / 17 (C3). The F steps keep
+  X1's advance.
+
+Proof page: https://claude.ai/artifact/9EjkV7RqugD7omVYAiRpp3
