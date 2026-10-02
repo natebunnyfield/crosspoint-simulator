@@ -9,6 +9,7 @@
   - *"reduce tittles slightly without losing them at small scale"* -- the i and j dots a little smaller, every cut, without dropping under `instruments/parts_check.py`'s 4-dark-pixel floor at 8-12 pt on the X3 (the round-451 constraint that set the bold dots).
   - *"subagent to improve question mark middle to bottom stroke"* -- DONE 2026-10-01: Q1 ships (round 457, `docs/albo-round-457-2026-10-01.md`).
   - *"subagent to draw multicolor visualization of strokes for top twenty words in corpus"* -- DONE 2026-10-01: `tools/wedge_serif/instruments/stroke_colors.py`, `docs/albo-stroke-colors-2026-10-01.md`; sheets at https://claude.ai/artifact/K3DT57ZTZtwfM2LJZCd8a8.
+  - *"give me options for italic x"* -- ARMS X1 / X2 / X3 behind `ALBO_ALD_X_ARM`, default unchanged, AWAITING A PICK: `docs/albo-italic-x-2026-10-01.md`, page https://claude.ai/artifact/SGF54ZGgzxYW4JJYxTw7DT.
 
 - **2026-09-26 (rounds 393-405) -- WHAT SHIPS NOW, and where each decision lives.**
   **Spacing is B2** (round 396 on): the per-glyph ridge fit plus 38 measured

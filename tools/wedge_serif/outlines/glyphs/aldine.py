@@ -7697,8 +7697,107 @@ if ON:
     X_W = d_dial("X_W", 1.00)
     X_TW = d_dial("X_TW", 1.00)
 
+    # ROUND 458 -- THE x AS OPTIONS. Owner 2026-10-01: *"give me options for
+    # italic x"*. Measured against twelve reference italics
+    # (instruments/x_italic.py, docs/albo-italic-x-2026-10-01.md): this x
+    # carries 0.99 of its own n's ink where theirs carry 0.74-0.98 (median
+    # 0.81), because its THICK diagonal is 0.93 of the o's thick stroke against
+    # their 0.70-0.85; and it is the one letter here drawn on two declared
+    # width tables, so its four ends are as heavy as the strokes they finish
+    # (the foot curls back over itself into a boot, the bottom-left hook folds).
+    # Every arm is drawn on ONE PEN -- `nib()`, the module's 50-degree edge --
+    # so a run's width follows where it is going (albo-method.md section 1),
+    # set so the thick diagonal lands near 0.80 of the o's thick and the thin
+    # near the v's hairline. Each arm then changes at most ONE end:
+    #   X1  today's four ends -- entry, finial, bottom-left turn, foot -- on
+    #       the pen; the entry's crest rounded into one arch, and the foot
+    #       ending as it rises instead of curling back over itself
+    #   X2  X1 with a FLAT FOOT at the bottom left (Pagella's, Palatino's,
+    #       Cancelleresca's): the thin turns along the baseline and runs out
+    #       to a point, in place of the turn the owner straightened on
+    #       2026-09-16 (X_BL 0.10)
+    #   X3  X1 with NO ENTRY at the top left: the thick starts on its own line
+    #       at a pen cut, round 108's "one light turn each" for the thick
+    # The thin's finial is the v's (its `grow` table under the family finial,
+    # round 276: no balls in this italic). "" (unset) draws today's letter
+    # byte for byte.
+    X_ARM = os.environ.get("ALBO_ALD_X_ARM", "").strip().upper()
+    # the nib in reference units, set on the built fonts against the references
+    # (x_italic.py --hair): 57 / 20 at the 400 puts the thick at 0.80 of the o's
+    # thick and the thin at 0.92 of the v's; the Bold Italic takes 66 / 22, or
+    # its x falls to 0.71 of its n's ink against the bold italics' 0.76-0.83.
+    # Linear on the stem between.
+    _XS = max(0.0, min(1.0, (S - 66.9) / (116.0 - 66.9)))
+    X_PEN_THICK = d_dial("X_PEN_THICK", 57.0 + (66.0 - 57.0) * _XS)   # across the nib's edge
+    X_PEN_THIN = d_dial("X_PEN_THIN", 20.0 + (22.0 - 20.0) * _XS)     # along it
+    X_PEN_PHI = d_dial("X_PEN_PHI", 50.0)       # the edge's angle: nib()'s own
+
+    def x_nib(pts, u, cut0=None, cut1=None, fin0=False, fin1=False, ends=(True, True), sm=6,
+              tip0=None, tip_run=0.22, grow=None):
+        """One movement of the x's pen: a catmull through `pts` whose width at
+        every sample is the nib's for the direction the path runs there,
+        averaged over `sm` samples either side (a wider window turns a sharp
+        change of direction into a swell rather than a step). `tip0` sets the
+        start's taper alone -- a flat foot that runs out to a point. `grow`
+        is a width table (t, reference units) the stroke may not fall under:
+        the v's terminal, so the x's finial grows out of its hairline the
+        way the v's does instead of necking where the path runs along the
+        nib's edge (49 degrees, on the nib's 50) just before it."""
+        p = catmull(list(pts), tension=0.5)
+        n = len(p); k = u * X_TW * ALD_WF_UP
+        raw = []
+        for i in range(n):
+            a_ = p[max(0, i - 1)]; b_ = p[min(n - 1, i + 1)]
+            raw.append(nib(math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0])),
+                           X_PEN_THICK * k, X_PEN_THIN * k, X_PEN_PHI))
+        ws = [sum(raw[max(0, i - sm):i + sm + 1]) / len(raw[max(0, i - sm):i + sm + 1])
+              for i in range(n)]
+        ws = [w * m for w, m in zip(ws, _taper(n, ends=ends))]
+        if tip0 is not None:
+            ws = [w * m for w, m in zip(ws, _taper(n, tip=tip0, run=tip_run, ends=(True, False)))]
+        if grow:
+            gf = widths(grow); t_g = grow[0][0]
+            ws = [max(w, gf(i / (n - 1)) * k) if i / (n - 1) >= t_g else w for i, w in enumerate(ws)]
+
+        def wf(t):
+            x = t * (n - 1); i = min(n - 2, int(x)); f = x - i
+            return ws[i] * (1 - f) + ws[i + 1] * f
+        if fin0: wf = PR.finial_widths(wf, True, floor=fin_floor()); cut0 = PR.finial_cut(p, True)
+        if fin1: wf = PR.finial_widths(wf, False, floor=fin_floor()); cut1 = PR.finial_cut(p, False)
+        return stroke(p, wf, cut0=cut0, cut1=cut1)
+
+    def x_arm(c, arm):
+        P, u = d_frame(c, X_W)
+        _bl = [(44, 0.045), (34, 0.112), (58, 0.172)]
+        _bl = [(x + ((80 + 32 * ((y + 0.008) / 0.243)) - x) * X_BL, y) for x, y in _bl]
+        # the thin's rise and the finial's curl over it, today's points
+        rise = [P(112, 0.235), P(184, 0.50), P(233, 0.75), P(272, 0.855), P(298, 0.925), P(289, 0.965)]
+        # the thick's line, today's: centres 193 / 246 at .50 / .25 (0.49 dx/dy)
+        fall = [P(193, 0.50), P(246, 0.25), P(282, 0.09)]
+        foot = [P(318, 0.018), P(352, 0.052), P(384, 0.145)]
+        head = [P(8, entry_y('x')), P(32, 0.88), P(62, 0.948), P(97, 0.918), P(124, 0.83)]
+        hook = [P(80, -0.008), P(*_bl[0]), P(*_bl[1]), P(*_bl[2])]
+        # the v's terminal table, placed on the x's longer stroke (it carries the
+        # bottom-left turn before its rise) so it spans the same last ~135 units
+        # (it rises from nothing so taking the larger width never steps)
+        grow = [(0.70, 0.0), (0.80, 30), (0.91, 44), (1.00, 48)]
+        if arm == "X3":       # no entry: the stroke starts at a point, as the t's top does
+            thick = x_nib([P(90, 0.99), P(124, 0.83)] + fall + foot, u, cut1=CUT,
+                          ends=(False, True))
+        else:
+            thick = x_nib(head + fall + foot, u, cut0=CUT, cut1=CUT)
+        if arm == "X2":       # a flat foot on the baseline, running out to a point
+            thin = x_nib([P(14, 0.03), P(54, 0.03), P(92, 0.085), P(126, 0.27)] + rise[1:], u,
+                         cut0=CUT, fin1=True, sm=3, ends=(False, True), tip0=0.30, tip_run=0.12,
+                         grow=grow)
+        else:
+            thin = x_nib(hook + rise, u, cut0=CUT, fin1=True, sm=8, grow=grow)
+        return geom.ink([thin, thick])
+
     @glyph('x')
     def a_x(c):
+        if X_ARM in ("X1", "X2", "X3"):
+            return x_arm(c, X_ARM)
         P, u = d_frame(c, X_W)
         thick = d_pen([P(8, entry_y('x')), P(34, 0.89), P(70, 0.95), P(105, 0.83),
                        P(140, 0.75), P(193, 0.50), P(246, 0.25), P(282, 0.09),
