@@ -607,8 +607,10 @@ A_RISE_700 = float(os.environ.get("ALBO_ROM_A_RISE_700", 0))
 #       terminal where it is). 0 = today.
 #   A_BOWL_TOP / A_BOWL_TOP_700  where the bowl leaves the stem, x xh. 0.60 =
 #       today; lower gives the eye what the bowl gives up.
-A_LIFT = float(os.environ.get("ALBO_ROM_A_LIFT", 0))
-A_LIFT_700 = float(os.environ.get("ALBO_ROM_A_LIFT_700", 0))
+# ROUND 462 -- SHIPPED: T2, the whole top stroke lifted onto the o's line (owner
+# 2026-10-02, "T2 wins"); the bowl stays where it was (A_BOWL_TOP 0.60).
+A_LIFT = float(os.environ.get("ALBO_ROM_A_LIFT", 10))
+A_LIFT_700 = float(os.environ.get("ALBO_ROM_A_LIFT_700", 6))
 A_BOWL_TOP = float(os.environ.get("ALBO_ROM_A_BOWL_TOP", 0.60))
 A_BOWL_TOP_700 = float(os.environ.get("ALBO_ROM_A_BOWL_TOP_700", 0.60))
 A_W = float(os.environ.get("ALBO_ROM_A_W", 1.0))

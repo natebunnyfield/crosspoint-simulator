@@ -7719,9 +7719,15 @@ if ON:
     #   X3  X1 with NO ENTRY at the top left: the thick starts on its own line
     #       at a pen cut, round 108's "one light turn each" for the thick
     # The thin's finial is the v's (its `grow` table under the family finial,
-    # round 276: no balls in this italic). "" (unset) draws today's letter
-    # byte for byte.
-    X_ARM = os.environ.get("ALBO_ALD_X_ARM", "").strip().upper()
+    # round 276: no balls in this italic). Since round 461 the default is X1C
+    # (below); ALBO_ALD_X_ARM="" (set, empty) draws the round-457 letter, and an
+    # unknown value is an error rather than a silent fall back to it.
+    # ROUND 461 -- SHIPPED: X1 with the C bottom left at 1.125, owner 2026-10-02:
+    # *"X1 but with more options on bottom left"*, then *"halfway between c1 &
+    # c2"*. ALBO_ALD_X_ARM="" (set, empty) draws the round-457 letter.
+    X_ARM = os.environ.get("ALBO_ALD_X_ARM", "X1C").strip().upper()
+    if X_ARM not in ("", "X1", "X2", "X3") + tuple("X1" + k for k in "ABCDEF"):
+        raise ValueError(f"ALBO_ALD_X_ARM={X_ARM!r}: not an x arm (X1, X2, X3, X1A..X1F, or empty)")
     # the nib in reference units, set on the built fonts against the references
     # (x_italic.py --hair): 57 / 20 at the 400 puts the thick at 0.80 of the o's
     # thick and the thin at 0.92 of the v's; the Bold Italic takes 66 / 22, or
@@ -7734,8 +7740,22 @@ if ON:
     # ROUND 460 -- THE BOTTOM LEFT HEAVIER, on X1C and X1F only. Owner
     # 2026-10-02: *"make C and F options with thicker bottom left serifs"*. The
     # weight of the terminal (the first ~quarter of the hairline's stroke), x
-    # today's drawing of that option: 1.0 is X1C / X1F as shown on 2026-10-02.
-    X_BL_W = d_dial("X_BL_W", 1.0)
+    # the option's first drawing: 1.0 is X1C / X1F as shown on 2026-10-02.
+    X_BL_W = d_dial("X_BL_W", 1.125)   # ROUND 461: owner "halfway between c1 & c2"
+    # ROUND 461 -- THE WHITE AROUND THE x, KEPT (the adversarial review's first
+    # finding, reproduced). The fit places the x by its UNSHEARED x-band, where
+    # the head is still the leftmost ink; sheared, the C cup reaches 20 units
+    # further left than round 457's hook did, so every pair with x on the right
+    # lost exactly 20 units of the model's own band white (local_ai xband_gap:
+    # ex ix ax nx ux dx sx tx lx rx ox cx Ex hx, both italics), and every pair
+    # with x on the left lost 6 (Italic) / 12 (Bold Italic). His readings were
+    # given on the old whites, so the x's own bearings take them back -- round
+    # 409's re-basing, applied to the one letter whose outline moved; a full
+    # refit would re-space every italic redrawn since 409. The Greek lambda and
+    # chi borrow the x's sides and are compensated in build.fit_greek, as the
+    # sigma is for the r's R_DRSB.
+    X_DLSB = d_dial("X_DLSB", 20.0)
+    X_DRSB = d_dial("X_DRSB", 6.0 + 6.0 * _XS)
 
     def x_nib(pts, u, cut0=None, cut1=None, fin0=False, fin1=False, ends=(True, True), sm=6,
               tip0=None, tip_run=0.22, grow=None, cap0=None, boost0=None):
@@ -11136,6 +11156,8 @@ if ON:
         BEARINGS['r'] = (BEARINGS['r'][0], BEARINGS['r'][1] + R_DRSB)
     if J_HEAD_I:   # 2026-09-28, the j wears the i's head: see J_HEAD_I_LSB
         BEARINGS['j'] = (BEARINGS['j'][0] + J_HEAD_I_LSB, BEARINGS['j'][1])
+    if X_ARM == "X1C":   # round 461, the x's drawn bottom left: see X_DLSB
+        BEARINGS['x'] = (BEARINGS['x'][0] + X_DLSB, BEARINGS['x'][1] + X_DRSB)
 
 # A comment asking the next editor to be careful would not have caught it.
 # This does: the module declares what it is FOR -- the complete lowercase --

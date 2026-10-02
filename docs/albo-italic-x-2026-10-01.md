@@ -2,18 +2,18 @@
 
 Owner, 2026-10-01: *"give me options for italic x"*.
 
-**Status: X1 chosen for the head, the foot, the finial and the pen; its
-bottom left is OPEN** (owner 2026-10-02, *"X1 but with more options on bottom
-left"*). Six bottom-left ends, section 8. Nothing shipped. Three arms sit behind
-`ALBO_ALD_X_ARM` (`outlines/glyphs/aldine.py`, the `ROUND 458` block above
-`a_x`). Unset draws today's letter: the default Italic and Bold Italic rebuilt
-from this tree match build 282 exactly (`cmp_outlines.py`: 0 of 530 glyphs
-differ, both cuts).
+**Status: SHIPPED, round 461** (`docs/albo-round-461-2026-10-02.md`). The
+pick: X1 with the C bottom left at 1.125 weight (owner 2026-10-02, *"X1 but
+with more options on bottom left"*, then *"halfway between c1 & c2"*). These
+are the defaults `ALBO_ALD_X_ARM` "X1C" and `ALBO_ALD_X_BL_W` 1.125, and
+`ALBO_ALD_X_ARM=""` (set, but empty) draws the round-457 letter. The option
+history follows, sections 4-9.
 
 - **Surveyed:** commit `0d89e2f`, the shipping fonts of build 282.
 - **Instruments:** `tools/wedge_serif/instruments/x_italic.py` (the reference
-  sheet, the pen signature, the hairline widths) and `instruments/x_arms.py`
-  (the proof pictures).
+  sheet, the pen signature, the hairline widths, and since round 461 `--ink`:
+  the x / n ink and the bottom-left terminal width) and
+  `instruments/x_arms.py` (the proof pictures).
 - **Certainty:** every number below was measured by those scripts on built
   outlines. Nothing is estimated.
 
@@ -51,7 +51,14 @@ band (.35–.65) caught the v's other stroke, so those four are left out.
 `cmp_g_strokes`' pen signature (width binned by run direction,
 `x_italic.py --pen`), Albo's x shows 2.03:1 contrast against its own o's
 3.16:1. That is 0.64 of the o, and 0.60 in the Bold Italic. Every reference
-x sits at 0.83–1.38 of its own o. The four ends are therefore as heavy as the
+x sits at 0.83–1.38 of its own o.
+
+**Correction (adversarial review, 2026-10-02):** the shipped x is drawn with
+`nib()` widths, but this ratio did not move. It reads 1.89 / 3.16 = **0.60**
+in the Italic and 1.97 / 3.27 = **0.60** in the Bold Italic. So in this
+letter the ratio does not tell a pen from width tables, and nothing here
+should be read as the redraw having "fixed" it. The measured faults the arms
+do address are the ink and the thick (sections 5 and 9). The four ends are therefore as heavy as the
 strokes they finish:
 
 - the foot's centerline reaches (378, .135) and then curls back to
@@ -119,10 +126,13 @@ X2 revisits the 2026-09-16 bottom-left ruling. X3 keeps it.
 
 Notes on the table:
 
-- **Spacing moves with the shape.** The B2 model re-spaces the new drawing on
-  its own: X3 comes out 33 units narrower in the Italic, because its open top
-  left lets the letter close up. The proofs show the arms spaced as they
-  would ship.
+- **Spacing (CORRECTED 2026-10-02).** This said the B2 model re-spaces a
+  new drawing on its own. It does not. The fit places the x by its UNSHEARED
+  x-band, where the head stays the leftmost ink, so a terminal that reaches
+  further left only once sheared changes every neighbor's white untouched.
+  The shipped cup cost 20 units on every pair with x on the right; round 461
+  restores it (`docs/albo-round-461-2026-10-02.md`). The option proofs in
+  sections 5, 8 and 9 were spaced WITHOUT that restoration.
 - **The Bold Italic's thick is a little heavier than today's** (0.87 of the o
   against 0.84) while its ink falls. The ends lose more than the thick gains.
 

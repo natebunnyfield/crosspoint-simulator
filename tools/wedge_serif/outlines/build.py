@@ -1065,6 +1065,11 @@ def fit_greek(ch, conts):
     # round 439: the r's right bearing takes R_DRSB for the r's own sake (its drawn
     # arm); a Greek letter borrowing that side (the sigma) must not inherit it
     if ra == 'r' and ALD is not None and ALD.ON: rsb -= getattr(ALD, 'R_DRSB', 0.0) if getattr(ALD, 'R_DRAW', 0) else 0.0
+    # round 461: the same for the x's X_DLSB / X_DRSB (its drawn bottom left); the
+    # lambda and chi borrow both of the x's sides
+    if ALD is not None and ALD.ON and getattr(ALD, 'X_ARM', '') == 'X1C':
+        if la == 'x': lsb -= getattr(ALD, 'X_DLSB', 0.0)
+        if ra == 'x': rsb -= getattr(ALD, 'X_DRSB', 0.0)
     # both analogues of a letter are fitted in one space (a lowercase pair is
     # both 'ald' in the aldine italic, everything else 'rom'); the glyph is read
     # in the LEFT one's, which is where its origin sits.

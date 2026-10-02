@@ -4,9 +4,11 @@ Owner todo, 2026-10-01: *"raise just the top stroke of roman 'a' so it
 matches the same x height and interior spacing of others"*. Then 2026-10-02:
 *"show me improved roman 'a'"*.
 
-**Status: OPTIONS, awaiting a pick.** Nothing shipped. The dials are in
+**Status: SHIPPED T2, round 462** (owner 2026-10-02, *"T2 wins"*;
+`docs/albo-round-462-2026-10-02.md`). The dials are in
 `outlines/glyphs/stems.py` (the `A_RISE` / `A_LIFT` / `A_BOWL_TOP` block
-above `g_a`), and all default to today's letter.
+above `g_a`). `A_LIFT` now defaults to 10 / 6; the others still default to
+build 282's letter.
 
 - **Surveyed:** build 282.
 - **Instrument:** `tools/wedge_serif/instruments/a_roman_top.py`.

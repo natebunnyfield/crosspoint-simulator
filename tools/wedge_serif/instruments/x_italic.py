@@ -265,6 +265,34 @@ def hair_report(fonts_dir):
               f"{h['x']/h['v']:.2f}  {h['x']/h['o_thin']:.2f}   ({h['x_thick']*k:.0f}, {h['o_thick']*k:.0f})")
 
 
+def ink_ratio(path, idx, sl, a="x", b="n", XH=400):
+    """Ink of glyph a over ink of glyph b, unsheared rasters at the face's x-height
+    = XH px -- the "x / n ink" of docs/albo-italic-x-2026-10-01.md (an outline-area
+    ratio agrees to three decimals, adversarial review 2026-10-02)."""
+    ga = outline_bitmap(path, idx, a, XH, sl, unshear=True)[0]
+    gb = outline_bitmap(path, idx, b, XH, sl, unshear=True)[0]
+    return (ga / 255.0).sum() / (gb / 255.0).sum()
+
+
+def terminal_width(path, idx, sl, XH=400):
+    """The bottom-left terminal's weight: the largest perpendicular width (twice the
+    Euclidean distance transform) inside the left 30% of the x's ink and below .25
+    xh, unsheared, in units at xh 429 -- section 9's "terminal width"."""
+    from scipy.ndimage import distance_transform_edt as edt
+    a, left, top, adv = outline_bitmap(path, idx, "x", XH, sl, unshear=True)
+    ink = a > 127; d = edt(ink)
+    ys, xs = np.nonzero(ink); x0 = xs.min(); w = xs.max() - x0
+    reg = np.zeros_like(ink); reg[top - int(0.25 * XH):, x0:x0 + int(0.30 * w)] = True
+    return (2 * d[reg & ink]).max() / XH * 429
+
+
+def ink_report(fonts_dir):
+    for nm in ("Albo-Italic.ttf", "Albo-BoldItalic.ttf"):
+        p = os.path.join(fonts_dir, nm)
+        if os.path.exists(p):
+            print(f"{nm:22s} x/n ink {ink_ratio(p, 0, 13.0):.3f}   bottom-left terminal {terminal_width(p, 0, 13.0):.1f} units")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--fonts", required=True)
@@ -273,6 +301,7 @@ if __name__ == "__main__":
     ap.add_argument("--measure", action="store_true")
     ap.add_argument("--pen", action="store_true", help="the pen signature, x against o")
     ap.add_argument("--hair", action="store_true", help="hairline widths: x, v, w, y against the o")
+    ap.add_argument("--ink", action="store_true", help="x / n ink and the bottom-left terminal width")
     a = ap.parse_args()
     faces = face_list(a.fonts)
     if a.sheet:
@@ -281,6 +310,8 @@ if __name__ == "__main__":
         pen_report(a.fonts)
     if a.hair:
         hair_report(a.fonts)
+    if a.ink:
+        ink_report(a.fonts)
     if a.measure:
         print(f"{'face':18s} {'w/xh':>5s} {'thick':>5s} {'thin':>5s} {'t/t':>4s} {'cross':>5s}  {'lean thick/thin':>15s}  ends .03 L/R   .97 L/R   (o stem/xh)")
         for f in faces:
