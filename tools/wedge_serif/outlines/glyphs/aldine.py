@@ -7733,7 +7733,7 @@ if ON:
     X_PEN_PHI = d_dial("X_PEN_PHI", 50.0)       # the edge's angle: nib()'s own
 
     def x_nib(pts, u, cut0=None, cut1=None, fin0=False, fin1=False, ends=(True, True), sm=6,
-              tip0=None, tip_run=0.22, grow=None):
+              tip0=None, tip_run=0.22, grow=None, cap0=None):
         """One movement of the x's pen: a catmull through `pts` whose width at
         every sample is the nib's for the direction the path runs there,
         averaged over `sm` samples either side (a wider window turns a sharp
@@ -7742,7 +7742,10 @@ if ON:
         is a width table (t, reference units) the stroke may not fall under:
         the v's terminal, so the x's finial grows out of its hairline the
         way the v's does instead of necking where the path runs along the
-        nib's edge (49 degrees, on the nib's 50) just before it."""
+        nib's edge (49 degrees, on the nib's 50) just before it. `cap0` =
+        (t, width): the start may not exceed that width (reference units) up
+        to t, eased out over the next 0.08 -- a turn kept at hairline weight
+        where the pen would swell it."""
         p = catmull(list(pts), tension=0.5)
         n = len(p); k = u * X_TW * ALD_WF_UP
         raw = []
@@ -7755,6 +7758,14 @@ if ON:
         ws = [w * m for w, m in zip(ws, _taper(n, ends=ends))]
         if tip0 is not None:
             ws = [w * m for w, m in zip(ws, _taper(n, tip=tip0, run=tip_run, ends=(True, False)))]
+        if cap0:
+            t_c, w_c = cap0
+            def _cap(i, w):
+                t = i / (n - 1)
+                if t >= t_c + 0.08: return w
+                m = w_c * k if t <= t_c else w_c * k + (w - w_c * k) * ((t - t_c) / 0.08)
+                return min(w, m)
+            ws = [_cap(i, w) for i, w in enumerate(ws)]
         if grow:
             gf = widths(grow); t_g = grow[0][0]
             ws = [max(w, gf(i / (n - 1)) * k) if i / (n - 1) >= t_g else w for i, w in enumerate(ws)]
@@ -7786,17 +7797,44 @@ if ON:
                           ends=(False, True))
         else:
             thick = x_nib(head + fall + foot, u, cut0=CUT, cut1=CUT)
+        # ROUND 459 -- X1's BOTTOM LEFT AS OPTIONS. Owner 2026-10-02: *"X1 but
+        # with more options on bottom left"*. X1A is X1; each other letter swaps
+        # only the thin's start, the other three ends and the pen as X1:
+        #   B  the family finial, as the hairline's top right has (round 276)
+        #   C  an upturn: the hairline reaches the baseline and cups up to the
+        #      left, mirroring the thick's foot
+        #   D  a short wedge foot, heavier and shorter than X2's flat one
+        #   E  bare: the hairline runs out at the baseline on a pen cut
+        #   F  X1A's turn kept at hairline weight: the hook without the pen's
+        #      swell, a thin curl where X1A's is a comma (a closed teardrop was
+        #      drawn first and folded onto its own stroke, leaving a white sliver)
+        bl = arm[2] if len(arm) == 3 and arm.startswith("X1") else "A"
         if arm == "X2":       # a flat foot on the baseline, running out to a point
             thin = x_nib([P(14, 0.03), P(54, 0.03), P(92, 0.085), P(126, 0.27)] + rise[1:], u,
                          cut0=CUT, fin1=True, sm=3, ends=(False, True), tip0=0.30, tip_run=0.12,
                          grow=grow)
+        elif bl == "B":
+            thin = x_nib([P(44, 0.065), P(66, 0.11), P(112, 0.235)] + rise[1:], u,
+                         fin0=True, fin1=True, sm=8, grow=grow)
+        elif bl == "C":
+            thin = x_nib([P(12, 0.13), P(22, 0.05), P(52, 0.016), P(86, 0.08), P(112, 0.235)] + rise[1:],
+                         u, fin1=True, sm=6, tip0=0.40, tip_run=0.14, grow=grow)
+        elif bl == "D":
+            thin = x_nib([P(28, 0.028), P(60, 0.03), P(90, 0.10), P(120, 0.26)] + rise[1:], u,
+                         cut0=CUT, fin1=True, sm=3, ends=(False, True), tip0=0.55, tip_run=0.10,
+                         grow=grow)
+        elif bl == "E":
+            thin = x_nib([P(58, 0.02), P(84, 0.11), P(112, 0.235)] + rise[1:], u,
+                         cut0=CUT, fin1=True, sm=8, grow=grow)
+        elif bl == "F":
+            thin = x_nib(hook + rise, u, cut0=CUT, fin1=True, sm=8, grow=grow, cap0=(0.20, 30.0))
         else:
             thin = x_nib(hook + rise, u, cut0=CUT, fin1=True, sm=8, grow=grow)
         return geom.ink([thin, thick])
 
     @glyph('x')
     def a_x(c):
-        if X_ARM in ("X1", "X2", "X3"):
+        if X_ARM in ("X1", "X2", "X3") or (len(X_ARM) == 3 and X_ARM[:2] == "X1" and X_ARM[2] in "ABCDEF"):
             return x_arm(c, X_ARM)
         P, u = d_frame(c, X_W)
         thick = d_pen([P(8, entry_y('x')), P(34, 0.89), P(70, 0.95), P(105, 0.83),

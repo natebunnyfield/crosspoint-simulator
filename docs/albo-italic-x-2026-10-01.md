@@ -2,7 +2,9 @@
 
 Owner, 2026-10-01: *"give me options for italic x"*.
 
-**Status: OPTIONS, awaiting a pick.** Nothing shipped. Three arms sit behind
+**Status: X1 chosen for the head, the foot, the finial and the pen; its
+bottom left is OPEN** (owner 2026-10-02, *"X1 but with more options on bottom
+left"*). Six bottom-left ends, section 8. Nothing shipped. Three arms sit behind
 `ALBO_ALD_X_ARM` (`outlines/glyphs/aldine.py`, the `ROUND 458` block above
 `a_x`). Unset draws today's letter: the default Italic and Bold Italic rebuilt
 from this tree match build 282 exactly (`cmp_outlines.py`: 0 of 530 glyphs
@@ -154,3 +156,44 @@ expected 174, fox 162, fixed 154 and text 146. The commonest x pairs are
 ex 4,760, xt 1,194, xp 1,144, ix 1,016 and xi 968.
 
 Proof page: https://claude.ai/artifact/SGF54ZGgzxYW4JJYxTw7DT
+
+## 8. Round 459: X1's bottom left as options (2026-10-02)
+
+Owner: *"X1 but with more options on bottom left"*. So X1's head, foot,
+finial and pen are ruled. Each option below swaps only the thin's start,
+`ALBO_ALD_X_ARM=X1A`...`X1F`, and X1A is X1:
+
+| option | the bottom left | x / n ink (I / Z) | lsb (I / Z) | touch |
+|---|---|---|---|---|
+| X1A | X1's turn: the comma (X_BL 0.10, the pen swells it as it swings left) | 0.851 / 0.792 | 31 / 21 | clean |
+| X1B | the family finial, as the hairline's top right has (round 276) | 0.809 / 0.752 | 56 / 61 | clean |
+| X1C | an upturn: the hairline cups up to the left, mirroring the thick's foot | 0.856 / 0.798 | 15 / 11 | **R x touches in Z** (-0.0019 em); I under the floor (0.0065) |
+| X1D | a short wedge foot, heavier and shorter than X2's | 0.819 / 0.765 | 24 / 22 | R x under the floor, both (0.0079 / 0.0053) |
+| X1E | bare: the hairline runs out at the baseline on a pen cut | 0.791 / 0.734 | 65 / 67 | clean |
+| X1F | X1A's turn kept at hairline weight: a thin curl, not a comma | 0.833 / 0.771 | 38 / 36 | clean |
+
+Notes on the table:
+
+- **Every option keeps X1's advance** (533 Italic, 542 Bold Italic). The
+  spacing model places the glyph by bands the bottom left does not reach, so
+  only the left bearing moves and the options compare like for like.
+- **The other gates pass on all six.** No contour hairs (letters or full
+  sweep), composites touch 0, kern classes ok. Only x and χ move against
+  today.
+
+Two drawings were tried and fixed or dropped on the way, recorded so they are
+not retried:
+
+- **A closed teardrop** (the curl carried round to point back up into the
+  hook) folded onto its own stroke and left a white sliver between the tip
+  and the inner edge, in both cuts. It was replaced by X1F.
+- **The first finial (X1B)** started at y 0.012. With the face sheared 28
+  degrees toward vertical, its corner hung to -31 in the Italic and -44 in the
+  Bold Italic, an arrowhead under the baseline. It now starts at 0.065 and
+  bottoms at -15 / -28 with the rest of the letter.
+
+The proof adds `pairs_<cut>.png`: "ex ix ox" at 100 pt, which is where the
+bottom left meets the letter before it (ex is the commonest x pair in his
+books, 4,760).
+
+Proof page: https://claude.ai/artifact/7Aq2A2qVwLCGbrgXV11RCB

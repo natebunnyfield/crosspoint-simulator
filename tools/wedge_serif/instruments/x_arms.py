@@ -11,6 +11,8 @@ docs/albo-italic-x-2026-10-01.md quotes every number from here and from x_italic
                               glyphs_<cut>.png every arm's x and six references at one x-height
                               words_<cut>.png  the corpus line at 10 pt on the X3, 5x NEAREST
                               words2x_<cut>.png the phone's 2x tier, 3x NEAREST
+                              pairs_<cut>.png  "ex ix ox" at 100 pt, 1x: where the bottom left
+                                               meets the letter before it
 
     $VENV/bin/python instruments/x_arms.py proof OUT today=$T X1=$A1 X2=$A2 X3=$A3
 
@@ -118,6 +120,9 @@ def cmd_proof(out, arms):
         Image.fromarray(vcat([hcat(cs[:half]), hcat(cs[half:])], 6)).save(os.path.join(out, f"glyphs_{cut}.png"))
         Image.fromarray(rows(cut, LINE, 10, 5)).save(os.path.join(out, f"words_{cut}.png"))
         Image.fromarray(rows(cut, "next exactly six text box fox", 10, 3, tier=2)).save(os.path.join(out, f"words2x_{cut}.png"))
+        # the pairs where the x's bottom left meets the letter before it (ex 4,760,
+        # ix 1,016, ox 627 in his books), large: 100 pt through the same renderer
+        Image.fromarray(rows(cut, "ex ix ox", 100, 1)).save(os.path.join(out, f"pairs_{cut}.png"))
     for fn in sorted(os.listdir(out)):
         if fn.endswith(".png"): print(os.path.join(out, fn))
 
