@@ -405,15 +405,21 @@ The six sheets: https://claude.ai/artifact/K3DT57ZTZtwfM2LJZCd8a8 (2026-10-01).
 
 ## Posters (2026-10-01)
 
-Owner: *"make another stroke color poster-sized with a pangram inspired by worlds beyond number epub"*, then *"is there a pangram that can be done that is a sentence instead of 'port talon'"*. The first draft opened on the place name ("At Port Talon, Suvi the wizard, ..."); the poster uses a sentence instead, every letter a-z, the three heroes by their titles (Suvi the wizard, Ame the witch, Eursulon the wild one, from the `wbn` epub's own character list) and the show's name at its end:
+Owner: *"make another stroke color poster-sized with a pangram inspired by worlds beyond number epub"*, then *"is there a pangram that can be done that is a sentence instead of 'port talon'"*, then *"don't use 'beyond number'"*. Three drafts, in order:
 
-> The wizard, the witch and the wild one quietly jinx a glowing fox spirit and keep vows beyond number.
+1. "At Port Talon, Suvi the wizard, Ame the witch and Eursulon the wild one jinx a quarrelsome king by foxlight" -- opened on the place name; replaced.
+2. "The wizard, the witch and the wild one quietly jinx a glowing fox spirit and keep vows beyond number." -- ended on the show's name; replaced.
+3. **Shipped on the page:** the three heroes by their titles (Suvi the wizard, Ame the witch, Eursulon the wild one, from the `wbn` epub's own character list), no place name, no show name:
 
-`--poster TITLE` (new) sets `--words` as a poster: rows 18 x-heights wide, every size and margin scaled with `--px-xh`, no per-word counts. At `--px-xh 360` each sheet is 6480 x ~7700 px (about 18 x 21 inches at 360 dpi):
+> The wizard, the witch and the wild one quietly jinx a glowing fox spirit and keep vows by moonlight.
 
-    $VENV/bin/python instruments/stroke_colors.py --out DIR --fonts <built dir> --px-xh 360 \
-        --words "The wizard, the witch and the wild one quietly jinx a glowing fox spirit and keep vows beyond number." \
-        --poster "A Worlds Beyond Number pangram"
+Each draft was checked for all 26 letters by script (`set(ascii_lowercase) - set(text.lower())` empty). One mistake to record: a status line during draft 1 read "Pangram drafted from the epub (Suvi the wizard, Ame the witch, Eursulon the wild one, Port Talon); it uses all 26 letters". The parenthesis was the list of NAMES taken from the epub, not the pangram, and that list alone lacks b f g j k q x y; the owner asked where its j and x were. Quote the sentence itself, never its ingredients, beside a letter-count claim.
+
+`--poster TITLE` (new) sets `--words` as a poster: rows 18 x-heights wide, every size and margin scaled with `--px-xh`, no per-word counts. At `--px-xh 360` each sheet is 6480 x ~7400-7800 px (about 18 x 21 inches at 360 dpi):
+
+    $S/venv/bin/python instruments/stroke_colors.py --out OUT --fonts FONTS --px-xh 360 \
+        --words "The wizard, the witch and the wild one quietly jinx a glowing fox spirit and keep vows by moonlight." \
+        --poster "A pangram for Suvi, Ame and Eursulon"
 
 **Not captured:** the italic capital `T` (no stroke reaches the tracer; it draws in the built outline's gray -- the instrument now falls back instead of crashing). Every other glyph of the pangram matches the shipped fonts (0 of 29 glyphs and 0 of 19 words differ, both styles).
 
