@@ -397,7 +397,7 @@ def _smooth_wf(wf, n, passes=4):
 #    moving 90 units left, so the centreline runs at 25 degrees and turns
 #    vertical in 30 units -- a notch on the counter side, another at the foot,
 #    and a 125-unit slanted boot.
-# ALBO_Q_NECK picks a neck. '' -- the default -- is today's, untouched. Every
+# ALBO_Q_NECK picks a neck (Q1 the default since round 457; '' is the old neck). Every
 # arm keeps the curl EXACTLY: the same samples and the same widths up to the
 # curl's 3 o'clock, raised about today's origin, so only the stroke below the
 # 3 o'clock is new. Each arm is one idea, not a rung:
@@ -420,7 +420,9 @@ def _smooth_wf(wf, n, passes=4):
 # A turned foot (the old-style kick of Palatino and Pagella) was drawn as a
 # fourth idea and cut: it is not in the roman's vocabulary, and at the 700s its
 # bend left a 12-unit inner radius -- a notch.
-Q_NECK = os.environ.get("ALBO_Q_NECK", "").strip().upper()
+# ROUND 457 -- Q1 SHIPS. Owner 2026-10-01, on the proof page (claude.ai/artifact/9UvYuwsUU47yCA6otJvNEL):
+# *"Q1 wins"*. ALBO_Q_NECK="" (an explicit empty string) restores the old neck; Q2 / Q3 stay selectable.
+Q_NECK = os.environ.get("ALBO_Q_NECK", "Q1").strip().upper()
 def _qn(name, default): return float(os.environ.get("ALBO_Q_NECK_" + name, default))
 Q_NECK_GAP = _qn("GAP", 0.8)       # the white over the dot, x REF_S: the 400 !'s 0.8 S = 53.5 units ...
 Q_NECK_GAP_D = _qn("GAP_D", 0.40)  # ... and never under this x the dot's diameter -- where today's 700s already
