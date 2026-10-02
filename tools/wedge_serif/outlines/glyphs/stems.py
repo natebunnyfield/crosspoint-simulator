@@ -594,6 +594,23 @@ A_HOOD_FLUSH = True
 #       1.0 = today.
 A_RISE = float(os.environ.get("ALBO_ROM_A_RISE", 0))
 A_RISE_700 = float(os.environ.get("ALBO_ROM_A_RISE_700", 0))
+# 2026-10-02, owner todo *"raise just the top stroke of roman 'a' so it matches
+# the same x height and interior spacing of others"*, then *"show me improved
+# roman 'a'"* (docs/albo-roman-a-top-2026-10-02.md). Measured on build 282: the
+# a's top is 433 / 438 against the o's 444 (every reference's a reaches its o),
+# and its EYE -- the white between the top stroke and the bowl -- is 0.67 of
+# its own e's eye where the references run 0.93-1.63, because its bowl is tall
+# (counter 0.50 of the o's against their 0.22-0.39).
+#   A_LIFT / A_LIFT_700  units the WHOLE top stroke is moved up -- run, arc,
+#       underside and terminal together, the stem extended under it -- so the
+#       eye grows by the full amount (A_RISE bends the crown and leaves the
+#       terminal where it is). 0 = today.
+#   A_BOWL_TOP / A_BOWL_TOP_700  where the bowl leaves the stem, x xh. 0.60 =
+#       today; lower gives the eye what the bowl gives up.
+A_LIFT = float(os.environ.get("ALBO_ROM_A_LIFT", 0))
+A_LIFT_700 = float(os.environ.get("ALBO_ROM_A_LIFT_700", 0))
+A_BOWL_TOP = float(os.environ.get("ALBO_ROM_A_BOWL_TOP", 0.60))
+A_BOWL_TOP_700 = float(os.environ.get("ALBO_ROM_A_BOWL_TOP_700", 0.60))
 A_W = float(os.environ.get("ALBO_ROM_A_W", 1.0))
 A_HOOD_W = 0.92   # round 94: the hood's stroke x this (both its outer run-then-arc and the underside cubic)
 A_UNDER_LEAN = 14   # round 86's curve 8 lean, for the underside cubic
@@ -645,11 +662,13 @@ def g_a(c):
     # its right foot only; at and under 84 both feet, and the 400 is
     # byte-identical.
     _feet_in = S <= 84.0
+    _lift = A_LIFT_700 if S > 84.0 else A_LIFT   # 2026-10-02: the whole top stroke up by this (0 = today)
+    _st_top = xh * top_f + _lift
     if A_OPT == 'b':   # option b: the right foot smaller; the left foot is inside the bowl either way
-        st = geom.union(([stem(x, 0, xh * top_f, top=None, foot='left', ent_span=(0, xh))] if _feet_in else []) +
-                        [stem(x, 0, xh * top_f, top=None, foot='right', ent_span=(0, xh), foot_len=PR.FOOT * A_FOOT_B, foot_depth=A_FOOT_B)])   # stem()'s foot_len default is FOOT, so the factor multiplies it
+        st = geom.union(([stem(x, 0, _st_top, top=None, foot='left', ent_span=(0, xh))] if _feet_in else []) +
+                        [stem(x, 0, _st_top, top=None, foot='right', ent_span=(0, xh), foot_len=PR.FOOT * A_FOOT_B, foot_depth=A_FOOT_B)])   # stem()'s foot_len default is FOOT, so the factor multiplies it
     else:
-        st = stem(x, 0, xh * top_f, top=None, foot='both' if _feet_in else 'right', ent_span=(0, xh))
+        st = stem(x, 0, _st_top, top=None, foot='both' if _feet_in else 'right', ent_span=(0, xh))
     peak = xh + OVER - PR.bowl_hair() / 2
     _ar = A_RISE_700 if S > 84.0 else A_RISE   # 2026-09-27 dials, default 0 (below A_CURVES)
     if A_HOOD_FLUSH:
@@ -674,12 +693,13 @@ def g_a(c):
         # 8), leaves the stem's edge vertical. The 0.92 still applies from
         # the turn on, which is what round 94 asked for.
         w_st = PR.stem_width(TH_V, PR.ENT, top_f); f0 = w_st / S / A_HOOD_W
-        run = line((x, xh * start_f), (x, xh * top_f))
-        arc = cubic((x, xh * top_f), (x + lean * wf, xh * up + _ar), (x - 236 * wf * A_W, peak + 44 + _ar), (x - 286 * wf * A_W, xh * 0.72))
+        _L = _lift
+        run = line((x, xh * start_f + _L), (x, xh * top_f + _L))
+        arc = cubic((x, xh * top_f + _L), (x + lean * wf, xh * up + _ar + _L), (x - 236 * wf * A_W, peak + 44 + _ar + _L), (x - 286 * wf * A_W, xh * 0.72 + _L))
         hood = join(run, arc)
         tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
         tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
-        under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up + _ar), (x - 236 * wf * A_W, peak + 44 + _ar), (x - 286 * wf * A_W, xh * 0.72))
+        under = cubic((x, xh * start_f + _L), (x + A_UNDER_LEAN * wf, xh * up + _ar + _L), (x - 236 * wf * A_W, peak + 44 + _ar + _L), (x - 286 * wf * A_W, xh * 0.72 + _L))
         under0 = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.0)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.0)])   # round 275: the 1.12 at the end is the finial's swell now (below)
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
@@ -738,14 +758,15 @@ def g_a(c):
         # smoothed widths overshoot there), and the stem's chamfered top corner
         # is filled under the hood's edge.
         from shapely.geometry import LineString as _LS, box as _box
-        _xr = st.intersection(_LS([(x, xh * top_f - 0.75), (x + 3 * S, xh * top_f - 0.75)])).bounds[2]
-        _hr = hd.intersection(_LS([(x, xh * top_f + 0.5), (x + 3 * S, xh * top_f + 0.5)])).bounds[2]
+        _yt = xh * top_f + _lift; _ys = xh * start_f + _lift
+        _xr = st.intersection(_LS([(x, _yt - 0.75), (x + 3 * S, _yt - 0.75)])).bounds[2]
+        _hr = hd.intersection(_LS([(x, _yt + 0.5), (x + 3 * S, _yt + 0.5)])).bounds[2]
         if abs(_hr - _xr) > 0.15 and _hr > x:
             prof, hood_w, hd = _build(f0 * (_xr - x) / (_hr - x))
-        _band = _box(x, xh * start_f - 2.0, x + 3 * S, xh * top_f)
+        _band = _box(x, _ys - 2.0, x + 3 * S, _yt)
         hd = hd.difference(_band.difference(st))
-        hd = hd.difference(_box(_xr, xh * top_f - 2.0, x + 3 * S, xh * top_f + 30.0))
-        hd = geom.union([hd, _box(x, xh * top_f - 6.0, _xr, xh * top_f + 1.0)])
+        hd = hd.difference(_box(_xr, _yt - 2.0, x + 3 * S, _yt + 30.0))
+        hd = geom.union([hd, _box(x, _yt - 6.0, _xr, _yt + 1.0)])
     if A_OPT in A_TERM_WEDGE:
         # options c / d: a wedge serif on the hood's terminal, on its outer
         # (up-left) side, seated on the corner the pen cut leaves there. The
@@ -764,7 +785,7 @@ def g_a(c):
     # into the stem near the foot
     L = (x - 335 * wf * A_W, xh * 0.30); B = (x - 150 * wf * A_W, -OVER)
     xin = x + TH_V / 2 - TH_V * 0.35
-    top = (xin, xh * 0.60)
+    top = (xin, xh * (A_BOWL_TOP_700 if S > 84.0 else A_BOWL_TOP))
     outer = join(cubic(top, (top[0] - 70 * wf * A_W, top[1] + 62), (L[0] + 6 * wf * A_W, L[1] + 150), L),
                  cubic(L, (L[0], L[1] - 120), (B[0] - 105 * wf * A_W, B[1]), B),
                  cubic(B, (B[0] + 85 * wf * A_W, B[1]), (xin, 15), (xin, 60)))
