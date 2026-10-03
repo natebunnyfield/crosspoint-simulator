@@ -2,7 +2,7 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-01; the log below is history)
 
-- **2026-10-01 -- OWNER TODOS, OPEN** (his words; not started unless marked):
+- **2026-10-01 -- OWNER TODOS: ALL DONE by 2026-10-03** (his words; each marked with its round):
   - *"bold S seems small in 'Step'"* -- the Bold capital S against the t, e, p after it.
     **DONE, round 465** (owner "S3 wins"; `docs/albo-round-465-2026-10-02.md`): it was the
     right height but narrow (S/H 0.544 against six bold references' 0.60-0.69); it ships at
