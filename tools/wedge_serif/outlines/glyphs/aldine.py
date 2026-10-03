@@ -7759,7 +7759,7 @@ if ON:
     # Round 463's refit arms (B, C: outlines/spacing_b2_r463B.json / C.json) set
     # these to 0 -- the refit on the refreshed re-basing pair sees the cup -- and
     # must be built with ALBO_ALD_X_DLSB=0 ALBO_ALD_X_DRSB=0 (docs/albo-round-463).
-    X_CLOSE = d_dial("X_CLOSE", 0.0)   # the Bold Italic's head-junction notch: see x_arm
+    X_CLOSE = d_dial("X_CLOSE", 8.0)   # ROUND 464 (owner "yes and go"): the Bold Italic head-junction notch closed; see x_arm
     X_DLSB = d_dial("X_DLSB", 20.0)
     X_DRSB = d_dial("X_DRSB", 6.0 + 6.0 * _XS)
 
@@ -7895,7 +7895,7 @@ if ON:
         # white beside a barb of ink (a -122.5 degree reversal on 6- and 8-unit arms,
         # under the hair gate's 150). X_CLOSE units of mitre closing (buffer out, then
         # in, as greek_italic's _close3) fill a notch that narrow and leave every
-        # convex corner sharp. 0 = round 461's drawing; the 400 never takes it.
+        # convex corner sharp. Ships at 8 (round 464); 0 = round 461's drawing; the 400 never takes it.
         if X_CLOSE and S > 84.0:
             g_ = g_.buffer(X_CLOSE, join_style=2).buffer(-X_CLOSE, join_style=2)
         return g_

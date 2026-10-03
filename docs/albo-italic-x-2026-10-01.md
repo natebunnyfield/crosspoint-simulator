@@ -271,4 +271,4 @@ and ξ. Measured on the live outline against `ALBO_ALD_X_CLOSE=0`:
 - nothing else.
 
 At 3 and 5 units the barb survived. Built, only the x moves (`cmp_outlines`),
-hairs none, touch 0 / 0. **Default 0, awaiting his call** (defects are his).
+hairs none, touch 0 / 0. **Owner "yes and go": SHIPPED as round 464** (`docs/albo-round-464-2026-10-02.md`); the default is now 8.
