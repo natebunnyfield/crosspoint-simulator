@@ -385,7 +385,8 @@ BRACE_BOW = float(os.environ.get("ALBO_BRACE_BOW", 0.0))       # the shank's bow
 
 def _brace_b(c, left):
     from .marks import FENCE_RAISE
-    top = CAP + FENCE_RAISE; bot = -DESC + FENCE_RAISE; mid = (top + bot) / 2; hh = (top - bot) / 2
+    top, bot = c["fence"] if "fence" in c else (CAP + FENCE_RAISE, -DESC + FENCE_RAISE)   # ALBO_FENCE_SPAN, see marks.paren
+    mid = (top + bot) / 2; hh = (top - bot) / 2
     W = XH * BRACE_W; xs = W * BRACE_SHANK
     sw = TH_V * BRACE_WT                    # the shank's width, before the pen's direction takes it
     e = sw * BRACE_END / 2                  # the end's centre sits half its width under the top
@@ -467,7 +468,7 @@ def _brace_metal(c, left, opt):
     import shapely.affinity as aff
     from .marks import FENCE_RAISE
     from ..geom import quad
-    top = CAP + 16 + FENCE_RAISE; bot = -DESC - 16 + FENCE_RAISE     # the paren's own span (marks.paren: +/- 16 over the fences)
+    top, bot = c["fence"] if "fence" in c else (CAP + 16 + FENCE_RAISE, -DESC - 16 + FENCE_RAISE)     # the paren's own span (marks.paren: +/- 16 over the fences); ALBO_FENCE_SPAN, see marks.paren
     mid = (top + bot) / 2; hh = (top - bot) / 2
     W = XH * BRACE_MW
     wt = BRACE_MWT or {"4": 0.95, "5": 0.95, "6": 1.00, "7": 1.15}[opt]
@@ -551,7 +552,8 @@ def _brace(c, left):
     if BRACE_OPT in ("4", "5", "6", "7"):
         return _brace_metal(c, left, BRACE_OPT)
     from .marks import FENCE_RAISE
-    top = CAP + FENCE_RAISE; bot = -DESC + FENCE_RAISE; mid = (top + bot) / 2
+    top, bot = c["fence"] if "fence" in c else (CAP + FENCE_RAISE, -DESC + FENCE_RAISE)   # ALBO_FENCE_SPAN, see marks.paren
+    mid = (top + bot) / 2
     w = XH * 0.30; xw = w * 0.22          # the waist's x
     prof = widths([(0.0, 0.52), (0.35, 0.92), (0.62, 0.92), (1.0, 0.52)])
     up = cubic((w, top), (xw, top - (top - mid) * 0.34), (w * 0.62, mid + (top - mid) * 0.42), (xw, mid))
@@ -569,11 +571,12 @@ def g_braceright(c): return _brace(c, False)
 @glyph('|')
 def g_bar(c):
     from .marks import FENCE_RAISE
-    return _s(line((TH_V * 0.4, -DESC + FENCE_RAISE), (TH_V * 0.4, CAP + FENCE_RAISE)), w=TH_V * 0.62)
+    top, bot = c["fence"] if "fence" in c else (CAP + FENCE_RAISE, -DESC + FENCE_RAISE)   # ALBO_FENCE_SPAN, see marks.paren
+    return _s(line((TH_V * 0.4, bot), (TH_V * 0.4, top)), w=TH_V * 0.62)
 @glyph('¦')
 def g_brokenbar(c):
     from .marks import FENCE_RAISE
-    x = TH_V * 0.4; top = CAP + FENCE_RAISE; bot = -DESC + FENCE_RAISE; g = (top - bot) * 0.14
+    x = TH_V * 0.4; top, bot = c["fence"] if "fence" in c else (CAP + FENCE_RAISE, -DESC + FENCE_RAISE); g = (top - bot) * 0.14   # ALBO_FENCE_SPAN, see marks.paren
     return geom.ink([_s(line((x, bot), (x, MID - g)), w=TH_V * 0.62), _s(line((x, MID + g), (x, top)), w=TH_V * 0.62)])
 
 # ---------------------------------------------------------------- inverted Spanish

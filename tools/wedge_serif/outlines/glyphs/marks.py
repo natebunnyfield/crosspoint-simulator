@@ -912,10 +912,13 @@ FENCE_RAISE = 50
 PAREN_RAISE_IT = float(os.environ.get("ALBO_ALD_PAREN_RAISE", 48.0))   # round 466: P3 ships (owner "P3 wins")
 def paren(c, left):
     C = CAP(c); d = DESC; r = 150
-    if left: pts = superellipse(r, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(105), math.radians(255), 2.2)
-    else: pts = superellipse(0, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(75), math.radians(-75), 2.2)
-    return aff.translate(stroke(pts, pen_widths(pts, lambda t: 0.6 + 0.4 * math.sin(math.pi * t)), cut0=CUT, cut1=CUT), 0,
-                         FENCE_RAISE + (PAREN_RAISE_IT if pen.ITALIC else 0.0))
+    if "fence" in c:   # ALBO_FENCE_SPAN: the cut's own lines, handed in by build.draw
+        top, bot = c["fence"]; cy, hh, lift = (top + bot) / 2, (top - bot) / 2, 0.0
+    else:
+        cy, hh, lift = (C - d) / 2, (C + d) / 2 + 16, FENCE_RAISE + (PAREN_RAISE_IT if pen.ITALIC else 0.0)
+    if left: pts = superellipse(r, cy, r, hh, math.radians(105), math.radians(255), 2.2)
+    else: pts = superellipse(0, cy, r, hh, math.radians(75), math.radians(-75), 2.2)
+    return aff.translate(stroke(pts, pen_widths(pts, lambda t: 0.6 + 0.4 * math.sin(math.pi * t)), cut0=CUT, cut1=CUT), 0, lift)
 @glyph('(')
 def g_parenleft(c): return paren(c, True)
 @glyph(')')
@@ -923,7 +926,8 @@ def g_parenright(c): return paren(c, False)
 def bracket(c, left):
     C = CAP(c); d = DESC; w = 180; x = S * 0.4 if left else w - S * 0.4
     x0, x1 = (x, w) if left else (0, x)
-    return aff.translate(geom.ink([stroke(line((x, -d), (x, C)), TH_V * 0.85), stroke(line((x0, C - TH_H / 2), (x1, C - TH_H / 2)), TH_H), stroke(line((x0, -d + TH_H / 2), (x1, -d + TH_H / 2)), TH_H)]), 0, FENCE_RAISE)
+    top, bot, lift = (*c["fence"], 0.0) if "fence" in c else (C, -d, FENCE_RAISE)   # ALBO_FENCE_SPAN, see paren
+    return aff.translate(geom.ink([stroke(line((x, bot), (x, top)), TH_V * 0.85), stroke(line((x0, top - TH_H / 2), (x1, top - TH_H / 2)), TH_H), stroke(line((x0, bot + TH_H / 2), (x1, bot + TH_H / 2)), TH_H)]), 0, lift)
 @glyph('[')
 def g_bracketleft(c): return bracket(c, True)
 @glyph(']')

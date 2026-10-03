@@ -2,6 +2,11 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-01; the log below is history)
 
+- **2026-10-03 -- THE FENCES, RULED** (owner, on the italic brackets after round 466: *"extend them so they are
+  higher than ascender and lower than descender. adjust all."*): every ( ) [ ] { } | ¦ in every cut past its own
+  deepest descender and tallest ascender, `ALBO_FENCE_SPAN` / `ALBO_FENCE_OVER` in `build.py`, fence kerns
+  re-measured whole. The margin is the open choice: E1 / E2 / E3 = 10 / 25 / 40 units,
+  `docs/albo-fences-2026-10-03.md`, page https://claude.ai/artifact/9UnfAUMqzng8u8NeQtQrrw.
 - **2026-10-01 -- OWNER TODOS: ALL DONE by 2026-10-03** (his words; each marked with its round):
   - *"bold S seems small in 'Step'"* -- the Bold capital S against the t, e, p after it.
     **DONE, round 465** (owner "S3 wins"; `docs/albo-round-465-2026-10-02.md`): it was the

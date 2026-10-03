@@ -366,12 +366,40 @@ def ctx(ch, W=None):
     return dict(xh=pen.XH, asc=pen.ASC, desc=pen.DESC, s=pen.S, cs=pen.CS, cap=C, over=pen.OVER, arch_over=pen.ARCH_OVER,
                 wf=pen.WF if ch.islower() else 1.0, W=W or {}, ch=ch)
 
+# 2026-10-02 -- THE FENCES REACH PAST THE LETTERS. Owner, on the italic brackets after
+# round 466: *"extend them so they are higher than ascender and lower than descender.
+# adjust all."* With ALBO_FENCE_SPAN=1 every fence -- ( ) [ ] { } | ¦ -- in every cut
+# runs from FENCE_OVER units under the cut's deepest descender (g j p q y) to FENCE_OVER
+# over its tallest ascender (b d h k l; not the italic f, whose hook stands over the
+# line), both read off draw()'s OWN output -- the shipped ink, after the italic's
+# lowercase scale and the spread -- so a redrawn letter moves the fences with it where a
+# table would go stale (docs/albo-method.md). draw() hands each fence builder the lines
+# as c["fence"] and corrects once, so the fence's INK lands on them whatever its pen does
+# at its ends. Off (0) is round 467 byte for byte; docs/albo-fences-2026-10-03.md.
+FENCE_SPAN = os.environ.get("ALBO_FENCE_SPAN", "0") == "1"
+FENCE_OVER = float(os.environ.get("ALBO_FENCE_OVER", 25.0))
+FENCE_CHARS = set("()[]{}|\u00a6")
+_FENCE_LINES = []
+
+def fence_lines():
+    """(top, bottom) a fence's DRAWN ink must reach: the cut's lines + FENCE_OVER,
+    less the ink spread draw() adds afterwards. Measured once per process."""
+    if not _FENCE_LINES:
+        top = max(draw(ch).bounds[3] for ch in "bdhkl" if ch in GLYPHS)
+        bot = min(draw(ch).bounds[1] for ch in "gjpqy" if ch in GLYPHS)
+        _FENCE_LINES[:] = [top + FENCE_OVER - INK_SPREAD, bot - FENCE_OVER + INK_SPREAD]
+    return tuple(_FENCE_LINES)
+
 def draw(ch, W=None):
     """The glyph's ink as one shapely geometry (figures shifted into their
     old-style box)."""
     c = ctx(ch, W)
     if isfig(ch):
         top, bot = latin.FIG_BOX[ch]; c["figH"] = (top - bot) * C
+    if FENCE_SPAN and ch in FENCE_CHARS:   # see FENCE_SPAN: the lines first, before this glyph's life begins
+        t, b = fence_lines(); c["fence"] = (t, b)
+        PR.begin_glyph(ch); x0, y0, x1, y1 = GLYPHS[ch](c).bounds
+        c["fence"] = (2 * t - y1, 2 * b - y0)
     PR.begin_glyph(ch)   # the life: deterministic per-glyph perturbation of wedges and rings
     g = GLYPHS[ch](c)
     if pen.SHEAR and ch.islower() and (IT_LC_SCALE != 1.0 or IT_LC_SETW != 1.0):   # 2026-09-26, see IT_LC_SCALE
