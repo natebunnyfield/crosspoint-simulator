@@ -262,7 +262,7 @@ int main() {
                 b.pressAdd >= 0.0f && b.pressAdd <= kBreathPress + 1e-6f;
       slight = slight && std::fabs(b.halo - 1.0f) <= 0.15f;
       driftOk = driftOk && b.retraceDrift >= 0.0f && b.retraceDrift < 1.0f;
-      moves = moves || std::fabs(b.lift - 1.0f) > 0.05f;
+      moves = moves || std::fabs(b.lift - 1.0f) > 0.5f * kBreathLift;
       // The frame-length floor: sampled at the present cadence, no term
       // jumps more than a fraction of its swing between two frames.
       maxStep = std::max(maxStep, std::fabs(breathWave(ms + kBreathFrameMs) - breathWave(ms)));
@@ -276,6 +276,24 @@ int main() {
     check(breath(100.0).retraceDrift < breath(4000.0).retraceDrift &&
               breath(kRetraceDriftPeriodMs + 100.0).retraceDrift < 0.1f,
           "breath: the retrace lines drift one way and wrap");
+    // The blur does not hit the edge: 0 on the border, 1 past the feather.
+    check(edgeFeather(0, 5, 20, 20, 4.0f) == 0.0f && edgeFeather(5, 0, 20, 20, 4.0f) == 0.0f &&
+              edgeFeather(19, 5, 20, 20, 4.0f) == 0.0f && edgeFeather(2, 10, 20, 20, 4.0f) == 0.5f &&
+              edgeFeather(10, 10, 20, 20, 4.0f) == 1.0f && edgeFeather(10, 10, 20, 20, 0.0f) == 1.0f,
+          "feather: 0 on every border, linear in, 1 inside, off at 0");
+    {
+      std::vector<float> plane(20 * 20, 1.0f);
+      featherPlane(plane, 20, 20, 4.0f);
+      bool border = true, inside = true;
+      for (int i = 0; i < 20; i++) border = border && plane[i] == 0.0f && plane[19 * 20 + i] == 0.0f && plane[i * 20] == 0.0f && plane[i * 20 + 19] == 0.0f;
+      for (int y = 4; y < 16; y++) for (int x = 4; x < 16; x++) inside = inside && plane[y * 20 + x] == 1.0f;
+      check(border && inside, "feather: a plane's border goes to 0 and its interior is untouched");
+      std::vector<uint32_t> rgb(20 * 20, 0xFF80FF40u);
+      featherPlaneRGB(rgb, 20, 20, 4.0f);
+      check((rgb[0] & 0xFFFFFFu) == 0 && (rgb[0] >> 24) == 0xFF && rgb[10 * 20 + 10] == 0xFF80FF40u &&
+                ((rgb[10 * 20 + 2] >> 16) & 0xFF) == 0x40,
+          "feather: the RGB plane scales its colour and keeps its alpha");
+    }
     // Not a loop: the second term's rate is not a multiple of the first's.
     check(std::fabs(breathWave(0.0) - breathWave(kBreathPeriodMs)) > 1e-3f,
           "breath: a period later is not the same frame");
