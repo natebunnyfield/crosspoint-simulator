@@ -597,7 +597,7 @@ CAP_S_WIDTH_BOLD = float(os.environ.get("ALBO_ROM_S_W_BOLD", 1.20))   # round 46
 # ...and the REGULAR's, 2026-10-03. Owner, told the Regular S measured the same 0.540
 # against six regular references' 0.59-0.66 and no longer matched the Bold's 0.642:
 # *"Match the Bold, ship."* The same factor on the same target, stem 84 and under.
-CAP_S_WIDTH_REG = float(os.environ.get("ALBO_ROM_S_W", 1.20))   # round 469: S/H 0.540 -> 0.643, the Bold's 0.642
+CAP_S_WIDTH_REG = float(os.environ.get("ALBO_ROM_S_W", 1.15))   # round 471: N2, S/H 0.618 (owner "N2"; round 469 shipped 1.20, 0.643, then asked for it thinner)
 
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink

@@ -4,8 +4,9 @@ Owner, after round 469 widened the Regular S to the Bold's proportion
 (`docs/albo-round-469-2026-10-03.md`): *"give me regular S options that are
 thinner."*
 
-**Status: OPTIONS. Nothing shipped.** "Thinner" was read both ways, and the
-proof shows both:
+**Status: SHIPPED, N2** (owner *"N2"*), as round 471
+(`docs/albo-round-471-2026-10-03.md`). Before the ruling: options. "Thinner"
+was read both ways, and the proof showed both:
 
 | arm | dials | S / H | S / E | S / O height | reads |
 |---|---|---|---|---|---|
