@@ -4,11 +4,13 @@
 after round 466?"):** *"extend them so they are higher than ascender and lower
 than descender. adjust all."*
 
-**Status: the RULE is ruled; the MARGIN is an option.** E1 / E2 / E3 put
-every fence 10 / 25 / 40 units past both lines. The mechanism is
-`ALBO_FENCE_SPAN=1` with `ALBO_FENCE_OVER` (`tools/wedge_serif/outlines/build.py`).
-With the span off (the default until the ruling) the build is byte-identical
-to round 467 in all four cuts (control build).
+**Status: SHIPPED, E3** (owner 2026-10-03, *"E3"*), as round 468
+(`docs/albo-round-468-2026-10-03.md`).
+- `ALBO_FENCE_SPAN` 1 and `ALBO_FENCE_OVER` 40 (`tools/wedge_serif/outlines/build.py`).
+- Every fence runs 40 units past both lines.
+- `ALBO_FENCE_SPAN=0` builds round 467.
+
+Before the ruling, the margin was options E1 / E2 / E3 (10 / 25 / 40).
 
 "All" is read as **every fence in every cut**:
 - the glyphs ( ) [ ] { } | ¦;

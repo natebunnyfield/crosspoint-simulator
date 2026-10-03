@@ -375,9 +375,10 @@ def ctx(ch, W=None):
 # lowercase scale and the spread -- so a redrawn letter moves the fences with it where a
 # table would go stale (docs/albo-method.md). draw() hands each fence builder the lines
 # as c["fence"] and corrects once, so the fence's INK lands on them whatever its pen does
-# at its ends. Off (0) is round 467 byte for byte; docs/albo-fences-2026-10-03.md.
-FENCE_SPAN = os.environ.get("ALBO_FENCE_SPAN", "0") == "1"
-FENCE_OVER = float(os.environ.get("ALBO_FENCE_OVER", 25.0))
+# at its ends. Off (0) is round 467 byte for byte; ON at 40 ships from round 468 (E3);
+# docs/albo-fences-2026-10-03.md.
+FENCE_SPAN = os.environ.get("ALBO_FENCE_SPAN", "1") == "1"       # round 468: on (owner "E3")
+FENCE_OVER = float(os.environ.get("ALBO_FENCE_OVER", 40.0))      # round 468: E3, 40 units past both lines
 FENCE_CHARS = set("()[]{}|\u00a6")
 _FENCE_LINES = []
 
