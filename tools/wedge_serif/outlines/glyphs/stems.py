@@ -39,8 +39,13 @@ TIT_R_ADJ = DOT_R_ADJ * TITTLE
 # the white under it is kept; the DOT ACCENTS keep TIT_R (they sit at their own
 # floors, and shrinking them was not asked). TITTLE_DY lifts the dot, units. Per
 # weight: above stem 84 the _700 values. 1.0 / 0 = round 466 byte for byte.
-TITTLE_K = float(os.environ.get("ALBO_TITTLE_K_700" if S > 84.0 else "ALBO_TITTLE_K", 1.0))
-TITTLE_DY = float(os.environ.get("ALBO_TITTLE_DY_700" if S > 84.0 else "ALBO_TITTLE_DY", 0.0))
+# Round 467 ships D2 (owner "D2 wins"): the 400's dot 0.90 lifted 5, the 700's 0.90 in place.
+# ROMAN ONLY: D2 leaves the italics' dots alone, and the italic cuts draw ﬁ ﬃ and U+E002
+# from ligatures.py with this dot (the round-467 default build moved them before this guard).
+TITTLE_K = (float(os.environ.get("ALBO_TITTLE_K_700", 0.90)) if S > 84.0
+            else float(os.environ.get("ALBO_TITTLE_K", 0.90))) if not pen.ITALIC else 1.0
+TITTLE_DY = (float(os.environ.get("ALBO_TITTLE_DY_700", 0.0)) if S > 84.0
+             else float(os.environ.get("ALBO_TITTLE_DY", 5.0))) if not pen.ITALIC else 0.0
 TIT_RI = TIT_R * TITTLE_K
 TIT_RI_ADJ = TIT_R_ADJ * TITTLE_K
 def dot_y(xh):

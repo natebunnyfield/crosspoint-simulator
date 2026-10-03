@@ -2,17 +2,16 @@
 
 Owner todo: *"reduce tittles slightly without losing them at small scale"*.
 
-**Status: OPTIONS. Nothing shipped.** The new dials are in
-`tools/wedge_serif/outlines/glyphs/stems.py`:
-- `ALBO_TITTLE_K` and `ALBO_TITTLE_DY`, with `_700` twins for the Bold.
-- They scale and lift the roman i's and j's dot, and the dots in ﬁ, ﬃ, ĳ and
-  U+E002.
+**Status: SHIPPED, D2** (owner 2026-10-02, *"D2 wins"*), as round 467
+(`docs/albo-round-467-2026-10-02.md`).
+- `ALBO_TITTLE_K` 0.90 with `ALBO_TITTLE_DY` 5 (Regular), and
+  `ALBO_TITTLE_K_700` 0.90 (Bold), in `tools/wedge_serif/outlines/glyphs/stems.py`.
+- They apply to the roman cuts only, since D2 leaves the italics alone.
+- They scale the roman i's and j's dot, and the dots in ﬁ, ﬃ, ĳ and U+E002.
 - They do NOT touch the dot accents, which keep `TIT_R`.
-- The italic dot already has its own dials (`ALBO_ALD_DOT_SCALE`, `_700`;
-  round 440).
+- K 1.0 with DY 0 builds round 466's dots.
 
-The defaults (1.0 / 0) are byte-identical to round 466 in all four cuts (a
-control build).
+Before the ruling, the status was options D1 / D2 / D3 beside today.
 
 ## 1. Where the tittles stand
 
