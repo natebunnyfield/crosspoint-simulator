@@ -189,6 +189,13 @@ EIGHT_W_IT = 0.70      # x the ring's stroke weight
 ONE_EXIT_LEN = float(os.environ.get("ALBO_ALD_ONE_EXIT_LEN", 0.70))
 ONE_FLAG_CURVE = float(os.environ.get("ALBO_ALD_ONE_FLAG_CURVE", -0.18))
 ONE_FLAG_W = float(os.environ.get("ALBO_ALD_ONE_FLAG_W", 1.15))
+# 2026-10-03 -- THE BOLD ITALIC 1's FLAG, AS OPTIONS. Owner, on the taller-1 page: *"F1 bold
+# italic serif is way too big."* The flag's reach is a constant 150 units but its weight
+# rides the stem (the 0.62 S floor, then ONE_FLAG_W 1.15), so above stem 84 it is an
+# 83-unit wedge. ONE_FLAG_W_700 replaces ONE_FLAG_W and ONE_FLAG_X_700 scales the reach,
+# Bold Italic only; ONE_FLAG_W / 1.0 are round 474's. docs/albo-figure-one-flag-2026-10-03.md.
+ONE_FLAG_W_700 = float(os.environ.get("ALBO_ALD_ONE_FLAG_W_700", ONE_FLAG_W))
+ONE_FLAG_X_700 = float(os.environ.get("ALBO_ALD_ONE_FLAG_X_700", 1.0))
 ONE_FOOT_BRUSH = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH", 1.45))
 ONE_FOOT_BRUSH_H = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH_H", 0.20))
 SEVEN_BAR_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W_IT", 1.65))
@@ -749,6 +756,7 @@ def g_one(c):
     # figure `solve_widths` deliberately skips, so its drawn width IS its
     # built width and these numbers move the letter directly.
     _fx, _fy = _o1.get('flag', (150.0, 0.72))
+    if pen.ITALIC and S > 84.0: _fx *= ONE_FLAG_X_700   # see ONE_FLAG_W_700
     _p0 = (x - _fx, D * _fy); _p1 = (x, D - TH_V * ONE_FLAG_BURY)
     # round 233: the roman may bow its flag too (option h, the references'
     # short hook); the italic's bow is round 217's and unchanged
@@ -780,7 +788,8 @@ def g_one(c):
     # ITALIC-GATED, like the curve. Ungated this multiplier moved the ROMAN's
     # 1 as well -- the same leak SEVEN_BAR_W had in round 213, caught the same
     # way, by diffing every glyph of both builds rather than by reading it.
-    wf = (lambda u: wf0(u) * ONE_FLAG_W) if (pen.ITALIC and curved and ONE_FLAG_W != 1.0) else wf0
+    _fw = ONE_FLAG_W_700 if (pen.ITALIC and S > 84.0) else ONE_FLAG_W   # see ONE_FLAG_W_700
+    wf = (lambda u: wf0(u) * _fw) if (pen.ITALIC and curved and _fw != 1.0) else wf0
     _square = ONE_FLAG_WEDGE and not curved and _tip is None    # round 75's square face, the microserif's seat
     flick = _square and (ONE_FLAG_FLICK or pen.ITALIC)          # round 233 (R34): the roman drops the microserif, the face stays
     parts = [st, stroke(path, wf, cut0=None if _square else CUT)]
