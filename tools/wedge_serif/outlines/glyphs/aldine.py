@@ -7759,6 +7759,7 @@ if ON:
     # Round 463's refit arms (B, C: outlines/spacing_b2_r463B.json / C.json) set
     # these to 0 -- the refit on the refreshed re-basing pair sees the cup -- and
     # must be built with ALBO_ALD_X_DLSB=0 ALBO_ALD_X_DRSB=0 (docs/albo-round-463).
+    X_CLOSE = d_dial("X_CLOSE", 0.0)   # the Bold Italic's head-junction notch: see x_arm
     X_DLSB = d_dial("X_DLSB", 20.0)
     X_DRSB = d_dial("X_DRSB", 6.0 + 6.0 * _XS)
 
@@ -7887,7 +7888,17 @@ if ON:
                              boost0=(0.22, 1.2 + (X_BL_W - 1.5)))
         else:
             thin = x_nib(hook + rise, u, cut0=CUT, fin1=True, sm=8, grow=grow)
-        return geom.ink([thin, thick])
+        g_ = geom.ink([thin, thick])
+        # 2026-10-02 -- THE BOLD ITALIC's HEAD JUNCTION (round 461's review, finding
+        # 2): the entry arch's underside meets the thick at a tight angle and, at the
+        # 700's pen width, the inner outline overshoots and doubles back -- a nick of
+        # white beside a barb of ink (a -122.5 degree reversal on 6- and 8-unit arms,
+        # under the hair gate's 150). X_CLOSE units of mitre closing (buffer out, then
+        # in, as greek_italic's _close3) fill a notch that narrow and leave every
+        # convex corner sharp. 0 = round 461's drawing; the 400 never takes it.
+        if X_CLOSE and S > 84.0:
+            g_ = g_.buffer(X_CLOSE, join_style=2).buffer(-X_CLOSE, join_style=2)
+        return g_
 
     @glyph('x')
     def a_x(c):

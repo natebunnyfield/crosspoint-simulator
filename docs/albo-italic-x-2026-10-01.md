@@ -253,3 +253,22 @@ How the weight is carried, and what each step cost to get right:
   X1's advance.
 
 Proof page: https://claude.ai/artifact/9EjkV7RqugD7omVYAiRpp3
+
+## 10. The Bold Italic's head notch, as an option (2026-10-02)
+
+Round 461's adversarial review, finding 2 (cosmetic). Where the entry arch
+turns into the thick diagonal, the Bold Italic's inner outline overshoots
+and doubles back. That leaves a nick of white beside a barb of ink: point #9
+at (174, 380), a −122.5 degree reversal on 6- and 8-unit arms. It sits under
+the hair gate's 150 degrees and the bump tool's 70-square-unit floor. The
+Italic's corner there is a clean round turn.
+
+**Option N1:** `ALBO_ALD_X_CLOSE=8`, 8 units of mitre closing on the x at
+stems above 84 (the Bold Italic only), as `greek_italic._close3` does for ε
+and ξ. Measured on the live outline against `ALBO_ALD_X_CLOSE=0`:
+- +20.0 square units filled at the junction;
+- 1.5 and 1.2 square units off two convex corners;
+- nothing else.
+
+At 3 and 5 units the barb survived. Built, only the x moves (`cmp_outlines`),
+hairs none, touch 0 / 0. **Default 0, awaiting his call** (defects are his).
