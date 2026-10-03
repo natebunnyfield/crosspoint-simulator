@@ -2,6 +2,11 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-01; the log below is history)
 
+- **2026-10-03 -- TWO OPTION PAGES OUT:** the Regular S thinner (owner: *"give me regular S options that are
+  thinner"*), N1 / N2 narrower and L1 / L2 lighter-stroked, `docs/albo-regular-s-thinner-2026-10-03.md`; and the
+  italic x's spacing (queued question 4, *"Show me options"*), Y1 / Y2 = round 461's added white halved / removed,
+  `docs/albo-italic-x-spacing-2026-10-03.md`. Rounds 469-470 shipped from the same queue (the Regular S matched to
+  the Bold; the Regular's dot accents matched to the i).
 - **2026-10-03 -- THE FENCES, RULED** (owner, on the italic brackets after round 466: *"extend them so they are
   higher than ascender and lower than descender. adjust all."*): every ( ) [ ] { } | ¦ in every cut past its own
   deepest descender and tallest ascender, `ALBO_FENCE_SPAN` / `ALBO_FENCE_OVER` in `build.py`, fence kerns

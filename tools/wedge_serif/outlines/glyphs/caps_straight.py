@@ -1490,9 +1490,18 @@ S_BEAK_TIP = float(os.environ.get("ALBO_ROM_S_BEAK_TIP", 12.0))
 S_BAL = os.environ.get("ALBO_ROM_S_BAL", "a")   # round 242: a | b | c | d | e, see g_S; a is today byte for byte
 if S_BAL not in ("a", "b", "c", "d", "e"): S_BAL = "a"   # round 237: units of the terminal's point cut off square; 0 is round 235      # 0 = the raw pen (round 223), 1 = the round family's own bowl profile
 
+# 2026-10-03 -- THE REGULAR S's STROKE, AS OPTIONS. Owner, after round 469 widened the
+# Regular S to the Bold's proportion: *"give me regular S options that are thinner."*
+# Read both ways (docs/albo-regular-s-thinner-2026-10-03.md): narrower is ALBO_ROM_S_W
+# (build.py); LIGHTER is this -- every width along the S's stroke, beak included, times
+# S_WT_400, stem 84 and under only. The width solver then holds the S's ink width, so
+# S/H does not move with it. 1.0 = round 469's letter.
+S_WT_400 = float(os.environ.get("ALBO_ROM_S_WT", 1.0))
+
 @glyph('S')
 def g_S(c):
     C = c["cap"]; w = W_(c, 'S', 440); o = OVER - TH_H / 2; st = CS
+    swt = S_WT_400 if S <= 84.0 else 1.0
     # ROUND 242 -- OPTIONS. Owner 2026-09-18: "rebalance S so the bottom is
     # optically balanced [with] the top (give me options)". Measured on the
     # spine: the top bowl spans 0.18-0.93 of the width and 0.40 of the cap,
@@ -1515,7 +1524,7 @@ def g_S(c):
     def wfn(t):
         mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base(t) * (1 - mid) + st * S_SPINE * mid
         bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + s_bot * (3 * bot * bot - 2 * bot ** 3)
-        return want * widths([(0.0, 1.3), (0.10, 1.0), (0.86, 1.0), (1.0, s_end)])(t)
+        return want * widths([(0.0, 1.3), (0.10, 1.0), (0.86, 1.0), (1.0, s_end)])(t) * swt
     if PR.BOWL and PR.BOWL.get('widen'):
         wid = widen_terminal(widen_terminal(None, True), False)
         # `base`, not a second `pen_widths(spine)`: this branch kept its own

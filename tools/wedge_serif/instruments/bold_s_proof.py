@@ -25,6 +25,10 @@ REFS = [("Georgia B", SUP + "Georgia Bold.ttf", 0), ("Charter B", SUP + "Charter
         ("Palatino B", "/System/Library/Fonts/Palatino.ttc", 2),
         ("Pagella B", os.path.expanduser("~/Library/Fonts/texgyrepagella-bold.otf"), 0),
         ("Times B", SUP + "Times New Roman Bold.ttf", 0), ("Baskerville B", SUP + "Baskerville.ttc", 1)]
+REFS_R = [("Georgia", SUP + "Georgia.ttf", 0), ("Charter", SUP + "Charter.ttc", 0),
+          ("Palatino", "/System/Library/Fonts/Palatino.ttc", 0),
+          ("Pagella", os.path.expanduser("~/Library/Fonts/texgyrepagella-regular.otf"), 0),
+          ("Times", SUP + "Times New Roman.ttf", 0), ("Baskerville", SUP + "Baskerville.ttc", 0)]
 LINE = "Step by Step: She Saw Seven Ships Sailing South."
 
 
@@ -83,6 +87,7 @@ def cell(path, idx, label, CH=120):
 
 
 CUT = os.environ.get("PROOF_CUT", "Bold")
+if CUT == "Regular": REFS = REFS_R   # the sheet and --measure compare like with like
 
 
 if __name__ == "__main__":
