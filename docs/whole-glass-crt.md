@@ -34,6 +34,7 @@ bands alike.
 | Phosphor persistence (the accumulator) | **panel** | **output** | `HalDisplay.cpp`, the accumulator block |
 | Beam paint (the sweep) | **panel** | **output** | `HalDisplay.cpp`, `beamSweeping` |
 | Page fade | panel | panel (unchanged) | `HalDisplay.cpp`, `pageAlpha` on the panel texture |
+| The zen goal's spent dark page: lift, retrace lines, halation (2026-10-02) | panel | **output** (lift around the panel, retrace over the face, halo padded past the edge) | `SurfaceAllowance.h` `drawDarkGlass`; `docs/reading-allowance.md` |
 | Letterpress ring/deboss | panel | panel (unchanged) | `SurfaceSheet.cpp`, `letterpressField()` |
 | Scanlines (+ the bloom) | output | output | `SurfaceTube.cpp`, `ensureScanlinesField(outW, outH)` |
 | Corner defocus | output (folded into the scanline field) | output | `CornerDefocus.h` |

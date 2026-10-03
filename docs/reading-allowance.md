@@ -305,3 +305,77 @@ The owner, on the review's edge: *"notification banners should not be possible i
 
 - **The cost at the phone's 2x, after the fix.** Each page now costs one dilation plus one glow build. Each step costs one alpha pass over 1584×1056 and one texture upload, neither under the lock. No one has timed this on the device.
 - **Device feel.** SHIPPED — UNCONFIRMED on device.
+
+## The spent page reaches the glass, and breathes (2026-10-02)
+
+Owner, two asks in one line: *"apply effects like crt and paper ones to more
+than just panel. also, ios app to animate them slightly when zen time is up."*
+
+**What was panel-only, read from the code before touching it.** The
+2026-08-26 whole-glass pass (`docs/whole-glass-crt.md`) had already moved the
+sheet, the scanlines, the grain, the trail and the beam to output space; the
+one family still clipped to the page was THIS decay, by its own comment
+("the decay is a property of this page and not of the glass"). On the dark
+page that clipped two things that are properties of the FACE: the lifted
+black level (a raster lifts whole; on the iPad's black surround nothing lit
+it at all) and the retrace lines (the flyback crosses the whole tube). The
+halation ring also stopped dead at the page's edge.
+
+**Dark, the glass half** (`simallowance::drawDarkGlass`, output space, drawn
+where the grain and scanlines are drawn and before them):
+
+- the lift is drawn AROUND the panel (four rects) at the schedule's alpha
+  times the breath; the panel keeps its own lift under its blooms, because a
+  lift over the blooms would dim the swell the owner accepted on build 212;
+- the retrace lines are one plane at the output size / 4, over everything,
+  weighted by `(1 - lift)` -- the panel pass used to draw them under the
+  lift, which blended them down by exactly that, and the first glass cut
+  drew them over it at 2.5x the accepted strength (seen on the desktop X3);
+- the halation plane is padded by `kHaloPad` (8 texels at 1/8 = 64 page px
+  at 1x) and drawn through `drawPanelPad`, which inflates the dst by the
+  same fractions, so the ring crosses the edge.
+
+**Light: nothing new reaches the glass.** The dry plate is a property of the
+ink, and the sheet already covers the glass. Recorded rather than invented.
+
+**The breath** (`readingallowance::picture::breath`, pure, tested). Once
+`timeIsUp` (fraction 1, held) the picture moves a few percent about the
+schedule: two sinusoids at 2.8 s and 0.37 of that rate, normalized, so it
+never repeats exactly; lift 5%, halo 10%, defocus 8%, swell 4%; the retrace
+family drifts one period per 9 s. Light: the veil's alpha mod runs 1 - 2a..1
+(a mod cannot exceed 1 -- the first cut ran 1 +/- a and froze half of every
+cycle, three of five desktop frames identical), and the impression breathes
+faintly back as an ADDITIVE 0..8% (a factor on `pressLeft` at t = 1 is a
+factor on 0). The clock requests a PLAIN present every 160 ms while spent
+(`simallowance::breathDue`); plain because the glass does not change under
+it, and a dirty present six times a second would feed the trail its own
+breathing. Every factor is exactly 1 before the end, so the decaying and
+clean pictures are untouched.
+
+**Measured, desktop X3 at 1x, `CROSSPOINT_SIM_AS_SHIPPED=1`, grain seed 7,
+frames 700 ms apart, spent dark page:** lift at 10% moved a mean of 11.6
+levels between frames (84% of pixels by over 4) -- a pulse, not a breath --
+so it was halved: now mean 6.1 / 2.1 / 3.7 / 1.7 between successive frames,
+max 30 against frame 0. Spent light page: mean 0.47 / 0.04 / 0.30 / 0.06,
+max 11. **Clean pages, both polarities, are byte-identical** to the
+pre-change build (md5 `6280f6…` dark, `e5e4c7…` light, old and new binaries).
+`reading_allowance` host test: the breath's bounds, that it is still before
+the end, the frame-length floor at the 160 ms cadence, the drift's wrap.
+
+**Measured on an iPhone Air simulator (iOS 26.5, dark, zen, preset 300 s):**
+presents arrive every ~160 ms (`CROSSPOINT_SIM_LOG_PRESENTS=1`); the band
+above the paper reads mean luma 97.5 where it was 0, the left margin 132, the
+spent page 207. Successive 1 s screenshots differ by a mean of 1.4 and 0.9
+levels (max 20). **On the light page the breath is under one level on the
+phone** (mean 0.01, max 1): at t = 1 the veil has removed the ink, and 5% of
+nothing is nothing. What should move on paper is an open question for the
+owner. Device feel: SHIPPED -- UNCONFIRMED on device.
+
+Two capture traps, recorded so they are not paid again: `xcrun simctl ui
+<udid> appearance dark` is NOT seen by a running or freshly launched app on
+this simulator -- the trait collection goes on reading light -- until the
+simulator is shut down and booted with it set (then `appearance seed:
+stored=light system=dark -> SEED`). And in zsh an unquoted `$extra` of env
+assignments is ONE word: `env A=1 $extra cmd` sets `A` to the whole string
+and the rest never reaches the binary (two full capture sets were identical
+to the clean page before this was noticed).

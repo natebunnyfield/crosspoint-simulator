@@ -59,6 +59,10 @@ struct Clock {
   readingallowance::Session session;
   uint64_t lastTickMs = 0;
   int lastStep = -1;         // quantized decay the glass last showed
+  // TIME IS UP (picture::timeIsUp): the tick the goal was reached, 0 while it
+  // has not been. The breath (picture::breath) is clocked from it.
+  uint64_t upSinceMs = 0;
+  uint64_t lastBreathMs = 0;  // the last present the breath asked for
 };
 
 inline Clock &clock() {
@@ -105,7 +109,36 @@ inline double tick(bool zen, bool reading, bool bookPage, int minutes,
     stepChanged = step > 0 || c.lastStep > 0;
     c.lastStep = step;
   }
+  if (readingallowance::picture::timeIsUp(f)) {
+    if (c.upSinceMs == 0) c.upSinceMs = nowMs ? nowMs : 1;
+  } else {
+    c.upSinceMs = 0;
+  }
   return f;
+}
+
+// While the page is spent the glass is owed a PLAIN present every
+// picture::kBreathFrameMs, so the breath moves (owner 2026-10-02, "animate
+// them slightly when zen time is up"). Plain, not dirty: the picture under
+// the breath is the one the last dirty present captured, and re-reading the
+// glass six times a second would feed the trail its own breathing. Main
+// thread, from the same pass that ticks the clock.
+inline bool breathDue(uint64_t nowMs) {
+  Clock &c = clock();
+  if (c.upSinceMs == 0) return false;
+  if (nowMs - c.lastBreathMs <
+      static_cast<uint64_t>(readingallowance::picture::kBreathFrameMs))
+    return false;
+  c.lastBreathMs = nowMs;
+  return true;
+}
+
+// The breath to draw this present with: exactly still until the goal is
+// reached, so every factor is a plain multiply the clean picture never sees.
+inline readingallowance::picture::Breath breathNow(uint64_t nowMs) {
+  const Clock &c = clock();
+  return readingallowance::picture::breath(
+      c.upSinceMs == 0 ? -1.0 : static_cast<double>(nowMs - c.upSinceMs));
 }
 
 // ---------------------------------------------------------------------------
@@ -132,9 +165,16 @@ struct Textures {
   int glowW = 0, glowH = 0;
   SDL_Texture *lift = nullptr;
   SDL_Texture *halo = nullptr;
+  // The halo plane is PADDED past the page (kHaloPad texels at 1/8), so the
+  // ring crosses the page's edge onto the glass; these are the pad as a
+  // fraction of the page, the amount drawPanelPad inflates the dst by.
+  float haloPadX = 0.0f, haloPadY = 0.0f;
+  // The retrace lines are a GLASS plane since 2026-10-02 -- built at the
+  // OUTPUT size / 4, not the page's (drawDarkGlass).
   SDL_Texture *retrace = nullptr;
   int retraceW = 0, retraceH = 0;
 };
+inline constexpr int kHaloPad = 8;
 
 inline Textures &textures() {
   static Textures t;
@@ -165,7 +205,7 @@ template <typename DrawPanel>
 inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
                       int scale, uint64_t seq, uint32_t sheetSeed, double f,
                       const panelpalette::Palette &pal, SDL_ScaleMode mode,
-                      DrawPanel &&drawPanel) {
+                      const Breath &breath, DrawPanel &&drawPanel) {
   Textures &t = textures();
   const int step = readingallowance::quantize(f);
   if (!t.veil || t.veilW != w || t.veilH != h || t.scale != scale) {
@@ -276,6 +316,11 @@ inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
     SDL_UpdateTexture(t.veil, nullptr, t.veilPixels.data(), w * 4);
   }
   SDL_SetTextureScaleMode(t.veil, mode);
+  // The breath: the ink the starved plate still lays down wavers a few
+  // percent once the page is spent (picture::breath). An alpha mod over the
+  // baked veil, so no pixel is recomputed per frame; 1.0 before the end.
+  SDL_SetTextureAlphaMod(
+      t.veil, static_cast<Uint8>(std::clamp(breath.veil, 0.0f, 1.0f) * 255.0f + 0.5f));
   drawPanel(t.veil);
 }
 
@@ -402,10 +447,99 @@ inline SDL_Texture *uploadPlane(SDL_Renderer *r, SDL_Texture *tex, const std::ve
 // then 2 and 4 device pixels): the three levels darkSchedule blends through.
 inline constexpr int kSwellDil[3] = {0, 1, 2};
 
-template <typename DrawPanel>
+// The tube's black level, one texel of the phosphor's own colour, BLENDed at
+// the schedule's lift. Shared by the panel pass (drawDark, under the blooms)
+// and the glass pass (drawDarkGlass, over the surround).
+inline SDL_Texture *ensureLift(SDL_Renderer *r, const panelpalette::Palette &pal) {
+  Textures &t = textures();
+  if (!t.lift) {
+    t.lift = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 1, 1);
+    if (t.lift) SDL_SetTextureBlendMode(t.lift, SDL_BLENDMODE_BLEND);
+  }
+  if (t.lift) {
+    const uint32_t px = 0xFF000000u | (static_cast<uint32_t>(pal.ink[0]) << 16) |
+                        (static_cast<uint32_t>(pal.ink[1]) << 8) | pal.ink[2];
+    SDL_UpdateTexture(t.lift, nullptr, &px, 4);
+  }
+  return t.lift;
+}
+
+// DARK, THE GLASS HALF (2026-10-02, owner: "apply effects like crt and paper
+// ones to more than just panel" -- the 2026-08-26 one-sheet-of-glass ruling
+// applied to the overdriven tube). Two of the tube's failures are properties
+// of the FACE, not of the page drawn on it, and were clipped to the page
+// until now: the lifted black level (the whole raster lifts, the surround
+// and the pad with it -- on the iPad's black surround this is the only thing
+// that ever lights it) and the retrace lines (the flyback crosses the whole
+// face). Drawn in OUTPUT space, after the overlay, where the grain and the
+// scanlines are drawn; `panel` is the page's presented rect in those pixels.
+//
+// The lift goes AROUND the panel only: the page keeps its own lift from
+// drawDark, drawn UNDER its blooms, because a lift over them would dim the
+// swell the owner accepted on build 212. Same texel, same alpha, so the two
+// halves meet without a seam on a surround that shares the page's ground.
+// The retrace plane is drawn over everything, panel included, and DRIFTS
+// (breath.retraceDrift, one period per picture::kRetraceDriftPeriodMs) once
+// the page is spent -- two copies a plane-width apart, which is seamless
+// because the family has exactly `lines` periods across the plane.
+inline void drawDarkGlass(SDL_Renderer *r, int outW, int outH, const SDL_FRect &panel,
+                          double f, const Breath &breath,
+                          const panelpalette::Palette &pal) {
+  if (outW <= 0 || outH <= 0) return;
+  Textures &t = textures();
+  const DarkSchedule d = darkSchedule(static_cast<float>(f));
+  const float W = static_cast<float>(outW), H = static_cast<float>(outH);
+  if (SDL_Texture *lift = ensureLift(r, pal); lift && d.lift > 0.0f) {
+    const float a = std::clamp(d.lift * breath.lift, 0.0f, 1.0f);
+    SDL_SetTextureAlphaMod(lift, static_cast<Uint8>(a * 255.0f + 0.5f));
+    const float px1 = panel.x + panel.w, py1 = panel.y + panel.h;
+    const SDL_FRect around[4] = {
+        {0.0f, 0.0f, W, panel.y},
+        {0.0f, py1, W, H - py1},
+        {0.0f, panel.y, panel.x, panel.h},
+        {px1, panel.y, W - px1, panel.h},
+    };
+    for (const SDL_FRect &rc : around)
+      if (rc.w > 0.0f && rc.h > 0.0f) SDL_RenderTexture(r, lift, nullptr, &rc);
+  }
+  if (d.retrace <= 0.0f) return;
+  if (!t.retrace || t.retraceW != outW || t.retraceH != outH) {
+    const int rw = std::max(1, outW / 4), rh = std::max(1, outH / 4);
+    std::vector<float> p(static_cast<size_t>(rw) * rh, 0.0f);
+    const int lines = 12;
+    for (int y = 0; y < rh; y++)
+      for (int x = 0; x < rw; x++) {
+        // a family of parallel diagonals, antialiased over one plane pixel
+        const float u = (x + 0.35f * y) / static_cast<float>(rw) * lines;
+        const float fr = u - std::floor(u);
+        const float dist = std::min(fr, 1.0f - fr) * (static_cast<float>(rw) / lines);
+        p[static_cast<size_t>(y) * rw + x] = std::max(0.0f, 1.0f - 1.6f * dist) * 0.5f;
+      }
+    t.retrace = uploadPlane(r, t.retrace, p, rw, rh, pal.ink, false, SDL_BLENDMODE_ADD);
+    t.retraceW = outW; t.retraceH = outH;
+  }
+  if (!t.retrace) return;
+  SDL_SetTextureScaleMode(t.retrace, SDL_SCALEMODE_LINEAR);
+  // Weighted by (1 - lift): the panel pass used to draw these lines UNDER
+  // the lift, which blended them down by exactly that, and the first glass
+  // cut drew them over it at full strength -- 2.5x louder than the picture
+  // the owner accepted on build 212 (seen on the desktop X3, 2026-10-02).
+  const float ra = std::clamp(d.retrace * (1.0f - d.lift), 0.0f, 1.0f);
+  SDL_SetTextureAlphaMod(t.retrace, static_cast<Uint8>(ra * 255.0f + 0.5f));
+  const float x0 = -std::clamp(breath.retraceDrift, 0.0f, 1.0f) * W;
+  const SDL_FRect a = {x0, 0.0f, W, H}, b = {x0 + W, 0.0f, W, H};
+  SDL_RenderTexture(r, t.retrace, nullptr, &a);
+  if (x0 < 0.0f) SDL_RenderTexture(r, t.retrace, nullptr, &b);
+}
+
+// DARK, THE PANEL HALF. `drawPanelPad(tex, fx, fy)` draws like drawPanel with
+// the dst inflated by fx/fy of its own size per side -- the halo's padded
+// plane rides out past the page's edge through it.
+template <typename DrawPanel, typename DrawPanelPad>
 inline void drawDark(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
                      int scale, uint64_t seq, double f, const panelpalette::Palette &pal,
-                     DrawPanel &&drawPanel) {
+                     const Breath &breath, DrawPanel &&drawPanel,
+                     DrawPanelPad &&drawPanelPad) {
   Textures &t = textures();
   const float tf = static_cast<float>(f);
   const DarkSchedule d = darkSchedule(tf);
@@ -418,15 +552,7 @@ inline void drawDark(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
   uint8_t hot[3];
   for (int c = 0; c < 3; c++) hot[c] = static_cast<uint8_t>(pal.ink[c] + (255 - pal.ink[c]) * sat);
   const uint8_t white[3] = {255, 255, 255};
-  if (!t.lift) {
-    t.lift = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 1, 1);
-    if (t.lift) SDL_SetTextureBlendMode(t.lift, SDL_BLENDMODE_BLEND);
-  }
-  if (t.lift) {
-    const uint32_t px = 0xFF000000u | (static_cast<uint32_t>(pal.ink[0]) << 16) |
-                        (static_cast<uint32_t>(pal.ink[1]) << 8) | pal.ink[2];
-    SDL_UpdateTexture(t.lift, nullptr, &px, 4);
-  }
+  ensureLift(r, pal);
   if (t.glowSeq != seq || t.glowW != w || t.glowH != h) {
     t.glowSeq = seq; t.glowW = w; t.glowH = h;
     // HV-sag defocus: the whole picture, blurred (unchanged from v1)
@@ -468,49 +594,49 @@ inline void drawDark(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
       for (float &v : lvl) v = std::min(1.0f, v * 1.3f);
       t.glow[i] = uploadPlane(r, t.glow[i], lvl, cw, ch, white, true, SDL_BLENDMODE_BLEND);
     }
-    // HALATION: a ring -- wide blur minus a narrower one -- at 1/8
+    // HALATION: a ring -- wide blur minus a narrower one -- at 1/8, on a
+    // plane PADDED by kHaloPad texels so the ring crosses the page's edge:
+    // light scattered inside the faceplate does not stop where the raster
+    // does (2026-10-02, the glass ruling). The blur's reach is 6 texels.
     {
       std::vector<float> c8; int w8 = 0, h8 = 0;
       excessCoverage(pixels, w, h, 8 * sc, pal.paper, pal.ink, c8, w8, h8);
-      std::vector<float> wide = c8, narrow = c8;
-      dilateBlur(wide, w8, h8, 0, 3, 2);
-      dilateBlur(narrow, w8, h8, 0, 1, 1);
+      const int P = kHaloPad;
+      const int pw = w8 + 2 * P, ph = h8 + 2 * P;
+      std::vector<float> wide(static_cast<size_t>(pw) * ph, 0.0f);
+      for (int y = 0; y < h8; y++)
+        for (int x = 0; x < w8; x++)
+          wide[static_cast<size_t>(y + P) * pw + (x + P)] = c8[static_cast<size_t>(y) * w8 + x];
+      std::vector<float> narrow = wide;
+      dilateBlur(wide, pw, ph, 0, 3, 2);
+      dilateBlur(narrow, pw, ph, 0, 1, 1);
       for (size_t i = 0; i < wide.size(); i++) wide[i] = std::max(0.0f, wide[i] - 0.7f * narrow[i]) * 3.0f;
-      t.halo = uploadPlane(r, t.halo, wide, w8, h8, pal.ink, false, SDL_BLENDMODE_ADD);
+      t.halo = uploadPlane(r, t.halo, wide, pw, ph, pal.ink, false, SDL_BLENDMODE_ADD);
+      t.haloPadX = static_cast<float>(P * 8 * sc) / static_cast<float>(w);
+      t.haloPadY = static_cast<float>(P * 8 * sc) / static_cast<float>(h);
     }
   }
-  // RETRACE LINES: fixed per size -- faint diagonals the blanking no longer hides
-  if (!t.retrace || t.retraceW != w || t.retraceH != h) {
-    const int rw = std::max(1, w / (4 * sc)), rh = std::max(1, h / (4 * sc));
-    std::vector<float> p(static_cast<size_t>(rw) * rh, 0.0f);
-    const int lines = 12;
-    for (int y = 0; y < rh; y++)
-      for (int x = 0; x < rw; x++) {
-        // a family of parallel diagonals, antialiased over one plane pixel
-        const float u = (x + 0.35f * y) / static_cast<float>(rw) * lines;
-        const float fr = u - std::floor(u);
-        const float dist = std::min(fr, 1.0f - fr) * (static_cast<float>(rw) / lines);
-        p[static_cast<size_t>(y) * rw + x] = std::max(0.0f, 1.0f - 1.6f * dist) * 0.5f;
-      }
-    t.retrace = uploadPlane(r, t.retrace, p, rw, rh, pal.ink, false, SDL_BLENDMODE_ADD);
-    t.retraceW = w; t.retraceH = h;
-  }
-  auto draw = [&](SDL_Texture *tex, float a) {
+  // The lift and the retrace lines are drawn by drawDarkGlass since
+  // 2026-10-02 -- the panel's own lift here, under its blooms, the surround's
+  // there, the retrace over the whole face.
+  auto draw = [&](SDL_Texture *tex, float a, float padX = 0.0f, float padY = 0.0f) {
     if (!tex || a <= 0.0f) return;
     while (a > 0.0f) {
       SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(std::min(a, 1.0f) * 255.0f + 0.5f));
-      drawPanel(tex);
+      if (padX > 0.0f || padY > 0.0f) drawPanelPad(tex, padX, padY);
+      else drawPanel(tex);
       a -= 1.0f;
     }
   };
-  draw(t.defocus, d.defocus);
-  draw(t.lift, d.lift);
-  draw(t.retrace, d.retrace);
+  // The breath: a few percent about the schedule once the page is spent
+  // (picture::breath); every factor is 1 before that.
+  draw(t.defocus, d.defocus * breath.defocus);
+  draw(t.lift, d.lift * breath.lift);
   for (int i = 0; i < 3; i++) {
     if (t.glow[i]) SDL_SetTextureColorMod(t.glow[i], hot[0], hot[1], hot[2]);
-    draw(t.glow[i], d.swell[i]);
+    draw(t.glow[i], d.swell[i] * breath.swell);
   }
-  draw(t.halo, d.halo);
+  draw(t.halo, d.halo * breath.halo, t.haloPadX, t.haloPadY);
 }
 
 }  // namespace simallowance

@@ -142,6 +142,76 @@ namespace picture {
 // SDL half that draws with it is src/SurfaceAllowance.h.
 // ---------------------------------------------------------------------------
 
+// TIME IS UP: the goal reached (fraction 1) and HELD -- the page stays spent
+// until zen restarts. Owner 2026-10-02: "ios app to animate them slightly when
+// zen time is up". The spent picture breathes rather than freezing: on the
+// tube the HV sag that lifted the raster and bloomed the beam is not steady
+// (a tired supply hunts), so the lift, the halation, the defocus and the
+// swell wander a few percent about the schedule's value and the retrace lines
+// drift across the face; on paper the starved plate's bite and the ink it
+// still lays down waver the same few percent. SLIGHT by ruling: every
+// amplitude here is a small fraction of what the schedule already draws at
+// t = 1, so a reader sees the picture move, never a second picture.
+//
+// Two sinusoids at an irrational ratio so the breath never repeats exactly --
+// one at kBreathPeriodMs, one slower at 0.37 of its rate -- summed and
+// normalized to [-1, 1]. Sampled once per present at kBreathFrameMs (the
+// cadence SurfaceAllowance.h requests presents at while the page is spent):
+// at that cadence the fastest term moves under 1/8 of its swing per frame,
+// which is the frame-length floor every present-sampled model here has to
+// clear (CLAUDE.md, "a model finer than one frame is a lie").
+inline constexpr double kBreathPeriodMs = 2800.0;
+inline constexpr double kBreathFrameMs = 160.0;
+inline constexpr double kRetraceDriftPeriodMs = 9000.0;
+// Amplitudes, as fractions of the scheduled value at t = 1.
+// Measured on the desktop X3 at 1x, dark page spent, frames 700 ms apart:
+// lift 0.10 moved the ground by a mean of 11.6 levels between frames, which
+// reads as a pulse rather than a breath; halved.
+inline constexpr float kBreathLift = 0.05f;
+inline constexpr float kBreathHalo = 0.10f;
+inline constexpr float kBreathDefocus = 0.08f;
+inline constexpr float kBreathSwell = 0.04f;
+inline constexpr float kBreathVeil = 0.05f;
+inline constexpr float kBreathPress = 0.08f;
+
+struct Breath {
+  float lift = 1.0f, halo = 1.0f, defocus = 1.0f, swell = 1.0f;
+  float retraceDrift = 0.0f;  // 0..1, one full period of the line family
+  // LIGHT. The veil is drawn through an alpha MOD, which can only take away,
+  // so its breath runs DOWN from 1 (1 - 2a .. 1): a factor above 1 would clamp
+  // to 1 and freeze half of every cycle (measured: three of five desktop
+  // frames identical on the first cut). The press at t = 1 is GONE
+  // (pressLeft = 1 - t^3 = 0), so a factor on it does nothing; pressAdd is an
+  // ADDITIVE weight, 0 .. kBreathPress, the impression breathing faintly back.
+  float veil = 1.0f, pressAdd = 0.0f;
+};
+
+inline bool timeIsUp(double fraction) { return fraction >= 1.0; }
+
+// The breath at `msUp` milliseconds past the moment the goal was reached. A
+// negative time (not up yet) is exactly still -- every factor 1, no drift --
+// so a caller that multiplies unconditionally changes nothing before the end.
+inline float breathWave(double msUp) {
+  if (msUp < 0.0) return 0.0f;
+  const double ph = 6.283185307179586 * msUp / kBreathPeriodMs;
+  const double s = std::sin(ph) + 0.6 * std::sin(0.37 * ph + 1.1);
+  return static_cast<float>(s / 1.6);
+}
+inline Breath breath(double msUp) {
+  Breath b;
+  if (msUp < 0.0) return b;
+  const float w = breathWave(msUp);
+  b.lift = 1.0f + kBreathLift * w;
+  b.halo = 1.0f + kBreathHalo * w;
+  b.defocus = 1.0f + kBreathDefocus * w;
+  b.swell = 1.0f + kBreathSwell * w;
+  b.veil = 1.0f - kBreathVeil * (1.0f - w);
+  b.pressAdd = kBreathPress * 0.5f * (1.0f + w);
+  const double d = msUp / kRetraceDriftPeriodMs;
+  b.retraceDrift = static_cast<float>(d - std::floor(d));
+  return b;
+}
+
 // How much ink a presented pixel carries, 0 (paper) .. 1 (full ink), read
 // against the page's own palette on the channel with the widest ink/paper
 // spread (a single channel keeps a tinted ink from reading as half ink).
