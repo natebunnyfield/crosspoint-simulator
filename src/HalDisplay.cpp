@@ -3251,6 +3251,9 @@ void HalDisplay::presentIfNeeded() {
     // the page as it looked at its FIRST present -- nearly readable, found by
     // adversarial review.
     if (stepChanged) requestDirtyPresent();
+    // Spent page: the breath (picture::breath) wants a frame every
+    // kBreathFrameMs -- a PLAIN present, the glass does not change under it.
+    if (simallowance::breathDue(SDL_GetTicks())) requestPlainPresent();
     if (speedrunOn()) {
       uint64_t book = 0; int spine = 0, pg = 0;
       const bool on = bookPage && SimulatorOverlay::readerPageIdentity(book, spine, pg);
@@ -3786,6 +3789,34 @@ void HalDisplay::presentIfNeeded() {
       SDL_RenderTexture(sdl_renderer, tex, nullptr, &landscapeDst);
     }
   };
+  // drawPanel with the dst INFLATED by `fx`/`fy` of its own size on each side
+  // (the texture is a plane padded by the same fractions, so its page content
+  // still lands on the page). Symmetric about the center, which is what the
+  // rotations turn about, so the rotated cases need nothing else. The halo of
+  // the spent dark page is the one caller (src/SurfaceAllowance.h drawDark).
+  auto drawPanelPad = [&](SDL_Texture *tex, float fx, float fy) {
+    auto inflate = [&](const SDL_FRect &d) {
+      const float dx = d.w * fx, dy = d.h * fy;
+      return SDL_FRect{d.x - dx, d.y - dy, d.w + 2.0f * dx, d.h + 2.0f * dy};
+    };
+    const SDL_FRect p = inflate(portraitDst), l = inflate(landscapeDst);
+    switch (orientation) {
+    case GfxRenderer::Portrait:
+      SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &p, 90.0, nullptr,
+                               SDL_FLIP_NONE);
+      break;
+    case GfxRenderer::PortraitInverted:
+      SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &p, -90.0, nullptr,
+                               SDL_FLIP_NONE);
+      break;
+    case GfxRenderer::LandscapeClockwise:
+      SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &l, 180.0, nullptr,
+                               SDL_FLIP_NONE);
+      break;
+    default:
+      SDL_RenderTexture(sdl_renderer, tex, nullptr, &l);
+    }
+  };
 
   // WHICH FIELD COMPOSITES THIS PRESENT -- decided ONCE, here, before the first
   // of the three draw sites. src/FieldSelection.h holds the rule and the
@@ -3985,6 +4016,10 @@ void HalDisplay::presentIfNeeded() {
               "previous (non-book) screen", allowanceDecay);
     withheld = !painted;
   }
+  // The breath over a SPENT page (src/ReadingAllowance.h picture::breath):
+  // still -- every factor exactly 1 -- until the goal is reached.
+  const readingallowance::picture::Breath decayBreath =
+      simallowance::breathNow(SDL_GetTicks());
   if (fields.letterpress) {
     if (simsheet::ensureLetterpressField()) {
       SDL_ScaleMode panelMode = kPanelScaleMode;
@@ -3998,8 +4033,10 @@ void HalDisplay::presentIfNeeded() {
           simallowance::drawFadedField(
               sdl_renderer, simsheet::letterpressField(), activeWidth(),
               activeHeight(),
-              readingallowance::picture::pressLeft(
-                  static_cast<float>(decayOnGlass)),
+              std::clamp(readingallowance::picture::pressLeft(
+                             static_cast<float>(decayOnGlass)) +
+                             decayBreath.pressAdd,
+                         0.0f, 1.0f),
               panelMode, drawPanel);
       if (!faded) drawPanel(simsheet::letterpressField());
     }
@@ -4032,13 +4069,14 @@ void HalDisplay::presentIfNeeded() {
     if (dark) {
       simallowance::drawDark(sdl_renderer, pageCopy.data(), w, h,
                              cp::renderScale(), pageCopySeq, decayOnGlass,
-                             pal, drawPanel);
+                             pal, decayBreath, drawPanel, drawPanelPad);
     } else {
       SDL_ScaleMode panelMode = kPanelScaleMode;
       SDL_GetTextureScaleMode(texture, &panelMode);
       simallowance::drawLight(sdl_renderer, pageCopy.data(), w, h,
                               cp::renderScale(), pageCopySeq, pageSheetSeed(),
-                              decayOnGlass, pal, panelMode, drawPanel);
+                              decayOnGlass, pal, panelMode, decayBreath,
+                              drawPanel);
     }
   } else {
     // Clean page: release everything, the page copy included (6.7 MB at 2x
@@ -4624,6 +4662,49 @@ void HalDisplay::presentIfNeeded() {
       s = SDL_floorf(s);
     return s * static_cast<float>(logH) / static_cast<float>(srcRows);
   };
+
+  // THE SPENT DARK PAGE'S GLASS HALF -- the lifted black level around the
+  // page and the retrace lines across the whole face (src/SurfaceAllowance.h
+  // drawDarkGlass; owner 2026-10-02). Output space, past the overlay, where
+  // the grain and the scanlines go, and BEFORE them so they gate it as they
+  // gate everything else lit. Light pages have no glass half: the dry plate
+  // is a property of the ink, and the sheet already covers the glass.
+  if (decayOnGlass > 0.0 && display.isInverted()) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    int outW = 0, outH = 0;
+    if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) && outW > 0 &&
+        outH > 0) {
+      // The page's presented rect in OUTPUT pixels: the placed rect when the
+      // host places the panel, else the letterbox fit (the same arithmetic
+      // pitchFor() above uses for the scanline pitch).
+      SDL_FRect panelOut{0.0f, 0.0f, static_cast<float>(outW),
+                         static_cast<float>(outH)};
+      if (manualPlacement && panelRectH > 0) {
+        panelOut = {static_cast<float>(panelRectX), static_cast<float>(panelRectY),
+                    static_cast<float>(panelRectW), static_cast<float>(panelRectH)};
+      } else {
+        int logW = 0, logH = 0;
+        getLogicalPresentationSize(orientation, &logW, &logH);
+        if (logW > 0 && logH > 0) {
+          float s = SDL_min(static_cast<float>(outW) / logW,
+                            static_cast<float>(outH) / logH);
+          if (kLogicalPresentation == SDL_LOGICAL_PRESENTATION_INTEGER_SCALE &&
+              s >= 1.0f)
+            s = SDL_floorf(s);
+          const float pw = logW * s, ph = logH * s;
+          panelOut = {(outW - pw) / 2.0f, (outH - ph) / 2.0f, pw, ph};
+        }
+      }
+      simallowance::drawDarkGlass(sdl_renderer, outW, outH, panelOut,
+                                  decayOnGlass, decayBreath,
+                                  livePanelPalette(true));
+    }
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  }
 
   if (scanlinesActive) {
     SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,

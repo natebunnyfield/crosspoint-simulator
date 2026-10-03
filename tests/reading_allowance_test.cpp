@@ -238,6 +238,49 @@ int main() {
     check(dark, "glow: a bare ground emits no excess");
   }
 
+  {
+    // TIME IS UP: the breath (owner 2026-10-02, "animate them slightly when
+    // zen time is up").
+    using namespace readingallowance::picture;
+    check(timeIsUp(1.0) && !timeIsUp(0.999), "timeIsUp: exactly the end");
+    const Breath still = breath(-1.0);
+    check(still.lift == 1.0f && still.halo == 1.0f && still.defocus == 1.0f &&
+              still.swell == 1.0f && still.veil == 1.0f && still.pressAdd == 0.0f &&
+              still.retraceDrift == 0.0f,
+          "breath: exactly still before the end");
+    // Bounded by the named amplitudes, and SLIGHT: nothing moves past 15%.
+    bool bounded = true, slight = true, driftOk = true, moves = false;
+    float maxStep = 0.0f;
+    for (double ms = 0.0; ms < 60000.0; ms += 7.0) {
+      const Breath b = breath(ms);
+      bounded = bounded && std::fabs(b.lift - 1.0f) <= kBreathLift + 1e-6f &&
+                std::fabs(b.halo - 1.0f) <= kBreathHalo + 1e-6f &&
+                std::fabs(b.defocus - 1.0f) <= kBreathDefocus + 1e-6f &&
+                std::fabs(b.swell - 1.0f) <= kBreathSwell + 1e-6f &&
+                // the veil's mod can only take away: never above 1
+                b.veil <= 1.0f + 1e-6f && b.veil >= 1.0f - 2.0f * kBreathVeil - 1e-6f &&
+                b.pressAdd >= 0.0f && b.pressAdd <= kBreathPress + 1e-6f;
+      slight = slight && std::fabs(b.halo - 1.0f) <= 0.15f;
+      driftOk = driftOk && b.retraceDrift >= 0.0f && b.retraceDrift < 1.0f;
+      moves = moves || std::fabs(b.lift - 1.0f) > 0.05f;
+      // The frame-length floor: sampled at the present cadence, no term
+      // jumps more than a fraction of its swing between two frames.
+      maxStep = std::max(maxStep, std::fabs(breathWave(ms + kBreathFrameMs) - breathWave(ms)));
+    }
+    check(bounded, "breath: every factor within its named amplitude");
+    check(slight, "breath: slight -- under 15% everywhere");
+    check(moves, "breath: it does move (the lift reaches half its amplitude)");
+    check(driftOk, "breath: the retrace drift is a phase in [0,1)");
+    check(maxStep < 0.4f, "breath: no term moves more than 40% of its swing in one frame");
+    // The drift is monotone within a period and wraps once per period.
+    check(breath(100.0).retraceDrift < breath(4000.0).retraceDrift &&
+              breath(kRetraceDriftPeriodMs + 100.0).retraceDrift < 0.1f,
+          "breath: the retrace lines drift one way and wrap");
+    // Not a loop: the second term's rate is not a multiple of the first's.
+    check(std::fabs(breathWave(0.0) - breathWave(kBreathPeriodMs)) > 1e-3f,
+          "breath: a period later is not the same frame");
+  }
+
   if (failures == 0) std::printf("reading_allowance: all passed\n");
   return failures == 0 ? 0 : 1;
 }
