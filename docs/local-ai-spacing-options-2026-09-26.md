@@ -1052,3 +1052,10 @@ their OLD outlines. Options were: refresh and refit at the next bench;
 refresh and refit now; leave it. **Owner: "Refresh and refit now."** The
 round that does it is round 463 (`docs/albo-round-463-2026-10-02.md`); a proof
 page precedes the ship.
+
+**Then, on the arms (2026-10-02): "A, next"** -- today's spacing kept. The
+refit on today's outlines opened every c pair 38-52 units (the band-extreme
+white reads the c's drawn top's terminal tip as its edge), and with the c held
+it still moved the r and a 8-20 units (the retired hand corrections). The
+default re-basing pair is r409 again; `ALBO_B2_DELTA=r463` keeps the refreshed
+one for the day a better white measure exists. `docs/albo-round-463-2026-10-02.md`.

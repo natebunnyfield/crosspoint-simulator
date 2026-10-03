@@ -114,7 +114,13 @@ HOLD = {
 # refit reproduces the shipped tables exactly with ALBO_B2_DELTA=r409).
 _D409 = os.path.join(WS, "bench", "italic-delta-r409")
 _D463 = os.path.join(WS, "bench", "italic-delta-r463")
-_DDIR = _D409 if os.environ.get("ALBO_B2_DELTA", "r463") == "r409" else _D463
+# RULED A, 2026-10-02 (owner: "A, next"): the refit on the refreshed pair was
+# shown as arms B / C and today's spacing kept, so the DEFAULT is the r409 pair
+# again -- which reproduces the shipped tables exactly -- and the refreshed pair
+# is ALBO_B2_DELTA=r463. Why it was not adopted: the band-extreme white reads a
+# terminal redraw as spacing (the c's drawn top asked for +38..52 on every c
+# pair); re-basing on today's outlines needs a better white measure first.
+_DDIR = _D463 if os.environ.get("ALBO_B2_DELTA", "r409") == "r463" else _D409
 _IT_NEW = os.environ.get("ALBO_B2_ITALIC_NEW", os.path.join(_DDIR, "Albo-Italic-new.ttf"))
 _IT_OLD = os.environ.get("ALBO_B2_ITALIC_OLD", os.path.join(_DDIR, "Albo-Italic-old.ttf"))
 if (_IT_NEW or "").lower() in ("off", "0", "none", ""):
