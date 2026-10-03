@@ -4696,9 +4696,24 @@ void HalDisplay::presentIfNeeded() {
           panelOut = {(outW - pw) / 2.0f, (outH - ph) / 2.0f, pw, ph};
         }
       }
+      // THE BLACK STAYS BLACK (owner 2026-10-02: "only affect the non-black
+      // background"): read the glass as it stands, mask where it is black,
+      // draw the glass half, then paint that black back over everything the
+      // passes put there -- the lift, the lines, and the halo that crossed
+      // the page's edge in panel space above. One readback per dirty
+      // present; the breath frames reuse the mask.
+      uint64_t pageSeq = 0;
+      {
+        const std::lock_guard<std::mutex> lock(pixelBufMutex);
+        pageSeq = pixelBufSeq;
+      }
+      simallowance::refreshBlackMask(
+          sdl_renderer, outW, outH,
+          (glassDirtyGen.load(std::memory_order_relaxed) << 24) ^ pageSeq);
       simallowance::drawDarkGlass(sdl_renderer, outW, outH, panelOut,
                                   decayOnGlass, decayBreath,
                                   livePanelPalette(true));
+      simallowance::restoreBlack(sdl_renderer, outW, outH);
     }
     int logW = 0, logH = 0;
     getLogicalPresentationSize(orientation, &logW, &logH);

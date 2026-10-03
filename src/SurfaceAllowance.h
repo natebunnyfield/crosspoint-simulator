@@ -173,19 +173,98 @@ struct Textures {
   // OUTPUT size / 4, not the page's (drawDarkGlass).
   SDL_Texture *retrace = nullptr;
   int retraceW = 0, retraceH = 0;
+  // THE BLACK STAYS BLACK (owner 2026-10-02, on the first glass render:
+  // "only affect the non-black background"). A plane the output's size,
+  // opaque black where the composed glass was black before the spent page's
+  // glass passes, clear elsewhere, drawn over them last -- so the lift, the
+  // drifting retrace lines and the halo that crosses the page's edge land on
+  // the paper-toned surround and never on the black bands, the zen black
+  // below the paper or the iPad's black margins. Built from one readback of
+  // the glass per DIRTY present (keyed like the trail's capture), never per
+  // breath frame: the breath changes nothing under it.
+  SDL_Texture *black = nullptr;
+  int blackW = 0, blackH = 0;
+  uint64_t blackKey = ~0ull;
+  std::vector<uint32_t> blackPixels;
 };
-inline constexpr int kHaloPad = 8;
+// 0 since the same day's ruling that the black stays black: the halo is drawn
+// in PANEL space, before the glass is read for the black mask, so a ring
+// that crossed the page's edge lit the black band and the mask then read
+// that band as lit. The padding machinery stays (a nonzero value is one
+// edit) for a surround that is never black; it is not that today.
+inline constexpr int kHaloPad = 0;
+// A glass pixel is "black" when no channel exceeds this. The dark page's
+// ground (171B1B = 23,27,27) and every phosphor paper are well above it; the
+// phone's bands and the iPad's margins are exactly 0.
+inline constexpr int kBlackMax = 4;
+
 
 inline Textures &textures() {
   static Textures t;
   return t;
 }
 
+inline void refreshBlackMask(SDL_Renderer *r, int outW, int outH, uint64_t key) {
+  Textures &t = textures();
+  if (t.black && t.blackW == outW && t.blackH == outH && t.blackKey == key) return;
+  SDL_Surface *shot = SDL_RenderReadPixels(r, nullptr);
+  if (!shot) return;
+  SDL_Surface *src = shot;
+  if (shot->format != SDL_PIXELFORMAT_ARGB8888) {
+    src = SDL_ConvertSurface(shot, SDL_PIXELFORMAT_ARGB8888);
+    SDL_DestroySurface(shot);
+    if (!src) return;
+  }
+  if (src->w != outW || src->h != outH) {
+    SDL_DestroySurface(src);
+    return;
+  }
+  if (!t.black || t.blackW != outW || t.blackH != outH) {
+    if (t.black) SDL_DestroyTexture(t.black);
+    t.black = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+                                outW, outH);
+    if (t.black) SDL_SetTextureBlendMode(t.black, SDL_BLENDMODE_BLEND);
+    t.blackW = outW;
+    t.blackH = outH;
+  }
+  if (t.black) {
+    const size_t n = static_cast<size_t>(outW) * outH;
+    t.blackPixels.resize(n);
+    const uint8_t *rows = static_cast<const uint8_t *>(src->pixels);
+    for (int y = 0; y < outH; y++) {
+      const uint32_t *row = reinterpret_cast<const uint32_t *>(rows + static_cast<size_t>(y) * src->pitch);
+      uint32_t *out = t.blackPixels.data() + static_cast<size_t>(y) * outW;
+      for (int x = 0; x < outW; x++) {
+        const uint32_t px = row[x];
+        const int m = std::max({static_cast<int>((px >> 16) & 0xFF), static_cast<int>((px >> 8) & 0xFF),
+                                static_cast<int>(px & 0xFF)});
+        out[x] = m <= kBlackMax ? 0xFF000000u : 0x00000000u;
+      }
+    }
+    SDL_UpdateTexture(t.black, nullptr, t.blackPixels.data(), outW * 4);
+    t.blackKey = key;
+  }
+  SDL_DestroySurface(src);
+}
+
+inline void restoreBlack(SDL_Renderer *r, int outW, int outH) {
+  Textures &t = textures();
+  if (!t.black || t.blackW != outW || t.blackH != outH) return;
+  const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW), static_cast<float>(outH)};
+  SDL_SetTextureAlphaMod(t.black, 255);
+  SDL_RenderTexture(r, t.black, nullptr, &full);
+}
+
 inline void destroyAll() {
   Textures &t = textures();
   if (!t.veil && !t.lift && !t.defocus && !t.pressTarget && !t.halo && !t.retrace && !t.glow[0] &&
-      !t.glow[1] && !t.glow[2])
+      !t.glow[1] && !t.glow[2] && !t.black)
     return;
+  if (t.black) SDL_DestroyTexture(t.black);
+  t.black = nullptr;
+  t.blackW = t.blackH = 0;
+  t.blackKey = ~0ull;
+  std::vector<uint32_t>().swap(t.blackPixels);
   if (t.pressTarget) SDL_DestroyTexture(t.pressTarget);
   if (t.veil) SDL_DestroyTexture(t.veil);
   for (SDL_Texture *&g : t.glow)

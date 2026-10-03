@@ -379,3 +379,28 @@ stored=light system=dark -> SEED`). And in zsh an unquoted `$extra` of env
 assignments is ONE word: `env A=1 $extra cmd` sets `A` to the whole string
 and the rest never reaches the binary (two full capture sets were identical
 to the clean page before this was noticed).
+
+### Ruling on the first render, same day: "only affect the non-black background"
+
+The whole-glass lift had lit the black band above the paper (mean luma 97
+where it was 0) and the zen black below it. The owner, from that render:
+*"only affect the non-black background."* So the glass half now runs ONLY
+where the composed glass is not black:
+
+- `simallowance::refreshBlackMask` reads the glass back once per DIRTY
+  present (keyed on the page seq and `glassDirtyGen`, the trail capture's
+  own key), and builds an output-size plane: opaque black where no channel
+  exceeds `kBlackMax` (4), clear elsewhere. The dark page's ground (23,27,27)
+  and every phosphor paper clear it; the phone's bands and the iPad's margins
+  are exactly 0.
+- `drawDarkGlass` draws as before, then `restoreBlack` paints the plane over
+  everything it put there. The breath frames (plain presents) reuse the mask.
+- `kHaloPad` is 0 again: the halo is drawn in panel space before the glass
+  is read, so a padded ring lit the band and the mask then read it as lit.
+  The padding machinery stays, one number, for a surround that is never
+  black.
+
+What this means on each device: the iPhone's paper-toned surround out of
+zen (the sheet bleeds to the glass) takes the lift and the lines; in zen the
+paper ends at the line and the black below it stays black; on the iPad the
+surround is black since 2026-09-30 and nothing outside the page moves.
