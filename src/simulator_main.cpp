@@ -434,6 +434,14 @@ int main(int argc, char **argv) {
               g_topBand.steps.size(), g_bottomBand.steps.size());
   }
 
+  // THE MAIN THREAD'S SLEEPS PUMP PRESENTS from here on (src/SimulatorIdle.h):
+  // delay() inside loop() -- the firmware's 10 ms polls and the 50 ms idle
+  // slices -- runs presentIfNeeded about once a millisecond while it waits,
+  // so a present owed mid-sleep lands within a millisecond instead of at the
+  // end of the pass. Installed AFTER setup(), so setup's own delays stay
+  // plain sleeps against a display that may not exist yet. Re-run on the iOS
+  // longjmp reboot by construction (this line is on that path).
+  simidle::install([] { display.presentIfNeeded(); });
   while (!display.shouldQuit()) {
     {
       const uint64_t nowMs = SDL_GetTicks();

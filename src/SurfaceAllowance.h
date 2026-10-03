@@ -151,6 +151,14 @@ struct Textures {
   uint64_t veilSeq = ~0ull;
   int veilStep = -1;
   std::vector<uint32_t> veilPixels;
+  // THE INK THAT FLICKERS BACK (owner 2026-10-03): the veil of step
+  // kBreathVeilNearStep, baked once per page from the same byte planes, drawn
+  // UNDER the final veil while the page is spent; the final veil's alpha then
+  // breathes (Breath::veil) and the last-dried patches come and go.
+  SDL_Texture *veilNear = nullptr;
+  uint64_t veilNearSeq = ~0ull;
+  uint32_t veilNearSeed = 0;
+  std::vector<uint32_t> veilNearPixels;
   // Per-page byte planes (mask, robbed, contact, blob): 4 bytes a pixel.
   std::vector<uint8_t> qMask, qRobbed, qContact, qBlob;
   uint32_t veilSeed = 0;
@@ -267,6 +275,10 @@ inline void destroyAll() {
   std::vector<uint32_t>().swap(t.blackPixels);
   if (t.pressTarget) SDL_DestroyTexture(t.pressTarget);
   if (t.veil) SDL_DestroyTexture(t.veil);
+  if (t.veilNear) SDL_DestroyTexture(t.veilNear);
+  t.veilNear = nullptr;
+  t.veilNearSeq = ~0ull;
+  std::vector<uint32_t>().swap(t.veilNearPixels);
   for (SDL_Texture *&g : t.glow)
     if (g) SDL_DestroyTexture(g), g = nullptr;
   if (t.lift) SDL_DestroyTexture(t.lift);
@@ -287,6 +299,25 @@ inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
                       const Breath &breath, DrawPanel &&drawPanel) {
   Textures &t = textures();
   const int step = readingallowance::quantize(f);
+  // One veil at a given step from the page's byte planes (the per-page pass
+  // below fills them): alpha = the ink lost at that step, paper-coloured.
+  auto bakeVeil = [&](int atStep, std::vector<uint32_t> &px) {
+    const size_t n = static_cast<size_t>(w) * h;
+    const float tf = static_cast<float>(atStep) / 120.0f;
+    const float supplyBase = tf > 0.0f && tf < 1.0f ? std::pow(1.0f - tf, 1.25f) : 0.0f;
+    px.resize(n);
+    const uint32_t rgb = (static_cast<uint32_t>(pal.paper[0]) << 16) |
+                         (static_cast<uint32_t>(pal.paper[1]) << 8) | pal.paper[2];
+    for (size_t i = 0; i < n; i++) {
+      const uint8_t m = t.qMask[i];
+      if (m == 0) { px[i] = rgb; continue; }   // bare paper: alpha 0
+      const float printed = printedRaw(t.qRobbed[i] * (1.75f / 255.0f),
+                                       t.qContact[i] * (1.0f / 255.0f),
+                                       t.qBlob[i] * (1.0f / 255.0f), tf, supplyBase);
+      const float a = (m * (1.0f / 255.0f)) * (1.0f - printed);
+      px[i] = (static_cast<uint32_t>(a * 255.0f + 0.5f) << 24) | rgb;
+    }
+  };
   if (!t.veil || t.veilW != w || t.veilH != h || t.scale != scale) {
     t.scale = scale;
     if (t.veil) SDL_DestroyTexture(t.veil);
@@ -378,26 +409,35 @@ inline void drawLight(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
     t.veilSeq = seq;
     t.veilSeed = sheetSeed;
     t.veilStep = step;
-    const float tf = static_cast<float>(step) / 120.0f;
-    const float supplyBase = tf > 0.0f && tf < 1.0f ? std::pow(1.0f - tf, 1.25f) : 0.0f;
-    t.veilPixels.resize(n);
-    const uint32_t rgb = (static_cast<uint32_t>(pal.paper[0]) << 16) |
-                         (static_cast<uint32_t>(pal.paper[1]) << 8) | pal.paper[2];
-    for (size_t i = 0; i < n; i++) {
-      const uint8_t m = t.qMask[i];
-      if (m == 0) { t.veilPixels[i] = rgb; continue; }   // bare paper: alpha 0
-      const float printed = printedRaw(t.qRobbed[i] * (1.75f / 255.0f),
-                                       t.qContact[i] * (1.0f / 255.0f),
-                                       t.qBlob[i] * (1.0f / 255.0f), tf, supplyBase);
-      const float a = (m * (1.0f / 255.0f)) * (1.0f - printed);
-      t.veilPixels[i] = (static_cast<uint32_t>(a * 255.0f + 0.5f) << 24) | rgb;
-    }
+    bakeVeil(step, t.veilPixels);
     SDL_UpdateTexture(t.veil, nullptr, t.veilPixels.data(), w * 4);
   }
   SDL_SetTextureScaleMode(t.veil, mode);
-  // The breath: the ink the starved plate still lays down wavers a few
-  // percent once the page is spent (picture::breath). An alpha mod over the
-  // baked veil, so no pixel is recomputed per frame; 1.0 before the end.
+  // THE INK FLICKERS BACK once the page is spent (picture::breath, owner
+  // 2026-10-03): the veil of an earlier step is drawn under the final one,
+  // and the final veil's alpha breathes down from 1 -- where it thins, the
+  // patches that dried last show again. Nothing is recomputed per frame:
+  // the near veil is baked once per page, and only an alpha mod moves.
+  // Before the end breath.veil is exactly 1 and the near veil is not drawn.
+  if (breath.veil < 1.0f) {
+    if (!t.veilNear) {
+      t.veilNear = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888,
+                                     SDL_TEXTUREACCESS_STREAMING, w, h);
+      if (t.veilNear) SDL_SetTextureBlendMode(t.veilNear, SDL_BLENDMODE_BLEND);
+      t.veilNearSeq = ~0ull;
+    }
+    if (t.veilNear && (t.veilNearSeq != seq || t.veilNearSeed != sheetSeed)) {
+      bakeVeil(kBreathVeilNearStep, t.veilNearPixels);
+      SDL_UpdateTexture(t.veilNear, nullptr, t.veilNearPixels.data(), w * 4);
+      t.veilNearSeq = seq;
+      t.veilNearSeed = sheetSeed;
+    }
+    if (t.veilNear) {
+      SDL_SetTextureScaleMode(t.veilNear, mode);
+      SDL_SetTextureAlphaMod(t.veilNear, 255);
+      drawPanel(t.veilNear);
+    }
+  }
   SDL_SetTextureAlphaMod(
       t.veil, static_cast<Uint8>(std::clamp(breath.veil, 0.0f, 1.0f) * 255.0f + 0.5f));
   drawPanel(t.veil);

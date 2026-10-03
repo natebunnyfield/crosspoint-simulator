@@ -3131,6 +3131,15 @@ std::atomic<int> &cornerDefocusStrengthRef() {
 }  // namespace simtube
 
 void HalDisplay::presentIfNeeded() {
+  // For the [timing] line: the main loop's pass period as seen from here,
+  // and how long this call spends BEFORE the timing frame is armed (the
+  // early returns, the reconvert, the clock tick). 2026-10-03: the phone
+  // presented every ~90 ms with a 2 ms compose, and nothing in the timed
+  // region could say where the other 88 went.
+  static uint64_t s_lastEntryNs = 0;
+  const uint64_t entryNs = SDL_GetTicksNS();
+  const uint64_t passNs = s_lastEntryNs ? entryNs - s_lastEntryNs : 0;
+  s_lastEntryNs = entryNs;
   // Nothing may touch the GPU while backgrounded. Return BEFORE clearing
   // pendingPresent so the frame stays owed and lands on the way back in.
   if (g_backgrounded.load()) {
@@ -4951,11 +4960,13 @@ void HalDisplay::presentIfNeeded() {
       return p.built ? "BUILD" : (p.served ? "cache" : "off");
     };
     static int n = 0;
-    SDL_Log("[timing] #%d total %.2f ms | upload %s %.2f | accum %s %.2f | "
+    SDL_Log("[timing] #%d total %.2f ms | pass %.1f pre %.2f | upload %s %.2f | accum %s %.2f | "
             "glass %s %.2f | panel %s %.2f | sheet %s %.2f | lamp %s %.2f | "
             "scanlines %s %.2f | grain %s %.2f | readback %s %.2f | "
             "flip %.2f",
-            ++n, total, tag(timingFrame.upload), timingFrame.upload.ms,
+            ++n, total, static_cast<double>(passNs) / 1e6,
+            static_cast<double>(timingFrame.startNs - entryNs) / 1e6,
+            tag(timingFrame.upload), timingFrame.upload.ms,
             tag(timingFrame.accum), timingFrame.accum.ms,
             tag(timingFrame.glass), timingFrame.glass.ms,
             tag(timingFrame.letterpress),
