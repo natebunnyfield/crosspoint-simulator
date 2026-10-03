@@ -290,9 +290,11 @@ int main() {
       check(border && inside, "feather: a plane's border goes to 0 and its interior is untouched");
       std::vector<uint32_t> rgb(20 * 20, 0xFF80FF40u);
       featherPlaneRGB(rgb, 20, 20, 4.0f);
-      check((rgb[0] & 0xFFFFFFu) == 0 && (rgb[0] >> 24) == 0xFF && rgb[10 * 20 + 10] == 0xFF80FF40u &&
-                ((rgb[10 * 20 + 2] >> 16) & 0xFF) == 0x40,
-          "feather: the RGB plane scales its colour and keeps its alpha");
+      // The opaque defocus plane fades by ALPHA and keeps its colour, so the
+      // page's own ground shows through at the border (seamless to the margin).
+      check((rgb[0] >> 24) == 0 && (rgb[0] & 0xFFFFFFu) == 0x80FF40u && rgb[10 * 20 + 10] == 0xFF80FF40u &&
+                (rgb[10 * 20 + 2] >> 24) == 0x80 && (rgb[10 * 20 + 2] & 0xFFFFFFu) == 0x80FF40u,
+          "feather: the opaque plane fades its alpha and keeps its colour");
     }
     // Not a loop: the second term's rate is not a multiple of the first's.
     check(std::fabs(breathWave(0.0) - breathWave(kBreathPeriodMs)) > 1e-3f,

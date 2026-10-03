@@ -210,7 +210,13 @@ inline void featherPlane(std::vector<float> &p, int w, int h, float featherTexel
     for (int x = 0; x < w; x++)
       p[static_cast<size_t>(y) * w + x] *= edgeFeather(x, y, w, h, featherTexels);
 }
-// The defocus plane is premultiplied RGB in uint32 (excessGlow's output).
+// The defocus plane is an OPAQUE blurred picture (excessGlow's output, alpha
+// 255, drawn BLEND), so its feather scales the ALPHA and leaves the colour:
+// at the border the page underneath shows through, whose ground is the same
+// ground the margin beyond the edge has. The first cut scaled the colour to
+// black at alpha 255 instead, which painted the page's outer 24 px black and
+// then lifted them -- 123.5 against a 132.4 margin on the phone, the step
+// the owner saw (2026-10-03, "the panel to not panel should be seemless").
 inline void featherPlaneRGB(std::vector<uint32_t> &p, int w, int h, float featherTexels) {
   if (featherTexels <= 0.0f) return;
   for (int y = 0; y < h; y++)
@@ -218,13 +224,8 @@ inline void featherPlaneRGB(std::vector<uint32_t> &p, int w, int h, float feathe
       const float k = edgeFeather(x, y, w, h, featherTexels);
       if (k >= 1.0f) continue;
       uint32_t &px = p[static_cast<size_t>(y) * w + x];
-      uint32_t out = px & 0xFF000000u;
-      for (int c = 0; c < 3; c++) {
-        const int shift = 16 - 8 * c;
-        const float v = static_cast<float>((px >> shift) & 0xFFu) * k;
-        out |= static_cast<uint32_t>(v + 0.5f) << shift;
-      }
-      px = out;
+      const float a = static_cast<float>(px >> 24) * k;
+      px = (px & 0x00FFFFFFu) | (static_cast<uint32_t>(a + 0.5f) << 24);
     }
 }
 

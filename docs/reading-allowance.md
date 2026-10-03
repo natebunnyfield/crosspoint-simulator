@@ -417,3 +417,16 @@ upload. Pure, tested (`featherPlane`, `featherPlaneRGB`). Measured on the
 desktop X3 at 1x, spent dark page: the outermost 3 px ring fell from mean
 145.3 to 125.3 (the lifted ground alone), 30 px in 159.2 -> 158.7, the
 centre unchanged at 199.3.
+
+### Third ruling, 2026-10-03: "the panel to not panel should be seamless"
+
+The feather's first cut scaled the DEFOCUS plane's colour to black. That
+plane is an opaque blurred picture (alpha 255, BLEND, alpha mod = the
+schedule's defocus, 1.0 at t = 1), so the page's outer 24 px were painted
+black and then lifted: 123.5 against the margin's ground-then-lifted
+132.4 -- a step at the page's edge. `featherPlaneRGB` now fades the plane's
+ALPHA and keeps its colour, so the page's own ground shows through at the
+border, and that ground is the same tone the margin has (the pad's field is
+the panel's paper). Measured on the desktop X3 at 1x: the outer 3 px ring
+went 125.3 -> 137.9 against 159.3 at 30 px in; the phone figures are in the
+section the build ships with.
