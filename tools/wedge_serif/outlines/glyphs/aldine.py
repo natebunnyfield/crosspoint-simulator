@@ -4645,6 +4645,8 @@ if ON:
     # so the white before a STEM grew 17-34 units; this takes it back to round 437's
     # (the round followers are then set by the rsnip kerns). The Greek sigma, which
     # borrows the r's right side, is compensated in build.fit_greek.
+    # Round 463's refit arms set this to 0 (ALBO_ALD_R_DRSB=0 _700=0): the refit
+    # on the refreshed re-basing pair sees the r's drawn arm.
     R_DRSB = (float(os.environ.get("ALBO_ALD_R_DRSB_700", -15.0)) if S > 84.0
               else float(os.environ.get("ALBO_ALD_R_DRSB", -16.0)))   # round 442: -16 / -15 (441: -12 / -13)
 
@@ -7754,6 +7756,9 @@ if ON:
     # refit would re-space every italic redrawn since 409. The Greek lambda and
     # chi borrow the x's sides and are compensated in build.fit_greek, as the
     # sigma is for the r's R_DRSB.
+    # Round 463's refit arms (B, C: outlines/spacing_b2_r463B.json / C.json) set
+    # these to 0 -- the refit on the refreshed re-basing pair sees the cup -- and
+    # must be built with ALBO_ALD_X_DLSB=0 ALBO_ALD_X_DRSB=0 (docs/albo-round-463).
     X_DLSB = d_dial("X_DLSB", 20.0)
     X_DRSB = d_dial("X_DRSB", 6.0 + 6.0 * _XS)
 

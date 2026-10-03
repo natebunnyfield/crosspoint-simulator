@@ -193,6 +193,11 @@ def far_mark(zero_font, p):
     return (d[0] / g if d and g else 0.0), kern(p) == kern(b)
 
 
+def b2_fit_delta_is_r409():
+    import b2_fit
+    return b2_fit._DDIR == b2_fit._D409
+
+
 def active(src):
     bench, ans = read_answers(src)
     key = json.load(open(os.path.join(BENCH, bench + ".key.json")))
@@ -220,6 +225,7 @@ def active(src):
                          d0920_bbox=int(r["white0"] + a["delta"] - r["white0920"]
                                         - (track_c(r["pair"]) if zero_dir(key.get("zero")) in TRACKED_ZEROS else 0)),
                          conv=("tables" if tw is not None else "bbox"),
+                         delta_pair=("r409" if b2_fit_delta_is_r409() else "r463"),   # round 463: which re-basing pair the +italic_delta used
                          track_removed=(track_c(r["pair"]) if zero_dir(key.get("zero")) in TRACKED_ZEROS else 0),
                          d_r395=int(r["white0"] + a["delta"] - Z395[a["style"]](*r["pair"])),
                          d_r396=int(r["white0"] + a["delta"] - Z396[a["style"]](*r["pair"])),

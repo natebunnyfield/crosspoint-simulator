@@ -916,6 +916,8 @@ for _c, _lr in ALD_LC_ADJ.items():                # round 308's joint fit
 # ALBO_ALD_A_SHIP=ring (the old a) takes nothing.
 if os.environ.get("ALBO_ALD_A_SHIP", "y1") == "y1":
     _b = ALD_BEARING_ADJ.get('a', (0, 0))
+    # Round 463's refit arms set this to 0 (ALBO_ALD_A_RSB=0): the refit on the
+    # refreshed re-basing pair sees round 419's teardrop a.
     ALD_BEARING_ADJ['a'] = (_b[0], _b[1] + float(os.environ.get("ALBO_ALD_A_RSB", -18)))
 # ROUND 304 -- AND THE ITALIC LOWERCASE WANTS NOTHING. WITHDRAWN.
 #

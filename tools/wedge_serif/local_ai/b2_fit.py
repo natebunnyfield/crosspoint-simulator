@@ -97,9 +97,26 @@ HOLD = {
 # on the round-409 italic that is  T - white0920  measured on the NEW glyphs,
 # and the new zero's white on the new glyphs is white0920 + delta(p) (ZeroFont
 # places them there), so  d0920 - delta(p)  is right for those rows too.
+#
+# ROUND 463 -- THE PAIR REFRESHED TO TODAY'S OUTLINE (owner 2026-10-02, "Refresh
+# and refit now"). The -new build in italic-delta-r409/ is round 409's outline,
+# so every italic letter redrawn since -- the c's drawn top (432-435), the a
+# (419), the r (438-442), the x (461) -- was re-based against its OLD outline
+# and each needed a hand bearing to keep its whites (A_RSB, R_DRSB, X_DLSB, all
+# retired with this round). bench/italic-delta-r463/ keeps the same -old and
+# builds -new from today's outline on the same round-405 tables with those
+# corrections off (its README has the command and the check: every letter not
+# redrawn since 409 moves exactly 0). ALBO_B2_DELTA=r409 selects the old pair.
+# AND THE DELTA IS NOW KERN-FREE: each build's band gap minus that pair's own
+# kern, so a hand kern that changed in kern.py between the two builds (round
+# 455 released the italic qu's -16) cannot read as outline. On the r409 pair,
+# whose two builds carry identical kerns, this changes nothing (checked: the
+# refit reproduces the shipped tables exactly with ALBO_B2_DELTA=r409).
 _D409 = os.path.join(WS, "bench", "italic-delta-r409")
-_IT_NEW = os.environ.get("ALBO_B2_ITALIC_NEW", os.path.join(_D409, "Albo-Italic-new.ttf"))
-_IT_OLD = os.environ.get("ALBO_B2_ITALIC_OLD", os.path.join(_D409, "Albo-Italic-old.ttf"))
+_D463 = os.path.join(WS, "bench", "italic-delta-r463")
+_DDIR = _D409 if os.environ.get("ALBO_B2_DELTA", "r463") == "r409" else _D463
+_IT_NEW = os.environ.get("ALBO_B2_ITALIC_NEW", os.path.join(_DDIR, "Albo-Italic-new.ttf"))
+_IT_OLD = os.environ.get("ALBO_B2_ITALIC_OLD", os.path.join(_DDIR, "Albo-Italic-old.ttf"))
 if (_IT_NEW or "").lower() in ("off", "0", "none", ""):
     _IT_NEW = _IT_OLD = None
 _DELTA = {}
@@ -124,7 +141,46 @@ def xband_gap(F, a, b):
     return float(np.nanmin(np.where(xs, LB, np.nan)) - np.nanmax(np.where(xs, RA, np.nan)) - 1.0)
 
 
+# ALBO_B2_REBASE_SKIP="c": letters whose re-basing stays on the r409 pair (their
+# post-409 redraw is NOT re-based): an arm for a letter whose outline change is a
+# terminal the band-extreme white over-reads (round 463's c, its drawn top).
+_SKIP = set(os.environ.get("ALBO_B2_REBASE_SKIP", ""))
+_R409_PAIR = {}
+
+
+def _delta_r409(p):
+    if not _R409_PAIR:
+        _R409_PAIR["n"], _R409_PAIR["o"] = FT.Font(os.path.join(_D409, "Albo-Italic-new.ttf")), FT.Font(os.path.join(_D409, "Albo-Italic-old.ttf"))
+    N, O = _R409_PAIR["n"], _R409_PAIR["o"]
+    xn, xo = xband_gap(N, p[0], p[1]), xband_gap(O, p[0], p[1])
+    if xn is None or xo is None:
+        return None
+    return (xn - N.shape(p[0], p[1])[2]) - (xo - O.shape(p[0], p[1])[2])
+
+
 def italic_delta(p):
+    if not (_IT_NEW and _IT_OLD):
+        return 0.0
+    if _SKIP and (p[0] in _SKIP or p[1] in _SKIP) and _DDIR != _D409:
+        # the skipped letter's side keeps r409's delta; the other letter's side moves
+        d409 = _delta_r409(p)
+        if d409 is not None:
+            key = ("skip", p)
+            if key not in _DELTA:
+                full = _italic_delta_full(p)
+                # replace the skipped glyph's own share (measured as its change against r409 with a neutral partner)
+                share = 0.0
+                for side, g in ((0, p[0]), (1, p[1])):
+                    if g in _SKIP:
+                        partner = "n"
+                        q = (g + partner) if side == 0 else (partner + g)
+                        share += _italic_delta_full(q) - (_delta_r409(q) or 0.0)
+                _DELTA[key] = full - share
+            return _DELTA[key]
+    return _italic_delta_full(p)
+
+
+def _italic_delta_full(p):
     if not (_IT_NEW and _IT_OLD):
         return 0.0
     if not _DELTA:
@@ -132,9 +188,45 @@ def italic_delta(p):
         _DELTA["_wn"], _DELTA["_wo"] = white_fn(_IT_NEW), white_fn(_IT_OLD)
     if p not in _DELTA:
         xn, xo = xband_gap(_DELTA["_new"], p[0], p[1]), xband_gap(_DELTA["_old"], p[0], p[1])
-        _DELTA[p] = (xn - xo) if (xn is not None and xo is not None) else \
-            float(_DELTA["_wn"](p[0], p[1]) - _DELTA["_wo"](p[0], p[1]))
+        kn, ko = _DELTA["_new"].shape(p[0], p[1])[2], _DELTA["_old"].shape(p[0], p[1])[2]   # round 463: kern-free
+        _DELTA[p] = ((xn - kn) - (xo - ko)) if (xn is not None and xo is not None) else \
+            float((_DELTA["_wn"](p[0], p[1]) - kn) - (_DELTA["_wo"](p[0], p[1]) - ko))
     return _DELTA[p]
+
+
+# ROUND 463 -- A READING TAKEN ON A POST-409 OUTLINE. A row ingested through the
+# page's own tables (conv "tables", 2026-09-28 on) stores  table + delta +
+# italic_delta(pair)  with italic_delta from the pair in force AT INGEST -- the
+# r409 pair for every row so far -- so it stood for the page's outline only if
+# that page showed round 409's glyphs. Two benches did not: the family bench
+# (zero round 430: the r 18 units tighter on its right, the a and j redrawn) and
+# the words bench (zero round 453: the a, c, e and r redrawn since 409). Each
+# such row is re-based by its OWN page's outline instead:
+#     d0920 - italic_delta(pair) + (gap(page) - gap(r409 new))
+# both gaps kern-free, the page build being that round's outline on the same
+# round-405 tables (bench/italic-delta-r463/page-r430.ttf, page-r453.ttf; the
+# README). Bbox rows already stand on their page's own glyphs and are untouched.
+# A row ingested from now on records the pair it was converted with
+# ("delta_pair"), and a page outline not listed here adds nothing.
+_PAGES = {"family-2026-09-28": "page-r430.ttf", "words-2026-10-01": "page-r453.ttf"}
+_PAGE_F, _R409_F = {}, {}
+
+
+def page_correction(row, pair):
+    if row.get("conv") != "tables" or row.get("delta_pair", "r409") != "r409" or _DDIR == _D409:
+        return 0.0
+    fn = _PAGES.get(row.get("bench"))
+    if not fn:
+        return 0.0
+    if fn not in _PAGE_F:
+        _PAGE_F[fn] = FT.Font(os.path.join(_D463, fn))
+    if not _R409_F:
+        _R409_F["f"] = FT.Font(os.path.join(_D409, "Albo-Italic-new.ttf"))
+    P, R = _PAGE_F[fn], _R409_F["f"]
+    gp, gr = xband_gap(P, pair[0], pair[1]), xband_gap(R, pair[0], pair[1])
+    if gp is None or gr is None:
+        return 0.0
+    return (gp - P.shape(pair[0], pair[1])[2]) - (gr - R.shape(pair[0], pair[1])[2])
 
 
 class ZeroFont(FT.Font):
@@ -367,7 +459,7 @@ def readings(style, drop=("g",)):
                 continue
             if r["style"] == style and not any(c in drop for c in pair):
                 cls = "skip" if r.get("verdict") == "skipped-ok" else "extra"
-                sh = italic_delta(pair) if style == "italic" else 0.0
+                sh = (italic_delta(pair) - page_correction(r, pair)) if style == "italic" else 0.0
                 reads.setdefault(pair, []).append((r["d0920"] - sh, cls, _when(r)))
     return reads
 

@@ -1042,3 +1042,13 @@ ALBO_SPACING_TABLES=_fit_new.json $V b2_fit.py --census $BG --extra
 ```
 
 - **Compare arms by BUILT whites, not by table arithmetic.** Held pairs, hand kerns and fences sit outside the tables. Measure `white_fn` on the built fonts, against the zero's fonts.
+
+### 14c. Ruling 2026-10-02: refresh the italic re-basing to today's outlines, and refit now
+
+Asked (one question, after round 461 had to set the x's whites by hand): the
+round-409 comparison builds (`bench/italic-delta-r409/`) predate the redrawn
+c, r, j, ? and x, so every later refit re-bases those letters' pairs against
+their OLD outlines. Options were: refresh and refit at the next bench;
+refresh and refit now; leave it. **Owner: "Refresh and refit now."** The
+round that does it is round 463 (`docs/albo-round-463-2026-10-02.md`); a proof
+page precedes the ship.
