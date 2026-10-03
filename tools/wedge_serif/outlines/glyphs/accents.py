@@ -261,6 +261,23 @@ def g_breve(c):
     p = cubic((0, H), (W * 0.12, -H * 0.16), (W * 0.88, -H * 0.16), (W, H))
     return _stroke(p, widths([(0.0, 0.70), (0.5, 1.12), (1.0, 0.70)]))
 
+# 2026-10-03 -- THE REGULAR'S DOT ACCENTS MATCH THE i's DOT. Round 467 shrank the
+# tittle 10% and left these at their size, so in the Regular the dieresis and the
+# dot-above stood 16% larger than the i's dot (94.6 units against 81.6, as drawn ink).
+# The owner, told they were already under the pixel floor at 10 pt on the X3 (a-dieresis
+# 3 dark px, e-dot 2) and would get fainter: *"Match the i, ship."* They take the i's
+# OWN radius (stems.TIT_RI / TIT_RI_ADJ, whichever the i uses) through the same dot(),
+# so the two are the same dot, not a measured near-match. The roman 400 only: the
+# Bold's already match (145 against 143.5) and the italics' tittle did not move.
+# ALBO_ACC_DOT_MATCH_I=0 builds round 469's.
+ACC_DOT_MATCH_I = os.environ.get("ALBO_ACC_DOT_MATCH_I", "1") == "1"
+
+def _acc_dot_r():
+    if ACC_DOT_MATCH_I and not pen.ITALIC and pen.S <= 84.0:
+        from .stems import TIT_RI, TIT_RI_ADJ
+        return TIT_RI_ADJ if pen.adj('i') else TIT_RI
+    return TIT_R * 0.92 * DOT_K * DOT_W * DOT_IT_K
+
 @glyph('\u00a8')      # dieresis
 def g_dieresis(c):
     """Two dots, separated by 1.05 of a dot's DIAMETER. The separation scales
@@ -277,13 +294,13 @@ def g_dieresis(c):
     # quantised to one bar. DIE_GAP is the centre-to-centre distance in dot
     # RADII, so white/dot is (DIE_GAP - 2) / 2: the shipped 2.1 is 0.05 and
     # the references' middle is 3.7.
-    r = TIT_R * 0.92 * DOT_K * DOT_W * DOT_IT_K
+    r = _acc_dot_r()   # see ACC_DOT_MATCH_I
     gap = (2 * r + DIE_WHITE * DIE_IT_W) if ACC_FIT else r * DIE_GAP   # centre to centre
     return geom.ink([dot(r, r, r), dot(r + gap, r, r)])
 
 @glyph('˙')      # dot above
 def g_dotaccent(c):
-    r = TIT_R * 0.92 * DOT_K * DOT_W * DOT_IT_K
+    r = _acc_dot_r()   # see ACC_DOT_MATCH_I
     return dot(r, r, r)
 
 @glyph('˚')      # ring above
