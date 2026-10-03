@@ -2,6 +2,8 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-01; the log below is history)
 
+- **2026-10-03 -- OWNER TODO, OPEN:** *"1 needs to be taller, visually balanced with other numbers"* -- the figure 1
+  against the other figures. Queued behind the italic S/G reach options (`docs/albo-italic-s-g-reach-2026-10-03.md`).
 - **2026-10-03 -- TWO OPTION PAGES OUT:** the Regular S thinner (owner: *"give me regular S options that are
   thinner"*), N1 / N2 narrower and L1 / L2 lighter-stroked, `docs/albo-regular-s-thinner-2026-10-03.md`; and the
   italic x's spacing (queued question 4, *"Show me options"*), Y1 / Y2 = round 461's added white halved / removed,

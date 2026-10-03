@@ -9105,6 +9105,21 @@ if ON:
 
     CAP_S_W = float(os.environ.get("ALBO_ALD_CAP_S_W", 0.50))   # the letter's drawn width, x C
 
+    # 2026-10-03 -- THE ITALIC S's AND G's REACH, AS OPTIONS. Owner, told the S's beak
+    # terminals reach past the other round capitals -- the Bold Italic S -57..724 and G
+    # -56..731 against its O's -15..690, reference italic S's within 1% of their O's
+    # height: *"Show me options."* The S's spine has its crown ON the cap line and its
+    # bottom half an overshoot under the baseline, and the G's bowl radius is C/2 + 0.4
+    # OVER at its CENTRELINE, so the ink stands out by half the stroke -- which grows with
+    # the weight (the roman g_S compensates; these did not). S_REACH / G_REACH keep that
+    # fraction of the ink's excess over the O's own height (C + OVER above, -OVER below,
+    # a_O's outer ring; less the dilation glyph() applies afterwards for FIT's weight): 1 =
+    # today, 0 = level with the O. Corrected on the drawn ink until it
+    # lands within 0.3 units, with the life counter restored so the serifs' jitter is the single
+    # draw's. docs/albo-italic-s-g-reach-2026-10-03.md.
+    S_REACH = d_dial("S_REACH", 1.0)
+    G_REACH = d_dial("G_REACH", 1.0)
+
     @glyph('S')
     def a_S(c):
         """BOTH terminals take the family's beak -- the face sheared toward the
@@ -9119,40 +9134,53 @@ if ON:
         report is that these letters are missing serifs rather than that they
         carry the wrong ones. Rendered at 700 px beside the roman S before
         choosing."""
-        C = c["cap"]; x0 = CS * 0.5; w = CAP_S_W * C
-        # ROUND 135: THE LOWER BOWL IS FULLER. Poetica's S reaches 0.199 of the
-        # cap left of its own 0.50-cap edge at a quarter height and round 134's
-        # reached nothing at all there -- the lower bowl simply stopped short
-        # and the letter finished on a flatter curve. The last three control
-        # points carry the whole of that: the bowl swings wider right before it
-        # turns, comes down further, and the terminal reaches back further left.
-        p_ = catmull([(x0 + w * 0.92, C * 0.86), (x0 + w * 0.46, C * 1.00),
-                      (x0 + w * 0.04, C * 0.80), (x0 + w * 0.34, C * 0.55),
-                      (x0 + w * 0.72, C * 0.42), (x0 + w * 1.00, C * 0.18),
-                      (x0 + w * 0.46, -OVER * 0.5), (x0 - w * 0.10, C * 0.17)],
-                     tension=0.5)
-        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.26 / S, CAP_CON,
-                        taper=False)
-        wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
-        bc = math.radians(CAP_BEAK_CUT)
-        # The upper terminal is primitives.beak's own case and takes it.
-        # THE LOWER ONE CANNOT USE IT, and the reason is a sign: beak() seats
-        # its lip on the corner `stroke` would have made with cut = -cut_deg at
-        # the END (it moves P FORWARD along the tangent while stroke's cut1
-        # moves that same corner BACK), so the pair leave a V notch between the
-        # lip and the body -- visible at 3x on the first cut of this letter. The
-        # lip is therefore built here from the corner `stroke` actually drew,
-        # which is also what lets its bracket walk the real edge; the cut is
-        # -bc so the aperture side of the face runs forward and the outer
-        # corner is the one taken back, which is what a beak is.
-        solid, Lz, Rz = stroke(p_, wf, cut0=bc, cut1=-bc, sides=True)
-        tl = geom.tangents(p_)[-1]; nl = (-tl[1], tl[0])
-        return geom.ink([solid,
-                         _beak(p_, wf(0.0), True, CAP_BEAK_CUT,
-                               lip=(0.4 * CAP_SERIF_LEN, 0.7 * CAP_SERIF_LEN)),
-                         _wedge(Rz[-1], tl, (-nl[0], -nl[1]),
-                                WL * 0.4 * CAP_SERIF_LEN, WD * 0.7 * CAP_SERIF_LEN,
-                                0.0, edge_at=_edge_back(Rz))])
+        def _draw(dt, db):
+            C = c["cap"]; x0 = CS * 0.5; w = CAP_S_W * C
+            # ROUND 135: THE LOWER BOWL IS FULLER. Poetica's S reaches 0.199 of the
+            # cap left of its own 0.50-cap edge at a quarter height and round 134's
+            # reached nothing at all there -- the lower bowl simply stopped short
+            # and the letter finished on a flatter curve. The last three control
+            # points carry the whole of that: the bowl swings wider right before it
+            # turns, comes down further, and the terminal reaches back further left.
+            p_ = catmull([(x0 + w * 0.92, C * 0.86), (x0 + w * 0.46, C * 1.00 - dt),
+                          (x0 + w * 0.04, C * 0.80), (x0 + w * 0.34, C * 0.55),
+                          (x0 + w * 0.72, C * 0.42), (x0 + w * 1.00, C * 0.18),
+                          (x0 + w * 0.46, -OVER * 0.5 + db), (x0 - w * 0.10, C * 0.17)],
+                         tension=0.5)
+            ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.26 / S, CAP_CON,
+                            taper=False)
+            wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+            bc = math.radians(CAP_BEAK_CUT)
+            # The upper terminal is primitives.beak's own case and takes it.
+            # THE LOWER ONE CANNOT USE IT, and the reason is a sign: beak() seats
+            # its lip on the corner `stroke` would have made with cut = -cut_deg at
+            # the END (it moves P FORWARD along the tangent while stroke's cut1
+            # moves that same corner BACK), so the pair leave a V notch between the
+            # lip and the body -- visible at 3x on the first cut of this letter. The
+            # lip is therefore built here from the corner `stroke` actually drew,
+            # which is also what lets its bracket walk the real edge; the cut is
+            # -bc so the aperture side of the face runs forward and the outer
+            # corner is the one taken back, which is what a beak is.
+            solid, Lz, Rz = stroke(p_, wf, cut0=bc, cut1=-bc, sides=True)
+            tl = geom.tangents(p_)[-1]; nl = (-tl[1], tl[0])
+            return geom.ink([solid,
+                             _beak(p_, wf(0.0), True, CAP_BEAK_CUT,
+                                   lip=(0.4 * CAP_SERIF_LEN, 0.7 * CAP_SERIF_LEN)),
+                             _wedge(Rz[-1], tl, (-nl[0], -nl[1]),
+                                    WL * 0.4 * CAP_SERIF_LEN, WD * 0.7 * CAP_SERIF_LEN,
+                                    0.0, edge_at=_edge_back(Rz))])
+        n0 = PR._life["n"]; g = _draw(0.0, 0.0)
+        if S_REACH != 1.0:   # see S_REACH; corrected until the ink lands on its targets
+            C = c["cap"]; _, y0, _, y1 = g.bounds
+            dil = S * 0.16 * (_lw() - 1.0)   # glyph() dilates the finished letter by this much (FIT's weight)
+            top = y1 - max(0.0, y1 - (C + OVER - dil)) * (1 - S_REACH); bot = y0 + max(0.0, -OVER + dil - y0) * (1 - S_REACH)
+            dt, db = y1 - top, bot - y0
+            for _ in range(8):   # the crown's control point moves the curve's top by less than 1:1
+                PR._life["n"] = n0; _, b0, _, b1 = _draw(dt, db).bounds
+                if abs(b1 - top) < 0.3 and abs(bot - b0) < 0.3: break
+                dt += b1 - top; db += bot - b0
+            PR._life["n"] = n0; g = _draw(dt, db)
+        return g
 
     @glyph('G')
     def a_G(c):
@@ -9181,38 +9209,51 @@ if ON:
         a third of the bar's visible length. Roman and reference agree, so the
         pen cut stays.
         """
-        C = c["cap"]; rx = 0.34 * C; ry = C / 2 + OVER * 0.4; cx = CS * 0.6 + rx
-        A0, A1 = math.radians(G_OPEN0), math.radians(G_OPEN1)
-        p_ = superellipse(cx, C / 2, rx, ry, A0, A1, BOWL_K)
-        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.30 / S,
-                        CAP_CON, smooth=7)
-        af = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
-        arc = stroke(p_, af, cut0=math.radians(CAP_BEAK_CUT), cut1=CUT)
-        lip = _beak(p_, af(0.0), True, CAP_BEAK_CUT,
-                    lip=(0.4 * CAP_SERIF_LEN, 0.7 * CAP_SERIF_LEN))
-        # the terminal the arc ends on, and the bar turning in from it
-        ex = cx + rx * math.cos(A1); ey = C / 2 + ry * math.sin(A1)
-        by = C * G_BAR
-        stem_ = stroke([(ex, ey), (ex + (cx + rx * 0.92 - ex) * 0.5, by)],
-                       widths([(0.0, CS * 0.52), (1.0, CS * 0.86)]))
-        bar = stroke([(cx + rx * 0.96, by), (cx + rx * G_BAR_IN, by + C * 0.012)],
-                     widths([(0.0, TH_H * 1.30), (1.0, TH_H * 0.70)]), cut1=CUT)
-        g = geom.ink([arc, lip, stem_, bar])
-        # ROUND 387 -- THE SPUR'S FOOT NO LONGER STANDS OUT OF THE ARC. Owner
-        # 2026-09-25, *"Yes, all four"* (round 385's fracture list). The spur
-        # starts square across its own direction at the arc's end, and the arc
-        # ends on the pen cut at a different width, so at the 700 the spur's
-        # lower right corner stood 9.6 units proud of the arc's outer edge
-        # (`cmp_jogs.py`, BoldItalic (504, 75)) -- a ledge on the outside of
-        # the bowl where the stroke should turn up in one line. The ledge is
-        # eased to a slope over a box on the OUTER side of the join only: the
-        # counter's crotch on the inner side is left exactly as drawn, and
-        # neither the arc, the spur, the bar nor the terminal moves. Above the
-        # Medium only: the 400 reads 2.7 there, under what any size shows.
-        # ROUND 392 -- AND AT THE 400 TOO. The brief asked for the 2.7-unit
-        # ledge the Italic keeps at (471, 77) to go when the fix is clean; the
-        # same box, scaled in CS, takes it and moves nothing else.
-        g = geom.ease_step(g, ex - CS * 0.10, ex + CS * 0.80, ey - CS * 0.45, ey + CS * 0.35)
+        def _draw(dry):
+            C = c["cap"]; rx = 0.34 * C; ry = C / 2 + OVER * 0.4 - dry; cx = CS * 0.6 + rx
+            A0, A1 = math.radians(G_OPEN0), math.radians(G_OPEN1)
+            p_ = superellipse(cx, C / 2, rx, ry, A0, A1, BOWL_K)
+            ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.30 / S,
+                            CAP_CON, smooth=7)
+            af = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+            arc = stroke(p_, af, cut0=math.radians(CAP_BEAK_CUT), cut1=CUT)
+            lip = _beak(p_, af(0.0), True, CAP_BEAK_CUT,
+                        lip=(0.4 * CAP_SERIF_LEN, 0.7 * CAP_SERIF_LEN))
+            # the terminal the arc ends on, and the bar turning in from it
+            ex = cx + rx * math.cos(A1); ey = C / 2 + ry * math.sin(A1)
+            by = C * G_BAR
+            stem_ = stroke([(ex, ey), (ex + (cx + rx * 0.92 - ex) * 0.5, by)],
+                           widths([(0.0, CS * 0.52), (1.0, CS * 0.86)]))
+            bar = stroke([(cx + rx * 0.96, by), (cx + rx * G_BAR_IN, by + C * 0.012)],
+                         widths([(0.0, TH_H * 1.30), (1.0, TH_H * 0.70)]), cut1=CUT)
+            g = geom.ink([arc, lip, stem_, bar])
+            # ROUND 387 -- THE SPUR'S FOOT NO LONGER STANDS OUT OF THE ARC. Owner
+            # 2026-09-25, *"Yes, all four"* (round 385's fracture list). The spur
+            # starts square across its own direction at the arc's end, and the arc
+            # ends on the pen cut at a different width, so at the 700 the spur's
+            # lower right corner stood 9.6 units proud of the arc's outer edge
+            # (`cmp_jogs.py`, BoldItalic (504, 75)) -- a ledge on the outside of
+            # the bowl where the stroke should turn up in one line. The ledge is
+            # eased to a slope over a box on the OUTER side of the join only: the
+            # counter's crotch on the inner side is left exactly as drawn, and
+            # neither the arc, the spur, the bar nor the terminal moves. Above the
+            # Medium only: the 400 reads 2.7 there, under what any size shows.
+            # ROUND 392 -- AND AT THE 400 TOO. The brief asked for the 2.7-unit
+            # ledge the Italic keeps at (471, 77) to go when the fix is clean; the
+            # same box, scaled in CS, takes it and moves nothing else.
+            g = geom.ease_step(g, ex - CS * 0.10, ex + CS * 0.80, ey - CS * 0.45, ey + CS * 0.35)
+            return g
+        n0 = PR._life["n"]; g = _draw(0.0)
+        if G_REACH != 1.0:   # see S_REACH: the bowl's radius takes the mean of the two excesses
+            C = c["cap"]; _, y0, _, y1 = g.bounds
+            dil = S * 0.16 * (_lw() - 1.0)   # see a_S
+            top = y1 - max(0.0, y1 - (C + OVER - dil)) * (1 - G_REACH); bot = y0 + max(0.0, -OVER + dil - y0) * (1 - G_REACH)
+            dry = ((y1 - top) + (bot - y0)) / 2
+            for _ in range(8):
+                PR._life["n"] = n0; _, b0, _, b1 = _draw(dry).bounds
+                if abs(((b1 - top) + (bot - b0)) / 2) < 0.3: break
+                dry += ((b1 - top) + (bot - b0)) / 2
+            PR._life["n"] = n0; g = _draw(dry)
         return g
 
     # ROUND 135: THE Q IS THE ONE THAT GOES TO PAGELLA. The owner's first list
