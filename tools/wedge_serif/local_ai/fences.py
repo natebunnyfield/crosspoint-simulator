@@ -22,6 +22,11 @@ fitted spacing -- is kept. Kerns under MIN_KERN are dropped. Written into the
 table file's "fences" block, keyed by cut; kern.py applies it before clearance.
 
     $VENV/bin/python fences.py BUILD_DIR     # BUILD_DIR built with ALBO_FENCES=0
+    $VENV/bin/python fences.py BUILD_DIR --cuts Italic,BoldItalic --pairs "("
+        re-measures ONLY those cuts and fence pairs (named by their opening
+        character) and leaves every other entry of the block as it stands --
+        for an arm that moves one fence (2026-10-02, the italic parens' height).
+        BUILD_DIR then needs only the named cuts.
 """
 import json, math, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); WS = os.path.dirname(HERE)
@@ -46,14 +51,30 @@ def gapv(g, text, band):
     return lo
 
 
+def _opt(name):
+    if name in sys.argv:
+        i = sys.argv.index(name); return sys.argv[i + 1]
+    return None
+
+
 def main():
     build = sys.argv[1]
     data = json.load(open(b2_fit.OUT))
-    fen = data["fences"] = {}
-    for cut in CUTS:
+    cuts = _opt("--cuts").split(",") if _opt("--cuts") else CUTS
+    pairs = [f for f in FENCES if f[0] in _opt("--pairs")] if _opt("--pairs") else FENCES
+    partial = cuts != CUTS or pairs != FENCES
+    if partial:
+        fen = data.setdefault("fences", {})
+    else:
+        fen = data["fences"] = {}
+    for cut in cuts:
         g = G(os.path.join(build, f"Albo-{cut}.ttf"))
-        rows = fen[cut] = {}
-        for o, c, on, cn in FENCES:
+        if partial:
+            names = {n for f in pairs for n in f[2:]}
+            rows = fen[cut] = {k: v for k, v in fen.get(cut, {}).items() if not (set(k.split(" ")) & names)}
+        else:
+            rows = fen[cut] = {}
+        for o, c, on, cn in pairs:
             for x in LETTERS:
                 if not g.has(x):
                     continue

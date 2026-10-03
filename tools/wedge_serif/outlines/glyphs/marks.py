@@ -898,11 +898,23 @@ def g_emdash(c): return dash(c, 1.41)
 # the ascender line and the feet a little under the descenders; +70 overshot
 # the ascender; the stretched one read heavy. The slash pair sit at 274 already.
 FENCE_RAISE = 50
+# 2026-10-02 -- THE ITALIC PARENS' HEIGHT, AS OPTIONS. Owner todo: *"italic
+# parentheses seem low or text is too high"*. The italic draws these parens
+# (sheared by build.draw) at the roman's height, -251..735, but its letters stand
+# taller: the italic l and d reach 783 against the roman's 771, its x 457 against
+# 451. Measured in x-heights (instruments/paren_height.py,
+# docs/albo-italic-parens-2026-10-02.md): the italic l rises 0.104 over its parens,
+# where eight reference italics' parens reach their ascender (median -0.004), and
+# the parens' centre sits 0.06 lower against the letters' extremes than theirs.
+# PAREN_RAISE_IT lifts the ITALICS' parens only (pen.ITALIC, both weights), in
+# units; 0 is today. The brackets, braces and bar keep FENCE_RAISE (not named).
+PAREN_RAISE_IT = float(os.environ.get("ALBO_ALD_PAREN_RAISE", 0.0))
 def paren(c, left):
     C = CAP(c); d = DESC; r = 150
     if left: pts = superellipse(r, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(105), math.radians(255), 2.2)
     else: pts = superellipse(0, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(75), math.radians(-75), 2.2)
-    return aff.translate(stroke(pts, pen_widths(pts, lambda t: 0.6 + 0.4 * math.sin(math.pi * t)), cut0=CUT, cut1=CUT), 0, FENCE_RAISE)
+    return aff.translate(stroke(pts, pen_widths(pts, lambda t: 0.6 + 0.4 * math.sin(math.pi * t)), cut0=CUT, cut1=CUT), 0,
+                         FENCE_RAISE + (PAREN_RAISE_IT if pen.ITALIC else 0.0))
 @glyph('(')
 def g_parenleft(c): return paren(c, True)
 @glyph(')')
