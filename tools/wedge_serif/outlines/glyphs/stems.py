@@ -29,14 +29,29 @@ DOT_R_ADJ = 0.58 * S   # round 92 (adj 'i', 'j'): the i a dot with a stalk (band
 TITTLE = float(os.environ.get("ALBO_TITTLE", 1.20))   # round 369: tittle/stem 1.153 -> ~1.40, against the references' 1.148-1.444 (Georgia 1.378, Charter 1.368)
 TIT_R = DOT_R * TITTLE
 TIT_R_ADJ = DOT_R_ADJ * TITTLE
+# 2026-10-02 -- THE TITTLE, SMALLER, AS OPTIONS. Owner todo: *"reduce tittles
+# slightly without losing them at small scale"* (docs/albo-tittles-2026-10-02.md).
+# The reader rasterizes each glyph once per size, so a dot's pixel phase at its
+# twelve rasters is fixed; instruments/tittle_search.py finds, per cut, how far
+# the dot can shrink and where it must sit before any raster loses it (parts_audit's
+# 4-dark-pixel floor, or a pixel where a raster is already under it). TITTLE_K
+# scales the i's and the j's dot ONLY -- and the ligatures' -- about its floor, so
+# the white under it is kept; the DOT ACCENTS keep TIT_R (they sit at their own
+# floors, and shrinking them was not asked). TITTLE_DY lifts the dot, units. Per
+# weight: above stem 84 the _700 values. 1.0 / 0 = round 466 byte for byte.
+TITTLE_K = float(os.environ.get("ALBO_TITTLE_K_700" if S > 84.0 else "ALBO_TITTLE_K", 1.0))
+TITTLE_DY = float(os.environ.get("ALBO_TITTLE_DY_700" if S > 84.0 else "ALBO_TITTLE_DY", 0.0))
+TIT_RI = TIT_R * TITTLE_K
+TIT_RI_ADJ = TIT_R_ADJ * TITTLE_K
 def dot_y(xh):
     """The tittle's CENTRE. It rises with the tittle, so scaling the dot does
     not close the white under it: the gap over the x-height was already 0.209
     where the references run 0.224-0.383 -- the tightest of the seven -- and
     growing the dot on a fixed centre took it to 0.179 at TITTLE 1.40, which
     is a bigger tittle that reads as a MERGED one at 13 px. At TITTLE 1.0 the
-    added term is zero and the i is byte-identical."""
-    return xh + 118 + S * 0.3 + (TIT_R - DOT_R)
+    added term is zero and the i is byte-identical. TITTLE_K's dot (TIT_RI)
+    rides the same rule, and TITTLE_DY lifts it."""
+    return xh + 118 + S * 0.3 + (TIT_RI - DOT_R) + TITTLE_DY
 
 # owner, 2026-09-13: "slightly extend the top right serif of g" -- the ear's
 # LENGTH only (the wedge family's L, WL, scaled), its DEPTH (the stroke's own
@@ -81,7 +96,7 @@ T_TRI_SCALE = 0.55   # tunes the triangle's apex height so its ink area matches 
 @glyph('i')
 def g_i(c):
     xh = c["xh"]; x = S / 2
-    return geom.ink([stem(x, 0, xh, top='left', foot='both'), dot(x, dot_y(xh), TIT_R_ADJ if adj('i') else TIT_R)])
+    return geom.ink([stem(x, 0, xh, top='left', foot='both'), dot(x, dot_y(xh), TIT_RI_ADJ if adj('i') else TIT_RI)])
 
 @glyph('l')
 def g_l(c):
@@ -125,8 +140,8 @@ def g_j(c):
     jt = 0.9 if adj('j') else 1.0   # round 92 (adj 'j'): the heaviest letter by band (+27%) -- the tail 0.9, the dot as the i's
     wfn = widths([(0.0, TH_V * jt if pen.ITALIC else w_st), (0.45, S * jt), (1.0, S * 0.10)])
     if J_OPT != "a" and not pen.ITALIC:
-        return geom.ink([st, _j_tail(tail, w_st, jt), dot(x, dot_y(xh), TIT_R_ADJ if adj('j') else TIT_R)])
-    return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), TIT_R_ADJ if adj('j') else TIT_R)])
+        return geom.ink([st, _j_tail(tail, w_st, jt), dot(x, dot_y(xh), TIT_RI_ADJ if adj('j') else TIT_RI)])
+    return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), TIT_RI_ADJ if adj('j') else TIT_RI)])
 
 # THE ROMAN j's HOOK, OPTIONS -- 2026-09-26, the poor-characters pass
 # (docs/albo-poor-characters-2026-09-26.md). The fit audit: Regular j F 3.70,
