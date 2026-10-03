@@ -2,7 +2,9 @@
 
 Owner todo: *"1 needs to be taller, visually balanced with other numbers"*.
 
-**Status: OPTIONS. Nothing shipped.** The dial is `ALBO_FIG_1_TOP`
+**Status: SHIPPED, F1** (owner *"F1 bold italic serif is way too big"*), as
+round 474 (`docs/albo-round-474-2026-10-03.md`); the Bold Italic flag is a
+separate set of options. Before the ruling: options. The dial is `ALBO_FIG_1_TOP`
 (`tools/wedge_serif/latin.py`, `FIG_BOX['1']`): the 1's box top, as a fraction
 of the cap height. 0.64 (the default) is round 473 byte for byte (control
 build).

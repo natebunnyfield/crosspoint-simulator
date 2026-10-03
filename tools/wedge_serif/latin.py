@@ -32,9 +32,9 @@ FIG_BOX = {'0': (0.66, -0.02), '1': (0.64, 0.0), '2': (0.66, 0.0), '3': (0.66, -
 # of ink in every cut), where the 5 and 7 share that line but their top strokes stand
 # ~15 units over it and the round 0 / 2 reach 460 / 470+: the 1 was the shortest small
 # figure in every cut, under the x-height itself. ALBO_FIG_1_TOP is its box top, x C;
-# 0.64 = today. docs/albo-figure-one-2026-10-03.md.
+# 0.64 was round 473's; 0.6622 (F1, top 448) ships from round 474. docs/albo-figure-one-2026-10-03.md.
 import os as _os
-FIG_BOX['1'] = (float(_os.environ.get("ALBO_FIG_1_TOP", 0.64)), 0.0)
+FIG_BOX['1'] = (float(_os.environ.get("ALBO_FIG_1_TOP", 0.6622)), 0.0)   # round 474: F1, the flat figures' line (owner "F1"); 0.64 = round 473
 _FIG = [None]
 def figH(c):
     return _FIG[0] if _FIG[0] else capH(c) * 0.92
