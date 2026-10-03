@@ -372,6 +372,17 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   silently -- no compiler sees it and no rendered page announces it. The budget
   shares live there too, rather than being re-typed as literals in four tests.
 - **FreeRTOS shim.** [src/freertos/](src/freertos/) maps `xTaskCreate` to `std::thread`, task notifies to a condvar + counter, and `SemaphoreHandle_t` to `std::recursive_mutex`. A `thread_local SimTaskHandle*` lets each task thread find its own handle.
+- **The main thread's sleeps PUMP PRESENTS** (`src/SimulatorIdle.h`, 2026-10-03).
+  The firmware's `loop()` sleeps between input polls -- 10 ms at 100 Hz, a
+  50 ms `lightSleep` slice once idle -- and in the simulator those sleeps are
+  on the main thread, the only one SDL presents from, so every self-driving
+  animation (trail, beam, the zen goal's breath) was capped at ~13 fps
+  whatever cadence it asked for; measured by the `[timing]` line's `pass`
+  column, 77 ms between passes against a 20 ms compose. `delay()` on the main
+  thread now runs `presentIfNeeded` about once a millisecond while it waits
+  (installed in `simulator_main` after `setup()`; plain sleep on any other
+  thread and when nested). 61 fps on the desktop after. Owner: *"all effects
+  need to be at 60fps."* `tests/simulator_idle_test.cpp`.
 - **`_exit(0)` not `return 0`, on desktop.** [src/simulator_main.cpp](src/simulator_main.cpp) ends with `_exit(0)` after `SDL_Quit()` to skip C++ global destructors. The render task is `[[noreturn]]`, so running destructors while it is mid-render races and produces a "quit unexpectedly" dialog. Keep this. iOS is the one exception — it reports a self-terminating process as a crash, so that build returns normally.
 - **Time uses `steady_clock`.** `millis()` / `micros()` in [src/Arduino.h](src/Arduino.h) deliberately use `steady_clock`, not `system_clock`, so wall-clock changes do not perturb timing.
 

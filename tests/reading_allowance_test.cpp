@@ -258,7 +258,7 @@ int main() {
                 std::fabs(b.defocus - 1.0f) <= kBreathDefocus + 1e-6f &&
                 std::fabs(b.swell - 1.0f) <= kBreathSwell + 1e-6f &&
                 // the veil's mod can only take away: never above 1
-                b.veil <= 1.0f + 1e-6f && b.veil >= 1.0f - 2.0f * kBreathVeil - 1e-6f &&
+                b.veil <= 1.0f + 1e-6f && b.veil >= 1.0f - kBreathVeilDepth - 1e-6f &&
                 b.pressAdd >= 0.0f && b.pressAdd <= kBreathPress + 1e-6f;
       slight = slight && std::fabs(b.halo - 1.0f) <= 0.15f;
       driftOk = driftOk && b.retraceDrift >= 0.0f && b.retraceDrift < 1.0f;
@@ -276,6 +276,26 @@ int main() {
     check(breath(100.0).retraceDrift < breath(4000.0).retraceDrift &&
               breath(kRetraceDriftPeriodMs + 100.0).retraceDrift < 0.1f,
           "breath: the retrace lines drift one way and wrap");
+    // NATURAL, NOT IMMEDIATE (owner 2026-10-03): the onset eases every
+    // amplitude in over kBreathOnsetMs, so the first frames past the end are
+    // all but still, and the flicker reaches its depth only later.
+    {
+      const Breath early = breath(50.0);
+      check(breathOnset(0.0) == 0.0f && breathOnset(kBreathOnsetMs) == 1.0f &&
+                breathOnset(kBreathOnsetMs / 2.0) > 0.49f && breathOnset(kBreathOnsetMs / 2.0) < 0.51f,
+            "onset: a smoothstep from 0 at the end to 1 kBreathOnsetMs later");
+      check(std::fabs(early.lift - 1.0f) < 0.001f && early.veil > 0.999f && early.retraceDrift < 0.001f,
+            "onset: 50 ms past the end nothing has visibly moved");
+      float deepest = 1.0f;
+      for (double ms = 0.0; ms < 60000.0; ms += 7.0) deepest = std::min(deepest, breath(ms).veil);
+      check(deepest < 1.0f - 0.9f * kBreathVeilDepth, "flicker: the final veil thins to its depth once the onset is over");
+      bool monoDrift = true; float last = 0.0f;
+      for (double ms = 0.0; ms < kRetraceDriftPeriodMs * 0.9; ms += 7.0) {
+        const float d = breath(ms).retraceDrift; monoDrift = monoDrift && d >= last - 1e-6f; last = d;
+      }
+      check(monoDrift, "drift: eases in and never runs backward");
+      check(kBreathFrameMs <= 1000.0 / 60.0 + 1e-9, "cadence: 60 fps (owner 2026-10-03)");
+    }
     // The blur does not hit the edge: 0 on the border, 1 past the feather.
     check(edgeFeather(0, 5, 20, 20, 4.0f) == 0.0f && edgeFeather(5, 0, 20, 20, 4.0f) == 0.0f &&
               edgeFeather(19, 5, 20, 20, 4.0f) == 0.0f && edgeFeather(2, 10, 20, 20, 4.0f) == 0.5f &&

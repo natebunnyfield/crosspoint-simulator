@@ -161,8 +161,14 @@ namespace picture {
 // which is the frame-length floor every present-sampled model here has to
 // clear (CLAUDE.md, "a model finer than one frame is a lie").
 inline constexpr double kBreathPeriodMs = 2800.0;
-inline constexpr double kBreathFrameMs = 160.0;
+// 60 fps (owner 2026-10-03: "all effects need to be at 60fps"); was 160 ms.
+inline constexpr double kBreathFrameMs = 1000.0 / 60.0;
 inline constexpr double kRetraceDriftPeriodMs = 9000.0;
+// THE ONSET (owner 2026-10-03: "make it natural not immediate"): every
+// amplitude below is multiplied by a smoothstep from 0 at the moment the goal
+// is reached to 1 kBreathOnsetMs later, so the spent picture does not start
+// moving on the frame it arrives -- it begins to, over eight seconds.
+inline constexpr double kBreathOnsetMs = 8000.0;
 // Amplitudes, as fractions of the scheduled value at t = 1.
 // Measured on the desktop X3 at 1x, dark page spent, frames 700 ms apart:
 // lift 0.10 moved the ground by a mean of 11.6 levels between frames, which
@@ -171,7 +177,16 @@ inline constexpr float kBreathLift = 0.05f;
 inline constexpr float kBreathHalo = 0.10f;
 inline constexpr float kBreathDefocus = 0.08f;
 inline constexpr float kBreathSwell = 0.04f;
-inline constexpr float kBreathVeil = 0.05f;
+// LIGHT: THE INK FLICKERS BACK (owner 2026-10-03, "yes to ink flicker").
+// At t = 1 the veil has removed every trace, so a few percent of it is
+// nothing; what flickers is the LAST ink to dry. The veil of an earlier step
+// (kBreathVeilNearStep -- 72, t = 0.6, where 23% of the page's ink is still
+// printed; measured 2026-10-03 on the desktop X3, the plate is DRY from
+// t = 0.7 on, so steps 84..120 all read the same 0%) is
+// drawn under the final veil, and the final veil's alpha breathes down from
+// 1 by kBreathVeilDepth at the wave's trough -- so those patches come and go.
+inline constexpr float kBreathVeilDepth = 0.8f;
+inline constexpr int kBreathVeilNearStep = 72;
 inline constexpr float kBreathPress = 0.08f;
 
 struct Breath {
@@ -184,6 +199,7 @@ struct Breath {
   // (pressLeft = 1 - t^3 = 0), so a factor on it does nothing; pressAdd is an
   // ADDITIVE weight, 0 .. kBreathPress, the impression breathing faintly back.
   float veil = 1.0f, pressAdd = 0.0f;
+  float onset = 0.0f;  // 0 before and at the end, 1 kBreathOnsetMs later
 };
 
 inline bool timeIsUp(double fraction) { return fraction >= 1.0; }
@@ -238,17 +254,28 @@ inline float breathWave(double msUp) {
   const double s = std::sin(ph) + 0.6 * std::sin(0.37 * ph + 1.1);
   return static_cast<float>(s / 1.6);
 }
+inline float breathOnset(double msUp) {
+  if (msUp <= 0.0) return 0.0f;
+  const double u = std::min(1.0, msUp / kBreathOnsetMs);
+  return static_cast<float>(u * u * (3.0 - 2.0 * u));
+}
 inline Breath breath(double msUp) {
   Breath b;
   if (msUp < 0.0) return b;
-  const float w = breathWave(msUp);
+  const float on = breathOnset(msUp);
+  const float w = breathWave(msUp) * on;
+  b.onset = on;
   b.lift = 1.0f + kBreathLift * w;
   b.halo = 1.0f + kBreathHalo * w;
   b.defocus = 1.0f + kBreathDefocus * w;
   b.swell = 1.0f + kBreathSwell * w;
-  b.veil = 1.0f - kBreathVeil * (1.0f - w);
-  b.pressAdd = kBreathPress * 0.5f * (1.0f + w);
-  const double d = msUp / kRetraceDriftPeriodMs;
+  // The final veil's alpha: 1 at the crest, 1 - depth at the trough, the
+  // whole swing scaled by the onset so it eases in rather than snapping.
+  b.veil = 1.0f - kBreathVeilDepth * 0.5f * (1.0f - breathWave(msUp)) * on;
+  b.pressAdd = kBreathPress * 0.5f * (1.0f + breathWave(msUp)) * on;
+  // The drift eases in with the onset too: its phase advances at `on` times
+  // the full rate, which is monotone because both factors only grow.
+  const double d = msUp / kRetraceDriftPeriodMs * on;
   b.retraceDrift = static_cast<float>(d - std::floor(d));
   return b;
 }

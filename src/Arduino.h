@@ -24,14 +24,16 @@
 // SimulatorLifecycle re-bases the epoch at that boundary; on desktop the
 // reboot is execvp and the registrar never runs, so nothing changes there.
 #include "SimulatorClock.h"
+#include "SimulatorIdle.h"
 
 inline unsigned long millis() { return simclock::millisSinceEpoch(); }
 
 inline unsigned long micros() { return simclock::microsSinceEpoch(); }
 
-inline void delay(unsigned long ms) {
-  std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-}
+// On the main thread this PUMPS PRESENTS while it waits (src/SimulatorIdle.h,
+// 2026-10-03): the firmware sleeps 50 ms per idle pass on the thread SDL
+// presents from, which capped every animation at ~13 fps. Same return time.
+inline void delay(unsigned long ms) { simidle::sleepMs(ms); }
 inline void yield() { std::this_thread::yield(); }
 
 // Native builds have no GPIO pins. Treat every input as released, matching the

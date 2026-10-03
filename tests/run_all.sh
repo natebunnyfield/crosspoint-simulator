@@ -771,6 +771,16 @@ run sheet_identity \
 run reading_allowance \
   c++ -std=c++17 -Isrc -o "$OUT/reading_allowance" tests/reading_allowance_test.cpp
 
+# THE MAIN THREAD'S SLEEPS PUMP PRESENTS (src/SimulatorIdle.h, 2026-10-03):
+# the firmware's loop() sleeps 50 ms per idle pass on the thread SDL presents
+# from, which capped every animation (trail, beam, the zen goal's breath) at
+# ~13 fps. delay() now pumps presentIfNeeded about once a millisecond while
+# it waits -- on the main thread only, never nested, full sleep length kept.
+# Each of those is a silent failure (no log, no crash; just 13 fps, or SDL
+# touched from the render task), hence the test.
+run simulator_idle \
+  c++ -std=c++17 -Isrc -o "$OUT/simulator_idle" tests/simulator_idle_test.cpp
+
 # THE READING SPEEDRUN (spike, 2026-09-24): splits, gold splits, the run
 # delta, flip-throughs that must not set a best, a menu that pauses rather
 # than ends, a new book that is a new run. docs/speedrun-spike.md.

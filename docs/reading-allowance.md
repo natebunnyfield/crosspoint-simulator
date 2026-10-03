@@ -430,3 +430,56 @@ border, and that ground is the same tone the margin has (the pad's field is
 the panel's paper). Measured on the desktop X3 at 1x: the outer 3 px ring
 went 125.3 -> 137.9 against 159.3 at 30 px in; the phone figures are in the
 section the build ships with.
+
+## 60 fps, and the ink flickers back -- naturally (2026-10-03)
+
+Owner, asked what should breathe on paper (the first cut's veil mod was
+under one level on the phone): *"all effects need to be at 60fps and yes to
+ink flicker but make it natural not immediate."*
+
+- **60 fps.** `picture::kBreathFrameMs` is 1000/60; `breathDue` asks for a
+  plain present at that cadence while the page is spent. The achieved rate
+  is whatever one present costs on the device (measured below); the request
+  side no longer caps it.
+- **Natural, not immediate.** `picture::breathOnset` is a smoothstep from 0
+  at the moment the goal is reached to 1 eight seconds later
+  (`kBreathOnsetMs`), and every amplitude -- lift, halo, defocus, swell, the
+  veil's depth, the impression, and the retrace drift's RATE -- is scaled by
+  it. The first frames past the end are still; the picture begins to move
+  over those eight seconds. Pinned: 50 ms past the end nothing has moved by
+  more than 0.1%.
+- **The ink flickers back.** The veil of step 72 (t = 0.6, where 23% of the
+  page's ink is still printed -- measured on the desktop X3 against the
+  clean page: 74% at t = 0.5, 49% at 0.6, 4% at 0.7, 0% from 0.8 on, so the
+  first cut's step 108 flickered nothing) is baked once per page from the
+  same byte planes
+  and drawn UNDER the final veil; the final veil's alpha breathes from 1 at
+  the crest down to 1 - `kBreathVeilDepth` (0.8) at the trough, times the
+  onset. Where it thins, the last ink to dry shows again, in the places it
+  was, and goes. Nothing is recomputed per frame: one extra texture per page,
+  two draws, one alpha mod.
+
+### Why 60 fps needed a change outside this file (2026-10-03)
+
+The breath asked for a present every 16.7 ms and got one every ~77 ms on the
+desktop and ~90 on the phone simulator, with a 2–20 ms compose. The
+`[timing]` line now prints the main loop's pass period (`pass`), and it
+said why: the firmware's `loop()` sleeps between input polls --
+`delayWallClock(10)` at 100 Hz, `HalPowerManager::lightSleep`'s `delay(50)`
+once idle -- and in the simulator those sleeps are on the MAIN THREAD, the
+only thread SDL may present from. Every self-driving animation (the trail,
+the beam, this breath) was capped at the firmware's idle cadence whatever it
+asked for. `src/SimulatorIdle.h`: `delay()` on the main thread now pumps
+`presentIfNeeded` about once a millisecond while it waits (installed in
+`simulator_main` after `setup()`; never on another thread, never nested;
+`tests/simulator_idle_test.cpp`). Measured after: desktop X3 at 1x, spent
+page, **61 fps dark and 61.6 fps light** (presents counted over 10–15 s);
+iPhone Air simulator, dark, **43 fps counted from os_log**, with a 2 ms
+compose and a 1.1 ms pass -- os_log drops lines under load, so 43 is a
+floor, not the rate. Clean pages byte-identical to the previous build in
+both polarities (the pump moves WHEN a present lands, not what it draws).
+Device: UNCONFIRMED.
+
+The light flicker after this, desktop X3, frames 700 ms apart past the
+onset: mean 0.7–1.6 levels, max 31–69, 4–5% of pixels moving by over 4 --
+the last-dried patches coming and going.
