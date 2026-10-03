@@ -555,6 +555,17 @@ def _fig_width_unsheared(ch, g):
 CAP_NT_WIDTH = {'N': (float(os.environ.get("ALBO_ROM_N_W", 1.0)), float(os.environ.get("ALBO_ROM_N_W_BOLD", 0.953))),   # round 415: "ideal vs H" ships
                 'T': (float(os.environ.get("ALBO_ROM_T_W", 0.975)), float(os.environ.get("ALBO_ROM_T_W_BOLD", 0.952)))}
 
+# THE BOLD S's WIDTH, OPTIONS -- 2026-10-02, owner todo: "bold S seems small in
+# 'Step'". Measured by outline ink box (instruments/bold_s_proof.py --measure,
+# docs/albo-bold-s-2026-10-02.md): the Bold S stands at its O's height (1.007,
+# six bold references 0.99-1.01) but runs 0.544 of its own H's width where those
+# references run 0.60-0.69 (median 0.65), and 0.747 of its E against 0.77-0.93.
+# A factor on the solver's TARGET, as CAP_NT_WIDTH: a scale applied in g_S was
+# tried first and solve_widths undid it (x1.20 in draw() widened the ink 5%).
+# Bold only (stem > 84), roman only. 1.0 = round 464's letter; 1.20 (S3, S/H
+# 0.642) ships from round 465. The Regular S measures 0.540 and was not named.
+CAP_S_WIDTH_BOLD = float(os.environ.get("ALBO_ROM_S_W_BOLD", 1.20))   # round 465: S3 ships (owner "S3 wins")
+
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink
     width lands on the references' median (round 20's rule, same clamps)."""
@@ -585,6 +596,7 @@ def solve_widths(passes=3):
             if pen.SHEAR: target *= CAP_NARROW
             if ch == 'X': target *= CAP_X_WIDTH          # owner 2026-09-23, see CAP_X_WIDTH
             if ch in CAP_NT_WIDTH and not pen.SHEAR: target *= CAP_NT_WIDTH[ch][1 if pen.S > 84.0 else 0]   # 2026-09-26, see CAP_NT_WIDTH
+            if ch == 'S' and not pen.SHEAR and pen.S > 84.0: target *= CAP_S_WIDTH_BOLD   # 2026-10-02, see CAP_S_WIDTH_BOLD
             if isfig(ch) and pen.S > FIG_WIDTH_S0: target += _fig_weight_gain()   # round 376, see FIG_BOLD_K
             _lo = FIG_WIDTH_FLOOR if (isfig(ch) and (pen.S <= 84.0 or FIG_BOLD_FLOOR)) else 0.7   # round 374, see FIG_WIDTH_FLOOR; round 376 FIG_BOLD_FLOOR
             if drawn > 1: W[ch] = max(_lo, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))

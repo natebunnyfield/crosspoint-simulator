@@ -2,10 +2,13 @@
 
 Owner todo: *"bold S seems small in 'Step'"*.
 
-**Status: OPTIONS. Nothing shipped.** The dial is `ALBO_ROM_S_W_BOLD` in
-`tools/wedge_serif/outlines/build.py` (`CAP_S_WIDTH_BOLD`), default 1.0. At 1.0
-the Bold is byte-identical to round 464's (`cmp_outlines`: 0 of 530 glyphs
-differ).
+**Status: SHIPPED, S3** (owner 2026-10-02, *"S3 wins next"*), as round 465
+(`docs/albo-round-465-2026-10-02.md`). The dial is `ALBO_ROM_S_W_BOLD` in
+`tools/wedge_serif/outlines/build.py` (`CAP_S_WIDTH_BOLD`), and it ships at
+1.20. Setting it to 1.0 builds round 464's letter. Before the ruling, the
+status was options S1 / S2 / S3 beside today. **Note:** the commit that first
+described these options (8c425ac) lacked the dial itself. The round 465
+commit carries it.
 
 ## 1. What is small about it
 
