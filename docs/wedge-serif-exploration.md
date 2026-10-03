@@ -2,8 +2,10 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-01; the log below is history)
 
-- **2026-10-03 -- OWNER TODO, OPEN:** *"1 needs to be taller, visually balanced with other numbers"* -- the figure 1
-  against the other figures. Queued behind the italic S/G reach options (`docs/albo-italic-s-g-reach-2026-10-03.md`).
+- **2026-10-03 -- OWNER TODO:** *"1 needs to be taller, visually balanced with other numbers"* -- **options out**:
+  F1 / F2 / F3 = `ALBO_FIG_1_TOP` raising the 1 from 433 to 448 / 460 / 470 (the flat figures' line, the 0, the
+  Regular 2), `docs/albo-figure-one-2026-10-03.md`. Also out: the italic S/G reach (H1 / H2),
+  `docs/albo-italic-s-g-reach-2026-10-03.md`. Round 473 shipped the adversarial review's fixes.
 - **2026-10-03 -- TWO OPTION PAGES OUT:** the Regular S thinner (owner: *"give me regular S options that are
   thinner"*), N1 / N2 narrower and L1 / L2 lighter-stroked, `docs/albo-regular-s-thinner-2026-10-03.md`; and the
   italic x's spacing (queued question 4, *"Show me options"*), Y1 / Y2 = round 461's added white halved / removed,

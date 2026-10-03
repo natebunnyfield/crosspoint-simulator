@@ -27,6 +27,14 @@ CAP_STEM = 1.137                        # cap stem over lowercase stem, same ref
 # with height top - bot and shifts it to bot.
 FIG_BOX = {'0': (0.66, -0.02), '1': (0.64, 0.0), '2': (0.66, 0.0), '3': (0.66, -0.31), '4': (0.66, -0.31),
            '5': (0.64, -0.31), '6': (0.98, -0.02), '7': (0.64, -0.31), '8': (0.98, -0.02), '9': (0.66, -0.31)}
+# 2026-10-03 -- THE 1's HEIGHT, AS OPTIONS. Owner todo: *"1 needs to be taller, visually
+# balanced with other numbers"*. The 1's flat top stops ON its box line (0.64 C = 433 units
+# of ink in every cut), where the 5 and 7 share that line but their top strokes stand
+# ~15 units over it and the round 0 / 2 reach 460 / 470+: the 1 was the shortest small
+# figure in every cut, under the x-height itself. ALBO_FIG_1_TOP is its box top, x C;
+# 0.64 = today. docs/albo-figure-one-2026-10-03.md.
+import os as _os
+FIG_BOX['1'] = (float(_os.environ.get("ALBO_FIG_1_TOP", 0.64)), 0.0)
 _FIG = [None]
 def figH(c):
     return _FIG[0] if _FIG[0] else capH(c) * 0.92
