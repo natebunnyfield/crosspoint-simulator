@@ -193,8 +193,9 @@ ONE_FLAG_W = float(os.environ.get("ALBO_ALD_ONE_FLAG_W", 1.15))
 # italic serif is way too big."* The flag's reach is a constant 150 units but its weight
 # rides the stem (the 0.62 S floor, then ONE_FLAG_W 1.15), so above stem 84 it is an
 # 83-unit wedge. ONE_FLAG_W_700 replaces ONE_FLAG_W and ONE_FLAG_X_700 scales the reach,
-# Bold Italic only; ONE_FLAG_W / 1.0 are round 474's. docs/albo-figure-one-flag-2026-10-03.md.
-ONE_FLAG_W_700 = float(os.environ.get("ALBO_ALD_ONE_FLAG_W_700", ONE_FLAG_W))
+# Bold Italic only; ONE_FLAG_W / 1.0 were round 474's, 0.75 / 1.0 (K2) ship from round 475.
+# docs/albo-figure-one-flag-2026-10-03.md.
+ONE_FLAG_W_700 = float(os.environ.get("ALBO_ALD_ONE_FLAG_W_700", 0.75))   # round 475: K2, 35% thinner (owner "K2"); ONE_FLAG_W (1.15) was round 474's
 ONE_FLAG_X_700 = float(os.environ.get("ALBO_ALD_ONE_FLAG_X_700", 1.0))
 ONE_FOOT_BRUSH = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH", 1.45))
 ONE_FOOT_BRUSH_H = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH_H", 0.20))

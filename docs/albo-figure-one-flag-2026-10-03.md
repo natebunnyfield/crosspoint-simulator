@@ -3,7 +3,8 @@
 Owner, on the taller-1 page: *"F1 bold italic serif is way too big."* F1
 shipped as round 474. This answers the flag.
 
-**Status: OPTIONS. Nothing shipped.** The dials are `ALBO_ALD_ONE_FLAG_W_700`
+**Status: SHIPPED, K2** (owner *"K2"*), as round 475
+(`docs/albo-round-475-2026-10-03.md`). Before the ruling: options. The dials are `ALBO_ALD_ONE_FLAG_W_700`
 (the flag's weight multiplier, replacing `ONE_FLAG_W`) and
 `ALBO_ALD_ONE_FLAG_X_700` (its reach), Bold Italic only
 (`outlines/glyphs/figures.py`). The defaults, 1.15 and 1.0, are round 474 byte
