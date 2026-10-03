@@ -3,6 +3,7 @@
 
     $VENV/bin/python instruments/bold_s_proof.py --measure LABEL=DIR ...   (DIR holds Albo-Bold.ttf)
     $VENV/bin/python instruments/bold_s_proof.py OUT LABEL=DIR ...
+    PROOF_CUT=Regular ... draws another cut (default Bold; round 469 widened the Regular's S to match)
 
   --measure   S against H, E and O by outline ink box (unhinted, font units), every arm and
               the bold references: S/H and S/E width, S/O height
@@ -81,9 +82,12 @@ def cell(path, idx, label, CH=120):
     return np.array(im.convert("RGB"))
 
 
+CUT = os.environ.get("PROOF_CUT", "Bold")
+
+
 if __name__ == "__main__":
     if sys.argv[1] == "--measure":
-        rows = [(l, os.path.join(d, "Albo-Bold.ttf"), 0) for l, d in (a.split("=", 1) for a in sys.argv[2:])] + REFS
+        rows = [(l, os.path.join(d, f"Albo-{CUT}.ttf"), 0) for l, d in (a.split("=", 1) for a in sys.argv[2:])] + REFS
         print(f"{'':16s} {'S/H w':>6s} {'S/E w':>6s} {'S/O h':>6s}")
         for l, p, i in rows: print(f"{l:16s} " + " ".join(f"{v:6.3f}" for v in ratios(p, i)))
         r = np.array([ratios(p, i) for _, p, i in REFS])
@@ -91,7 +95,7 @@ if __name__ == "__main__":
         print(f"{'refs range':16s} " + "  ".join(f"{a:.2f}-{b:.2f}" for a, b in zip(r.min(0), r.max(0))))
         sys.exit(0)
     out = sys.argv[1]; arms = [a.split("=", 1) for a in sys.argv[2:]]; os.makedirs(out, exist_ok=True)
-    fonts = [(l, os.path.join(d, "Albo-Bold.ttf")) for l, d in arms]
+    fonts = [(l, os.path.join(d, f"Albo-{CUT}.ttf")) for l, d in arms]
     def rows_of(line, pt, mag, tier=1):
         rs = []
         for l, p in fonts:
