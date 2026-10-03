@@ -7760,8 +7760,12 @@ if ON:
     # these to 0 -- the refit on the refreshed re-basing pair sees the cup -- and
     # must be built with ALBO_ALD_X_DLSB=0 ALBO_ALD_X_DRSB=0 (docs/albo-round-463).
     X_CLOSE = d_dial("X_CLOSE", 8.0)   # ROUND 464 (owner "yes and go"): the Bold Italic head-junction notch closed; see x_arm
-    X_DLSB = d_dial("X_DLSB", 20.0)
-    X_DRSB = d_dial("X_DRSB", 6.0 + 6.0 * _XS)
+    # ROUND 472 (owner "Y2", docs/albo-italic-x-spacing-2026-10-03.md): both 0. The band
+    # measure that asked for this white over-reads a letter whose ends reach out (round 463's
+    # c); measured by the 2-D closest approach the x ran 1.75x the reference italics against
+    # 1.2x for the rest of the italic. Round 461's values were 20 and 6 + 6 * _XS.
+    X_DLSB = d_dial("X_DLSB", 0.0)
+    X_DRSB = d_dial("X_DRSB", 0.0)
 
     def x_nib(pts, u, cut0=None, cut1=None, fin0=False, fin1=False, ends=(True, True), sm=6,
               tip0=None, tip_run=0.22, grow=None, cap0=None, boost0=None):

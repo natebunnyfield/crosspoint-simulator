@@ -4,7 +4,8 @@ Owner, asked "4 of 4" of the queued questions (should round 461's x spacing be
 checked, given round 463 found the band measure over-reads reaching stroke
 ends): *"Show me options."*
 
-**Status: OPTIONS. Nothing shipped.**
+**Status: SHIPPED, Y2** (owner *"Y2"*), as round 472
+(`docs/albo-round-472-2026-10-03.md`). Before the ruling: options.
 
 ## The question
 
