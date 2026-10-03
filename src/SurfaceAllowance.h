@@ -639,6 +639,8 @@ inline void drawDark(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
       std::vector<uint32_t> out; int ow = 0, oh = 0;
       const uint8_t zero[3] = {0, 0, 0};
       excessGlow(pixels, w, h, 6 * sc, 2, 3, zero, out, ow, oh);
+      // The blur does not hit the edge (picture::edgeFeather).
+      featherPlaneRGB(out, ow, oh, kEdgeFeatherPx * sc / (6.0f * sc));
       if (t.defocus) SDL_DestroyTexture(t.defocus);
       t.defocus = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, ow, oh);
       if (t.defocus) {
@@ -671,6 +673,7 @@ inline void drawDark(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
         }
       }
       for (float &v : lvl) v = std::min(1.0f, v * 1.3f);
+      featherPlane(lvl, cw, ch, kEdgeFeatherPx * sc / (2.0f * sc));
       t.glow[i] = uploadPlane(r, t.glow[i], lvl, cw, ch, white, true, SDL_BLENDMODE_BLEND);
     }
     // HALATION: a ring -- wide blur minus a narrower one -- at 1/8, on a
@@ -690,6 +693,7 @@ inline void drawDark(SDL_Renderer *r, const uint32_t *pixels, int w, int h,
       dilateBlur(wide, pw, ph, 0, 3, 2);
       dilateBlur(narrow, pw, ph, 0, 1, 1);
       for (size_t i = 0; i < wide.size(); i++) wide[i] = std::max(0.0f, wide[i] - 0.7f * narrow[i]) * 3.0f;
+      featherPlane(wide, pw, ph, kEdgeFeatherPx * sc / (8.0f * sc));
       t.halo = uploadPlane(r, t.halo, wide, pw, ph, pal.ink, false, SDL_BLENDMODE_ADD);
       t.haloPadX = static_cast<float>(P * 8 * sc) / static_cast<float>(w);
       t.haloPadY = static_cast<float>(P * 8 * sc) / static_cast<float>(h);

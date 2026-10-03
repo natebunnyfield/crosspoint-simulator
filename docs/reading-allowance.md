@@ -404,3 +404,16 @@ What this means on each device: the iPhone's paper-toned surround out of
 zen (the sheet bleeds to the glass) takes the lift and the lines; in zen the
 paper ends at the line and the black below it stays black; on the iPad the
 surround is black since 2026-09-30 and nothing outside the page moves.
+
+### Second ruling on the render: "blur should not hit edge"
+
+Every blurred layer of the overdriven tube (the HV-sag defocus, the three
+fat-beam swells, the halation) is a plane the page's size, and a blur that
+runs to the plane's border is cut off there -- the page's edge drew as a
+hard line of light against the ground beyond it. `picture::edgeFeather`
+multiplies each plane by a ramp, 0 on the border rising to 1 at
+`kEdgeFeatherPx` (24 page px at 1x, scaled with the render scale) in, before
+upload. Pure, tested (`featherPlane`, `featherPlaneRGB`). Measured on the
+desktop X3 at 1x, spent dark page: the outermost 3 px ring fell from mean
+145.3 to 125.3 (the lifted ground alone), 30 px in 159.2 -> 158.7, the
+centre unchanged at 199.3.

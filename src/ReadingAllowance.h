@@ -188,6 +188,46 @@ struct Breath {
 
 inline bool timeIsUp(double fraction) { return fraction >= 1.0; }
 
+// THE BLUR DOES NOT HIT THE EDGE (owner 2026-10-02, on the phone render of
+// the spent dark page: "blur should not hit edge"). Every blurred layer of
+// the overdriven tube -- the HV-sag defocus, the three fat-beam swells, the
+// halation -- is a plane the page's size, and a blur that runs to a plane's
+// border is cut off there: the page's edge drew as a hard line of light
+// against the ground beyond it. Each plane is multiplied by this feather
+// before upload: 0 on the border, rising linearly to 1 `featherTexels` in.
+// kEdgeFeatherPx is in PAGE pixels at 1x and scales with the render scale;
+// a plane at downsample `f` takes kEdgeFeatherPx * sc / f texels.
+inline constexpr float kEdgeFeatherPx = 24.0f;
+inline float edgeFeather(int x, int y, int w, int h, float featherTexels) {
+  if (featherTexels <= 0.0f) return 1.0f;
+  const int d = std::min(std::min(x, w - 1 - x), std::min(y, h - 1 - y));
+  if (d < 0) return 0.0f;
+  return std::min(1.0f, static_cast<float>(d) / featherTexels);
+}
+inline void featherPlane(std::vector<float> &p, int w, int h, float featherTexels) {
+  if (featherTexels <= 0.0f) return;
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++)
+      p[static_cast<size_t>(y) * w + x] *= edgeFeather(x, y, w, h, featherTexels);
+}
+// The defocus plane is premultiplied RGB in uint32 (excessGlow's output).
+inline void featherPlaneRGB(std::vector<uint32_t> &p, int w, int h, float featherTexels) {
+  if (featherTexels <= 0.0f) return;
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) {
+      const float k = edgeFeather(x, y, w, h, featherTexels);
+      if (k >= 1.0f) continue;
+      uint32_t &px = p[static_cast<size_t>(y) * w + x];
+      uint32_t out = px & 0xFF000000u;
+      for (int c = 0; c < 3; c++) {
+        const int shift = 16 - 8 * c;
+        const float v = static_cast<float>((px >> shift) & 0xFFu) * k;
+        out |= static_cast<uint32_t>(v + 0.5f) << shift;
+      }
+      px = out;
+    }
+}
+
 // The breath at `msUp` milliseconds past the moment the goal was reached. A
 // negative time (not up yet) is exactly still -- every factor 1, no drift --
 // so a caller that multiplies unconditionally changes nothing before the end.
