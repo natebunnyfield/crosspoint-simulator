@@ -353,7 +353,7 @@ def main():
     U = [chr(c) for c in range(ord('A'), ord('Z') + 1)]
     L = [chr(c) for c in range(ord('a'), ord('z') + 1)]
     D = list("0123456789")
-    P = list(".,;:!?'\"()-")
+    P = list(".,;:!?'\"()-") + list("[]{}|\u00a6")   # 2026-10-03: the brackets, braces and bars too -- round 468 lengthened them past the descender and ]j |j went unseen (adversarial review)
     chars = U + L + D + P
     prof, fnt, size = profiles(a.ttf, chars, a.xh)
     have = [c for c in chars if c in prof]

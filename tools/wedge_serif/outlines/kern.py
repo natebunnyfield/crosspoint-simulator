@@ -695,7 +695,7 @@ if _ALD is not None and _ALD.ON:
 # Pulling any of them back is one number here.
 _Q_KERNS = {
     '4': -60, '9': 60, 'q': 140,          # the cheap three; Q7 needs none
-    'y': 360, '(': 440, ')': 440,         # and the expensive nine
+    'y': 360, '(': 452, ')': 440,         # and the expensive nine; '(' 440 -> 452 2026-10-03: round 468's taller paren left the Regular Q's tail 1.3 units off it (adversarial review)
     'p': 460, 'g': 480, 'j': 500, 'J': 500, '5': 500, '3': 520,
 }
 for _ch, _k in _Q_KERNS.items():

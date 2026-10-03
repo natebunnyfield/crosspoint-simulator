@@ -1323,7 +1323,7 @@ WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "M
 # of 1269. The reader can still override per family through `metrics:` in
 # sd-fonts.yaml, which is where a per-size reading line belongs.
 VM_ASCENT, VM_DESCENT = 1000, -300
-VM_WIN_ASCENT, VM_WIN_DESCENT = 1000, 320
+VM_WIN_ASCENT, VM_WIN_DESCENT = 1000, 360   # 2026-10-03: 320 -> 360, round 468's fences reach -358 (the Bold); Windows clips ink past usWinDescent, the reader does not read it
 
 # ROUND 384 -- THE CURVE FIT'S SPURS, removed at export. Owner 2026-09-24,
 # "take three passes at all albo fonts, find any issues and fix them". Round
