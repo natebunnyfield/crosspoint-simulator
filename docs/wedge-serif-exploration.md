@@ -8,10 +8,10 @@
     right height but narrow (S/H 0.544 against six bold references' 0.60-0.69); it ships at
     0.642, `ALBO_ROM_S_W_BOLD` 1.20, a factor on the width solver's target.
   - *"italic parentheses seem low or text is too high"* -- the italic ( ) against the letters they enclose.
-    **Options out 2026-10-02** (`docs/albo-italic-parens-2026-10-02.md`): the parens are low -- the
-    italic uses the roman's at the roman's height under taller letters (top 0.104 xh under its
-    ascender; reference italics reach theirs); P1 / P2 / P3 = `ALBO_ALD_PAREN_RAISE` 16 / 32 / 48,
-    each with its fence kerns re-measured (a sheared paren raised drifts 0.46 units per unit).
+    **DONE, round 466** (owner "P3 wins"; `docs/albo-round-466-2026-10-02.md`): the parens were
+    low -- the italic used the roman's at the roman's height under taller letters (top 0.104 xh
+    under its ascender; reference italics reach theirs); `ALBO_ALD_PAREN_RAISE` 48 puts the top on
+    the ascender, with the paren fence kerns re-measured (a sheared paren raised drifts 0.46/unit).
   - *"raise just the top stroke of roman 'a' so it matches the same x height and interior spacing of others"* -- DONE 2026-10-02: options T1-T4 (`docs/albo-roman-a-top-2026-10-02.md`), *"T2 wins"*, SHIPPED as round 462 (`docs/albo-round-462-2026-10-02.md`).
   - *"reduce tittles slightly without losing them at small scale"* -- the i and j dots a little smaller, every cut, without dropping under `instruments/parts_check.py`'s 4-dark-pixel floor at 8-12 pt on the X3 (the round-451 constraint that set the bold dots).
   - *"subagent to improve question mark middle to bottom stroke"* -- DONE 2026-10-01: Q1 ships (round 457, `docs/albo-round-457-2026-10-01.md`).

@@ -907,8 +907,9 @@ FENCE_RAISE = 50
 # where eight reference italics' parens reach their ascender (median -0.004), and
 # the parens' centre sits 0.06 lower against the letters' extremes than theirs.
 # PAREN_RAISE_IT lifts the ITALICS' parens only (pen.ITALIC, both weights), in
-# units; 0 is today. The brackets, braces and bar keep FENCE_RAISE (not named).
-PAREN_RAISE_IT = float(os.environ.get("ALBO_ALD_PAREN_RAISE", 0.0))
+# units; 0 is round 465's; 48 (P3, the top on the italic's ascender) ships from
+# round 466. The brackets, braces and bar keep FENCE_RAISE (not named).
+PAREN_RAISE_IT = float(os.environ.get("ALBO_ALD_PAREN_RAISE", 48.0))   # round 466: P3 ships (owner "P3 wins")
 def paren(c, left):
     C = CAP(c); d = DESC; r = 150
     if left: pts = superellipse(r, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(105), math.radians(255), 2.2)

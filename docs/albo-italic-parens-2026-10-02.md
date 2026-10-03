@@ -2,10 +2,12 @@
 
 Owner todo: *"italic parentheses seem low or text is too high"*.
 
-**Status: OPTIONS. Nothing shipped.** The dial is `ALBO_ALD_PAREN_RAISE`
+**Status: SHIPPED, P3** (owner 2026-10-02, *"P3 wins next"*), as round 466
+(`docs/albo-round-466-2026-10-02.md`). The dial is `ALBO_ALD_PAREN_RAISE`
 (`tools/wedge_serif/outlines/glyphs/marks.py`, `PAREN_RAISE_IT`), in units, for
-the italics only: Italic and Bold Italic, which share `paren()`. The default 0
-is byte-identical to round 465 (`cmp_outlines`, control build).
+the italics only: Italic and Bold Italic, which share `paren()`. It ships at 48.
+Setting it to 0 builds round 465's parentheses. Before the ruling, the status
+was options P1 / P2 / P3 beside today.
 
 ## 1. Which side is off: the parentheses
 
