@@ -1324,19 +1324,26 @@ text, which no pad layout can prevent.
 ## The turned page's landscape (2026-10-04)
 
 A wide-table page ([T-021] in the firmware) is drawn turned, for a reader who
-turns the device clockwise. While one is up, the phone may rotate into the ONE
-landscape a clockwise turn produces (`LandscapeLeft`, the home edge on the left);
-the page is presented as the panel's native landscape frame, which on such a page
-is the table the right way up; the pad splits to the side margins (G3: Back/Select
-and POWER left, Left/Right and the rocker right) with paper on the page only; and
-the next upright page snaps the app back to portrait, held sideways or not. The
-iPad (which rotates freely anyway) shows the table upright in landscape too, with
-its own thumb-row placement. Zen keeps no pad in either.
+turns the device clockwise -- true since the firmware fix of 2026-10-04; it
+shipped reading after a counter-clockwise turn. While one is up, the phone may
+rotate into the ONE landscape a clockwise turn produces (`LandscapeLeft`, the
+home edge on the left); the page is presented as `LandscapeClockwise`, the
+panel's native frame turned 180 degrees, which on such a page is the table the
+right way up; the pad splits to the side margins (G3: Back/Select and POWER left,
+Left/Right and the rocker right) with paper on the page only; and the next
+upright page -- or any screen pushed over the page, such as the chapter list,
+or sleep -- snaps the app back to portrait, held sideways or not. The iPad (which
+rotates freely anyway) shows the table upright in landscape too, with its own
+thumb-row placement. Zen keeps no pad in either.
 
-- Signal: `HalGPIO::publishTurnedPage` (firmware inline no-op), read through
-  `SimulatorOverlay::turnedPageShowing()`.
+- Signal: `HalGPIO::publishTurnedPage` (firmware inline no-op), latched by
+  `src/TurnedPageChannel.h` (host-tested) and cleared by every non-reader screen
+  too; read through `SimulatorOverlay::turnedPageShowing()`.
 - Orientation: `ios/CrossPointOrientation.mm`, deciding through
-  `src/TurnedPageLandscape.h` (host-tested).
+  `src/TurnedPageLandscape.h` (host-tested); polled from `perFrame` and, while
+  the firmware sleeps, from the harness's sleep tick
+  (`SimulatorOverlay::setSleepTick`), so sleeping from a turned page snaps back
+  and the sleep screen is shown.
 - Layout and painting: `layoutTurnedLandscape` and the landscape branch of
   `paintPad` in `CrossPointIOSShim.cpp`.
 - QA: `CROSSPOINT_SIM_FORCE_TURNED_LANDSCAPE=1` makes a turned page FORCE the

@@ -3,7 +3,10 @@
 // src/TurnedPageLandscape.h, host-tested).
 //
 // Polled once a frame from CrossPointHarness_perFrame on the main thread, which
-// is the only thread UIKit and SDL's hints are touched from here. It does work
+// is the only thread UIKit and SDL's hints are touched from here -- and, while
+// the firmware sleeps, from the harness's sleep tick on that same thread, since
+// the sleep loop never returns to perFrame and sleeping from a turned page is a
+// snap-back like any other (CrossPointIOSShim.cpp sleepTick). It does work
 // only on a CHANGE of the wanted hint: SDL_SetHint, then ask UIKit to re-query
 // the root view controller's supported orientations. SDL answers that query by
 // re-reading the hint (SDL_uikitwindow.m, UIKit_GetSupportedOrientations), so:

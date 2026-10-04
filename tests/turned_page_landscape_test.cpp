@@ -11,6 +11,11 @@
 //     landscapes.
 //   * presentLandscape -- needs BOTH a turned page and a landscape window: an
 //     iPad held landscape on an upright page keeps its own layout.
+//   * Channel -- the latch the firmware publishes into: a change is reported
+//     (it is what asks the host for a present), a repeat is not, and a
+//     non-reader screen entering clears it -- the chapter list pushed over a
+//     turned page never runs the reader's onExit, and was presented turned
+//     until that clear existed (review finding 2). The reset is the reboot's.
 //   * layoutFor -- the G3 split (owner Q3b): every control inside the screen
 //     and clear of the safe areas (the Dynamic Island sits in a landscape side
 //     inset), outside the box the panel is fitted into, the left half
@@ -21,6 +26,7 @@
 // Build + run (no framework, no SDL):
 //   c++ -std=c++20 -Isrc tests/turned_page_landscape_test.cpp -o /tmp/tpl && /tmp/tpl
 
+#include "TurnedPageChannel.h"
 #include "TurnedPageLandscape.h"
 
 #include <cstdio>
@@ -57,6 +63,23 @@ int main() {
         "iPad, turned page, QA force: its two landscapes only");
   check(std::strcmp(hintFor(true, false, true), pad) == 0,
         "iPad: the QA force is inert on an upright page");
+
+  // --- the latch -----------------------------------------------------------
+  {
+    Channel ch;
+    check(!ch.showing(), "channel starts upright");
+    check(!ch.publish(false), "publishing upright over upright is no change");
+    check(ch.publish(true), "a turned page arriving is a change");
+    check(ch.showing(), "and it shows");
+    check(!ch.publish(true), "the same turned page again is no change");
+    check(ch.screenEntered(), "a screen pushed over it clears it, as a change");
+    check(!ch.showing(), "and the page no longer shows");
+    check(!ch.screenEntered(), "a second screen over nothing turned is no change");
+    check(ch.publish(true), "the reader redrawing the page after the pop turns it again");
+    ch.reset();
+    check(!ch.showing(), "the reboot's reset clears it");
+    check(ch.publish(true), "and a turned page after the reboot is a change again");
+  }
 
   // --- when the landscape presentation applies --------------------------------
   check(presentLandscape(true, 2736, 1260), "turned page, landscape window: yes");

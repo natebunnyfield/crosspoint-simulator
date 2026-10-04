@@ -4,16 +4,19 @@ Owner, 2026-10-04: *"when a landscape view is active (viz wide table is
 rendered), the ui and gestures need to be rotated as well. ask me questions to
 develop a plan then proceed after my okay"*.
 
-**Status: BUILT 2026-10-04 on the owner's okay ("yes"); verified in the iOS Simulator (iPhone Air and iPad Pro 13). Device feel UNCONFIRMED until tried on the phone.**
+**Status: BUILT 2026-10-04 on the owner's okay ("yes"); adversarial review the same day (eight findings, all handled -- see "Adversarial review" at the foot); the page's DIRECTION fixed in the firmware on the owner's ruling ("Clockwise: fix the page"); verified in the iOS Simulator (iPhone Air and iPad Pro 13). Device feel UNCONFIRMED until tried on the phone.**
 
 ## What exists (verified 2026-10-04)
 
 - **The turned page.** The firmware's wide-table page ([T-021] in
   `~/src/crosspoint-reader/TODO.md`, shipped 2026-08-19) draws a table too wide
-  for the upright page on a page of its own, TURNED so the reader turns the
-  device CLOCKWISE to read it (`PageRotatedText`, `PageVerticalRule` in
-  `lib/Epub/Epub/Page.h`; the parser's `emitBufferedTableRotated`). The page
-  itself is an ordinary portrait page; only its content is turned.
+  for the upright page on a page of its own, TURNED (`PageRotatedText`,
+  `PageVerticalRule` in `lib/Epub/Epub/Page.h`; the parser's
+  `emitBufferedTableRotated`). The page itself is an ordinary portrait page;
+  only its content is turned. **This line said "so the reader turns the device
+  CLOCKWISE" and that was wrong when written:** the shipped page read after a
+  COUNTER-clockwise turn (finding 1 below). Since the firmware fix of 2026-10-04
+  it is true.
 - **Clockwise only.** Standing ruling 2026-08-19
   (`~/src/crosspoint-reader/docs/ui-conventions.md`): never offer a
   counter-clockwise rotation; he is right-handed.
@@ -124,20 +127,26 @@ none -- the plan is complete.
 **Firmware** (`~/src/crosspoint-reader`): `lib/hal/HalGPIO.h` gains
 `publishTurnedPage(bool)`, an inline no-op (nothing changes on the X3).
 `EpubReaderActivity` publishes it once per displayed page in `renderContents`
-(true when the page holds a `PageRotatedText`), and false on the end-of-book
-screen, on a build error and in `onExit`.
+(true when the page holds a `PageRotatedText`) -- since the review, AFTER the
+page's first `displayBuffer` rather than before the render -- and false on the
+end-of-book screen, on a build error, in `onExit`, and (since the review) on the
+Empty chapter, Out of bounds and Page load error screens and before every
+Indexing popup.
 
 **Simulator** (this repo):
-- `src/HalGPIO.cpp`: the channel, one atomic, a change requests a present;
-  cleared on the iOS in-process reboot. Read through
+- `src/HalGPIO.cpp` over `src/TurnedPageChannel.h`: the channel, one atomic, a
+  change requests a present; cleared by the reader, by every non-reader screen
+  (`publishScreenIdentity`) and on the iOS in-process reboot. Read through
   `SimulatorOverlay::turnedPageShowing()`.
 - `src/HalDisplay.cpp`: `SimulatorOverlay::setPresentLandscapeUpright` substitutes
-  `LandscapeCounterClockwise` for the renderer's orientation in every presentation
-  decision. On a turned page the framebuffer's native landscape frame IS the
-  table the right way up, so no rotation of its own is needed, and it is upright
-  in either landscape window. `setSideInsets` bounds the fit horizontally as the
-  top and bottom bands do vertically; in this mode the panel is centered
-  vertically too.
+  `LandscapeClockwise` for the renderer's orientation in every presentation
+  decision: the page is set for a clockwise turn, so the framebuffer's native
+  landscape frame holds the table upside down and the native frame turned 180
+  degrees is the table the right way up, in either landscape window. (As first
+  built this substituted `LandscapeCounterClockwise`, the native frame as it
+  stands, which was right for the counter-clockwise page the firmware then
+  drew.) `setSideInsets` bounds the fit horizontally as the top and bottom
+  bands do vertically; in this mode the panel is centered vertically too.
 - `src/TurnedPageLandscape.h` (pure; `tests/turned_page_landscape_test.cpp`, in
   `run_all.sh`): the orientation hint and the G3 geometry, phone and iPad, at six
   window sizes.
@@ -183,3 +192,118 @@ the Simulator; `test_wide_table.epub`):
   portrait as well as landscape (control run). `*_AFTER_WAKE` is promoted only by
   the power-wake reboot. Verification therefore reached the table page from
   saved progress instead.
+
+## Adversarial review (2026-10-04), and what was done about each finding
+
+One read-only agent, briefed to refute and to report what it checked and found
+clean, over the build commits (firmware `5f0dc54e5`, simulator `0248ea1`). It
+reported eight findings. All eight are answered below: six fixed, two recorded
+and deliberately not changed. Each fix is verified by a test or a Simulator
+capture, and where a "before" was only inferred, the entry says so. Captures
+are from the iPhone Air and iPad Pro 13 Simulators with
+`CROSSPOINT_SIM_FORCE_TURNED_LANDSCAPE=1`, booted into the book by pinning
+`readerActivityLoadCount` to 0 (docs/headless-qa.md).
+
+1. **The phone accepted only the turn that showed the table upside down**
+   (would-ship-a-visible-bug). The firmware drew the page with
+   `drawTextRotated90CCW`, putting the header down the page's RIGHT edge, so the
+   page read after a COUNTER-clockwise turn. The phone accepted only
+   `LandscapeLeft`, which is a clockwise turn. The force hatch hid this, because
+   the page is upright in either landscape window.
+   **Owner ruling, asked in turn terms:** *"Clockwise: fix the page"*.
+   **Fixed in the firmware** (`lib/Epub/Epub/parsers/RotatedTablePlacement.h`):
+   every line and the header rule sit at the old spot turned 180 degrees and
+   are drawn with `drawTextRotated90CW`. `SECTION_FILE_VERSION` is 63, so every
+   cached section rebuilds. `test/rotated_text` checks the turn pixel for pixel:
+   three line placements and the rule. It fails on a one-pixel placement error,
+   which was checked by mutating the header and watching both tests fail. The
+   app's substitution is now `LandscapeClockwise`.
+   **Verified:** in the portrait capture the header runs up the LEFT edge and
+   each run climbs. In landscape the table is upright, header on top, text left
+   to right.
+   **Not changed: Portrait Orientation Lock.** With the lock on, iOS keeps the
+   app portrait whatever the mask says. The turned page then reads as it does on
+   the X3, by turning the phone. That is the lock doing its job.
+   **One conflict in the record:** `tools/table_preview` built the 2026-08-19
+   renders as the page that needs a counter-clockwise turn. Recorded in the
+   firmware's TODO.md [T-021] and docs/ui-conventions.md.
+2. **Screens pushed over a turned page were shown sideways**
+   (would-ship-a-visible-bug). A push (the chapter list on Select, Find) never
+   runs the reader's `onExit`, so the flag outlived the page.
+   **Fixed:** `HalGPIO::publishScreenIdentity` clears the latch
+   (`src/TurnedPageChannel.h`, host-tested). The firmware also publishes false
+   before the Empty chapter, Out of bounds and Page load error screens and before
+   every Indexing popup.
+   **Verified:** Select on the turned page logged
+   `[orient] turned page down -> hint "Portrait"`, and the chapter list came up
+   upright in portrait. The channel test also covers the gap the review named,
+   that plan step 1 had promised a test for the signal and none existed.
+3. **iPad: after a turned page, zen blacked out the bottom of every later
+   page** (would-ship-a-visible-bug, iPad with zen on). `g_zenRowTopPx` kept the
+   landscape page's bottom edge.
+   **Fixed:** it is zeroed on the non-turned path before the tablet layout.
+   **Verified:** on the iPad with zen on, the turned page landscape, then RIGHT
+   to an upright page with snap-back to portrait. The page reads as paper from
+   its top down to its own bottom (y 1550-1960 px: mean 236, 0% black). The old
+   cut line would have sat at y 1543. The "before" is the review's reading of
+   the code, not a measurement.
+4. **Phone: sleeping from a turned page left the glass black for the whole
+   sleep.** The terminal sleep loop never returns to `perFrame`, so the
+   snap-back hint was never applied.
+   **Fixed:** `SimulatorOverlay::setSleepTick`. The sleep loop calls the host's
+   tick on every iteration. The iOS tick follows the orientation, runs the
+   settle repaint and presents whatever is owed. `presentIfNeeded`'s own veto
+   still keeps a power-off collapse's dark glass dark. The desktop installs
+   nothing.
+   **Verified:** Power on the turned page, then deep sleep. The hint was
+   "Portrait" within a few milliseconds; the firmware's clock and the host log's
+   clock differ, so there is no finer figure. The window was portrait 29 ms
+   after that, on one clock, with the panel re-presented at scale 1. The Simulator's own screen capture shows the sleep
+   screen in portrait. The three desktop sleep-loop tests (`test_sleep_wake`,
+   `test_foreground_wake`, `test_queued_tap_wake`) pass.
+   **Side effect, inferred and not measured:** any window change during sleep
+   is now presented. An iPad rotated while asleep used to keep its last frame.
+5. **The turned flag was published before the page was drawn** (cosmetic).
+   **Fixed:** it is published after the page's first `displayBuffer`, including
+   the image-placeholder pass. Not separately measured; it is a one-frame
+   artifact on an iPad held landscape.
+6. **A stale safe area during rotation could stick** (latent).
+   **Fixed:** `SDL_EVENT_WINDOW_SAFE_AREA_CHANGED` now relayouts exactly as a
+   size change does. Every landscape entry logged here shows a zero-safe-area
+   pass followed within a millisecond by the real one (L68 R68).
+7. **The phone can launch in landscape** (cosmetic, inferred). **Not
+   changed.** SDL's app delegate does not implement
+   `application:supportedInterfaceOrientationsForWindow:`, so SDL bounds the
+   runtime mask by the plist (`SDL_uikitwindow.m:405-452`). Dropping
+   `LandscapeLeft` from the plist would make the rotation impossible.
+8. **Tilt gestures and the raking light do not know the screen turned**
+   (latent; both ship unbound or off). **Not changed** (not named). If a tilt
+   is ever bound to a page turn, the clockwise turn itself fires Tilt Right.
+
+**Not a defect, recorded for the owner:** on a phone the split pad makes the
+landscape page smaller than the portrait one. Scale 0.894 against 1.0 on an
+iPhone Air; the review computed ~0.77 against ~0.95 on a 13 mini and ~0.44
+against ~0.52 on an SE.
+
+**Checked and found CLEAN by the review** (so the next pass need not re-read it):
+- Portrait is byte-identical. With the side insets 0 and the flag off, the
+  placement maths matches the old code (`HalDisplay.cpp`). The setters skip
+  unchanged values, and the first orientation poll matches the startup hint.
+  The desktop never calls the new setters.
+- Every consumer of the substituted orientation handles it: page draws, the
+  sheet's ink mapping, the lamp field, the collapse, the scanline pitch, the
+  speedrun overlay, speed read, the beam, glass capture. Re-checked for
+  `LandscapeClockwise` after the fix: each consumer enumerates all four
+  orientations (`SurfaceSheet.cpp`, `SurfacePower.cpp`, `SurfaceSpeedRead.h`,
+  `RakingLight.h`, `HalGPIO.cpp`).
+- Threading: one atomic flag. The landscape flag and side insets are written
+  after both reads in a present.
+- Snap-back leftovers are reset: insets, pad rects, chip, card top, bezel, zen
+  shift. The one exception was finding 3.
+- The iOS orientation call: the window and root view controller exist before
+  the first poll. The 26.0 deployment target covers the API, and
+  `LandscapeLeft` is the clockwise turn.
+- Firmware publish: sleep and going home both run `onExit`. The gaps were
+  findings 2 and 5.
+- Gesture zones: the left-margin boundary is the landscape page's left edge.
+  The one exception was finding 3.

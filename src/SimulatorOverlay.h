@@ -95,11 +95,15 @@ bool turnedPageShowing();
 // THE TURNED PAGE'S PRESENTATION. When on, the panel is PRESENTED as its own
 // native landscape frame -- the firmware keeps rendering portrait, and on a
 // turned page the framebuffer's native frame is exactly the table the right
-// way up -- so presentIfNeeded substitutes LandscapeCounterClockwise for the
+// way up -- so presentIfNeeded substitutes LandscapeClockwise for the
 // renderer's orientation in every presentation decision (fit, rotation, the
-// sheet's ink mapping). Upright in EITHER landscape window, since a window's
-// own frame is always upright for the reader. Off (the default) is what every
-// build has always drawn. A change asks for a present.
+// sheet's ink mapping). LandscapeClockwise is the native frame turned 180
+// degrees: the page is set for a CLOCKWISE turn, which leaves the table upside
+// down in the native frame (it was the other way round, and the substitute
+// LandscapeCounterClockwise, until the firmware fix of 2026-10-04). Upright in
+// EITHER landscape window, since a window's own frame is always upright for the
+// reader. Off (the default) is what every build has always drawn. A change asks
+// for a present.
 void setPresentLandscapeUpright(bool on);
 bool presentLandscapeUpright();
 
@@ -152,6 +156,19 @@ bool sleepScreenEntered();
 // button while this is true (ios/SleepTouch.h, S-039). Set on loop entry,
 // cleared by the wake reboot's reset registrar. Implemented in HalGPIO.cpp.
 bool firmwareAsleep();
+
+// THE HOST'S TICK WHILE THE FIRMWARE SLEEPS. The terminal sleep loop
+// (HalGPIO::startDeepSleep) never returns to the main loop, so nothing the host
+// does once a frame there -- the iOS harness's perFrame -- runs for the whole
+// sleep, and presentIfNeeded is never called again. A host that must still act
+// while asleep installs one function here; the loop calls it every iteration,
+// on the main thread, after its wake checks and the collapse step. The iOS
+// harness uses it to follow the orientation and to present a window that
+// turned under the sleep screen (the turned page's snap-back,
+// docs/turned-page-landscape-plan-2026-10-04.md). Unset -- the desktop -- it is
+// one null check per 10 ms tick and the sleep loop is what it always was.
+void setSleepTick(void (*fn)());
+void runSleepTick();
 
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than
