@@ -2,6 +2,8 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-04; the log below is history)
 
+- **2026-10-04 -- OWNER TODO, OPEN:** *"raise middot and other mid punctuation to be optically vertically centered"*
+  -- measurement and options in progress (`docs/albo-mid-punctuation-2026-10-04.md` when it lands).
 - **2026-10-03 -- OWNER TODO, OPEN:** *"make capitals the right size and shape and contrast"* -- all the capitals,
   every cut. **Audit done 2026-10-04** (`docs/albo-capitals-audit-2026-10-04.md`): the bold capitals' contrast is
   two thirds of the bold lowercase's (the 400s match), the N ~5% short everywhere, the bold capitals 9% / 17% narrow.
