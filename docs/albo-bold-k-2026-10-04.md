@@ -4,7 +4,9 @@ Owner, on the narrower-K page: *"13.5% narrower wins for regular roman but
 bold needs rework (especially top right serif)"*. The Regular shipped at 0.865
 as round 477.
 
-**Status: OPTIONS, second pass (T0–T4 below).** The first pass's V0–V3 shrank the
+**Status: SHIPPED** as round 479 (`docs/albo-round-479-2026-10-04.md`): T4 with the
+connection points moved onto the Regular's (owner *"T4 is closest but move the
+connection points to match regular better"*). Before that: two passes of options. The first pass's V0–V3 shrank the
 spur; the owner's answer was *"try again, the top right bold serif is short ...
 bold is messy"*. The dials:
 - `ALBO_ROM_K_ARM_SERIF_700` (`outlines/glyphs/caps_straight.py`), the arm's

@@ -74,3 +74,32 @@ if __name__ == "__main__":
             rr = np.concatenate([np.concatenate([c, np.full((Hh - c.shape[0], c.shape[1], 3), 250, np.uint8)], 0) for c in r], 1)
             out.append(np.concatenate([rr, np.full((Hh, Wmax - rr.shape[1], 3), 250, np.uint8)], 1))
         Image.fromarray(np.concatenate(out, 0)).save(sheet)
+
+
+
+def lower(path, idx=0, root=0.45):
+    """The K's OTHER connection: where the arm leaves the stem -- its underside (the apex of the
+    lower-left counter) and its upper edge, as heights in cap units, read in the column two pixels
+    right of the stem's right edge (the arm is the ink run holding the half-cap row there)."""
+    f = freetype.Face(path, idx)
+    f.load_char("H", freetype.FT_LOAD_NO_SCALE | freetype.FT_LOAD_NO_HINTING); cap = f.glyph.outline.get_bbox().yMax
+    f.set_char_size(int(round(CH * f.units_per_EM / cap * 64)), 0, 72, 72)
+    f.load_char("K", freetype.FT_LOAD_RENDER | freetype.FT_LOAD_NO_HINTING); b = f.glyph.bitmap
+    a = np.array(b.buffer, np.uint8).reshape(b.rows, b.pitch)[:, :b.width]; ink = a >= 128; top = f.glyph.bitmap_top
+    H, W = ink.shape
+    r25 = int(top - CH * 0.25); xs = np.nonzero(ink[r25])[0]; sr0 = xs[0]
+    while sr0 + 1 < W and ink[r25, sr0 + 1]: sr0 += 1
+    col = ink[:, sr0 + 2]; runs = []; y = int(top - CH * 0.98)
+    while y < min(H, int(top)):
+        if col[y]:
+            y0 = y
+            while y < H and col[y]: y += 1
+            runs.append((y0, y))
+        else: y += 1
+    # the arm is the LOWEST ink run whose bottom lies above the root's row (it has risen off the
+    # root by the stem's edge) and whose top is under the stem's top wedge
+    mid = int(top - CH * root)
+    arm = [r for r in runs if r[1] <= mid + CH * 0.12 and r[0] >= top - CH * 0.9]
+    if not arm: return None
+    a_ = max(arm, key=lambda r: r[1])
+    return dict(arm_under=(top - a_[1]) / CH, arm_over=(top - a_[0]) / CH)

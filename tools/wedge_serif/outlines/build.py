@@ -603,7 +603,7 @@ CAP_S_WIDTH_REG = float(os.environ.get("ALBO_ROM_S_W", 1.15))   # round 471: N2,
 # Regular against their 0.94) but it is against Albo's own R (K/R 1.19 against 1.08), the R
 # being narrow. A factor on the solver's target, (Regular, Bold), roman only; the italic K
 # takes aldine's own ALBO_ALD_WD_K. 1.0 = today.
-CAP_K_WIDTH = (float(os.environ.get("ALBO_ROM_K_W", 0.865)), float(os.environ.get("ALBO_ROM_K_W_BOLD", 1.0)))   # round 477: the Regular 13.5% narrower (owner "13.5% narrower wins for regular roman"); the Bold is being reworked
+CAP_K_WIDTH = (float(os.environ.get("ALBO_ROM_K_W", 0.865)), float(os.environ.get("ALBO_ROM_K_W_BOLD", 0.865)))   # round 477: the Regular 13.5% narrower (owner "13.5% narrower wins for regular roman"); round 479: the Bold the same (1.0 = round 478)
 
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink

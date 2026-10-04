@@ -750,13 +750,13 @@ def kick(J, angle_deg, w, bury=0.2, serif=1, taper=0.45, pair=(1.0, 1.0)):
 # end takes the family's diagonal wedge (end_wedge, 0.9 x WL by WD) and the wedge unit grows with
 # the stem, so at the 700 it curls up as a horn. K_ARM_SERIF_700 is that wedge's scale above stem
 # 84; 0.9 = today, 0 = none. docs/albo-bold-k-2026-10-04.md.
-K_ARM_SERIF_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_700", 0.9))
+K_ARM_SERIF_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_700", 1.3))   # round 479: T4 (owner "T4 is closest"); 0.9 = round 478
 # ...AND WHERE THE LEG MEETS THE ARM. Owner, on the same page: *"you are attaching the bottom right
 # stroke at the wrong place on the upper right arm."* The leg springs from the arm K_U of the way
 # out from the stem (0.16 since round 36); measured (instruments/k_junction.py), Albo's crotch sits
 # 0.19 / 0.22 of the way along the arm (Regular / Bold) where the regular references' median is
 # 0.24 (Charter 0.32) and Georgia Bold / Times Bold 0.30-0.32, higher too. Per weight; 0.16 = today.
-K_U = float(os.environ.get("ALBO_ROM_K_U_700", 0.16)) if S > 84.0 else float(os.environ.get("ALBO_ROM_K_U", 0.24))
+K_U = float(os.environ.get("ALBO_ROM_K_U_700", 0.31)) if S > 84.0 else float(os.environ.get("ALBO_ROM_K_U", 0.24))   # round 478: the Regular J1 (owner "the regular J1 R is best"); round 479: the Bold 0.31, its crotch on the Regular's (0.16 = round 478)
 # ...AND THE BOLD JUNCTION, CLEANED. Owner 2026-10-04, on the J page: *"the top right bold serif is
 # short ... bold is messy."* Zoomed at a 700 px cap the mess is the LEG's buried end: it runs 0.1 CS
 # past the arm's centreline at over half its full width, and at the 700 the leg (0.93 S) is twice
@@ -764,8 +764,14 @@ K_U = float(os.environ.get("ALBO_ROM_K_U_700", 0.16)) if S > 84.0 else float(os.
 # notch at 0.32. K_LEG_CLIP_700 clips the leg to the half-plane under the arm's upper edge (1 = on);
 # and the serif: K_ARM_SERIF_IN_700 adds the family's wedge on the arm end's INNER side too (0 =
 # none; a scale), the two-sided terminal the stem tops carry, where a single wedge curls up short.
-K_LEG_CLIP_700 = os.environ.get("ALBO_ROM_K_LEG_CLIP_700", "0") == "1"
-K_ARM_SERIF_IN_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_IN_700", 0.0))   # round 478: the Regular J1 (owner "the regular J1 R is best"); the Bold is being reworked
+K_LEG_CLIP_700 = os.environ.get("ALBO_ROM_K_LEG_CLIP_700", "1") == "1"   # round 479: on (0 = round 478)
+# ...AND THE ARM's ROOT. Owner 2026-10-04, on T4: *"move the connection points to match regular
+# better."* The arm's centreline meets the stem's centre at 0.45 C in every weight, but the Bold's
+# arm and stem are both thicker, so its underside leaves the stem lower than the Regular's and its
+# crotch with the leg sits nearer the stem. K_ROOT_700 is the root's height, x C, above stem 84;
+# 0.45 = today. Set with K_U_700 to put both connections where the Regular's are (k_junction.py).
+K_ROOT_700 = float(os.environ.get("ALBO_ROM_K_ROOT_700", 0.42))   # round 479: with K_U_700 0.31 the crotch and the arm's root land within 7 units of the Regular's (0.45 = round 478)
+K_ARM_SERIF_IN_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_IN_700", 1.0))   # round 479: T4's inner wedge (0 = round 478)
 
 @glyph('K')
 def g_K(c):
@@ -775,7 +781,7 @@ def g_K(c):
     the arm's tip (round 36 / 42: ~37 degrees)."""
     C = c["cap"]; x = CS / 2; w = W_(c, 'K', 500); s = CS
     st = cstem(x, 0, C)
-    A0, B0 = (x + w, C - s * 0.36), (x, C * 0.45)
+    A0, B0 = (x + w, C - s * 0.36), (x, C * (K_ROOT_700 if S > 84.0 else 0.45))   # see K_ROOT_700
     arm_w = max(pw(B0, A0, 0.72), 0.47 * S)   # round 51: the pen's hairline at the arm's angle, floored at 0.47 stem (38.5)
     if S > 84.0 and (K_ARM_SERIF_700 != 0.9 or K_ARM_SERIF_IN_700 > 0):   # see K_ARM_SERIF_700, K_ARM_SERIF_IN_700
         from ..primitives import end_wedge
