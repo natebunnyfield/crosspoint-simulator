@@ -84,6 +84,31 @@ int panelWidthPx();
 // window onto panel geometry (panel*Px above).
 bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
 
+// WHETHER THE PAGE ON SCREEN IS TURNED, as published by EpubReaderActivity
+// through HalGPIO::publishTurnedPage on every displayed page: true for a
+// wide-table page set for a clockwise turn ([T-021]), false otherwise and on
+// every path off the reader. Implemented in HalGPIO.cpp beside the publisher.
+// The iOS host accepts landscape while it is true and asks for the landscape
+// presentation below (docs/turned-page-landscape-plan-2026-10-04.md).
+bool turnedPageShowing();
+
+// THE TURNED PAGE'S PRESENTATION. When on, the panel is PRESENTED as its own
+// native landscape frame -- the firmware keeps rendering portrait, and on a
+// turned page the framebuffer's native frame is exactly the table the right
+// way up -- so presentIfNeeded substitutes LandscapeCounterClockwise for the
+// renderer's orientation in every presentation decision (fit, rotation, the
+// sheet's ink mapping). Upright in EITHER landscape window, since a window's
+// own frame is always upright for the reader. Off (the default) is what every
+// build has always drawn. A change asks for a present.
+void setPresentLandscapeUpright(bool on);
+bool presentLandscapeUpright();
+
+// Reserve `leftPx` / `rightPx` device pixels at the window's sides for host
+// chrome: the panel is fitted in the space BETWEEN them, centered, exactly as
+// the top and bottom bands bound it vertically. The turned page's landscape
+// layout puts the split pad there (G3). 0 / 0 (the default) is today.
+void setSideInsets(int leftPx, int rightPx);
+
 // WHICH PAGE OF WHICH BOOK IS ON SCREEN, as published by every reader activity
 // through HalGPIO::publishReaderPageIdentity on every displayed page. Returns
 // false until a book has rendered once — a boot into a menu has no page, and

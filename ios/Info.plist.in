@@ -36,6 +36,9 @@
   <!-- LANDSCAPE ON iPad ONLY (owner ruling 2026-08-17). The phone stays
        portrait, and the two keys below are the mechanism: the plain key applies
        to iPhone, the ~ipad variant overrides it on tablets.
+       ONE EXCEPTION, 2026-10-04: while a wide-table page is up the phone may turn
+       clockwise into landscape, with its own layout (the pad split to the side
+       margins) -- the turned page's landscape, documented on the key below.
 
        The phone was tried first, on the owner's "enable it and iterate from
        what actually happens" — and what happened is the reason it is not
@@ -58,6 +61,15 @@
   <key>UISupportedInterfaceOrientations</key>
   <array>
     <string>UIInterfaceOrientationPortrait</string>
+    <!-- THE TURNED PAGE'S LANDSCAPE (owner 2026-10-04, docs/turned-page-landscape-plan-2026-10-04.md):
+         the phone stays portrait EXCEPT while a wide-table page is up, when the
+         running app widens SDL_HINT_ORIENTATIONS to this one landscape and snaps
+         back when the page goes (ios/CrossPointOrientation.mm). LandscapeLeft is
+         the home edge on the left, which is what a CLOCKWISE turn produces --
+         clockwise only (standing ruling 2026-08-19); LandscapeRight stays out.
+         Declared here because the App Store reads the key; what the running app
+         obeys is the hint (see src/simulator_main.cpp). -->
+    <string>UIInterfaceOrientationLandscapeLeft</string>
   </array>
   <key>UISupportedInterfaceOrientations~ipad</key>
   <array>

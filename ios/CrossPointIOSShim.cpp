@@ -76,6 +76,7 @@
 // applyTheme() below is where the two are reconciled.
 #include "CrossPointSettings.h"
 #include "CrossPointReadAloud.h"
+#include "TurnedPageLandscape.h"
 #include "CrossPointHostBattery.h"
 #include "CrossPointVolumeButtons.h"
 
@@ -86,6 +87,9 @@ extern "C" void CrossPointRakingLight_perFrame(void);
 extern "C" void CrossPointRakingLight_appWillResignActive(void);
 extern "C" void CrossPointRakingLight_appDidBecomeActive(void);
 extern "C" void CrossPointTiltGestures_appDidBecomeActive(void);
+// The turned page's landscape: widens or narrows what UIKit may rotate to
+// (ios/CrossPointOrientation.mm; the decision is src/TurnedPageLandscape.h).
+extern "C" void CrossPointOrientation_poll(void);
 
 // Ask the firmware to RE-RENDER the current activity. Declared rather than
 // included: ActivityManager.h holds unique_ptr<Activity> and would drag the
@@ -320,6 +324,10 @@ float g_zenTapDownX = 0.0f;
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
+// TRUE while the turned page's landscape is laid out (a turned page in a window
+// wider than tall; src/TurnedPageLandscape.h). Set by every layoutPad pass;
+// paintPad reads it to paint the landscape surround and the split pad.
+bool g_turnedLandscape = false;
 // In zen the panel is PLACED within the sheet rather than top-aligned: this
 // many device px of the reserved band are moved from the bottom inset to the
 // top inset, so the fit box height -- and therefore the page's scale -- is
@@ -694,10 +702,107 @@ extern "C" void CrossPointIOS_setKeyboardHeight(float heightPt) {
   if (static_cast<int>(heightPt) != before) SimulatorOverlay::requestPresent();
 }
 
+// THE TURNED PAGE'S LANDSCAPE LAYOUT, phone and iPad alike (owner rulings Q1-Q5,
+// docs/turned-page-landscape-plan-2026-10-04.md). The geometry is
+// turnedpage::layoutFor (pure, host-tested); this converts it to device pixels
+// and publishes it:
+//   * the panel is PRESENTED as its native landscape frame (the table upright)
+//     and fitted, centered, into the box the four insets leave;
+//   * zen off: the pad split to the side margins, G3 -- today's left half
+//     (Back/Select, Power) on the left, its right half (Left/Right, Up/Down) on
+//     the right; zen: no pad, the page as tall as the height allows;
+//   * paper on the panel only (paintPad paints everything else black);
+//   * the zone boundaries follow the landscape page's edges (Q4): the card top
+//     is the page's top, the zen row line its bottom, and the left margin
+//     already reads the published panel left.
+// Converges like the portrait layout: the page rect it reads back is the last
+// present's, and paintPad relayouts when the panel's bottom moves.
+void layoutTurnedLandscape(float W, float H, float S) {
+  float safeT = 0.0f, safeB = 0.0f, safeL = 0.0f, safeR = 0.0f;
+  if (SDL_Window *win = SDL_GetWindowFromID(g_windowId)) {
+    int lw = 0, lh = 0;
+    SDL_Rect safe{};
+    if (SDL_GetWindowSize(win, &lw, &lh) && lw > 0 && lh > 0 &&
+        SDL_GetWindowSafeArea(win, &safe)) {
+      safeT = static_cast<float>(safe.y);
+      safeB = static_cast<float>(lh - (safe.y + safe.h));
+      safeL = static_cast<float>(safe.x);
+      safeR = static_cast<float>(lw - (safe.x + safe.w));
+    }
+  }
+  // MID-ROTATION, the window's size and its safe area can disagree for one
+  // frame -- measured on an iPhone Air: the size already landscape, the safe
+  // area still portrait's, so R 560 and B -472 pt, which fitted the page into a
+  // 6 x 4 px box for a frame. A safe area that cannot belong to this window is
+  // treated as none; the very next pass has the real one.
+  if (safeL < 0 || safeR < 0 || safeT < 0 || safeB < 0 || safeL + safeR > W * 0.5f ||
+      safeT + safeB > H * 0.5f) {
+    SDL_Log("[turned] safe area L%.0f R%.0f T%.0f B%.0f does not fit %.0fx%.0f -- "
+            "mid-rotation, laid out without it this frame",
+            safeL, safeR, safeT, safeB, W, H);
+    safeL = safeR = safeT = safeB = 0.0f;
+  }
+  static const bool s_isPadLand = CrossPointAppearance_isPad() == 1;
+  const turnedpage::Layout L =
+      turnedpage::layoutFor(W, H, safeL, safeR, safeT, safeB, g_zen, s_isPadLand);
+  SimulatorOverlay::setPresentLandscapeUpright(true);
+  SimulatorOverlay::setTopInset(static_cast<int>(L.insetTop * S));
+  SimulatorOverlay::setBottomInset(static_cast<int>(L.insetBottom * S));
+  SimulatorOverlay::setSideInsets(static_cast<int>(L.insetLeft * S),
+                                  static_cast<int>(L.insetRight * S));
+
+  auto px = [&](const turnedpage::Rect &r) {
+    return SDL_FRect{r.x * S, r.y * S, r.w * S, r.h * S};
+  };
+  // Zen draws no pad and the page covers the margins it would sit in, so the
+  // slots are emptied rather than left where a touch could still find them.
+  const SDL_FRect none{0.0f, 0.0f, 0.0f, 0.0f};
+  g_pad[kPadBack].rect = L.padShown ? px(L.back) : none;
+  g_pad[kPadConfirm].rect = L.padShown ? px(L.confirm) : none;
+  g_pad[kPadLeft].rect = L.padShown ? px(L.left) : none;
+  g_pad[kPadRight].rect = L.padShown ? px(L.right) : none;
+  g_pad[kPadPower].rect = L.padShown ? px(L.power) : none;
+  g_pad[kPadUp].rect = L.padShown ? px(L.up) : none;
+  g_pad[kPadDown].rect = L.padShown ? px(L.down) : none;
+  g_kbChip = L.padShown ? px(L.chip) : SDL_FRect{(W - turnedpage::kChip) / 2.0f * S,
+                                                 (H - L.insetBottom - turnedpage::kChip) * S,
+                                                 turnedpage::kChip * S, turnedpage::kChip * S};
+
+  // The zone boundaries, from the page as last presented (Q4). Before the first
+  // landscape present the box the insets leave stands in for it.
+  const int pb = SimulatorOverlay::panelBottomPx();
+  const int ph = SimulatorOverlay::panelHeightPx();
+  const bool havePage = pb > 0 && ph > 0;
+  g_cardTopPx = havePage ? static_cast<float>(pb - ph) : L.insetTop * S;
+  g_zenRowTopPx = havePage ? static_cast<float>(pb) : (H - L.insetBottom) * S;
+  g_topBezelPx = 0.0f;   // no paper card, so no bezel band
+  g_zenPanelShiftPx = 0.0f;
+  g_zenShiftThisPass = 0.0f;
+  SDL_Log("[turned] landscape layout %.0fx%.0f pt, safe L%.0f R%.0f T%.0f B%.0f, "
+          "insets L%.0f R%.0f T%.0f B%.0f pt, pad %s",
+          W, H, safeL, safeR, safeT, safeB, L.insetLeft, L.insetRight, L.insetTop,
+          L.insetBottom, L.padShown ? "split (G3)" : "none (zen)");
+}
+
 void layoutPad(int outW, int outH) {
   const float S = g_ptScale;
   const float W = static_cast<float>(outW) / S;
   const float H = static_cast<float>(outH) / S;
+
+  // THE TURNED PAGE'S LANDSCAPE (owner 2026-10-04, docs/turned-page-landscape-plan-2026-10-04.md):
+  // a wide-table page up and the window wider than tall -- the phone only gets
+  // here then, the iPad whenever it is held landscape on such a page. Its own
+  // layout, on both, and nothing below runs. Leaving it clears the two overlay
+  // controls it set; both setters are no-ops when nothing changes, so every
+  // portrait pass is exactly what it was.
+  g_turnedLandscape = turnedpage::presentLandscape(
+      SimulatorOverlay::turnedPageShowing(), outW, outH);
+  if (g_turnedLandscape) {
+    layoutTurnedLandscape(W, H, S);
+    return;
+  }
+  SimulatorOverlay::setPresentLandscapeUpright(false);
+  SimulatorOverlay::setSideInsets(0, 0);
 
   static const bool s_isPad = CrossPointAppearance_isPad() == 1;
   if (s_isPad) {
@@ -2851,10 +2956,16 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // orientation change) as well as on size changes.
   static int s_layoutPanelBottom = -1;
   static int s_layoutKeyboardPt = -1;
+  // ...and when the turned page's landscape comes or goes (a turned page
+  // published, the window turned): its layout is a different one entirely.
+  static bool s_layoutTurnedLand = false;
   const int panelBottom = SimulatorOverlay::panelBottomPx();
   const int keyboardPt = static_cast<int>(g_keyboardHeightPt);
+  const bool turnedLand = turnedpage::presentLandscape(
+      SimulatorOverlay::turnedPageShowing(), outW, outH);
   if (!g_padLaidOut || panelBottom != s_layoutPanelBottom ||
-      keyboardPt != s_layoutKeyboardPt) {
+      keyboardPt != s_layoutKeyboardPt || turnedLand != s_layoutTurnedLand) {
+    s_layoutTurnedLand = turnedLand;
     // BEFORE the call, not after. layoutPad clears g_padLaidOut when the zen
     // shift changes, to schedule the one extra pass that consumes the new
     // value; setting true after the call clobbered that request. The clobber
@@ -2936,8 +3047,25 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
 
   // After the layout block, because layoutPad is what publishes the band's
   // height, and before the pad, whose controls are all below the page.
-  paintTopBezel(r, outW, tabletMarginPx,
-                static_cast<float>(outW) - 2.0f * tabletMarginPx);
+  // THE SNAP-BACK'S IN-BETWEEN FRAMES, phone only. When a turned page goes, the
+  // app is told it may no longer be landscape, and iOS takes ~0.3 s to turn the
+  // window back. Those frames are a landscape window with an upright page, which
+  // nothing is laid out for: measured on an iPhone Air, the portrait layout drew
+  // the page at 288 x 432 px in the corner of a 2736 x 1260 window. Black until
+  // the window is portrait again, which is what the rotation is showing anyway.
+  // The iPad is excluded: landscape is its own normal state, laid out already.
+  if (!s_isPad && outW > outH && !g_turnedLandscape) {
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+    const SDL_FRect all{0.0f, 0.0f, static_cast<float>(outW), static_cast<float>(outH)};
+    SDL_RenderFillRect(r, &all);
+    return;
+  }
+
+  // Not in the turned page's landscape: there is no paper card to give a top
+  // edge to (paper on the panel only), and the surround below is black.
+  if (!g_turnedLandscape)
+    paintTopBezel(r, outW, tabletMarginPx,
+                  static_cast<float>(outW) - 2.0f * tabletMarginPx);
 
   // The page's presented rect, for the zen hit-test. Recorded every present,
   // zen or not, so entering zen never waits a frame for geometry.
@@ -2957,6 +3085,34 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
       s_lastZenPanel = g_zenPanel;
       SDL_Log("[zen] panel %.0fx%.0f at %.0f,%.0f", g_zenPanel.w, g_zenPanel.h,
               g_zenPanel.x, g_zenPanel.y);
+    }
+  }
+
+  // THE TURNED PAGE'S LANDSCAPE SURROUND (owner Q3b, 2026-10-04: "only the
+  // panel gets paper treatment"). Everything that is not the page goes black --
+  // above, below and both sides -- so the paper is the page and nothing else;
+  // the split pad (zen off) then draws on that black, transparent-faced, as the
+  // tablet's does. In zen nothing else draws but the keyboard chip while a field
+  // is open, the same exception as the portrait zen branch below.
+  if (g_turnedLandscape) {
+    const SDL_FRect &q = g_zenPanel;
+    if (q.w > 0.0f && q.h > 0.0f) {
+      const float Wf = static_cast<float>(outW), Hf = static_cast<float>(outH);
+      SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+      const SDL_FRect around[] = {
+          {0.0f, 0.0f, Wf, q.y},                          // above
+          {0.0f, q.y + q.h, Wf, Hf - (q.y + q.h)},        // below
+          {0.0f, q.y, q.x, q.h},                          // left
+          {q.x + q.w, q.y, Wf - (q.x + q.w), q.h},        // right
+      };
+      for (const SDL_FRect &rc : around)
+        if (rc.w > 0.0f && rc.h > 0.0f) SDL_RenderFillRect(r, &rc);
+    }
+    g_zenPaper = q;   // the paper is the page
+    if (g_zen) {
+      const Palette &p = palette();
+      paintKeyboardChip(r, p, 8.0f * g_ptScale, /*hairline=*/1.0f);
+      return;
     }
   }
 
@@ -3082,7 +3238,7 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // Everything but the page goes black here, and the pad draws on it with its
   // existing palette (owner, same day: "on black"). Phone untouched: its
   // sheet bleeds to the glass by the 2026-08-20 ruling.
-  if (s_isPad && g_zenPanel.w > 0.0f && g_zenPanel.h > 0.0f) {
+  if (s_isPad && !g_turnedLandscape && g_zenPanel.w > 0.0f && g_zenPanel.h > 0.0f) {
     const SDL_FRect &q = g_zenPanel;
     const float W = static_cast<float>(outW);
     const float H = static_cast<float>(outH);
@@ -3104,7 +3260,7 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // transparent is best" -- so on the tablet the face takes the ground it now
   // sits on. The pressed wash (faceDown) is untouched.
   Palette p = palette();
-  if (s_isPad) p.face[0] = p.face[1] = p.face[2] = 0;
+  if (s_isPad || g_turnedLandscape) p.face[0] = p.face[1] = p.face[2] = 0;
   const float S = g_ptScale;
   // 8 pt — the 8 pt grid the pad aligns to. CrossPointKeyboardBar.mm already
   // uses cornerRadius = 8 with that exact comment. 12 pt was the old value;
@@ -4089,6 +4245,9 @@ void CrossPointHarness_begin() {
 
 void CrossPointHarness_perFrame() {
   pollAppearance();
+  // The turned page's landscape: widen or narrow what UIKit may rotate to, on a
+  // change of the firmware's turned-page signal (ios/CrossPointOrientation.mm).
+  CrossPointOrientation_poll();
   // Before the pad: the pad is built on the panel's paper, so a palette change
   // must land first or the pad spends one frame on the previous field.
   pollPanelPalette();

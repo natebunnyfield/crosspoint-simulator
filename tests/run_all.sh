@@ -500,6 +500,17 @@ run open_action_menu_channel \
 run reader_insets_channel \
   c++ -std=c++20 -Isrc -o "$OUT/reader_insets_channel" tests/reader_insets_channel_test.cpp
 
+# THE TURNED PAGE'S LANDSCAPE (owner 2026-10-04, docs/turned-page-landscape-plan-2026-10-04.md):
+# src/TurnedPageLandscape.h decides what the iOS app may rotate to and lays out
+# the split pad, and every way either goes wrong is silent -- a phone that cannot
+# rotate on a wide table (or rotates on every page), a counter-clockwise turn the
+# 2026-08-19 ruling forbids, an iPad hint that differs from the startup one and
+# so asks UIKit to re-query for nothing, or a control under the page or the
+# Dynamic Island at some phone size nobody photographed. Pins all of it at six
+# real window sizes, phone and iPad, zen and not.
+run turned_page_landscape \
+  c++ -std=c++20 -Isrc -o "$OUT/turned_page_landscape" tests/turned_page_landscape_test.cpp
+
 run read_aloud_core \
   c++ -std=c++17 -Iios -o "$OUT/read_aloud_core" tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp
 

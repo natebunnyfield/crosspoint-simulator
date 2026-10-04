@@ -1321,6 +1321,31 @@ would want 30 pt of lift, i.e. 4.5 mm of chassis gap, which is the trade this
 stops short of. Top corners never touch the pad at any size — they cover page
 text, which no pad layout can prevent.
 
+## The turned page's landscape (2026-10-04)
+
+A wide-table page ([T-021] in the firmware) is drawn turned, for a reader who
+turns the device clockwise. While one is up, the phone may rotate into the ONE
+landscape a clockwise turn produces (`LandscapeLeft`, the home edge on the left);
+the page is presented as the panel's native landscape frame, which on such a page
+is the table the right way up; the pad splits to the side margins (G3: Back/Select
+and POWER left, Left/Right and the rocker right) with paper on the page only; and
+the next upright page snaps the app back to portrait, held sideways or not. The
+iPad (which rotates freely anyway) shows the table upright in landscape too, with
+its own thumb-row placement. Zen keeps no pad in either.
+
+- Signal: `HalGPIO::publishTurnedPage` (firmware inline no-op), read through
+  `SimulatorOverlay::turnedPageShowing()`.
+- Orientation: `ios/CrossPointOrientation.mm`, deciding through
+  `src/TurnedPageLandscape.h` (host-tested).
+- Layout and painting: `layoutTurnedLandscape` and the landscape branch of
+  `paintPad` in `CrossPointIOSShim.cpp`.
+- QA: `CROSSPOINT_SIM_FORCE_TURNED_LANDSCAPE=1` makes a turned page FORCE the
+  rotation, because a script cannot turn the iOS Simulator.
+
+Rulings, the as-built record and what was found:
+[docs/turned-page-landscape-plan-2026-10-04.md](../docs/turned-page-landscape-plan-2026-10-04.md).
+Device feel is unconfirmed until tried on a phone.
+
 ## Read aloud
 
 Off by default; **Settings > Apps > CrossPoint X3 > Read Aloud (Experimental)**.

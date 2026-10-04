@@ -1546,6 +1546,26 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left) {
 }
 } // namespace SimulatorOverlay
 
+// --- Turned page -------------------------------------------------------------
+//
+// Published by EpubReaderActivity once per displayed page (true for a wide-table
+// page set for a clockwise turn, [T-021]) and false on every path off the page.
+// One atomic flag: there is nothing to tear. A CHANGE asks for a present,
+// because the host's answer (rotate into landscape, or snap back) is laid out
+// inside a present and an e-ink firmware may not present again for minutes.
+// Cleared on the iOS in-process reboot, which keeps statics: a reboot taken on
+// a turned page must not wake into a landscape app on the boot screen.
+static std::atomic<bool> turnedPageFlag{false};
+static simreset::Registrar turnedPageReset{[] { turnedPageFlag.store(false); }};
+
+void HalGPIO::publishTurnedPage(bool turned) {
+  if (turnedPageFlag.exchange(turned) != turned) SimulatorOverlay::requestPresent();
+}
+
+namespace SimulatorOverlay {
+bool turnedPageShowing() { return turnedPageFlag.load(); }
+} // namespace SimulatorOverlay
+
 // --- Reader page identity ----------------------------------------------------
 //
 // Published by every reader activity once per DISPLAYED page, in the same place
