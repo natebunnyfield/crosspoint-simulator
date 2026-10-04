@@ -756,7 +756,7 @@ K_ARM_SERIF_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_700", 0.9))
 # out from the stem (0.16 since round 36); measured (instruments/k_junction.py), Albo's crotch sits
 # 0.19 / 0.22 of the way along the arm (Regular / Bold) where the regular references' median is
 # 0.24 (Charter 0.32) and Georgia Bold / Times Bold 0.30-0.32, higher too. Per weight; 0.16 = today.
-K_U = float(os.environ.get("ALBO_ROM_K_U_700", 0.16)) if S > 84.0 else float(os.environ.get("ALBO_ROM_K_U", 0.16))
+K_U = float(os.environ.get("ALBO_ROM_K_U_700", 0.16)) if S > 84.0 else float(os.environ.get("ALBO_ROM_K_U", 0.24))   # round 478: the Regular J1 (owner "the regular J1 R is best"); the Bold is being reworked
 
 @glyph('K')
 def g_K(c):

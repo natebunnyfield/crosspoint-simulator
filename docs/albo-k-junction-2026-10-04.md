@@ -3,7 +3,9 @@
 Owner, on the Bold K page: *"you are attaching the bottom right stroke at the
 wrong place on the upper right arm."*
 
-**Status: OPTIONS. Nothing shipped.** The dial is `ALBO_ROM_K_U` /
+**Status: Regular SHIPPED, J1** (owner *"the regular J1 R is best, bold is messy"*), as
+round 478 (`docs/albo-round-478-2026-10-04.md`). The Bold K is being reworked
+(`docs/albo-bold-k-2026-10-04.md`). Before the ruling: options. The dial is `ALBO_ROM_K_U` /
 `ALBO_ROM_K_U_700` (`outlines/glyphs/caps_straight.py`, `K_U`): how far out
 along the arm, from the stem, the leg springs (`u` in `g_K`). 0.16 has been
 the value since round 36, and the default is round 477 byte for byte (control
