@@ -3,7 +3,9 @@
 Owner todo: *"'K' is too wide."* Part of the capitals work
 (`docs/albo-capitals-audit-2026-10-04.md`).
 
-**Status: OPTIONS. Nothing shipped.** The dials:
+**Status: Regular SHIPPED at 0.865** (owner *"13.5% narrower wins for regular roman but bold
+needs rework (especially top right serif)"*), as round 477 (`docs/albo-round-477-2026-10-04.md`).
+The Bold K is being reworked; the italic Ks are unchanged. Before the ruling: options. The dials:
 - the roman: `ALBO_ROM_K_W` and `ALBO_ROM_K_W_BOLD` (`outlines/build.py`,
   `CAP_K_WIDTH`), a factor on the width solver's target;
 - the italic K: aldine's existing per-letter `ALBO_ALD_WD_K`.
