@@ -9,7 +9,8 @@ The owner was asked "2 of 4":
 
 He answered *"Try it."*
 
-**Status: OPTIONS. Nothing shipped.** The dials are `ALBO_ALD_DOT_DY` /
+**Status: SHIPPED, M1** (owner *"yes, next"*), as round 476
+(`docs/albo-round-476-2026-10-04.md`). Before the ruling: options. The dials are `ALBO_ALD_DOT_DY` /
 `ALBO_ALD_DOT_DX` (and `_700`) in `outlines/glyphs/aldine.py`: the dot's lift
 and rightward move, in whole units of the SHEARED glyph. Defaults of 0 are
 round 475 byte for byte (control build).

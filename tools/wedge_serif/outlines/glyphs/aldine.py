@@ -1158,9 +1158,12 @@ if ON:
     # it right, in whole units of the SHEARED glyph (the offset is taken back through the
     # shear here), so a placement found by instruments/tittle_search.py on the built dot is
     # exact: a whole-unit move of the built contour is what the build draws.
-    # Per weight; 0 = round 475 byte for byte. docs/albo-italic-dot-2026-10-03.md.
-    HM_DOT_DY = float(os.environ.get("ALBO_ALD_DOT_DY_700" if S > 84.0 else "ALBO_ALD_DOT_DY", 0.0))
-    HM_DOT_DX = float(os.environ.get("ALBO_ALD_DOT_DX_700" if S > 84.0 else "ALBO_ALD_DOT_DX", 0.0))
+    # Per weight; 0 was round 475's. docs/albo-italic-dot-2026-10-03.md.
+    # Round 476 ships M1 in the Italic (owner "yes"): dy +8, dx +1. The Bold Italic stays at 0.
+    HM_DOT_DY = (float(os.environ.get("ALBO_ALD_DOT_DY_700", 0.0)) if S > 84.0
+                 else float(os.environ.get("ALBO_ALD_DOT_DY", 8.0)))
+    HM_DOT_DX = (float(os.environ.get("ALBO_ALD_DOT_DX_700", 0.0)) if S > 84.0
+                 else float(os.environ.get("ALBO_ALD_DOT_DX", 1.0)))
 
     def hm_u(c):
         return c["xh"] / HM_UNIT
