@@ -876,8 +876,9 @@ def g_quotedblleft(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, False, Fals
 # axis every other mathematical sign is drawn about, MID -- they stand 0.05 x-height
 # (21 units) above it today, where five of the six references draw + - = x / on one axis
 # (Palatino's = alone sits lower, by 0.04 em).
-# Every dial at its default is round 480 byte for byte: a class is re-registered only when
-# its shift is non-zero, and the + and = keep XH * 0.55 unless the switch is on.
+# Every dial at 0 (and the switch at 0) is round 480 byte for byte: a class is re-registered only
+# when its shift is non-zero, and the + and = keep XH * 0.55 unless the switch is on. The DEFAULTS
+# are round 481's (MID_SHIP below).
 MID_CLASSES = {
     "dot": "\u00b7",
     "bullet": "\u2022\u2219",
@@ -888,11 +889,16 @@ MID_CLASSES = {
 def mid_cut():
     """R I B Z -- which of the four shipping cuts this build is (never "BI")."""
     return ("Z" if pen.ITALIC else "B") if pen.S > 84.0 else ("I" if pen.ITALIC else "R")
+# ROUND 481 -- SHIPPED Q1. Owner 2026-10-04, on the options page: "Q1". The bullet and the math
+# signs reach the six references' pooled median over the x-height (bullet +113, every math sign
+# on one axis and +51); the middle dot, the dashes and the guillemets stay, because by that frame
+# they already sit on the median. docs/albo-mid-punctuation-2026-10-04.md section 6.
+MID_SHIP = {"bullet": 113.0, "math": 51.0}   # round 481 (0 for every class = round 480)
 def mid_dy(cls):
-    """Units to raise class `cls` in this cut; 0 = today."""
+    """Units to raise class `cls` in this cut; the shipped value unless an env dial says otherwise."""
     k = f"ALBO_MID_DY_{cls.upper()}"
-    return float(os.environ.get(f"{k}_{mid_cut()}", os.environ.get(k, "0")))
-MATH_ONE_AXIS = os.environ.get("ALBO_MID_MATH_ONE_AXIS", "0") == "1"
+    return float(os.environ.get(f"{k}_{mid_cut()}", os.environ.get(k, str(MID_SHIP.get(cls, 0.0)))))
+MATH_ONE_AXIS = os.environ.get("ALBO_MID_MATH_ONE_AXIS", "1") == "1"   # round 481: on (0 = round 480)
 # ROUND 233 -- CALLIGRAPHIC OPTIONS FOR THE HYPHEN. Owner 2026-09-18 (R53):
 # *"give me calligraphic options."* Today's hyphen is a plain bar, TH_H thick,
 # square ends, at 0.34 C. ALBO_HYPHEN_OPT picks; the en and em dashes go
