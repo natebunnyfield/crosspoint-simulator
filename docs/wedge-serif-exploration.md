@@ -1,14 +1,18 @@
 # Wedge-serif exploration ("Albo", named round 58; "fjord" until then)
 
-## STATE (read this first; each bullet is dated, the newest 2026-10-01; the log below is history)
+## STATE (read this first; each bullet is dated, the newest 2026-10-04; the log below is history)
 
 - **2026-10-03 -- OWNER TODO, OPEN:** *"make capitals the right size and shape and contrast"* -- all the capitals,
   every cut. **Audit done 2026-10-04** (`docs/albo-capitals-audit-2026-10-04.md`): the bold capitals' contrast is
   two thirds of the bold lowercase's (the 400s match), the N ~5% short everywhere, the bold capitals 9% / 17% narrow.
-  Fixes next, as options. **2026-10-04, also:** *"'K' is too wide."* -- **DONE, rounds 477-479**: the Regular
-  13.5% narrower (477) with its leg joined further out, J1 (478); the Bold the same width, T4's two-sided arm
-  end, the leg clipped under the arm and its connection points moved onto the Regular's (479);
-  `docs/albo-k-width-2026-10-04.md`, `albo-k-junction-`, `albo-bold-k-`. The italic Ks were not named.
+  Fixes next, as options. **2026-10-04, also:** *"'K' is too wide."* -- **DONE, rounds 477-480**: the Regular
+  13.5% narrower (477) with its leg joined further out, J1 (478); the Bold the same width, the leg clipped under
+  the arm and its connection points moved onto the Regular's (479); then, traced against 13 bold references
+  that all end the arm FLAT ON THE CAP LINE, the Bold's arm cut level there with Albo's wedges at half their
+  slope, lifted 5 units, the leg at 1.05 and the arm at 1.0 x the pen (480);
+  `docs/albo-k-width-2026-10-04.md`, `albo-k-junction-`, `albo-bold-k-`, `albo-round-480-`. The italic Ks were
+  not named. **2026-10-04, NEW TODO:** *"opus subagent to update md files and take a pass at improving most common
+  and most neglected word images rendered in my epubs by calling out which letters need reshaping"* -- running.
 - **2026-10-03 -- OWNER TODO:** *"1 needs to be taller, visually balanced with other numbers"* -- **options out**:
   F1 / F2 / F3 = `ALBO_FIG_1_TOP` raising the 1 from 433 to 448 / 460 / 470 (the flat figures' line, the 0, the
   Regular 2), `docs/albo-figure-one-2026-10-03.md`. The italic S/G reach was RULED LEAVE (owner "leave"),

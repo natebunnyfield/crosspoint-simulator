@@ -790,20 +790,30 @@ K_ARM_DROP_700 = float(os.environ.get("ALBO_ROM_K_ARM_DROP_700", 0.36))
 # stem-top wedge (`stem`'s: d up, sd sideways, bracket down the stroke's real edge) on each corner
 # of that face. Lengths x WL, depth x WD (along the arm's edge), the tip's drop x DROP -- the
 # family's wedge at 1/1/1. docs/albo-bold-k-2026-10-04.md, fourth pass.
-K_ARM_FLAT_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_700", "0") == "1"
-K_ARM_FLAT_L_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_L_700", 1.0))     # the left (upper-side) wedge's length, x WL
+K_ARM_FLAT_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_700", "1") == "1"   # round 480: on (0 = round 479's pointed end; the K_ARM_SERIF_* and K_ARM_DROP_700 dials then speak again)
+K_ARM_FLAT_L_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_L_700", 1.84))    # the left (upper-side) wedge's length, x WL; round 480: H4/C2's 1.84 (1.55 x the stem-top serif, the references' median)
 K_ARM_FLAT_R_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_R_700", 1.0))     # the right (lower-side) wedge's length, x WL
-K_ARM_FLAT_D_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_D_700", 1.0))     # both brackets' depth along the arm's edge, x WD
-K_ARM_FLAT_DROP_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_DROP_700", 1.0))   # the tips' drop under the cap line, x DROP (0 = a level top)
+K_ARM_FLAT_D_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_D_700", 1.25))    # both brackets' depth along the arm's edge, x WD; round 480: 1.25
+K_ARM_FLAT_DROP_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_DROP_700", 0.92))  # the tips' drop under the face, x DROP (0 = a level top); round 480: C2, half Albo's wedge slope
 # Fifth pass, owner on the fourth: *"H4 wins but needs to be more of wedge albo serif and the bottom
 # right stroke is too bold. give me a wide variety of options"*. The right wedge may take its own depth
 # and drop (unset = the left's), the brackets their own fillet (0 = a straight underside, a chisel), and
 # the LEG its own pen factor: round 51's 1.1 x the pen at its angle drew it 121 units, 0.97 of the stem,
 # where Albo Bold's other heavy diagonals (V A W) are 110 and the X's 104 -- the only one of them on 1.1.
 K_ARM_FLAT_DR_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_DR_700")         # the right bracket's depth, x WD (unset = K_ARM_FLAT_D_700)
-K_ARM_FLAT_DROPR_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_DROPR_700")   # the right tip's drop, x DROP (unset = K_ARM_FLAT_DROP_700)
+K_ARM_FLAT_DROPR_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_DROPR_700", "0.5")   # the right tip's drop, x DROP (empty = K_ARM_FLAT_DROP_700); round 480: C2's 0.5
 K_ARM_FLAT_FIL_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_FIL_700")       # both brackets' fillet (unset = the family's FILLET; 0 = straight)
-K_LEG_W_700 = float(os.environ.get("ALBO_ROM_K_LEG_W_700", 1.1))          # the Bold leg, x the pen at its angle (1.1 = round 51 to 479)
+K_LEG_W_700 = float(os.environ.get("ALBO_ROM_K_LEG_W_700", 1.05))         # the Bold leg, x the pen at its angle (1.1 = round 51 to 479); round 480: 1.05, owner "halfway to L1"
+# Sixth pass, owner: *"C2 but raise it to visually match height of H4. halfway to L1 wins. take a pass
+# at matching balance of all letter to make best word image possible"*. K_ARM_FLAT_OV_700 lifts the
+# level face (and both wedges with it) this many units over the cap line: a sloped serif top reads
+# LOWER than a level one, and the lift that makes C2's top average the cap line over its own span --
+# equal area above and below, the overshoot rule -- is 4.9 units. K_ARM_W_700 is the Bold arm's pen
+# factor: round 51's 0.72 at the arm's 48 degrees lands near the nib's thin axis and the two thinnings
+# compound (round 224's finding on the X, whose thin went 0.72 -> 0.90), so the arm read 57 units where
+# Albo Bold's other thin diagonals read 63-73.
+K_ARM_FLAT_OV_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_OV_700", 5.0))   # the level face's lift over the cap line, units; round 480: 5 (0 = C2 as shown)
+K_ARM_W_700 = float(os.environ.get("ALBO_ROM_K_ARM_W_700", 1.0))               # the Bold arm, x the pen at its angle (0.72 = round 51 to 479); round 480: 1.0 -- 0.72 to 0.90 all sit on the 0.47 S floor (56 units), 1.0 reads 63, the X's thin at the same angle
 
 @glyph('K')
 def g_K(c):
@@ -814,8 +824,8 @@ def g_K(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'K', 500); s = CS
     st = cstem(x, 0, C)
     flat = S > 84.0 and K_ARM_FLAT_700                                  # see K_ARM_FLAT_700
-    A0, B0 = (x + w, C if flat else C - s * (K_ARM_DROP_700 if S > 84.0 else 0.36)), (x, C * (K_ROOT_700 if S > 84.0 else 0.45))   # see K_ROOT_700, K_ARM_DROP_700
-    arm_w = max(pw(B0, A0, 0.72), 0.47 * S)   # round 51: the pen's hairline at the arm's angle, floored at 0.47 stem (38.5)
+    A0, B0 = (x + w, C + K_ARM_FLAT_OV_700 if flat else C - s * (K_ARM_DROP_700 if S > 84.0 else 0.36)), (x, C * (K_ROOT_700 if S > 84.0 else 0.45))   # see K_ROOT_700, K_ARM_DROP_700, K_ARM_FLAT_OV_700
+    arm_w = max(pw(B0, A0, K_ARM_W_700 if S > 84.0 else 0.72), 0.47 * S)   # round 51: the pen's hairline at the arm's angle, floored at 0.47 stem (38.5); see K_ARM_W_700
     if flat:
         tn = tangents(line(B0, A0))[0]
         parts_ = [_flat_diag(B0, A0, arm_w, flat1=True)]

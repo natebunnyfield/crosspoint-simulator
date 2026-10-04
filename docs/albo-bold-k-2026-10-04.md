@@ -339,3 +339,14 @@ gate ok.
 Nothing has shipped.
 
 Proof page (fifth pass): https://claude.ai/artifact/2Vd3SYCpKKMFCu4nC5Fq2z
+
+## Sixth pass (2026-10-04): ruled and shipped as round 480
+
+Owner, on the fifth pass: *"C2 but raise it to visually match height of H4.
+halfway to L1 wins. take a pass at matching balance of all letter to make best
+word image possible"*. Shipped as round 480: C2's wedges, the face lifted 5
+units (the lift that makes C2's sloped top average the cap line the way H4's
+level top does), the leg at 1.05, and the balance pass's one change, the arm at
+1.0 x the pen (63 units, the X's thin at the same angle, where it read 57).
+Everything measured -- the lift, the arm against the face's thin diagonals, the
+color, the connection points -- is in `docs/albo-round-480-2026-10-04.md`.
