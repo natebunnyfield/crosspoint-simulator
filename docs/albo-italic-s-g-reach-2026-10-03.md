@@ -8,7 +8,9 @@ The owner was asked (one question at a time, "1 of 3"):
 
 He answered *"Show me options."*
 
-**Status: OPTIONS. Nothing shipped.** The dials are `ALBO_ALD_S_REACH` and
+**Status: RULED -- LEAVE** (owner 2026-10-03, *"leave, next"*): the italic S and G keep
+their reach past the O, as intended. The dials stay in the code at 1.0 (today) as the
+record; nothing ships. Before the ruling: options H1 / H2. The dials are `ALBO_ALD_S_REACH` and
 `ALBO_ALD_G_REACH` (`outlines/glyphs/aldine.py`). Each is the fraction of the
 ink's excess over the O that is kept. 1.0 (the default) is round 472 byte for
 byte (control build).
