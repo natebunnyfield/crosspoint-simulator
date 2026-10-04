@@ -2,6 +2,9 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-01; the log below is history)
 
+- **2026-10-03 -- OWNER TODO, OPEN:** *"make capitals the right size and shape and contrast"* -- all the capitals,
+  every cut: their size against the lowercase, their shapes, their thick/thin contrast. Not started; queued
+  behind the italic i/j dot placement (`docs/albo-italic-dot-2026-10-03.md`).
 - **2026-10-03 -- OWNER TODO:** *"1 needs to be taller, visually balanced with other numbers"* -- **options out**:
   F1 / F2 / F3 = `ALBO_FIG_1_TOP` raising the 1 from 433 to 448 / 460 / 470 (the flat figures' line, the 0, the
   Regular 2), `docs/albo-figure-one-2026-10-03.md`. The italic S/G reach was RULED LEAVE (owner "leave"),

@@ -1152,6 +1152,15 @@ if ON:
     HM_DOT_SCALE = (float(os.environ.get("ALBO_ALD_DOT_SCALE_700", 1.0)) if S > 84.0
                     else float(os.environ.get("ALBO_ALD_DOT_SCALE", 1.26)))   # round 440, owner "DOT 1.26 wins" (was 1.0)
     HM_DOT_KEEP_FLOOR = float(os.environ.get("ALBO_ALD_DOT_KEEP_FLOOR", 1.0))
+    # 2026-10-03 -- THE DOT'S PLACE AT THE READER'S RASTERS. Owner, asked whether the italic
+    # i/j dot (2 dark px at 10 and 12 pt on the X3, under parts_audit's 4) could gain pixels
+    # by moving rather than growing: *"Try it."* HM_DOT_DY lifts the dot and HM_DOT_DX moves
+    # it right, in whole units of the SHEARED glyph (the offset is taken back through the
+    # shear here), so a placement found by instruments/tittle_search.py on the built dot is
+    # exact: a whole-unit move of the built contour is what the build draws.
+    # Per weight; 0 = round 475 byte for byte. docs/albo-italic-dot-2026-10-03.md.
+    HM_DOT_DY = float(os.environ.get("ALBO_ALD_DOT_DY_700" if S > 84.0 else "ALBO_ALD_DOT_DY", 0.0))
+    HM_DOT_DX = float(os.environ.get("ALBO_ALD_DOT_DX_700" if S > 84.0 else "ALBO_ALD_DOT_DX", 0.0))
 
     def hm_u(c):
         return c["xh"] / HM_UNIT
@@ -1506,13 +1515,15 @@ if ON:
         said so in the j's own comment and then drew a second one anyway -- so
         the construction is a function now and the j calls it."""
         xh = c["xh"]; u = hm_u(c)
+        if HM_DOT_DY or HM_DOT_DX:   # see HM_DOT_DY: the final (sheared) offset taken back through the shear
+            xc = xc + HM_DOT_DX - HM_DOT_DY * pen.SHEAR
         if HM_DOT_SCALE != 1.0:   # 2026-09-28, see HM_DOT_SCALE
             a0, b0, r = HM_DOT_LEN * u / 2, HM_DOT_TH * u / 2, math.radians(HEAD_DEG)
             half = math.hypot(a0 * math.sin(r), b0 * math.cos(r))   # the rotated oval's vertical half-extent
-            cy = HM_DOT_CY * xh + (HM_DOT_SCALE - 1.0) * half * HM_DOT_KEEP_FLOOR
+            cy = HM_DOT_CY * xh + (HM_DOT_SCALE - 1.0) * half * HM_DOT_KEEP_FLOOR + HM_DOT_DY
             return geom.poly(superellipse(xc, cy, a0 * HM_DOT_SCALE, b0 * HM_DOT_SCALE,
                                           0.0, 2 * math.pi, 2.1, rot=r))
-        return geom.poly(superellipse(xc, HM_DOT_CY * xh, HM_DOT_LEN * u / 2,
+        return geom.poly(superellipse(xc, HM_DOT_CY * xh + HM_DOT_DY, HM_DOT_LEN * u / 2,
                                       HM_DOT_TH * u / 2, 0.0, 2 * math.pi, 2.1,
                                       rot=math.radians(HEAD_DEG)))
 
