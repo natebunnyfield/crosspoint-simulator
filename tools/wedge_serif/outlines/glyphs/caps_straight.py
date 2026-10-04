@@ -751,6 +751,12 @@ def kick(J, angle_deg, w, bury=0.2, serif=1, taper=0.45, pair=(1.0, 1.0)):
 # the stem, so at the 700 it curls up as a horn. K_ARM_SERIF_700 is that wedge's scale above stem
 # 84; 0.9 = today, 0 = none. docs/albo-bold-k-2026-10-04.md.
 K_ARM_SERIF_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_700", 0.9))
+# ...AND WHERE THE LEG MEETS THE ARM. Owner, on the same page: *"you are attaching the bottom right
+# stroke at the wrong place on the upper right arm."* The leg springs from the arm K_U of the way
+# out from the stem (0.16 since round 36); measured (instruments/k_junction.py), Albo's crotch sits
+# 0.19 / 0.22 of the way along the arm (Regular / Bold) where the regular references' median is
+# 0.24 (Charter 0.32) and Georgia Bold / Times Bold 0.30-0.32, higher too. Per weight; 0.16 = today.
+K_U = float(os.environ.get("ALBO_ROM_K_U_700", 0.16)) if S > 84.0 else float(os.environ.get("ALBO_ROM_K_U", 0.16))
 
 @glyph('K')
 def g_K(c):
@@ -769,7 +775,7 @@ def g_K(c):
             arm = geom.union([arm, end_wedge(line(A0, B0), arm_w, True, 1, scale=K_ARM_SERIF_700)])
     else:
         arm = diagonal(A0, B0, arm_w, serif0=1)
-    u = 0.16; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
+    u = K_U; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)   # see K_U
     angle = math.degrees(math.atan2(J[1], A0[0] + s * 0.5 - J[0]))
     foot = (J[0] + J[1] / math.tan(math.radians(angle)), 0)
     return geom.ink([st, arm, kick(J, angle, pw(foot, J, 1.1), bury=0.1)])   # round 51: 1.1 x the pen at the leg's angle
