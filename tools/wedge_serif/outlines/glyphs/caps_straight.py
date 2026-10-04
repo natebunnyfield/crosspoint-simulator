@@ -795,6 +795,15 @@ K_ARM_FLAT_L_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_L_700", 1.0))     #
 K_ARM_FLAT_R_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_R_700", 1.0))     # the right (lower-side) wedge's length, x WL
 K_ARM_FLAT_D_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_D_700", 1.0))     # both brackets' depth along the arm's edge, x WD
 K_ARM_FLAT_DROP_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_DROP_700", 1.0))   # the tips' drop under the cap line, x DROP (0 = a level top)
+# Fifth pass, owner on the fourth: *"H4 wins but needs to be more of wedge albo serif and the bottom
+# right stroke is too bold. give me a wide variety of options"*. The right wedge may take its own depth
+# and drop (unset = the left's), the brackets their own fillet (0 = a straight underside, a chisel), and
+# the LEG its own pen factor: round 51's 1.1 x the pen at its angle drew it 121 units, 0.97 of the stem,
+# where Albo Bold's other heavy diagonals (V A W) are 110 and the X's 104 -- the only one of them on 1.1.
+K_ARM_FLAT_DR_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_DR_700")         # the right bracket's depth, x WD (unset = K_ARM_FLAT_D_700)
+K_ARM_FLAT_DROPR_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_DROPR_700")   # the right tip's drop, x DROP (unset = K_ARM_FLAT_DROP_700)
+K_ARM_FLAT_FIL_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_FIL_700")       # both brackets' fillet (unset = the family's FILLET; 0 = straight)
+K_LEG_W_700 = float(os.environ.get("ALBO_ROM_K_LEG_W_700", 1.1))          # the Bold leg, x the pen at its angle (1.1 = round 51 to 479)
 
 @glyph('K')
 def g_K(c):
@@ -810,11 +819,14 @@ def g_K(c):
     if flat:
         tn = tangents(line(B0, A0))[0]
         parts_ = [_flat_diag(B0, A0, arm_w, flat1=True)]
-        for side, ln in ((-1, K_ARM_FLAT_L_700), (1, K_ARM_FLAT_R_700)):
+        dR = float(K_ARM_FLAT_DR_700) if K_ARM_FLAT_DR_700 else K_ARM_FLAT_D_700
+        drR = float(K_ARM_FLAT_DROPR_700) if K_ARM_FLAT_DROPR_700 else K_ARM_FLAT_DROP_700
+        fil = {} if not K_ARM_FLAT_FIL_700 else {"fillet": float(K_ARM_FLAT_FIL_700)}
+        for side, ln, dp, dr in ((-1, K_ARM_FLAT_L_700, K_ARM_FLAT_D_700, K_ARM_FLAT_DROP_700), (1, K_ARM_FLAT_R_700, dR, drR)):
             if ln <= 0: continue
             P = flat_corner(B0, A0, arm_w, side)
-            parts_.append(wedge(P, (0, 1), (side, 0), WL * ln, WD * K_ARM_FLAT_D_700, DROP * K_ARM_FLAT_DROP_700,
-                                edge_at=lambda t, P=P: (P[0] - tn[0] * t, P[1] - tn[1] * t)))
+            parts_.append(wedge(P, (0, 1), (side, 0), WL * ln, WD * dp, DROP * dr,
+                                edge_at=lambda t, P=P: (P[0] - tn[0] * t, P[1] - tn[1] * t), **fil))
         arm = geom.union(parts_)
     elif S > 84.0 and (K_ARM_SERIF_700 != 0.9 or K_ARM_SERIF_IN_700 > 0):   # see K_ARM_SERIF_700, K_ARM_SERIF_IN_700
         from ..primitives import end_wedge
@@ -827,7 +839,7 @@ def g_K(c):
     u = K_U; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)   # see K_U
     angle = math.degrees(math.atan2(J[1], A0[0] + s * 0.5 - J[0]))
     foot = (J[0] + J[1] / math.tan(math.radians(angle)), 0)
-    leg = kick(J, angle, pw(foot, J, 1.1), bury=0.1)   # round 51: 1.1 x the pen at the leg's angle
+    leg = kick(J, angle, pw(foot, J, K_LEG_W_700 if S > 84.0 else 1.1), bury=0.1)   # round 51: 1.1 x the pen at the leg's angle; see K_LEG_W_700
     if S > 84.0 and K_LEG_CLIP_700:   # see K_LEG_CLIP_700: nothing of the leg above the arm's upper edge
         from shapely.geometry import Polygon as _Poly
         dx, dy = A0[0] - B0[0], A0[1] - B0[1]; L_ = math.hypot(dx, dy); dx, dy = dx / L_, dy / L_

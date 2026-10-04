@@ -242,3 +242,100 @@ defaults rebuild round 479 byte for byte (`cmp_outlines`: IDENTICAL).
 Nothing has shipped.
 
 Proof page (fourth pass): https://claude.ai/artifact/4uu2GJm654FfVGWr7uH1Wo
+
+## Fifth pass (2026-10-04): more Albo wedge, a lighter leg
+
+Owner, on the fourth pass: *"H4 wins but needs to be more of wedge albo serif and
+the bottom right stroke is too bold. give me a wide variety of options to
+consider for direction and solutions"*.
+
+**What Albo's wedge serif is, looked at rather than assumed** (Albo Bold at a
+700 px cap: the H, I, K, U and N stem tops, the V's top, the T, E, L and Z bar
+ends, the feet). Every one is a WEDGE: the top edge slopes DOWN from the
+stroke's corner to a sharp tip -- the Bold's wedge is the 400's (round 277),
+52.3 long, 17.2 of drop, so about 18 degrees -- and a concave bracket runs back
+into the stroke 104.6 down. The capital stem tops are mostly one-sided (the H's
+reaches 62 out and 8 in); the I, the U's and the N's right stems carry two. H4's
+serif has none of that: its top is LEVEL, and its left bracket sweeps a long
+hook into the arm, the references' bracketed-slab look.
+
+**The leg, measured** (`instruments/diag_weights.py`, k_arm_trace's renderer and
+edge fit on each diagonal; perpendicular thickness, cap 676):
+
+| | K leg | R leg | V thick | A thick | W thick | X thick | H stem |
+|---|---|---|---|---|---|---|---|
+| Albo Bold | 121 (0.97) | 127 (1.01) | 110 (0.88) | 110 (0.88) | 110 (0.88) | 104 (0.83) | 125 |
+| Albo Regular | 72 (1.01) | 74 (1.03) | 70 (0.97) | 69 (0.96) | 69 (0.96) | 64 (0.89) | 72 |
+| Times Bold | 154 (0.95) | 150 (0.92) | 156 (0.96) | 157 (0.96) | 156 (0.96) | 158 (0.97) | 162 |
+| Georgia Bold | 161 (0.95) | 162 (0.96) | 164 (0.97) | 173 (1.02) | 167 (0.99) | 164 (0.97) | 169 |
+
+Against the references the K's leg is ordinary (0.97 of the stem; their median
+0.96, range 0.88-1.01 over all 13). Against ITS OWN FACE it is not: Albo Bold's
+other heavy diagonals are 110 and the X's 104, so the K's leg is 10-16% heavier
+than its siblings, where Times and Georgia hold every thick diagonal within 3% of
+the others. It is the only one drawn at 1.1x the pen (round 51); the V, A, W and
+X are on 1.0. (The R's leg is heavier still, 127; not named, not touched.)
+
+**New dials** (all inert at their defaults; `ALBO_ROM_` prefix): the right
+wedge's own depth and drop (`K_ARM_FLAT_DR_700`, `K_ARM_FLAT_DROPR_700`; unset =
+the left's), both brackets' fillet (`K_ARM_FLAT_FIL_700`; unset = the family's
+0.65, 0 = a straight underside), and the Bold leg's pen factor (`K_LEG_W_700`,
+1.1 = rounds 51-479).
+
+Serif options, every one on the L1 leg so only the serif differs (lengths x WL,
+depths x WD, drops x DROP; left / right):
+
+| arm | length | depth | drop | fillet | what it is | reads (reach l/r, depth l/r, flat) |
+|---|---|---|---|---|---|---|
+| H4 | 1.84 / 1.0 | 1.25 | 0 | 0.65 | the fourth pass's pick, for comparison | 100/55, 73/63, 231 |
+| C1 | 1.84 / 1.0 | 1.25 | 1.84 / 1.0 | 0.65 | H4's reach, tips sloped at Albo's own wedge angle | 70/70, 71/69, 123 |
+| C2 | 1.84 / 1.0 | 1.25 | 0.92 / 0.5 | 0.65 | half that slope | 85/63, 72/69, 170 |
+| C3 | 1.4 / 1.4 | 0.85 | 1.4 | 0.65 | Albo's stem-top wedge 1.4x, both sides | 54/96, 47/50, 123 |
+| C4 | 1.0 / 1.0 | 0.55 | 1.0 | 0.65 | Albo's stem-top wedge at its own size, both sides | 39/71, 28/35, 122 |
+| C5 | 1.84 / 0 | 1.25 | 1.84 | 0.65 | one-sided, as Albo's capital stem tops are; right corner bare | 70/0, 71/0, 100 |
+| C6 | 1.84 / 0.57 | 1.25 / 1.7 | 1.84 / 0 | 0.65 | C1's left wedge, an Albertus flare on the right | 70/31, 71/81, 132 |
+| C7 | 1.84 / 1.0 | 0.5 / 0.4 | 0 | 0 | chisel: straight undersides, level top | 100/55, 38/30, 231 |
+| C8 | 1.84 / 1.0 | 0.5 / 0.4 | 1.84 / 1.0 | 0 | chisel with sloped tips | 70/70, 41/32, 123 |
+| C9 | 1.84 / 1.0 | 0.8 | 1.84 / 1.0 | 0.65 | sloped tips, short brackets: thinner, sharper wedges | 67/71, 45/48, 122 |
+
+Note the slant's asymmetry: a wedge of one length reaches about 20 units LESS on
+the left and 20 MORE on the right, because the arm's upper edge leans toward the
+left tip and its lower edge away from the right one (C3, C4).
+
+Leg options, on H4's serif:
+
+| arm | K_LEG_W_700 | leg | crotch right / high (C) |
+|---|---|---|---|
+| today | 1.1 | 121 (0.97 stem) | 0.160 / 0.637 |
+| L1 | 1.0 | 110 (0.88) = the V, A, W | 0.153 / 0.630 |
+| L2 | 0.92 | 102 (0.81), about the X's 104 | 0.150 / 0.627 |
+| L3 | 0.85 | 94 (0.75) | 0.147 / 0.623 |
+
+A lighter leg moves the crotch 5-9 units toward the stem and a little lower (the
+Regular's is 0.163 / 0.590); `K_U_700` can put it back if that is wanted.
+
+**Negative results, not offered:**
+- *H4 with short brackets* (depth 0.8, level top): the left bracket closes into a
+  tight round hook, a C-shape under the serif.
+- *The chisel at full depth* (straight underside to a foot 104 units down the
+  arm's edge): the left underside stands nearly vertical and meets the arm in a
+  notch. C7 and C8 take half the depth, which gives a proper triangle.
+- *Chisel and short-bracket variants at depth 0.6* ("C9" at 0.6): the left wedge
+  thins to a thorn. C9 is at 0.8.
+
+**A rounding wobble, noted and not fixed:** C1's right bracket carries an
+alternation of about 8 degrees between neighboring points in the TTF (slopes
+29 and 37 degrees on 10-unit segments) -- the integer grid's half-unit rounding,
+visible only at a several-hundred-pixel cap and under every gate. H4's bracket
+runs at a slope where the rounding happens to land evenly.
+
+**Gates (Bold, against round 479):** POOR GATES no delta on all twelve (C1-C9,
+L1-L3). Moved: K and Ķ. Checked and found CLEAN on all twelve: contour hairs
+(letters and the full sweep), touch 0 / 0, counter-dent lines 1 -> 1, glitch
+1 -> 1 with the K alone at 0 findings in every arm (the one finding is Ķ's),
+contour census unchanged (1056 glyphs), approved letters unchanged, the e mouth
+gate ok.
+
+Nothing has shipped.
+
+Proof page (fifth pass): https://claude.ai/artifact/2Vd3SYCpKKMFCu4nC5Fq2z

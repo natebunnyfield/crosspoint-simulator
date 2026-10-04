@@ -34,6 +34,8 @@ What each number is (Albo units, cap 676):
   H serif  the face's own stem-top serif, out (left of the H's left stem) and
            in (right of it), the most over the top 40 units: the yardstick for
            the arm's
+  leg      the leg's perpendicular thickness over 0.15-0.40 C (under the crotch,
+           over the foot), over the stem and over the arm, and its angle
 """
 import argparse, json, math, os, sys
 import numpy as np
@@ -159,8 +161,18 @@ def measure(path, idx):
     drop_l = top - min([y for v, y in rl if v > 4.0], default=top)
     drop_r = top - min([y for v, y in rr if v > 4.0], default=top)
     end_x = (max(r[2] for r in rows) - U(stem_l)) / CAP_ALBO
+    # the LEG: the widest run right of the stem over 0.15-0.40 C, where only the
+    # leg is (under the crotch, over the foot's bracket); edges fitted as the arm's
+    ys2, ll, lr = [], [], []
+    for yu in np.arange(CAP_ALBO * 0.15, CAP_ALBO * 0.40, 2.0):
+        r = arm_run(yu)
+        if r: ys2.append(yu); ll.append(U(r[0])); lr.append(U(r[1]))
+    ys2 = np.array(ys2); gl = np.polyfit(ys2, ll, 1); gr = np.polyfit(ys2, lr, 1)
+    lslope = (gl[0] + gr[0]) / 2.0
+    lang = math.degrees(math.atan2(1.0, -lslope))          # the leg falls to the right: angle from horizontal
+    leg = np.median(np.array(lr) - np.array(ll)) * math.sin(math.radians(lang))
     return dict(ang=ang, arm=arm, top=top, flat=flat, reach_l=reach_l, reach_r=reach_r,
-                drop_l=drop_l, drop_r=drop_r, end_x=end_x)
+                drop_l=drop_l, drop_r=drop_r, end_x=end_x, leg=leg, leg_ang=lang)
 
 
 def sheet(items, out, cap_px=260, zoom=None):
@@ -215,7 +227,7 @@ if __name__ == "__main__":
         m["stem"] = st; m["hser_l"], m["hser_r"] = h_serif(path, idx); res[lab] = m
         print(f"{lab:18s} {st:5.0f} {m['ang']:5.1f} {m['arm']:5.0f} {m['arm']/st:5.2f} {m['top']:5.0f} {m['flat']:5.0f} "
               f"{m['reach_l']:7.0f} {m['drop_l']:6.0f} {m['reach_r']:7.0f} {m['drop_r']:6.0f} {m['end_x']:5.2f}"
-              f"   H serif out {m['hser_l']:4.0f} in {m['hser_r']:4.0f}")
+              f"   H serif out {m['hser_l']:4.0f} in {m['hser_r']:4.0f}   leg {m['leg']:4.0f} = {m['leg']/st:4.2f} stem, {m['leg']/m['arm']:4.2f} arm, at {m['leg_ang']:4.1f}")
     if a.json: json.dump(res, open(a.json, "w"), indent=1)
     if a.sheet: print("sheet", sheet(items, a.sheet))
     if a.zoom: print("zoom", sheet(items, a.zoom, cap_px=700, zoom=True))
