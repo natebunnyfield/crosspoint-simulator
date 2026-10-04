@@ -4,8 +4,7 @@ Owner, 2026-10-04: *"when a landscape view is active (viz wide table is
 rendered), the ui and gestures need to be rotated as well. ask me questions to
 develop a plan then proceed after my okay"*.
 
-**Status: QUESTIONS IN PROGRESS -- nothing built.** Building starts only after
-the owner okays the finished plan.
+**Status: PLAN COMPLETE, AWAITING THE OWNER'S OKAY -- nothing built.**
 
 ## What exists (verified 2026-10-04)
 
@@ -64,9 +63,58 @@ the owner okays the finished plan.
    bands above and below are thin, so hold-above-the-paper is harder to hit in
    landscape -- accepted.
 
+6. **Scope: PHONE AND iPAD** (Q5, 2026-10-04). On the iPad, which already
+   rotates freely, a turned page in landscape also shows upright, with the
+   iPad's existing landscape layout around it; same signal, same snap-back.
+
+## The plan (complete 2026-10-04, AWAITING THE OWNER'S OKAY)
+
+1. **The signal (firmware + HAL).** The reader publishes whether the page on
+   screen is turned (it holds a `PageRotatedText`) through a new host channel
+   on `HalGPIO`, the reader-insets pattern: an inline no-op in the firmware's
+   `lib/hal/HalGPIO.h` (nothing changes on the X3), a real atomic here, read
+   through `SimulatorOverlay`. Cleared on every upright page and when the
+   reader exits. Host test: publish, read, clear.
+2. **Orientation (iOS).** The phone's `Info.plist.in` gains the ONE landscape
+   orientation a clockwise turn produces (clockwise only, per the 2026-08-19
+   ruling). The harness widens `SDL_HINT_ORIENTATIONS` to that landscape while
+   the signal is up, narrows it back to portrait when it drops, and asks UIKit
+   to re-read (`setNeedsUpdateOfSupportedInterfaceOrientations`). SDL3 re-reads
+   the hint on every query (`SDL_uikitwindow.m`, `UIKit_GetSupportedOrientations`),
+   so this is the supported path; it is the first thing to prove in the iOS
+   Simulator. The decision ("which orientations now?") is a pure function,
+   host-tested.
+3. **Presentation.** In a landscape window with the signal up, the panel is
+   drawn with one more quarter turn, so the table reads upright, centered.
+   Paper treatment only on the panel: the sheet does not bleed into the
+   surround, which stays dark. Zen: the page at full height. Zen off: G3, the
+   pad's left half (Back/Select, Power) in the left margin and its right half
+   (Left/Right, Up/Down) in the right, the page sized to fit between them. A
+   new phone-landscape branch of `layoutPad`, with the rects host-tested at
+   the phone sizes. iPad: its own landscape layout, with only the quarter turn
+   added.
+4. **Gestures.** Touches arrive in the rotated frame, so the swipes follow by
+   themselves. The three zones are recomputed from the landscape page's edges
+   (above, below, left of it), the portrait rule; the boundaries the zones
+   already read (`g_cardTopPx`, `g_zenRowTopPx`, `panelLeftPx`) are published by
+   the landscape layout too. Truth-table test in `gesture_bindings_test`.
+5. **Snap back.** The signal dropping narrows the orientations at once, so
+   iOS returns the app to portrait even with the phone still sideways.
+6. **Verification.** Desktop canary build green; host tests; the iOS Simulator
+   with `test_wide_table.epub` -- rotate, capture, compare against the G3
+   mockup; the firmware's device build green. Device feel is UNCONFIRMED until
+   it is tried on the phone.
+7. **Ship.** Firmware and simulator commits, TestFlight at 0.1.1, push to the
+   forks (never upstream). Adversarial review before the build.
+
+Risks named up front: SDL3's runtime orientation change is unproven here until
+step 2 is tried; the 2026-08-17 failure (the pad stacked as a column) came from
+enabling landscape with no layout for it, which step 3 exists to prevent; and
+the firmware change touches the reader and the HAL header, so the device build
+is part of the check.
+
 ## Open questions
 
 (each is asked one at a time; the answers land in "Rulings so far")
 
-- Q5: the iPad, which already rotates freely: does a turned page show upright
-  there in landscape too?
+none -- the plan is complete.
