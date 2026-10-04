@@ -2,8 +2,10 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-04; the log below is history)
 
-- **2026-10-04 -- OWNER TODO, OPEN:** *"raise middot and other mid punctuation to be optically vertically centered"*
-  -- measurement and options in progress (`docs/albo-mid-punctuation-2026-10-04.md` when it lands).
+- **2026-10-04 -- OWNER TODO, OPTIONS OUT:** *"raise middot and other mid punctuation to be optically vertically
+  centered"* -- `docs/albo-mid-punctuation-2026-10-04.md`: against the x-height the middle dot, hyphen and dashes
+  already sit on the six references' median; the bullet and the math signs are low; against the cap height every
+  mark is low. Options Q1-Q3 (class dials `ALBO_MID_DY_*`, all off).
 - **2026-10-03 -- OWNER TODO, OPEN:** *"make capitals the right size and shape and contrast"* -- all the capitals,
   every cut. **Audit done 2026-10-04** (`docs/albo-capitals-audit-2026-10-04.md`): the bold capitals' contrast is
   two thirds of the bold lowercase's (the 400s match), the N ~5% short everywhere, the bold capitals 9% / 17% narrow.
@@ -11,10 +13,13 @@
   13.5% narrower (477) with its leg joined further out, J1 (478); the Bold the same width, the leg clipped under
   the arm and its connection points moved onto the Regular's (479); then, traced against 13 bold references
   that all end the arm FLAT ON THE CAP LINE, the Bold's arm cut level there with Albo's wedges at half their
-  slope, lifted 5 units, the leg at 1.05 and the arm at 1.0 x the pen (480);
+  slope, lifted 5 units, the leg at 1.05 and the arm at 1.0 x the pen (480, TestFlight build 302);
   `docs/albo-k-width-2026-10-04.md`, `albo-k-junction-`, `albo-bold-k-`, `albo-round-480-`. The italic Ks were
-  not named. **2026-10-04, NEW TODO:** *"opus subagent to update md files and take a pass at improving most common
-  and most neglected word images rendered in my epubs by calling out which letters need reshaping"* -- running.
+  not named. **2026-10-04, TODO DONE (finding pass):** *"opus subagent to update md files and take a pass at
+  improving most common and most neglected word images rendered in my epubs by calling out which letters need
+  reshaping"* -- `docs/albo-word-images-2026-10-04.md`: ranked calls, R first: a and o dark, the u's bowl joining
+  its stem far lower than the arches leave theirs, c light and wide-mouthed, g tight after it, f light with its bar
+  short of the advance, the Bold's widths, k light; nothing drawn.
 - **2026-10-03 -- OWNER TODO:** *"1 needs to be taller, visually balanced with other numbers"* -- **options out**:
   F1 / F2 / F3 = `ALBO_FIG_1_TOP` raising the 1 from 433 to 448 / 460 / 470 (the flat figures' line, the 0, the
   Regular 2), `docs/albo-figure-one-2026-10-03.md`. The italic S/G reach was RULED LEAVE (owner "leave"),
