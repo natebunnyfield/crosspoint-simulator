@@ -781,6 +781,20 @@ K_ARM_SERIF_IN_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_IN_700", 1.0))  
 # The X's terminal is K_ARM_SERIF_700 0, K_ARM_SERIF_IN_700 0.9, K_ARM_DROP_700 0.
 # docs/albo-bold-k-2026-10-04.md, third pass.
 K_ARM_DROP_700 = float(os.environ.get("ALBO_ROM_K_ARM_DROP_700", 0.36))
+# FOURTH PASS -- THE ARM's END CUT FLAT ON THE CAP LINE. Owner 2026-10-04, on the third pass:
+# *"getting worse"*, then *"let's trace references and see what is possible"*. Traced
+# (instruments/k_arm_trace.py): all 13 bold references end the K's arm FLAT ON THE CAP LINE -- a
+# bracketed serif in eleven, a flared stroke cut level in Albertus and Optima -- where Albo's arm
+# ends in a point 10-12 units over the line, in both weights. K_ARM_FLAT_700 cuts the arm's end
+# level on the cap line (its centerline's end raised there, x unchanged) and seats ALBO's OWN
+# stem-top wedge (`stem`'s: d up, sd sideways, bracket down the stroke's real edge) on each corner
+# of that face. Lengths x WL, depth x WD (along the arm's edge), the tip's drop x DROP -- the
+# family's wedge at 1/1/1. docs/albo-bold-k-2026-10-04.md, fourth pass.
+K_ARM_FLAT_700 = os.environ.get("ALBO_ROM_K_ARM_FLAT_700", "0") == "1"
+K_ARM_FLAT_L_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_L_700", 1.0))     # the left (upper-side) wedge's length, x WL
+K_ARM_FLAT_R_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_R_700", 1.0))     # the right (lower-side) wedge's length, x WL
+K_ARM_FLAT_D_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_D_700", 1.0))     # both brackets' depth along the arm's edge, x WD
+K_ARM_FLAT_DROP_700 = float(os.environ.get("ALBO_ROM_K_ARM_FLAT_DROP_700", 1.0))   # the tips' drop under the cap line, x DROP (0 = a level top)
 
 @glyph('K')
 def g_K(c):
@@ -790,9 +804,19 @@ def g_K(c):
     the arm's tip (round 36 / 42: ~37 degrees)."""
     C = c["cap"]; x = CS / 2; w = W_(c, 'K', 500); s = CS
     st = cstem(x, 0, C)
-    A0, B0 = (x + w, C - s * (K_ARM_DROP_700 if S > 84.0 else 0.36)), (x, C * (K_ROOT_700 if S > 84.0 else 0.45))   # see K_ROOT_700, K_ARM_DROP_700
+    flat = S > 84.0 and K_ARM_FLAT_700                                  # see K_ARM_FLAT_700
+    A0, B0 = (x + w, C if flat else C - s * (K_ARM_DROP_700 if S > 84.0 else 0.36)), (x, C * (K_ROOT_700 if S > 84.0 else 0.45))   # see K_ROOT_700, K_ARM_DROP_700
     arm_w = max(pw(B0, A0, 0.72), 0.47 * S)   # round 51: the pen's hairline at the arm's angle, floored at 0.47 stem (38.5)
-    if S > 84.0 and (K_ARM_SERIF_700 != 0.9 or K_ARM_SERIF_IN_700 > 0):   # see K_ARM_SERIF_700, K_ARM_SERIF_IN_700
+    if flat:
+        tn = tangents(line(B0, A0))[0]
+        parts_ = [_flat_diag(B0, A0, arm_w, flat1=True)]
+        for side, ln in ((-1, K_ARM_FLAT_L_700), (1, K_ARM_FLAT_R_700)):
+            if ln <= 0: continue
+            P = flat_corner(B0, A0, arm_w, side)
+            parts_.append(wedge(P, (0, 1), (side, 0), WL * ln, WD * K_ARM_FLAT_D_700, DROP * K_ARM_FLAT_DROP_700,
+                                edge_at=lambda t, P=P: (P[0] - tn[0] * t, P[1] - tn[1] * t)))
+        arm = geom.union(parts_)
+    elif S > 84.0 and (K_ARM_SERIF_700 != 0.9 or K_ARM_SERIF_IN_700 > 0):   # see K_ARM_SERIF_700, K_ARM_SERIF_IN_700
         from ..primitives import end_wedge
         parts_ = [diagonal(A0, B0, arm_w)]
         if K_ARM_SERIF_700 > 0: parts_.append(end_wedge(line(A0, B0), arm_w, True, 1, scale=K_ARM_SERIF_700))

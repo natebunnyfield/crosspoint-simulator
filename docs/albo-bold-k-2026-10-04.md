@@ -152,3 +152,93 @@ The Regular K is not touched: its arm keeps its small upper spur.
 Nothing has shipped.
 
 Proof page (third pass): https://claude.ai/artifact/7dAUe7sDPhpzAvCFK9LqQo
+
+## Fourth pass (2026-10-04): the references traced
+
+Owner, on the third pass: *"getting worse"*, then *"let's trace references and
+see what is possible"*. U1-U3 are rejected; round 479 (T4) stands.
+
+**Instrument:** `tools/wedge_serif/instruments/k_arm_trace.py`. Each face's K
+is rendered unhinted with its OWN H's top on Albo's 676 (a capital, so the
+faces share a cap height, not an x-height); the arm's two edges are fitted
+over 0.66-0.84 C, and the end's ink is read row by row. It reads an Albo build
+the same way. Three instrument bugs were found and fixed before any number
+below was used, each of which produced a believable figure:
+1. the H stem was read at half height, which is the crossbar (stems of
+   400-660 units); it is read at a quarter;
+2. the end took every run right of the stem, and a concave top splits the
+   cap-line row into slivers, so Optima's own stem corner counted as arm
+   (flat 360 for a 120-unit end); it takes the rightmost run;
+3. the arm fit took the rightmost run in the band, and round 479's under-side
+   wedge hangs a 9-unit sliver there, which read Albo's arm at 36 degrees where
+   its edges run at 44.5; it takes the widest run.
+
+**The one structure every reference shares and Albo lacks: the arm's end lies
+FLAT ON THE CAP LINE.** All 13 bold references measure top = 676 exactly --
+eleven with a bracketed serif along the line, Albertus and Optima with the
+stroke flared and cut level. Albo's arm ends in a POINT 10 units (Bold) and 12
+(Regular) over the line, 14 units across, in both weights.
+
+Units Albo, cap 676; "own serif" = the face's H top serif, the most it reaches
+over the top 40 units (out for the left reach, in for the right):
+
+| face | stem | arm angle | arm / stem | top | flat / stem | reach left (x own serif) | reach right (x own serif) | depth left / right, stems |
+|---|---|---|---|---|---|---|---|---|
+| Albo Regular | 72 | 38.4 | 0.47 | 688 | 0.19 | 79 (1.33) | 0 (0.09) | 0.99 / 0.00 |
+| Albo Bold 479 | 125 | 43.0 | 0.44 | 686 | 0.11 | 99 (1.59) | 50 (6.28) | 0.85 / 0.94 |
+| Albertus | 104 | 50.7 | 0.87 | 676 | 1.67 | 23 (0.96) | 27 (1.18) | 0.62 / 0.59 |
+| Trajan Bold | 112 | 45.6 | 0.45 | 676 | 2.02 | 73 (0.81) | 81 (1.05) | 0.67 / 0.57 |
+| Berkeley Bold | 120 | 45.6 | 0.33 | 676 | 1.90 | 144 (1.74) | 54 (0.85) | 0.49 / 0.40 |
+| Georgia Bold | 169 | 45.9 | 0.29 | 676 | 1.74 | 146 (1.47) | 97 (1.00) | 0.59 / 0.54 |
+| Charter Bold | 134 | 50.3 | 0.48 | 676 | 1.70 | 118 (1.57) | 64 (0.84) | 0.48 / 0.41 |
+| Times Bold | 162 | 38.9 | 0.24 | 676 | 1.62 | 175 (1.84) | 47 (0.49) | 0.57 / 0.25 |
+| Baskerville Bold | 176 | 43.0 | 0.35 | 676 | 1.70 | 173 (1.95) | 80 (0.92) | 0.61 / 0.59 |
+| Hoefler Black | 194 | 44.1 | 0.29 | 676 | 1.49 | 157 (1.55) | 89 (0.95) | 0.47 / 0.51 |
+| Palatino Bold | 140 | 44.2 | 0.38 | 676 | 1.28 | 44 (0.53) | 80 (0.96) | 0.44 / 0.62 |
+| Iowan Bold | 125 | 45.3 | 0.54 | 676 | 2.06 | 118 (1.48) | 65 (0.81) | 0.66 / 0.64 |
+| Athelas Bold | 130 | 44.6 | 0.43 | 676 | 1.76 | 127 (1.72) | 44 (0.59) | 0.57 / 0.46 |
+| Cochin Bold | 138 | 44.2 | 0.33 | 676 | 2.37 | 160 (1.53) | 89 (0.80) | 0.78 / 0.71 |
+| Optima Bold | 148 | 49.7 | 0.47 | 676 | 0.81 | 5 (0.65) | 5 (0.76) | 0.07 / 0.11 |
+
+Medians over the eleven serifed faces: the arm's serif reaches LEFT 1.55x the
+face's own stem-top serif and RIGHT 0.85x; its brackets run 0.57 and 0.54 of a
+stem down; its flat top is 1.74 stems; the arm stands at 44.6 degrees (45.3
+over all 13). Albo's own stem-top serif (the H's) reaches 62 out and 8 in --
+one-sided -- so 1.55x and 0.85x of 62 are 96 and 53 units.
+
+**New dials** (`ALBO_ROM_K_ARM_FLAT_700` and its four numbers, all inert at
+their defaults): the arm's end cut LEVEL on the cap line with `_flat_diag` (the
+W's and M's apex cut), its centerline's end raised to the line at the same x
+(U1's geometry), and ALBO's OWN stem-top wedge -- `stem`'s construction, d up,
+sd sideways, bracket down the stroke's real edge -- seated on each corner of
+that face. Three options, each set so the instrument reads the traced numbers:
+
+| arm | left x WL | right x WL | depth x WD | drop x DROP | traced from | reads (reach l/r, depth l/r, flat) |
+|---|---|---|---|---|---|---|
+| H1 | 0.57 | 0.57 | 1.7 | 0 | Albertus: the stroke flared, cut level (target 28/32, 77/74) | 29/31, 73/80, 140 |
+| H3 | 2.1 | 0.72 | 1.25 | 1 | the eleven serifed faces' medians, Albo's sloped wedge top (target 96/53, 71/68) | 97/54, 73/68, 142 |
+| H4 | 1.84 | 1.0 | 1.25 | 0 | the same medians with the references' LEVEL top (target flat 218) | 100/55, 73/63, 231 |
+
+All three put the top at 676. The arm itself is U1's: it stands at 48.2
+degrees against round 479's 44.5 (references 39-51), and the join moves as it
+did in U1 -- crotch 0.637 C high against 0.610, the arm's root 0.467 C, which is
+the Regular's (`instruments/k_junction.py`, measured on H1, H3 and H4).
+
+**Negative result: the family's wedge at 1/1/1 ("H2", not offered).** It reads
+reach 38 / 70 and grows a KNOB on the arm's upper side. A stem's edge is
+vertical; the arm's upper edge leans toward the wedge's own tip, so at depth
+104.6 along that edge the bracket's foot lands 70 units left of the corner,
+past the 52-unit tip, and the bracket turns convex. The stem wedge's numbers do
+not transfer to a diagonal: the left wedge has to reach past its own bracket's
+foot (about 1.4 WL or more) before its bracket is concave.
+
+**Gates (Bold, against round 479):** POOR GATES no delta on H1, H3 and H4.
+Moved: K and Ķ. Checked and found CLEAN on all three: contour hairs (letters
+and the full sweep, nothing new), touch 0 / 0 -> 0 / 0, counter-dent lines
+1 -> 1, glitch 1 -> 1 (the pre-existing one is Ķ's), contour census unchanged
+(1056 glyphs), approved letters unchanged, the e mouth gate ok. The dials'
+defaults rebuild round 479 byte for byte (`cmp_outlines`: IDENTICAL).
+
+Nothing has shipped.
+
+Proof page (fourth pass): https://claude.ai/artifact/4uu2GJm654FfVGWr7uH1Wo
