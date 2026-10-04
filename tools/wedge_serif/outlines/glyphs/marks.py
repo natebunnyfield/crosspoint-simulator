@@ -853,6 +853,46 @@ def g_quoteleft(c): return quote(c, S * 0.7, False)
 def g_quotedblright(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, True, False))
 @glyph('“')
 def g_quotedblleft(c): return _dbl(lambda dx: quote(c, S * 0.7 + dx, False, False))
+# 2026-10-04 -- THE MID PUNCTUATION'S HEIGHT, AS DIALS. Owner todo: *"raise middot and
+# other mid punctuation to be optically vertically centered"*. Measured against Georgia,
+# Charter, Palatino, Times, Albertus and Berkeley on the outline (instruments/mid_punct.py,
+# docs/albo-mid-punctuation-2026-10-04.md): against the x-height the middle dot, the dashes
+# and the guillemets already sit on or a little above the references' median, and the bullet
+# and the mathematical signs sit LOW (the bullet by ~0.25 x-height, the minus, times and
+# divide by ~0.11, the plus and equals by ~0.05); against the cap height every one of them is
+# low, because Albo's capitals stand 1.54-1.57 x-heights tall where the references' stand
+# 1.37-1.51. Each CLASS below moves as a whole, rigidly, after it is drawn (the foot of
+# symbols.py re-registers a moved glyph as its own drawing translated up):
+#   dot     the middle dot (the Trajan wedge, round 368)
+#   bullet  the bullet and the bullet operator
+#   dash    hyphen-minus, hyphen, non-breaking and soft hyphen, figure dash, en and em
+#           dash, horizontal bar -- the eight `dash` draws
+#   math    minus, plus, equals, multiply, divide, plus-minus, not-equal, almost-equal,
+#           less, greater, less-equal, greater-equal, tilde, not sign, infinity
+#   guil    the four guillemets
+# ALBO_MID_DY_<CLASS> raises a class by that many units in every cut;
+# ALBO_MID_DY_<CLASS>_<R|I|B|Z> in one cut (Regular, Italic, Bold, Bold Italic), and beats
+# the first. ALBO_MID_MATH_ONE_AXIS=1 puts + and = (and so the bars of not-equal) on the
+# axis every other mathematical sign is drawn about, MID -- they stand 0.05 x-height
+# (21 units) above it today, where five of the six references draw + - = x / on one axis
+# (Palatino's = alone sits lower, by 0.04 em).
+# Every dial at its default is round 480 byte for byte: a class is re-registered only when
+# its shift is non-zero, and the + and = keep XH * 0.55 unless the switch is on.
+MID_CLASSES = {
+    "dot": "\u00b7",
+    "bullet": "\u2022\u2219",
+    "dash": "-\u2010\u2011\u00ad\u2012\u2013\u2014\u2015",
+    "math": "\u2212+=\u00d7\u00f7\u00b1\u2260\u2248<>\u2264\u2265~\u00ac\u221e",
+    "guil": "\u00ab\u00bb\u2039\u203a",
+}
+def mid_cut():
+    """R I B Z -- which of the four shipping cuts this build is (never "BI")."""
+    return ("Z" if pen.ITALIC else "B") if pen.S > 84.0 else ("I" if pen.ITALIC else "R")
+def mid_dy(cls):
+    """Units to raise class `cls` in this cut; 0 = today."""
+    k = f"ALBO_MID_DY_{cls.upper()}"
+    return float(os.environ.get(f"{k}_{mid_cut()}", os.environ.get(k, "0")))
+MATH_ONE_AXIS = os.environ.get("ALBO_MID_MATH_ONE_AXIS", "0") == "1"
 # ROUND 233 -- CALLIGRAPHIC OPTIONS FOR THE HYPHEN. Owner 2026-09-18 (R53):
 # *"give me calligraphic options."* Today's hyphen is a plain bar, TH_H thick,
 # square ends, at 0.34 C. ALBO_HYPHEN_OPT picks; the en and em dashes go
@@ -945,11 +985,11 @@ def g_asterisk(c):
     return geom.ink(parts)
 @glyph('+')
 def g_plus(c):
-    y = XH * 0.55; w = 420
+    y = XH * (0.50 if MATH_ONE_AXIS else 0.55); w = 420   # ALBO_MID_MATH_ONE_AXIS: on the other signs' axis
     return geom.ink([stroke(line((0, y), (w, y)), TH_H * 0.9), stroke(line((w / 2, y - w / 2), (w / 2, y + w / 2)), TH_V * 0.9)])
 @glyph('=')
 def g_equal(c):
-    y = XH * 0.55; w = 420; g = S * 1.1
+    y = XH * (0.50 if MATH_ONE_AXIS else 0.55); w = 420; g = S * 1.1   # ALBO_MID_MATH_ONE_AXIS, as the +
     return geom.ink([stroke(line((0, y - g / 2), (w, y - g / 2)), TH_H), stroke(line((0, y + g / 2), (w, y + g / 2)), TH_H)])
 @glyph('&')
 def g_ampersand(c):

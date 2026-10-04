@@ -1110,3 +1110,31 @@ def g_whitedown(c): return _shape(c, 'down', False)
 def g_blackright(c): return _shape(c, 'right', True)
 @glyph('◀')
 def g_blackleft(c): return _shape(c, 'left', True)
+
+# 2026-10-04 -- THE MID PUNCTUATION'S HEIGHT (owner: *"raise middot and other mid
+# punctuation to be optically vertically centered"*; the dials and the classes are
+# marks.MID_CLASSES / marks.mid_dy, the measurement docs/albo-mid-punctuation-2026-10-04.md).
+# A class a dial moves is re-registered HERE as its own drawing translated up, whole: here,
+# at the foot of the last module that draws any of them, so the not-equal -- which builds on
+# marks.g_equal, the function and not the registry -- composes from the unmoved = and is then
+# moved once, with the rest of its class. Applied to the drawn ink, before build.draw adds
+# the ink spread and the italic shear, so the shape is the shape: measured on the arms, every
+# moved glyph is today's outline translated, to within 1 unit (Hausdorff; the export rounds
+# half-units to even, and the 400s' hand-cut can re-facet a crossing by under a unit), with
+# its advance and sidebearings unchanged. Nothing is re-registered at 0.
+def _mid_raise():
+    import functools
+    import shapely.affinity as aff
+    from . import GLYPHS
+    from .marks import MID_CLASSES, mid_dy
+    for cls, chars in MID_CLASSES.items():
+        dy = mid_dy(cls)
+        if not dy:
+            continue
+        for ch in chars:
+            if ch not in GLYPHS:
+                continue
+            def raised(c, _fn=GLYPHS[ch], _dy=dy):
+                return aff.translate(_fn(c), 0, _dy)
+            GLYPHS[ch] = functools.update_wrapper(raised, GLYPHS[ch])
+_mid_raise()
