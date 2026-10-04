@@ -4,7 +4,7 @@ Owner, 2026-10-04: *"when a landscape view is active (viz wide table is
 rendered), the ui and gestures need to be rotated as well. ask me questions to
 develop a plan then proceed after my okay"*.
 
-**Status: PLAN COMPLETE, AWAITING THE OWNER'S OKAY -- nothing built.**
+**Status: BUILT 2026-10-04 on the owner's okay ("yes"); verified in the iOS Simulator (iPhone Air and iPad Pro 13). Device feel UNCONFIRMED until tried on the phone.**
 
 ## What exists (verified 2026-10-04)
 
@@ -67,7 +67,7 @@ develop a plan then proceed after my okay"*.
    rotates freely, a turned page in landscape also shows upright, with the
    iPad's existing landscape layout around it; same signal, same snap-back.
 
-## The plan (complete 2026-10-04, AWAITING THE OWNER'S OKAY)
+## The plan (complete 2026-10-04; okayed and built the same day)
 
 1. **The signal (firmware + HAL).** The reader publishes whether the page on
    screen is turned (it holds a `PageRotatedText`) through a new host channel
@@ -118,3 +118,68 @@ is part of the check.
 (each is asked one at a time; the answers land in "Rulings so far")
 
 none -- the plan is complete.
+
+## As built (2026-10-04)
+
+**Firmware** (`~/src/crosspoint-reader`): `lib/hal/HalGPIO.h` gains
+`publishTurnedPage(bool)`, an inline no-op (nothing changes on the X3).
+`EpubReaderActivity` publishes it once per displayed page in `renderContents`
+(true when the page holds a `PageRotatedText`), and false on the end-of-book
+screen, on a build error and in `onExit`.
+
+**Simulator** (this repo):
+- `src/HalGPIO.cpp`: the channel, one atomic, a change requests a present;
+  cleared on the iOS in-process reboot. Read through
+  `SimulatorOverlay::turnedPageShowing()`.
+- `src/HalDisplay.cpp`: `SimulatorOverlay::setPresentLandscapeUpright` substitutes
+  `LandscapeCounterClockwise` for the renderer's orientation in every presentation
+  decision. On a turned page the framebuffer's native landscape frame IS the
+  table the right way up, so no rotation of its own is needed, and it is upright
+  in either landscape window. `setSideInsets` bounds the fit horizontally as the
+  top and bottom bands do vertically; in this mode the panel is centered
+  vertically too.
+- `src/TurnedPageLandscape.h` (pure; `tests/turned_page_landscape_test.cpp`, in
+  `run_all.sh`): the orientation hint and the G3 geometry, phone and iPad, at six
+  window sizes.
+- `ios/CrossPointOrientation.mm`: polled each frame; on a change of the wanted
+  hint, `SDL_SetHint` plus `setNeedsUpdateOfSupportedInterfaceOrientations`. The
+  phone gains `LandscapeLeft` (a clockwise turn) only while a turned page shows;
+  dropping it is the snap-back. `ios/Info.plist.in` declares it for the App
+  Store.
+- `ios/CrossPointIOSShim.cpp`: `layoutTurnedLandscape` (the split pad, the insets,
+  the zone boundaries from the landscape page's edges), the black surround with
+  paper on the page only, and transparent pad faces on black, as the iPad's.
+
+**Measured in the iOS Simulator** (`CROSSPOINT_SIM_FORCE_TURNED_LANDSCAPE=1`, a QA
+hatch that makes a turned page force the rotation, since a script cannot turn
+the Simulator; `test_wide_table.epub`):
+- iPhone Air: the page 1416 x 944 px at scale 0.894, centered between the pad's
+  halves (side insets 220 pt = safe 68 + band 152).
+- iPad Pro 13: 1584 x 1056 at its whole-number scale 1, centered, the front pairs
+  on the tablet's thumb row (448 pt up), POWER and the rocker at half height
+  along the bottom.
+- Snap-back: the turned page dropped, the hint went back to "Portrait", and the
+  window was portrait again 0.28 s later, the page back at 1056 x 1584 px, scale 1.
+
+**Found while building, and handled:**
+- MID-ROTATION SAFE AREA: for one frame the window is landscape but its safe area
+  is still portrait's (R 560, B -472 pt on an iPhone Air), which fitted the page
+  into a 6 x 4 px box. A safe area that cannot belong to the window is now
+  treated as none for that frame.
+- SNAP-BACK FRAMES: for the ~0.3 s iOS takes to turn back, the window is
+  landscape with an upright page, which no layout is for (the portrait layout drew
+  it 288 x 432 px in a corner). The phone shows black for those frames.
+- THE iPad keeps its own placement (Q5): its front pairs sit on the tablet's
+  thumb row rather than the phone's bottom rows.
+
+**Found and NOT changed (not named):**
+- READ-ALOUD SKIPS A TURNED PAGE AT ONCE: the capture finds no speakable line on
+  it (the table is `PageRotatedText`), so read-aloud queues a page turn
+  immediately. With this feature the app flicks into landscape and straight back
+  out. Seen in the Simulator with read-aloud on; the fix is the capture learning
+  rotated lines, which is firmware work nobody asked for.
+- A HARNESS QUIRK: after `CROSSPOINT_SIM_IMPORT_FILE`'s document-open reboot, a
+  `CROSSPOINT_SIM_INPUT_SCRIPT` press never reaches the reader on iOS, in
+  portrait as well as landscape (control run). `*_AFTER_WAKE` is promoted only by
+  the power-wake reboot. Verification therefore reached the table page from
+  saved progress instead.

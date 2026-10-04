@@ -1355,6 +1355,21 @@ void setTopInset(int px) {
   if (topInset.exchange(v) != v)
     requestPresent();
 }
+// Side bands and the turned page's landscape presentation; see
+// SimulatorOverlay.h. All zero/false by default, which is today.
+static std::atomic<int> leftInset{0};
+static std::atomic<int> rightInset{0};
+static std::atomic<bool> landscapeUpright{false};
+void setSideInsets(int leftPx, int rightPx) {
+  const int l = leftPx > 0 ? leftPx : 0, r = rightPx > 0 ? rightPx : 0;
+  const bool movedL = leftInset.exchange(l) != l;
+  const bool movedR = rightInset.exchange(r) != r;
+  if (movedL || movedR) requestPresent();
+}
+void setPresentLandscapeUpright(bool on) {
+  if (landscapeUpright.exchange(on) != on) requestPresent();
+}
+bool presentLandscapeUpright() { return landscapeUpright.load(); }
 // Written by presentIfNeeded (main thread) on the manual-placement path.
 static std::atomic<int> panelBottom{0};
 static std::atomic<int> panelHeight{0};
@@ -3326,8 +3341,20 @@ void HalDisplay::presentIfNeeded() {
   }
 
   extern GfxRenderer renderer;
-  const GfxRenderer::Orientation orientation = renderer.getOrientation();
-  applyWindowGeometryIfNeeded(orientation);
+  // THE TURNED PAGE IN A LANDSCAPE WINDOW (docs/turned-page-landscape-plan-2026-10-04.md):
+  // when the host asks for it, the page is PRESENTED as the panel's own native
+  // landscape frame. The firmware still renders portrait; on a turned page that
+  // native frame is the table the right way up. Substituting the orientation
+  // here, once, carries the change through every presentation decision below
+  // -- the fit, the rotation, the sheet's ink mapping, the ghost and beam
+  // draws -- with none of them knowing. The window geometry (desktop only)
+  // keeps following the firmware's real orientation.
+  const GfxRenderer::Orientation fwOrientation = renderer.getOrientation();
+  applyWindowGeometryIfNeeded(fwOrientation);
+  const GfxRenderer::Orientation orientation =
+      SimulatorOverlay::presentLandscapeUpright()
+          ? GfxRenderer::LandscapeCounterClockwise
+          : fwOrientation;
 
   // IS THIS A NEW PICTURE? Both CRT transients hang off that one question: a
   // beam sweep starts when the firmware writes a page, and a phosphor deposit
@@ -3539,7 +3566,9 @@ void HalDisplay::presentIfNeeded() {
   // center turns it into one.
   const int inset = SimulatorOverlay::bottomInset.load();
   const int topBand = SimulatorOverlay::topInset.load();
-  const bool manualPlacement = inset > 0 || topBand > 0;
+  const int sideL = SimulatorOverlay::leftInset.load();
+  const int sideR = SimulatorOverlay::rightInset.load();
+  const bool manualPlacement = inset > 0 || topBand > 0 || sideL > 0 || sideR > 0;
   // The presented page rect, hoisted out of the manual-placement block because
   // the beam clips against it. Left at zero on the letterbox path, which fills
   // it from the logical size instead.
@@ -3554,7 +3583,11 @@ void HalDisplay::presentIfNeeded() {
     const float logH = portrait ? kW : kH;
     const float availH =
         SDL_max(1.0f, static_cast<float>(outH - inset - topBand));
-    float scale = SDL_min(static_cast<float>(outW) / logW, availH / logH);
+    // The side bands (setSideInsets) bound the width the same way; 0 / 0 is
+    // the whole output, which is every layout but the turned page's landscape.
+    const float availW =
+        SDL_max(1.0f, static_cast<float>(outW - sideL - sideR));
+    float scale = SDL_min(availW / logW, availH / logH);
     // Keep the pixel-exact policy honest on this path too.
     //
     // ABOVE 1x the answer is the whole number below: one framebuffer pixel
@@ -3629,15 +3662,20 @@ void HalDisplay::presentIfNeeded() {
     // dst rect is derived from them: a half-pixel top margin puts the whole
     // page half a pixel off the grid, which is the thing the quantisation
     // above exists to avoid.
-    const float topMargin = SDL_floorf(
-        topBand + SDL_min(16.0f, (availH - logH * scale) / 2.0f));
+    // ...except the turned page's landscape (SimulatorOverlay::
+    // setPresentLandscapeUpright), which CENTERS: its pad is split to the side
+    // margins, nothing hangs below the page, and on an iPad held landscape the
+    // page at its whole-number scale leaves half the height spare.
+    const float topMargin = SimulatorOverlay::presentLandscapeUpright()
+        ? SDL_floorf(topBand + (availH - logH * scale) / 2.0f)
+        : SDL_floorf(topBand + SDL_min(16.0f, (availH - logH * scale) / 2.0f));
     // The PRESENTED panel rect -- what the page actually occupies on the glass,
     // in device pixels. Everything else here derives from it, so it is computed
     // once, in integers, rather than recovered from the dst rect (which is a
     // different shape; see below).
     const int panelPxW = static_cast<int>(logW * scale);
     const int panelPxH = static_cast<int>(logH * scale);
-    const int panelPxX = (outW - panelPxW) / 2;
+    const int panelPxX = sideL + (static_cast<int>(availW) - panelPxW) / 2;
     const int panelPxY = static_cast<int>(topMargin);
     // NOT the presented rect: dst is LANDSCAPE-shaped in every orientation,
     // because SDL_RenderTextureRotated rotates it about its own center and the

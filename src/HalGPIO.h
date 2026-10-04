@@ -293,6 +293,16 @@ public:
   // on the firmware task and the consumer is the main-thread relayout.
   void publishReaderTextInsets(int topPx, int rightPx, int bottomPx, int leftPx);
 
+  // WHETHER THE PAGE ON SCREEN IS TURNED -- a wide-table page ([T-021]) set
+  // for a reader who turns the device clockwise. Firmware-facing half of the
+  // same split as the insets channel above: an inline no-op on device
+  // (lib/hal/HalGPIO.h), a real latch here. EpubReaderActivity publishes once
+  // per displayed page and false on every path off it; the host reads it
+  // through SimulatorOverlay::turnedPageShowing(). The iOS app accepts
+  // landscape while it is up, presents the table upright, and snaps back to
+  // portrait when it drops (docs/turned-page-landscape-plan-2026-10-04.md).
+  void publishTurnedPage(bool turned);
+
   // WHICH PAGE OF WHICH BOOK IS ON SCREEN. Firmware-facing half of the same
   // split as the insets channel above: an inline no-op on device
   // (lib/hal/HalGPIO.h), a real latch here. Published once per DISPLAYED page
