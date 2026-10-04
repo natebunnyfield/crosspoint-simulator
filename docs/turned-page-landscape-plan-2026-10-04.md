@@ -39,13 +39,29 @@ the owner okays the finished plan.
    This reopens the 2026-08-17 portrait-only ruling FOR THESE PAGES ONLY, and
    the phone landscape layout gets designed with mockups before any building.
 
+2. **Leaving: SNAP BACK TO PORTRAIT** (Q2, 2026-10-04). When the next page is
+   upright and the phone is still sideways, the app returns to portrait at
+   once; an upright page is never shown in a landscape window.
+
+3. **The pad: BESIDE THE PAGE when zen is off** (Q3, 2026-10-04; recommended
+   was zen-only in landscape). Landscape shows the pad beside the page, as on
+   the iPad, whenever zen is off; in zen there is no pad either way. The phone
+   landscape pad layout is designed from mockups before anything is built.
+
+4. **The pad's place: G3, SPLIT, AND PAPER ON THE PANEL ONLY** (Q3b,
+   2026-10-04, from mockups https://claude.ai/artifact/D2m4zmimWGaZrvLd4MzseU):
+   *"G3 but only the panel gets paper treatment"*. Today's pad split down the
+   middle: its left half (Back/Select, Power) in the left margin, its right
+   half (Left/Right, Up/Down) in the right margin, the page centered between,
+   about 15% smaller than full height. Only the panel is drawn as paper; the
+   surround the pad sits on is NOT the sheet (the mockup had the sheet bleeding
+   to the glass, as the phone's portrait does).
+
 ## Open questions
 
 (each is asked one at a time; the answers land in "Rulings so far")
 
-- Q2: when the next page is upright and the phone is still held sideways -- snap
-  back to portrait, or stay landscape until the phone is turned upright?
-- Q3: the phone landscape layout: where the pad goes beside the page (mockups
-  first, then the question).
-- Q4: anything else that should rotate or stay put (to be asked once Q2 and Q3
-  are settled).
+- Q4: the zone gestures (above the paper, below the paper, the left margin) in
+  landscape.
+- Q5: the iPad, which already rotates freely: does a turned page show upright
+  there in landscape too?
