@@ -5,7 +5,8 @@
 - **2026-10-04 -- OWNER TODO, DONE (round 481):** *"raise middot and other mid punctuation to be optically
   vertically centered"* -- `docs/albo-mid-punctuation-2026-10-04.md`: against the x-height the middle dot, hyphen
   and dashes already sit on the six references' median; the bullet and the math signs were low. Ruled **Q1**: the
-  bullet +113 and every math sign on one axis +51 (`marks.py` `MID_SHIP`); `docs/albo-round-481-2026-10-04.md`.
+  bullet +113 and every math sign on one axis +51 (`marks.py` `MID_SHIP`); `docs/albo-round-481-2026-10-04.md`,
+  TestFlight build 303.
 - **2026-10-03 -- OWNER TODO, OPEN:** *"make capitals the right size and shape and contrast"* -- all the capitals,
   every cut. **Audit done 2026-10-04** (`docs/albo-capitals-audit-2026-10-04.md`): the bold capitals' contrast is
   two thirds of the bold lowercase's (the 400s match), the N ~5% short everywhere, the bold capitals 9% / 17% narrow.

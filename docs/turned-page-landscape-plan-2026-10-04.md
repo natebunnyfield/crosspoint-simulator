@@ -57,11 +57,16 @@ the owner okays the finished plan.
    surround the pad sits on is NOT the sheet (the mockup had the sheet bleeding
    to the glass, as the phone's portrait does).
 
+5. **Zones: FOLLOW THE PAGE** (Q4, 2026-10-04). In landscape the three zone
+   overrides are measured from the landscape page's own edges, by the portrait
+   rule: above it, below it, left of it. The left margin becomes the whole left
+   side (in zen; with zen off the pad's left half takes taps there first). The
+   bands above and below are thin, so hold-above-the-paper is harder to hit in
+   landscape -- accepted.
+
 ## Open questions
 
 (each is asked one at a time; the answers land in "Rulings so far")
 
-- Q4: the zone gestures (above the paper, below the paper, the left margin) in
-  landscape.
 - Q5: the iPad, which already rotates freely: does a turned page show upright
   there in landscape too?
