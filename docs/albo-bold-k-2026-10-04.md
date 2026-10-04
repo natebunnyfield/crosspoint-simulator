@@ -74,3 +74,81 @@ Bold measures 0.29 of the way along the arm, the bold references' 0.30–0.32):
 on every arm. Touch 0 / 0, glitch 1 → 1 (pre-existing on Ķ).
 
 Proof page (second pass): https://claude.ai/artifact/9D5jrYTvSSPahDeg1VTHnG
+
+## Third pass (2026-10-04): the arm's end in Albo's own style
+
+Owner, after round 479 shipped T4: *"improve top right serif of bold K to
+match albo style"*.
+
+**What Albo's style is, read from the builders.** Every other diagonal that
+ends at the top right ends the same way: the X's light stroke
+(`g_X`, `serif0=-1` on `q0`), the V's and the Y's right strokes (`g_V`,
+`g_Y`, `serif0=-1`), the W's last stroke (`g_W`, `P[3]`, side -1). The
+stroke's centerline ends ON the cap line, the end is cut square to the
+stroke, and ONE family wedge (`diag_wedge`, scale 0.9) hangs on the stroke's
+right-hand side (side -1 in `end_wedge`'s convention, which on the K's arm
+is the side facing the leg -- the "inner wedge" of the second pass),
+bracketed back into the stroke. Rendered at a 700 px cap, the Bold X Y V W
+and x y v all show it.
+
+**The K was the exception, in both weights.** Its arm has always ended 0.36
+of a stem UNDER the cap line (rounds 36-479) with its wedge on the UPPER
+side (`serif0=1`). At the Regular's stem that is a small spur and was ruled
+good; at the Bold's it grows into a horn, and round 479's T4 added a second
+wedge under it -- a two-sided end no other Albo letter has.
+
+New dial `ALBO_ROM_K_ARM_DROP_700`: the arm end's centerline under the cap
+line, in stems (0.36 = rounds 36-479, 0 = the X's). The three options, all on
+round 479 (width, leg clip and join unchanged):
+
+| arm | env | the end |
+|---|---|---|
+| U1 | `K_ARM_SERIF_700=0 K_ARM_SERIF_IN_700=0.9 K_ARM_DROP_700=0` | the X's terminal exactly: family wedge on the right, end on the cap line |
+| U2 | `K_ARM_SERIF_700=0 K_ARM_SERIF_IN_700=1.3 K_ARM_DROP_700=0` | the same, wedge 1.3 (T4's size) -- longer reach |
+| U3 | U2 + `K_ROOT_700=0.385` | U2 with the arm pivoted on the leg's join, so the leg meets the arm at round 479's height |
+
+(env names abbreviated: each is `ALBO_ROM_` + the name.)
+
+**What raising the arm's end costs at the junction.** The join point is a
+fraction of the way along the arm, so lifting the arm's end lifts the join.
+Measured with `instruments/k_junction.py` (cap heights; crotch = where the
+leg's upper edge meets the arm's lower edge, root = where the arm's lower
+edge leaves the stem):
+
+| | crotch right | crotch high | arm root |
+|---|---|---|---|
+| Regular (round 478) | 0.163 | 0.590 | 0.467 |
+| Bold round 479 | 0.163 | 0.610 | 0.457 |
+| U1, U2 | 0.160 | 0.637 | 0.467 |
+| U3 | 0.157 | 0.613 | 0.437 |
+
+U1 and U2 put the arm's root exactly on the Regular's and the crotch 0.027 C
+(18 units) higher than round 479; U3 keeps the crotch and puts the root 0.02 C
+lower. No setting keeps both: every compensation trades one connection for
+the other (a smaller `K_U_700` keeps the height but moves the join toward the
+stem, against the J1 ruling).
+
+**Tops** (font units; the stem tops are at 676): round 479's K 686 (the
+horn), U1-U3 694, against the Bold X 707, Y 706, V 695, W 691.
+
+**Negative results, not offered:**
+- *The X's wedge with the arm's end left where it was* (drop 0.36): the arm
+  tops out at 648, 28 units under the stem tops (676), and the wedge hangs
+  below that. It reads short, which is the owner's complaint about round
+  478.
+- *A milder pivot*, `K_ROOT_700` 0.392: crotch 0.617, root 0.440 -- between
+  U2 and U3 on both measures, so it adds nothing to the choice.
+
+**Gates (Bold, against round 479):** POOR GATES no delta on all three.
+Moved: K, and Ķ in U1/U2 (the K's advance moves by one unit). Checked and
+found CLEAN: contour hairs (letters and full sweep, nothing new), touch 0 / 0
+-> 0 / 0, counter-dent lines 1 -> 1, glitch unchanged (U3's K 0 findings; the
+pre-existing one is Ķ's), contour census unchanged (1056 glyphs), approved
+letters unchanged, the e mouth gate ok. The dial's defaults rebuild round 479
+byte for byte (`cmp_outlines`: IDENTICAL).
+
+The Regular K is not touched: its arm keeps its small upper spur.
+
+Nothing has shipped.
+
+Proof page (third pass): https://claude.ai/artifact/7dAUe7sDPhpzAvCFK9LqQo

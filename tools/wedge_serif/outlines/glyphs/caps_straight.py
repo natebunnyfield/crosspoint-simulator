@@ -772,6 +772,15 @@ K_LEG_CLIP_700 = os.environ.get("ALBO_ROM_K_LEG_CLIP_700", "1") == "1"   # round
 # 0.45 = today. Set with K_U_700 to put both connections where the Regular's are (k_junction.py).
 K_ROOT_700 = float(os.environ.get("ALBO_ROM_K_ROOT_700", 0.42))   # round 479: with K_U_700 0.31 the crotch and the arm's root land within 7 units of the Regular's (0.45 = round 478)
 K_ARM_SERIF_IN_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_IN_700", 1.0))   # round 479: T4's inner wedge (0 = round 478)
+# ...AND THE ARM's END IN ALBO's OWN STYLE. Owner 2026-10-04, after round 479: *"improve top right serif
+# of bold K to match albo style."* Every other diagonal that ends at the top right (X Y V W x y v)
+# ends the same way: the stroke's centerline on the cap line, a square cut, and ONE family wedge
+# (0.9) on its right-hand side, bracketed back into the stroke -- the X's `serif0=-1`. The K's arm
+# ends 0.36 of a stem under the cap line instead, with round 479's up-left horn plus a down-right
+# wedge. K_ARM_DROP_700 is the arm end's centerline under the cap line, x CS; 0.36 = rounds 36-479.
+# The X's terminal is K_ARM_SERIF_700 0, K_ARM_SERIF_IN_700 0.9, K_ARM_DROP_700 0.
+# docs/albo-bold-k-2026-10-04.md, third pass.
+K_ARM_DROP_700 = float(os.environ.get("ALBO_ROM_K_ARM_DROP_700", 0.36))
 
 @glyph('K')
 def g_K(c):
@@ -781,7 +790,7 @@ def g_K(c):
     the arm's tip (round 36 / 42: ~37 degrees)."""
     C = c["cap"]; x = CS / 2; w = W_(c, 'K', 500); s = CS
     st = cstem(x, 0, C)
-    A0, B0 = (x + w, C - s * 0.36), (x, C * (K_ROOT_700 if S > 84.0 else 0.45))   # see K_ROOT_700
+    A0, B0 = (x + w, C - s * (K_ARM_DROP_700 if S > 84.0 else 0.36)), (x, C * (K_ROOT_700 if S > 84.0 else 0.45))   # see K_ROOT_700, K_ARM_DROP_700
     arm_w = max(pw(B0, A0, 0.72), 0.47 * S)   # round 51: the pen's hairline at the arm's angle, floored at 0.47 stem (38.5)
     if S > 84.0 and (K_ARM_SERIF_700 != 0.9 or K_ARM_SERIF_IN_700 > 0):   # see K_ARM_SERIF_700, K_ARM_SERIF_IN_700
         from ..primitives import end_wedge
