@@ -598,6 +598,12 @@ CAP_S_WIDTH_BOLD = float(os.environ.get("ALBO_ROM_S_W_BOLD", 1.20))   # round 46
 # against six regular references' 0.59-0.66 and no longer matched the Bold's 0.642:
 # *"Match the Bold, ship."* The same factor on the same target, stem 84 and under.
 CAP_S_WIDTH_REG = float(os.environ.get("ALBO_ROM_S_W", 1.15))   # round 471: N2, S/H 0.618 (owner "N2"; round 469 shipped 1.20, 0.643, then asked for it thinner)
+# THE K's WIDTH, OPTIONS -- 2026-10-04, owner todo: *"'K' is too wide."* Measured
+# (docs/albo-k-width-2026-10-04.md): against the references the K is not wide (K/H 0.90
+# Regular against their 0.94) but it is against Albo's own R (K/R 1.19 against 1.08), the R
+# being narrow. A factor on the solver's target, (Regular, Bold), roman only; the italic K
+# takes aldine's own ALBO_ALD_WD_K. 1.0 = today.
+CAP_K_WIDTH = (float(os.environ.get("ALBO_ROM_K_W", 1.0)), float(os.environ.get("ALBO_ROM_K_W_BOLD", 1.0)))
 
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink
@@ -630,6 +636,7 @@ def solve_widths(passes=3):
             if ch == 'X': target *= CAP_X_WIDTH          # owner 2026-09-23, see CAP_X_WIDTH
             if ch in CAP_NT_WIDTH and not pen.SHEAR: target *= CAP_NT_WIDTH[ch][1 if pen.S > 84.0 else 0]   # 2026-09-26, see CAP_NT_WIDTH
             if ch == 'S' and not pen.SHEAR: target *= CAP_S_WIDTH_BOLD if pen.S > 84.0 else CAP_S_WIDTH_REG   # 2026-10-02/03, see CAP_S_WIDTH_BOLD
+            if ch == 'K' and not pen.SHEAR: target *= CAP_K_WIDTH[1 if pen.S > 84.0 else 0]   # 2026-10-04, see CAP_K_WIDTH
             if isfig(ch) and pen.S > FIG_WIDTH_S0: target += _fig_weight_gain()   # round 376, see FIG_BOLD_K
             _lo = FIG_WIDTH_FLOOR if (isfig(ch) and (pen.S <= 84.0 or FIG_BOLD_FLOOR)) else 0.7   # round 374, see FIG_WIDTH_FLOOR; round 376 FIG_BOLD_FLOOR
             if drawn > 1: W[ch] = max(_lo, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))

@@ -3,8 +3,9 @@
 ## STATE (read this first; each bullet is dated, the newest 2026-10-01; the log below is history)
 
 - **2026-10-03 -- OWNER TODO, OPEN:** *"make capitals the right size and shape and contrast"* -- all the capitals,
-  every cut: their size against the lowercase, their shapes, their thick/thin contrast. Not started; queued
-  behind the italic i/j dot placement (`docs/albo-italic-dot-2026-10-03.md`).
+  every cut. **Audit done 2026-10-04** (`docs/albo-capitals-audit-2026-10-04.md`): the bold capitals' contrast is
+  two thirds of the bold lowercase's (the 400s match), the N ~5% short everywhere, the bold capitals 9% / 17% narrow.
+  Fixes next, as options. **2026-10-04, also:** *"'K' is too wide."*
 - **2026-10-03 -- OWNER TODO:** *"1 needs to be taller, visually balanced with other numbers"* -- **options out**:
   F1 / F2 / F3 = `ALBO_FIG_1_TOP` raising the 1 from 433 to 448 / 460 / 470 (the flat figures' line, the 0, the
   Regular 2), `docs/albo-figure-one-2026-10-03.md`. The italic S/G reach was RULED LEAVE (owner "leave"),
