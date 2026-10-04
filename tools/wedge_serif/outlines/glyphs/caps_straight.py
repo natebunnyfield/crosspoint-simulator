@@ -756,7 +756,16 @@ K_ARM_SERIF_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_700", 0.9))
 # out from the stem (0.16 since round 36); measured (instruments/k_junction.py), Albo's crotch sits
 # 0.19 / 0.22 of the way along the arm (Regular / Bold) where the regular references' median is
 # 0.24 (Charter 0.32) and Georgia Bold / Times Bold 0.30-0.32, higher too. Per weight; 0.16 = today.
-K_U = float(os.environ.get("ALBO_ROM_K_U_700", 0.16)) if S > 84.0 else float(os.environ.get("ALBO_ROM_K_U", 0.24))   # round 478: the Regular J1 (owner "the regular J1 R is best"); the Bold is being reworked
+K_U = float(os.environ.get("ALBO_ROM_K_U_700", 0.16)) if S > 84.0 else float(os.environ.get("ALBO_ROM_K_U", 0.24))
+# ...AND THE BOLD JUNCTION, CLEANED. Owner 2026-10-04, on the J page: *"the top right bold serif is
+# short ... bold is messy."* Zoomed at a 700 px cap the mess is the LEG's buried end: it runs 0.1 CS
+# past the arm's centreline at over half its full width, and at the 700 the leg (0.93 S) is twice
+# the arm (0.47 S), so its top corner stands through the arm's upper edge -- a bump at u 0.24, a
+# notch at 0.32. K_LEG_CLIP_700 clips the leg to the half-plane under the arm's upper edge (1 = on);
+# and the serif: K_ARM_SERIF_IN_700 adds the family's wedge on the arm end's INNER side too (0 =
+# none; a scale), the two-sided terminal the stem tops carry, where a single wedge curls up short.
+K_LEG_CLIP_700 = os.environ.get("ALBO_ROM_K_LEG_CLIP_700", "0") == "1"
+K_ARM_SERIF_IN_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_IN_700", 0.0))   # round 478: the Regular J1 (owner "the regular J1 R is best"); the Bold is being reworked
 
 @glyph('K')
 def g_K(c):
@@ -768,17 +777,28 @@ def g_K(c):
     st = cstem(x, 0, C)
     A0, B0 = (x + w, C - s * 0.36), (x, C * 0.45)
     arm_w = max(pw(B0, A0, 0.72), 0.47 * S)   # round 51: the pen's hairline at the arm's angle, floored at 0.47 stem (38.5)
-    if S > 84.0 and K_ARM_SERIF_700 != 0.9:   # see K_ARM_SERIF_700
+    if S > 84.0 and (K_ARM_SERIF_700 != 0.9 or K_ARM_SERIF_IN_700 > 0):   # see K_ARM_SERIF_700, K_ARM_SERIF_IN_700
         from ..primitives import end_wedge
-        arm = diagonal(A0, B0, arm_w)
-        if K_ARM_SERIF_700 > 0:
-            arm = geom.union([arm, end_wedge(line(A0, B0), arm_w, True, 1, scale=K_ARM_SERIF_700)])
+        parts_ = [diagonal(A0, B0, arm_w)]
+        if K_ARM_SERIF_700 > 0: parts_.append(end_wedge(line(A0, B0), arm_w, True, 1, scale=K_ARM_SERIF_700))
+        if K_ARM_SERIF_IN_700 > 0: parts_.append(end_wedge(line(A0, B0), arm_w, True, -1, scale=K_ARM_SERIF_IN_700))
+        arm = geom.union(parts_)
     else:
         arm = diagonal(A0, B0, arm_w, serif0=1)
     u = K_U; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)   # see K_U
     angle = math.degrees(math.atan2(J[1], A0[0] + s * 0.5 - J[0]))
     foot = (J[0] + J[1] / math.tan(math.radians(angle)), 0)
-    return geom.ink([st, arm, kick(J, angle, pw(foot, J, 1.1), bury=0.1)])   # round 51: 1.1 x the pen at the leg's angle
+    leg = kick(J, angle, pw(foot, J, 1.1), bury=0.1)   # round 51: 1.1 x the pen at the leg's angle
+    if S > 84.0 and K_LEG_CLIP_700:   # see K_LEG_CLIP_700: nothing of the leg above the arm's upper edge
+        from shapely.geometry import Polygon as _Poly
+        dx, dy = A0[0] - B0[0], A0[1] - B0[1]; L_ = math.hypot(dx, dy); dx, dy = dx / L_, dy / L_
+        nx, ny = -dy, dx                                  # the arm's upper side
+        ex, ey = B0[0] + nx * arm_w / 2, B0[1] + ny * arm_w / 2   # a point on the upper edge
+        R_ = 4000.0
+        below = _Poly([(ex - dx * R_, ey - dy * R_), (ex + dx * R_, ey + dy * R_),
+                       (ex + dx * R_ - nx * R_, ey + dy * R_ - ny * R_), (ex - dx * R_ - nx * R_, ey - dy * R_ - ny * R_)])
+        leg = leg.intersection(below)
+    return geom.ink([st, arm, leg])
 
 # owner, verbatim: "add more top right serif to 'L'" -- the stem top's wedge
 # (today `top='left'` only) extended to the right as the H/N/U right-stem tops
