@@ -3342,18 +3342,22 @@ void HalDisplay::presentIfNeeded() {
 
   extern GfxRenderer renderer;
   // THE TURNED PAGE IN A LANDSCAPE WINDOW (docs/turned-page-landscape-plan-2026-10-04.md):
-  // when the host asks for it, the page is PRESENTED as the panel's own native
-  // landscape frame. The firmware still renders portrait; on a turned page that
-  // native frame is the table the right way up. Substituting the orientation
-  // here, once, carries the change through every presentation decision below
-  // -- the fit, the rotation, the sheet's ink mapping, the ghost and beam
-  // draws -- with none of them knowing. The window geometry (desktop only)
-  // keeps following the firmware's real orientation.
+  // when the host asks for it, the page is PRESENTED as a landscape frame. The
+  // firmware still renders portrait, and a turned page is set for a CLOCKWISE
+  // turn, so the panel's native landscape frame holds the table upside down:
+  // LandscapeClockwise, the native frame turned 180 degrees, is the table the
+  // right way up. (Until the firmware fix of 2026-10-04 the page was set for a
+  // counter-clockwise turn and this was LandscapeCounterClockwise, the native
+  // frame as it stands.) Substituting the orientation here, once, carries the
+  // change through every presentation decision below -- the fit, the rotation,
+  // the sheet's ink mapping, the ghost and beam draws -- with none of them
+  // knowing. The window geometry (desktop only) keeps following the firmware's
+  // real orientation.
   const GfxRenderer::Orientation fwOrientation = renderer.getOrientation();
   applyWindowGeometryIfNeeded(fwOrientation);
   const GfxRenderer::Orientation orientation =
       SimulatorOverlay::presentLandscapeUpright()
-          ? GfxRenderer::LandscapeCounterClockwise
+          ? GfxRenderer::LandscapeClockwise
           : fwOrientation;
 
   // IS THIS A NEW PICTURE? Both CRT transients hang off that one question: a

@@ -803,6 +803,13 @@ void layoutPad(int outW, int outH) {
   }
   SimulatorOverlay::setPresentLandscapeUpright(false);
   SimulatorOverlay::setSideInsets(0, 0);
+  // The landscape layout above writes the zen row line (the page's bottom, for
+  // the zone gestures), and the tablet layout never does -- it always read 0
+  // there, which the zen painter takes as "the page's own bottom". Left at the
+  // landscape page's bottom, every later iPad page in zen was blacked out below
+  // that line until relaunch (adversarial review 2026-10-04, finding 3). The
+  // phone layout writes it unconditionally before anything reads it.
+  g_zenRowTopPx = 0.0f;
 
   static const bool s_isPad = CrossPointAppearance_isPad() == 1;
   if (s_isPad) {
@@ -3894,6 +3901,14 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     // measured -- never ran. The window resizes when the banner appears and
     // again when it goes, and each resize left the one present it asked for to
     // be thrown away. Same failure, same fix, now reached from both causes.
+    // A SAFE-AREA change is a geometry change too, and nothing relaid out on
+    // one until 2026-10-04. A rotation can deliver the new safe area AFTER the
+    // new size (measured on an iPhone Air: one frame with the size landscape
+    // and the safe area still portrait's), and the turned page's landscape
+    // layout, which drops a safe area that cannot belong to the window, then
+    // kept that frame's answer until the page changed -- the right pad pair
+    // inside the Dynamic Island's inset (adversarial review, finding 6).
+    case SDL_EVENT_WINDOW_SAFE_AREA_CHANGED:
     case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: {
       g_padLaidOut = false;
       // AND THE RECTS GO WITH THE FLAG, on a SIZE change specifically.
@@ -4072,6 +4087,23 @@ extern "C" float CrossPointZen_pageLeftPx(void) { return zenPageLeftPx(); }
 // plain POSIX and is compiled and exercised on a desktop host, which the
 // SDL-facing code in this file cannot be.
 
+// THE SLEEP TICK (SimulatorOverlay::setSleepTick). The firmware's terminal
+// sleep loop never returns to the main loop, so perFrame stops for the whole
+// sleep -- and two of its jobs still matter there. The orientation: sleeping
+// from a turned page publishes false inside the same loop() that enters sleep,
+// so the snap-back hint was never applied and the phone sat landscape over the
+// snap-back's black frame for the whole sleep, never showing the sleep screen
+// (adversarial review 2026-10-04, finding 4). And the settle repaint a window
+// size change arms, the snap-back's rotation being one. Then the present those
+// ask for, since the main loop's present pump is not running either; it is the
+// same call that pump makes once a millisecond, cheap when nothing is owed, and
+// presentIfNeeded's own sleep veto still keeps a collapse's dark glass dark.
+void sleepTick() {
+  CrossPointOrientation_poll();
+  repaintAfterForeground();
+  display.presentIfNeeded();
+}
+
 void CrossPointHarness_begin() {
   // IDEMPOTENT ACROSS WAKES. On iOS a deep-sleep wake longjmps back through
   // setup() (SimulatorLifecycle, CROSSPOINT_SIM_REBOOT_IN_PROCESS), which
@@ -4229,6 +4261,8 @@ void CrossPointHarness_begin() {
   // mid-page (speed read) can re-capture the page already shown. The shim can
   // name the symbol; the library cannot (SimulatorOverlay.h).
   SimulatorOverlay::setFirmwareRenderRequester(&crosspointRequestRender);
+  // What the host still does while the firmware sleeps (sleepTick above).
+  SimulatorOverlay::setSleepTick(&sleepTick);
 
   SimulatorOverlay::requestPresent();
 

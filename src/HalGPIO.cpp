@@ -14,6 +14,7 @@
 #include "ReadingLog.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
+#include "TurnedPageChannel.h"
 
 #include <BoardConfig.h>
 #include <GfxRenderer.h>
@@ -1549,21 +1550,21 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left) {
 // --- Turned page -------------------------------------------------------------
 //
 // Published by EpubReaderActivity once per displayed page (true for a wide-table
-// page set for a clockwise turn, [T-021]) and false on every path off the page.
-// One atomic flag: there is nothing to tear. A CHANGE asks for a present,
-// because the host's answer (rotate into landscape, or snap back) is laid out
-// inside a present and an e-ink firmware may not present again for minutes.
-// Cleared on the iOS in-process reboot, which keeps statics: a reboot taken on
-// a turned page must not wake into a landscape app on the boot screen.
-static std::atomic<bool> turnedPageFlag{false};
-static simreset::Registrar turnedPageReset{[] { turnedPageFlag.store(false); }};
+// page set for a clockwise turn, [T-021]) and false on every path off the page;
+// cleared too by every non-reader screen (publishScreenIdentity below) and by
+// the iOS in-process reboot. The whole contract, and why each writer exists, is
+// src/TurnedPageChannel.h. A CHANGE asks for a present, because the host's
+// answer (rotate into landscape, or snap back) is laid out inside a present and
+// an e-ink firmware may not present again for minutes.
+static turnedpage::Channel turnedPageChannel;
+static simreset::Registrar turnedPageReset{[] { turnedPageChannel.reset(); }};
 
 void HalGPIO::publishTurnedPage(bool turned) {
-  if (turnedPageFlag.exchange(turned) != turned) SimulatorOverlay::requestPresent();
+  if (turnedPageChannel.publish(turned)) SimulatorOverlay::requestPresent();
 }
 
 namespace SimulatorOverlay {
-bool turnedPageShowing() { return turnedPageFlag.load(); }
+bool turnedPageShowing() { return turnedPageChannel.showing(); }
 } // namespace SimulatorOverlay
 
 // --- Reader page identity ----------------------------------------------------
@@ -1667,6 +1668,10 @@ void HalGPIO::publishScreenIdentity(uint32_t screenKey) {
   // reader who closes the book and browses for ten minutes before sleeping is
   // indistinguishable from one who stared at the last page.
   readinglog::publishScreen(screenKey);
+  // And the turned page is gone: a screen pushed over the reader (the chapter
+  // list, Find) never runs the reader's onExit, so this is the one place every
+  // such screen passes through (src/TurnedPageChannel.h).
+  if (turnedPageChannel.screenEntered()) SimulatorOverlay::requestPresent();
 }
 
 // One JSONL line per displayed reader page. The whole consumer is in
@@ -1710,6 +1715,15 @@ bool textEntryOpen() { return textEntryActive.load(); }
 
 bool sleepScreenEntered() { return sleepScreenEnteredValue.load(); }
 bool firmwareAsleep() { return firmwareAsleepValue.load(); }
+
+// The host's tick while the firmware sleeps (SimulatorOverlay.h). An atomic
+// pointer for the same reason as the render requester: installed once from the
+// main thread, read from the sleep loop on the same thread, never torn.
+static std::atomic<void (*)()> sleepTickFn{nullptr};
+void setSleepTick(void (*fn)()) { sleepTickFn.store(fn); }
+void runSleepTick() {
+  if (void (*fn)() = sleepTickFn.load()) fn();
+}
 } // namespace SimulatorOverlay
 
 void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {
@@ -2011,6 +2025,9 @@ void HalGPIO::startDeepSleep() {
     // An update run ended by the power-off releases its keep-awake here: the
     // main loop that normally applies it does not run while asleep.
     sim_keep_awake::applyOnMainThread();
+    // The host's own sleep tick (iOS: follow the orientation and repaint a
+    // window that turned under the sleep screen). Nothing on the desktop.
+    SimulatorOverlay::runSleepTick();
 
     SDL_Delay(10);
   }

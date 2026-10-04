@@ -7,9 +7,15 @@
 // CLOCKWISE. The firmware publishes when one is up (HalGPIO::publishTurnedPage,
 // read through SimulatorOverlay::turnedPageShowing). While it is, the iOS app
 // accepts landscape; turned clockwise, the app rotates, the page is presented
-// as the panel's native landscape frame (the table the right way up), and the
-// pad splits to the two side margins (G3). On the next upright page the app
-// snaps back to portrait.
+// as a landscape frame (HalDisplay substitutes LandscapeClockwise, the panel's
+// native frame turned 180 degrees, which is the clockwise page the right way
+// up), and the pad splits to the two side margins (G3). On the next upright
+// page the app snaps back to portrait.
+//
+// The page itself was set for a COUNTER-clockwise turn until 2026-10-04, so a
+// clockwise-only phone showed it upside down first; the firmware now sets it
+// for the clockwise turn the ruling names (crosspoint-reader
+// lib/Epub/Epub/parsers/RotatedTablePlacement.h), on the X3 and here alike.
 //
 // Everything here is pure, because every way it fails is silent: a wrong hint
 // leaves the phone unable to rotate (or rotating on every page), and a wrong
