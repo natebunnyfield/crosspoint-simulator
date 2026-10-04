@@ -346,7 +346,8 @@ All in `tools/wedge_serif/`, all runnable as `PYTHON_GIL=0 python3 <name>`.
 | `instruments/glyph_zoom.py` | 4× zoom of a join with every outline vertex dotted and the glyph's own construction points marked; where corners and S-curves show |
 | `instruments/ref_sheet.py` | one glyph from many fonts at ONE x-height; the picture that diagnosed the italic c (§1h) |
 | `instruments/terminal_weight.py` | a c's top and bottom terminal over the stem, and their ink-area ratio (a proxy; a spike inflates the run, so trust the area) |
-| `instruments/word_rows.py` / `reading_rows.py` | the compact labeled option image, and the reader-size rows (unhinted, 2-bit, NEAREST) |
+| `instruments/word_rows.py` / `reading_rows.py` | the compact labeled option image, and the reader-size rows (unhinted, 2-bit, NEAREST). **Only `reading_rows.py` is the reader's pipeline.** `word_rows.py` is 8-bit, and it kerns with `FT_Get_Kerning`, which reads only a legacy `kern` table. Albo has no `kern` table (its kerning is GPOS), so `word_rows.py` sets Albo unkerned: *To* comes out 726 units wide where the reader draws 614 (2026-10-04, `docs/albo-word-images-2026-10-04.md` §7). Use it for shape options, not for fit |
+| `instruments/word_corpus.py` / `word_measure.py` / `word_parts.py` / `word_callouts.py` / `word_proof.py` | his words, per cut, and which letters hurt them: the corpus and the neglect index; each letter's color and gaps in his frequent words through the reader's pipeline, at nine sizes, against six references; the parts that explain each call (stem joins, mouths, bar ends, advances); the ranked call list; and the proof PNGs (`docs/albo-word-images-2026-10-04.md`) |
 
 **Use `proof.py` for every image.** Before it existed, proofs mixed PIL's
 anchored and unanchored conventions, so the same letter sat `ascent` pixels
@@ -415,7 +416,12 @@ put them, while every other letter before an `A` gained the space it never had.
 ## 6. Ergonomics: measure the reader, do not guess
 
 The owner's own epub library is the corpus (`outlines/cmp/corpus.py`,
-`proof_words.py`) — 512,344 word tokens, 1,910,349 letter pairs. Use it.
+`proof_words.py`). It held 512,344 word tokens and 1,910,349 letter pairs on
+2026-09-17. On 2026-10-04 the same root holds 41 epubs and 667,084 words
+(`instruments/word_corpus.py`, which also says which cut each word is set in).
+The library grows, so re-count it rather than quoting either figure. Use it.
+The word-level version of this section, which letters hurt his commonest word
+images in each cut, is `docs/albo-word-images-2026-10-04.md`.
 
 Worked example, the bottom outstroke. The question "how long should this letter's
 exit be" is answerable: how often does the letter **end a word** (where the exit
