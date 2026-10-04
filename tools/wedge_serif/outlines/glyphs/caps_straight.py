@@ -745,6 +745,13 @@ def kick(J, angle_deg, w, bury=0.2, serif=1, taper=0.45, pair=(1.0, 1.0)):
     top = (J[0] + d[0] * CS * bury, J[1] + d[1] * CS * bury)
     return diagonal(foot, top, kick_widths(w, pair, L / (L + CS * bury), 1 - taper), serif0=serif)
 
+# 2026-10-04 -- THE BOLD K's TOP-RIGHT SERIF, AS OPTIONS. Owner, on the narrower-K page: *"13.5%
+# narrower wins for regular roman but bold needs rework (especially top right serif)"*. The arm's
+# end takes the family's diagonal wedge (end_wedge, 0.9 x WL by WD) and the wedge unit grows with
+# the stem, so at the 700 it curls up as a horn. K_ARM_SERIF_700 is that wedge's scale above stem
+# 84; 0.9 = today, 0 = none. docs/albo-bold-k-2026-10-04.md.
+K_ARM_SERIF_700 = float(os.environ.get("ALBO_ROM_K_ARM_SERIF_700", 0.9))
+
 @glyph('K')
 def g_K(c):
     """Arm with a 0.47-stem floor from the cap line (a third of a stem
@@ -755,7 +762,13 @@ def g_K(c):
     st = cstem(x, 0, C)
     A0, B0 = (x + w, C - s * 0.36), (x, C * 0.45)
     arm_w = max(pw(B0, A0, 0.72), 0.47 * S)   # round 51: the pen's hairline at the arm's angle, floored at 0.47 stem (38.5)
-    arm = diagonal(A0, B0, arm_w, serif0=1)
+    if S > 84.0 and K_ARM_SERIF_700 != 0.9:   # see K_ARM_SERIF_700
+        from ..primitives import end_wedge
+        arm = diagonal(A0, B0, arm_w)
+        if K_ARM_SERIF_700 > 0:
+            arm = geom.union([arm, end_wedge(line(A0, B0), arm_w, True, 1, scale=K_ARM_SERIF_700)])
+    else:
+        arm = diagonal(A0, B0, arm_w, serif0=1)
     u = 0.16; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
     angle = math.degrees(math.atan2(J[1], A0[0] + s * 0.5 - J[0]))
     foot = (J[0] + J[1] / math.tan(math.radians(angle)), 0)
