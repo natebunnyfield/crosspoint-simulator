@@ -1550,7 +1550,7 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left) {
 // --- Turned page -------------------------------------------------------------
 //
 // Published by EpubReaderActivity once per displayed page (true for a wide-table
-// page set for a clockwise turn, [T-021]) and false on every path off the page;
+// page, its table turned clockwise, [T-021]) and false on every path off the page;
 // cleared too by every non-reader screen (publishScreenIdentity below) and by
 // the iOS in-process reboot. The whole contract, and why each writer exists, is
 // src/TurnedPageChannel.h. A CHANGE asks for a present, because the host's

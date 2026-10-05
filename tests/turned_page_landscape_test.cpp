@@ -3,7 +3,9 @@
 //
 // The contract under test, and the silent failure each part exists for:
 //   * hintFor -- the phone gains landscape ONLY while a turned page is up, and
-//     only the CLOCKWISE one (standing ruling 2026-08-19); it drops it the
+//     only the one a COUNTER-clockwise turn produces (LandscapeRight: the table
+//     is turned clockwise on the page; owner 2026-10-04, correcting build 304,
+//     "the iphone would need to be turned ccw not clockwise"); it drops it the
 //     moment the page goes (the snap-back, owner Q2). The iPad's hint never
 //     changes and must equal the string simulator_main.cpp sets at startup, or
 //     the first poll would "change" it and ask UIKit to re-query for nothing.
@@ -47,11 +49,11 @@ int main() {
   // --- the hint -------------------------------------------------------------
   check(std::strcmp(hintFor(false, false, false), "Portrait") == 0,
         "phone, upright page: portrait only");
-  check(std::strcmp(hintFor(false, true, false), "Portrait LandscapeLeft") == 0,
-        "phone, turned page: portrait plus the clockwise landscape");
-  check(std::strstr(hintFor(false, true, false), "LandscapeRight") == nullptr,
-        "phone never gains the counter-clockwise landscape (ruling 2026-08-19)");
-  check(std::strcmp(hintFor(false, true, true), "LandscapeLeft") == 0,
+  check(std::strcmp(hintFor(false, true, false), "Portrait LandscapeRight") == 0,
+        "phone, turned page: portrait plus the landscape of a counter-clockwise turn");
+  check(std::strstr(hintFor(false, true, false), "LandscapeLeft") == nullptr,
+        "phone never gains the clockwise turn's landscape (owner 2026-10-04: turned ccw)");
+  check(std::strcmp(hintFor(false, true, true), "LandscapeRight") == 0,
         "phone, turned page, QA force: landscape only, so iOS rotates by itself");
   check(std::strcmp(hintFor(false, false, true), "Portrait") == 0,
         "the QA force is inert on an upright page");

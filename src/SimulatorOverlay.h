@@ -86,23 +86,22 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
 
 // WHETHER THE PAGE ON SCREEN IS TURNED, as published by EpubReaderActivity
 // through HalGPIO::publishTurnedPage on every displayed page: true for a
-// wide-table page set for a clockwise turn ([T-021]), false otherwise and on
+// wide-table page, its table turned clockwise ([T-021]), false otherwise and on
 // every path off the reader. Implemented in HalGPIO.cpp beside the publisher.
 // The iOS host accepts landscape while it is true and asks for the landscape
 // presentation below (docs/turned-page-landscape-plan-2026-10-04.md).
 bool turnedPageShowing();
 
-// THE TURNED PAGE'S PRESENTATION. When on, the panel is PRESENTED as a
-// landscape frame: the firmware keeps rendering portrait, and a turned page is
-// set for a CLOCKWISE turn, which leaves the table upside down in the
-// framebuffer's native landscape frame -- so presentIfNeeded substitutes
-// LandscapeClockwise (that frame turned 180 degrees, the table the right way
-// up) for the renderer's orientation in every presentation decision (fit,
-// rotation, the sheet's ink mapping). Until the firmware fix of 2026-10-04 the
-// page was set the other way and the substitute was LandscapeCounterClockwise,
-// the native frame as it stands. Upright in EITHER landscape window, since a
-// window's own frame is always upright for the reader. Off (the default) is
-// what every build has always drawn. A change asks for a present.
+// THE TURNED PAGE'S PRESENTATION. When on, the panel is PRESENTED as its own
+// native landscape frame -- the firmware keeps rendering portrait, and a
+// turned page's table is turned clockwise, which leaves it exactly the right
+// way up in that native frame -- so presentIfNeeded substitutes
+// LandscapeCounterClockwise (the native frame, unrotated) for the renderer's
+// orientation in every presentation decision (fit, rotation, the sheet's ink
+// mapping). TestFlight 304 alone had the page flipped and substituted
+// LandscapeClockwise. Upright in EITHER landscape window, since a window's own
+// frame is always upright for the reader. Off (the default) is what every build
+// has always drawn. A change asks for a present.
 void setPresentLandscapeUpright(bool on);
 bool presentLandscapeUpright();
 

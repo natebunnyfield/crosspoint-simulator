@@ -10,7 +10,8 @@
 // only on a CHANGE of the wanted hint: SDL_SetHint, then ask UIKit to re-query
 // the root view controller's supported orientations. SDL answers that query by
 // re-reading the hint (SDL_uikitwindow.m, UIKit_GetSupportedOrientations), so:
-//   * a turned page arrives -> the phone gains the clockwise landscape, and if
+//   * a turned page arrives -> the phone gains the landscape of a
+//     COUNTER-clockwise turn (the table is turned clockwise), and if
 //     the phone is already held that way iOS rotates at once;
 //   * it leaves -> landscape is no longer supported and iOS rotates back to
 //     portrait at once, even with the phone still sideways (owner, Q2: "snap

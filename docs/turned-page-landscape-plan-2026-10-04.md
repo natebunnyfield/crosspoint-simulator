@@ -4,11 +4,11 @@ Owner, 2026-10-04: *"when a landscape view is active (viz wide table is
 rendered), the ui and gestures need to be rotated as well. ask me questions to
 develop a plan then proceed after my okay"*.
 
-**Status: SHIPPED 2026-10-04 as TestFlight build 304 (marketing 0.1.1), built on the owner's okay ("yes").**
-- Two adversarial reviews, every finding handled; both are at the foot of this doc.
-- The page's DIRECTION was fixed in the firmware on the owner's ruling ("Clockwise: fix the page").
-- Verified in the iOS Simulator (iPhone Air and iPad Pro 13).
-- The firmware commits (`5f0dc54e5`, `1c55af44b`, `983424f1c`) are LOCAL. The firmware fork's `main` was 26 commits behind and pushing it is not covered by the standing push rule. The TestFlight build compiles from the local checkout; the X3 gets the clockwise page when it is next flashed from it.
+**Status: SHIPPED 2026-10-04, built on the owner's okay ("yes").** TestFlight build 304 had the DIRECTION mixed up; it is corrected in the build after it (see "The direction, corrected" at the foot).
+- **The direction:** the table is turned CLOCKWISE on the page (header down the right edge), so the reader turns the phone COUNTER-clockwise, and the phone rotates on that turn only (`UIInterfaceOrientationLandscapeRight`). Owner, correcting build 304: *"the iphone would need to be turned ccw not clockwise, you've mixed things up"*.
+- Two adversarial reviews, every finding handled; both are at the foot of this doc. They describe the code as it then stood, with build 304's flip in it.
+- Verified in the iOS Simulator (iPhone Air and iPad Pro 13). The direction is verified by the Simulator's own screen capture, which is in DEVICE coordinates.
+- The firmware commits are LOCAL. The firmware fork's `main` was 26 commits behind, and pushing it is not covered by the standing push rule. The TestFlight build compiles from the local checkout.
 - Device feel UNCONFIRMED until tried on the phone.
 
 ## What exists (verified 2026-10-04)
@@ -18,13 +18,14 @@ develop a plan then proceed after my okay"*.
   for the upright page on a page of its own, TURNED (`PageRotatedText`,
   `PageVerticalRule` in `lib/Epub/Epub/Page.h`; the parser's
   `emitBufferedTableRotated`). The page itself is an ordinary portrait page;
-  only its content is turned. **This line said "so the reader turns the device
-  CLOCKWISE" and that was wrong when written:** the shipped page read after a
-  COUNTER-clockwise turn (finding 1 below). Since the firmware fix of 2026-10-04
-  it is true.
+  only its content is turned: the TABLE turned clockwise, header down the
+  page's right edge, so the reader turns the device COUNTER-clockwise. (This
+  line once said "so the reader turns the device CLOCKWISE". That reading of
+  the ruling is what build 304 shipped and the owner corrected.)
 - **Clockwise only.** Standing ruling 2026-08-19
   (`~/src/crosspoint-reader/docs/ui-conventions.md`): never offer a
-  counter-clockwise rotation; he is right-handed.
+  counter-clockwise rotation; he is right-handed. "Clockwise" names the
+  table's rotation on the page; the device's turn is the opposite one.
 - **The phone is portrait-only.** Owner ruling 2026-08-17, recorded in
   `ios/Info.plist.in`: landscape on iPad only. A phone landscape attempt put the
   panel in a corner and stacked the pad as a column down one edge. The iPad's
@@ -40,7 +41,8 @@ develop a plan then proceed after my okay"*.
 1. **Mechanism: ROTATE THE APP WITH THE PHONE** (Q1, 2026-10-04; the first
    answer, "follow the phone's tilt", was a misclick, and the question was
    re-asked). While a turned page is showing, the app accepts landscape.
-   Turning the phone clockwise rotates everything, status bar included, the
+   Turning the phone (counter-clockwise; see the direction section at the foot)
+   rotates everything, status bar included, the
    table is shown upright, and the pad moves beside the page as on the iPad.
    Gestures follow on their own because touches arrive in the rotated frame.
    This reopens the 2026-08-17 portrait-only ruling FOR THESE PAGES ONLY, and
@@ -84,8 +86,8 @@ develop a plan then proceed after my okay"*.
    through `SimulatorOverlay`. Cleared on every upright page and when the
    reader exits. Host test: publish, read, clear.
 2. **Orientation (iOS).** The phone's `Info.plist.in` gains the ONE landscape
-   orientation a clockwise turn produces (clockwise only, per the 2026-08-19
-   ruling). The harness widens `SDL_HINT_ORIENTATIONS` to that landscape while
+   orientation the reader's turn produces: counter-clockwise, as corrected
+   after build 304 (the plan said clockwise, misreading the 2026-08-19 ruling). The harness widens `SDL_HINT_ORIENTATIONS` to that landscape while
    the signal is up, narrows it back to portrait when it drops, and asks UIKit
    to re-read (`setNeedsUpdateOfSupportedInterfaceOrientations`). SDL3 re-reads
    the hint on every query (`SDL_uikitwindow.m`, `UIKit_GetSupportedOrientations`),
@@ -144,22 +146,21 @@ Indexing popup.
   (`publishScreenIdentity`) and on the iOS in-process reboot. Read through
   `SimulatorOverlay::turnedPageShowing()`.
 - `src/HalDisplay.cpp`: `SimulatorOverlay::setPresentLandscapeUpright` substitutes
-  `LandscapeClockwise` for the renderer's orientation in every presentation
-  decision: the page is set for a clockwise turn, so the framebuffer's native
-  landscape frame holds the table upside down and the native frame turned 180
-  degrees is the table the right way up, in either landscape window. (As first
-  built this substituted `LandscapeCounterClockwise`, the native frame as it
-  stands, which was right for the counter-clockwise page the firmware then
-  drew.) `setSideInsets` bounds the fit horizontally as the top and bottom
-  bands do vertically; in this mode the panel is centered vertically too.
+  `LandscapeCounterClockwise` for the renderer's orientation in every
+  presentation decision: on a turned page the framebuffer's native landscape
+  frame IS the table the right way up, in either landscape window. Build 304
+  alone, with the page flipped, substituted `LandscapeClockwise`.
+  `setSideInsets` bounds the fit horizontally as the top and bottom bands do
+  vertically; in this mode the panel is centered vertically too.
 - `src/TurnedPageLandscape.h` (pure; `tests/turned_page_landscape_test.cpp`, in
   `run_all.sh`): the orientation hint and the G3 geometry, phone and iPad, at six
   window sizes.
 - `ios/CrossPointOrientation.mm`: polled each frame; on a change of the wanted
   hint, `SDL_SetHint` plus `setNeedsUpdateOfSupportedInterfaceOrientations`. The
-  phone gains `LandscapeLeft` (a clockwise turn) only while a turned page shows;
-  dropping it is the snap-back. `ios/Info.plist.in` declares it for the App
-  Store.
+  phone gains `LandscapeRight` (a counter-clockwise turn; build 304 had
+  `LandscapeLeft`) only while a turned page shows, and dropping it is the
+  snap-back. `ios/Info.plist.in` must declare it, because SDL bounds the hint
+  by the plist's orientations.
 - `ios/CrossPointIOSShim.cpp`: `layoutTurnedLandscape` (the split pad, the insets,
   the zone boundaries from the landscape page's edges), the black surround with
   paper on the page only, and transparent pad faces on black, as the iPad's.
@@ -215,6 +216,12 @@ are from the iPhone Air and iPad Pro 13 Simulators with
    page read after a COUNTER-clockwise turn. The phone accepted only
    `LandscapeLeft`, which is a clockwise turn. The force hatch hid this, because
    the page is upright in either landscape window.
+   **REVERSED THE SAME DAY.** The resolution below flipped the page to read
+   after a clockwise turn and shipped as build 304. The owner then corrected
+   the premise: *"the iphone would need to be turned ccw not clockwise, you've
+   mixed things up"*. The page is restored and the phone rotates on a
+   counter-clockwise turn; see "The direction, corrected" at the foot. What
+   follows records what was done at the time.
    **Owner ruling, asked in turn terms:** *"Clockwise: fix the page"*.
    **Fixed in the firmware** (`lib/Epub/Epub/parsers/RotatedTablePlacement.h`):
    every line and the header rule sit at the old spot turned 180 degrees and
@@ -395,3 +402,56 @@ break and two cosmetic issues.
   the layout does changes the safe area.
 - **The iPad `g_zenRowTopPx` fix and `TurnedPageChannel`:** both behave as
   described.
+
+## The direction, corrected (2026-10-04, after build 304)
+
+**Owner, on build 304:** *"the iphone would need to be turned ccw not
+clockwise, you've mixed things up"*.
+
+**The mix-up.** The 2026-08-19 ruling ("never offer a counter-clockwise
+rotation"; crosspoint-reader `docs/ui-conventions.md`) names the TABLE's
+rotation on the page. A page whose table is turned clockwise has its header
+down the page's right edge, and the reader reads it by turning the device
+counter-clockwise. The evidence for that reading was already in the record:
+- the 2026-08-19 renders he ruled on were built that way (`tools/table_preview`);
+- the mockup he rejected that day was the other page, called "a
+  counter-clockwise mockup" for its content;
+- T-021 shipped the clockwise-content page.
+
+`docs/ui-conventions.md`, though, said "a page the reader turns clockwise", an
+agent's paraphrase. The first review took that sentence at its word. The
+direction question that followed was asked in prose, in device-turn terms, with
+no picture, and its answer flipped the page. The conflict was noticed and
+flagged after the fact, and the flip shipped anyway.
+
+**What changed:**
+- **Firmware:** the page is restored (`RotatedTablePlacement.h` back to the
+  original placement, drawn with `drawTextRotated90CCW`), with
+  `SECTION_FILE_VERSION` 64. `test/rotated_text` now pins the direction itself:
+  the header is the band nearest the page's right edge, and every run descends
+  from the top. Both tests fail on a flipped placement (checked).
+  `docs/ui-conventions.md` now says which direction a word means, and the
+  paraphrase is struck with the owner's correction beside it.
+- **App:** the phone accepts only `UIInterfaceOrientationLandscapeRight`, the
+  home edge on the right, which is the counter-clockwise device turn (hint and
+  plist). The presentation is back to `LandscapeCounterClockwise`, the native
+  frame. The sleep tick, the collapse latch, the channel and every other review
+  fix stand unchanged.
+
+**Verified in the iPhone Air Simulator**, and the second item is the check that
+was missing before build 304:
+- the in-app portrait capture shows the header down the RIGHT edge, each run
+  descending;
+- the Simulator's own screen capture (`xcrun simctl io ... screenshot`, which
+  is in DEVICE coordinates) of the forced landscape shows the table's top along
+  the phone's RIGHT edge. So the app's landscape is reached by turning the phone
+  counter-clockwise, the same turn the portrait page asks for.
+
+The in-app landscape frame is upright. `CROSSPOINT_SIM_FORCE_TURNED_LANDSCAPE`
+now forces `LandscapeRight`.
+
+**The rule this leaves:** when a direction is in question, say whether it is
+the content's rotation or the device's turn, and settle it with a picture, not
+a sentence. They are always opposite, and one word ("clockwise") was read both
+ways inside a single day.
+
