@@ -249,8 +249,13 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   and `SimulatorOverlay::stepPowerOffCollapse()` is stepped from the bottom of
   it: the firmware has already handed over, every wake check runs first, and a
   wake mid-animation abandons it on the same iteration. Anything else that wants
-  to draw *after* the app is asleep belongs there and nowhere else --
-  `presentIfNeeded` is never called again. Note it also has to run its own
+  to draw *after* the app is asleep belongs there and nowhere else. On the
+  desktop `presentIfNeeded` is never called again; on iOS, since 2026-10-04,
+  the host's sleep tick (`SimulatorOverlay::setSleepTick`, run at the bottom of
+  that loop) calls it, so a window that turned under the sleep screen gets
+  presented -- the collapse's veto and the `displaySleeping` guards keep it
+  inert otherwise, and while `SimulatorOverlay::collapseOwnsGlass()` the tick
+  does not turn the window at all. Note the collapse also has to run its own
   due-screenshot check, or the moment it exists for is the one moment headless
   QA cannot photograph.
 - **The sleep screen is drawn in LIGHT polarity even when the reader was dark**

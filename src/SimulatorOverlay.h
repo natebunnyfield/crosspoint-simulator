@@ -92,18 +92,17 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
 // presentation below (docs/turned-page-landscape-plan-2026-10-04.md).
 bool turnedPageShowing();
 
-// THE TURNED PAGE'S PRESENTATION. When on, the panel is PRESENTED as its own
-// native landscape frame -- the firmware keeps rendering portrait, and on a
-// turned page the framebuffer's native frame is exactly the table the right
-// way up -- so presentIfNeeded substitutes LandscapeClockwise for the
-// renderer's orientation in every presentation decision (fit, rotation, the
-// sheet's ink mapping). LandscapeClockwise is the native frame turned 180
-// degrees: the page is set for a CLOCKWISE turn, which leaves the table upside
-// down in the native frame (it was the other way round, and the substitute
-// LandscapeCounterClockwise, until the firmware fix of 2026-10-04). Upright in
-// EITHER landscape window, since a window's own frame is always upright for the
-// reader. Off (the default) is what every build has always drawn. A change asks
-// for a present.
+// THE TURNED PAGE'S PRESENTATION. When on, the panel is PRESENTED as a
+// landscape frame: the firmware keeps rendering portrait, and a turned page is
+// set for a CLOCKWISE turn, which leaves the table upside down in the
+// framebuffer's native landscape frame -- so presentIfNeeded substitutes
+// LandscapeClockwise (that frame turned 180 degrees, the table the right way
+// up) for the renderer's orientation in every presentation decision (fit,
+// rotation, the sheet's ink mapping). Until the firmware fix of 2026-10-04 the
+// page was set the other way and the substitute was LandscapeCounterClockwise,
+// the native frame as it stands. Upright in EITHER landscape window, since a
+// window's own frame is always upright for the reader. Off (the default) is
+// what every build has always drawn. A change asks for a present.
 void setPresentLandscapeUpright(bool on);
 bool presentLandscapeUpright();
 
@@ -169,6 +168,14 @@ bool firmwareAsleep();
 // one null check per 10 ms tick and the sleep loop is what it always was.
 void setSleepTick(void (*fn)());
 void runSleepTick();
+
+// WHETHER THE POWER-OFF COLLAPSE HOLDS THE GLASS for this sleep (the display is
+// sleeping, the dial is on, the page that went to sleep was dark). While it
+// does, presentIfNeeded drops every frame until the wake and the collapse draws
+// from the last real present's geometry, so a host must not turn the window or
+// re-lay out the page under it. Implemented in HalDisplay.cpp beside the veto
+// that reads the same definition.
+bool collapseOwnsGlass();
 
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than
