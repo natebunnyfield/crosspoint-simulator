@@ -706,8 +706,9 @@ extern "C" void CrossPointIOS_setKeyboardHeight(float heightPt) {
 // docs/turned-page-landscape-plan-2026-10-04.md). The geometry is
 // turnedpage::layoutFor (pure, host-tested); this converts it to device pixels
 // and publishes it:
-//   * the panel is PRESENTED as its native landscape frame (the table upright)
-//     and fitted, centered, into the box the four insets leave;
+//   * the panel is PRESENTED as a landscape frame, the native one turned 180
+//     degrees (LandscapeClockwise: the clockwise page's table upright), and
+//     fitted, centered, into the box the four insets leave;
 //   * zen off: the pad split to the side margins, G3 -- today's left half
 //     (Back/Select, Power) on the left, its right half (Left/Right, Up/Down) on
 //     the right; zen: no pad, the page as tall as the height allows;
@@ -795,8 +796,16 @@ void layoutPad(int outW, int outH) {
   // layout, on both, and nothing below runs. Leaving it clears the two overlay
   // controls it set; both setters are no-ops when nothing changes, so every
   // portrait pass is exactly what it was.
-  g_turnedLandscape = turnedpage::presentLandscape(
-      SimulatorOverlay::turnedPageShowing(), outW, outH);
+  // While the power-off collapse holds the glass it is squeezing the page that
+  // went to sleep, drawn from that page's last present -- the landscape one, if
+  // it was turned -- so the layout stays that present's until the wake. The
+  // reader's exit has already dropped the flag, and without this the collapse's
+  // own overlay draw turned the layout portrait under a landscape window, where
+  // the snap-back's black fill covered every frame of it.
+  const bool turnedNow = SimulatorOverlay::turnedPageShowing() ||
+                         (SimulatorOverlay::collapseOwnsGlass() &&
+                          SimulatorOverlay::presentLandscapeUpright());
+  g_turnedLandscape = turnedpage::presentLandscape(turnedNow, outW, outH);
   if (g_turnedLandscape) {
     layoutTurnedLandscape(W, H, S);
     return;
@@ -4098,8 +4107,13 @@ extern "C" float CrossPointZen_pageLeftPx(void) { return zenPageLeftPx(); }
 // ask for, since the main loop's present pump is not running either; it is the
 // same call that pump makes once a millisecond, cheap when nothing is owed, and
 // presentIfNeeded's own sleep veto still keeps a collapse's dark glass dark.
+// EXCEPT while the power-off collapse holds the glass: it squeezes the page that
+// went to sleep from that page's last present, presentIfNeeded is vetoed until
+// the wake, and a window turned under it left the line and dot drawn off the
+// glass (second adversarial review, 2026-10-04). The glass ends dark either
+// way; the snap-back then happens on the wake, from perFrame.
 void sleepTick() {
-  CrossPointOrientation_poll();
+  if (!SimulatorOverlay::collapseOwnsGlass()) CrossPointOrientation_poll();
   repaintAfterForeground();
   display.presentIfNeeded();
 }

@@ -1568,6 +1568,17 @@ static std::atomic<int> scanlineBloom{scanlines::kBloomStandard};
 static std::atomic<int> showThroughStrength{showthrough::kStrengthOff};
 static std::atomic<int> cornerDefocusStrength{cornerdefocus::kStrengthOff};
 static std::atomic<bool> powerOffCollapse{false};
+// THE COLLAPSE HOLDS THE GLASS for this sleep: the display is sleeping, the
+// dial is on and the page that went to sleep was dark. From then until the wake
+// presentIfNeeded drops every frame (its first check below), so the collapse
+// draws from the geometry of the last real present, and anything that re-fits
+// the page or turns the window under it garbles it. One definition, read by
+// that veto and by the iOS host's sleep tick and layout (the turned page's
+// landscape, docs/turned-page-landscape-plan-2026-10-04.md).
+bool collapseOwnsGlass() {
+  return displaySleeping.load() && powerOffCollapse.load() &&
+         lastReadingDarkGround.load();
+}
 // Minutes per book per day; 0 is Off. src/ReadingAllowance.h.
 static std::atomic<int> readingAllowanceMinutes{0};
 // Foreground-inactive: the allowance's clock stops. See setAppInactive.
@@ -2523,7 +2534,9 @@ void HalDisplay::setBackgrounded(const bool backgrounded) {
     SimulatorOverlay::requestPresent();
   }
 }
-// ...and the same across a sleep. The sleep loop never presents, and the iOS
+// ...and the same across a sleep. The sleep loop does not present on the
+// desktop, and on iOS the presents its host tick makes (setSleepTick) count
+// nothing, displaySleeping holding the clock; and the iOS
 // wake is a longjmp in which the clock's statics survive, so without this the
 // first pass after a wake counted up to a second of the sleep. (The desktop
 // wake is execvp: a fresh clock whose first step is already 0.)
@@ -3185,8 +3198,7 @@ void HalDisplay::presentIfNeeded() {
   // Only when the collapse will actually run. With the dial off, or on a pale
   // page, the sleep screen flushes exactly as it always did, which is the whole
   // point of the sleep screen: an e-ink panel holds it with the power off.
-  if (displaySleeping.load() && SimulatorOverlay::powerOffCollapse.load() &&
-      lastReadingDarkGround.load()) {
+  if (SimulatorOverlay::collapseOwnsGlass()) {
     if (pendingPresent.load()) sim_update_trace::declined("sleep veto (power-off collapse)");
     pendingPresent.store(false);
     presentHoldUntil.store(0);
@@ -3255,9 +3267,11 @@ void HalDisplay::presentIfNeeded() {
   // THE ZEN READING GOAL'S CLOCK, stepped on every main-loop pass rather than
   // only on presents -- an e-ink firmware presents once per page, and the
   // minute has to run while the reader sits on one. It sits past the
-  // backgrounded return above, so the background never counts, and the sleep
-  // loop never calls this at all. When the decay moves a step the glass is
-  // owed a present, exactly like the fade's wake above.
+  // backgrounded return above, so the background never counts, and asleep it
+  // counts nothing either: the desktop's sleep loop never calls this, and the
+  // iOS host's sleep tick reaches it only with displaySleeping set. When the
+  // decay moves a step the glass is owed a present, exactly like the fade's
+  // wake above.
   {
     const bool zen = SimulatorOverlay::zenActive.load();
     const bool bookPage = SimulatorOverlay::sheetIsReaderPage();
@@ -3470,8 +3484,9 @@ void HalDisplay::presentIfNeeded() {
     // re-uploaded when the panel's own frame index moves (20 ms). Once the
     // sequence ends `uploadedTexture` is null, so the settled page -- already
     // in pixelBuf -- uploads below on this same pass. Sleep settles it at
-    // once: the sleep loop never presents again, so a flash left running
-    // would freeze mid-inversion for the whole sleep.
+    // once: the sleep loop presents again at most for a turned window (the
+    // iOS host's sleep tick), so a flash left running would freeze
+    // mid-inversion for the whole sleep.
     bool einkFrameOnGlass = false;
     if (g_einkMode.load() && !display.isInverted()) {
       if (g_einkFullRequested.exchange(false) &&

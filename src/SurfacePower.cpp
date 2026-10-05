@@ -304,7 +304,9 @@ bool stepPowerOffCollapse() {
   if (!powerOffCollapse.load()) return bail("the dial is off");
   if (collapseFinished) {
     // THE GLASS IS BLACK FOR THE REST OF THE SLEEP, AND THAT IS PHOTOGRAPHABLE.
-    // The sleep loop owns the thread, so presentIfNeeded is not running, and
+    // The sleep loop owns the thread, so presentIfNeeded is not running (the
+    // iOS host's sleep tick calls it, and it returns at the veto while the
+    // collapse holds the glass), and
     // from 2026-08-24 its own capture is behind the sleep-screen veto -- so
     // without this the terminal state is the one state headless QA cannot ask
     // for, which is the same hole the due-screenshot check below fills for the

@@ -307,3 +307,86 @@ against ~0.52 on an SE.
   findings 2 and 5.
 - Gesture zones: the left-margin boundary is the landscape page's left edge.
   The one exception was finding 3.
+
+## Second adversarial review (2026-10-04), over the fixes above
+
+A fresh read-only agent reviewed the two fix commits (firmware `1c55af44b`,
+simulator `23e5110`) under the same brief. It found one visible bug, one CI
+break and two cosmetic issues.
+
+1. **With Power-Off Collapse on, sleeping from a turned page garbled the
+   collapse.** This is visible, but only with that dial on (it ships off) and
+   a dark page.
+   **Cause:** the new sleep tick polled the orientation in the first sleep
+   pass. The window turned portrait about 29 ms into the 1,020 ms collapse.
+   The collapse draws from the geometry of the last real present, and
+   `presentIfNeeded` is vetoed for the whole sleep, so nothing re-fitted it.
+   The line and dot landed off the glass.
+   **It was wrong before the tick too, just invisibly:** the phone stayed
+   landscape, and the snap-back's black fill covered every collapse frame.
+   **Fixed with one predicate,** `SimulatorOverlay::collapseOwnsGlass()`: the
+   veto's own condition, now one definition read by the veto and by the iOS
+   host. While it holds:
+   - the sleep tick does not turn the window;
+   - `layoutPad` keeps the turned page's landscape layout, since
+     `presentLandscapeUpright()` is still set from the last real present.
+
+   So the collapse draws the turned page in landscape, as it was on the glass,
+   and the snap-back happens on the wake. Verified below.
+2. **CI break: clang-format.** The firmware commit's new lines did not match
+   the repo's `.clang-format` under clang-format 21 (CI runs it on every push).
+   **Fixed:** formatted with 21.1.8, touching only the include's position, the
+   placement lines, one comment column and a trailing blank line. Two
+   violations that were already in `GfxRenderer.h/.cpp` before this work were
+   left alone.
+3. **Comments that had gone wrong.** The presentation comments in
+   `SimulatorOverlay.h` and `layoutTurnedLandscape`; the
+   `drawTextRotated90CCW` comments in `GfxRenderer.h/.cpp`, which still called
+   it the clockwise page's call, the wording that produced the original
+   direction bug; and every "the sleep loop never presents" sentence
+   (`CLAUDE.md`, `docs/power-off-collapse.md`, `HalDisplay.cpp`,
+   `SurfacePower.cpp`). All corrected; the behavior behind each was already
+   guarded.
+4. **Cosmetic: the turned page is the old one turned 180 degrees inside the
+   VIEWPORT, not on the panel.** The X3's margins are uneven (top 9, the rest
+   3) and the page is drawn at the body font's cap-ink trim, so the first
+   column starts some 6-12 px further from the panel edge than before. At 2x,
+   text sits one device pixel off an exact device-space mirror. Nothing clips.
+   The placement header now says so, and also that decomposed accents differ:
+   the old counter-clockwise path set them off center with unmirrored anchor
+   arithmetic, and the clockwise path sets them correctly.
+
+**Checked and found CLEAN by the second review:**
+- **The placement maths,** against `renderCharImpl`:
+  - at 1x it is an exact 180-degree turn in viewport coordinates;
+  - every line keeps at least 2 px inside the viewport (rows bounded by the
+    one-page check, columns by the reading axis);
+  - band culling for clockwise glyphs in tiled grayscale is correct;
+  - the 2x clockwise path exists and is tested.
+- **The direction, derived by hand:** `LandscapeClockwise` in a
+  `LandscapeLeft` window puts the header on top, text left to right, glyphs
+  upright. The firmware's orientation is fixed at Portrait.
+- **`SECTION_FILE_VERSION` 63:**
+  - nothing checks for 62;
+  - the partial-build marker derives from the version without collision;
+  - no other cache holds rotated positions;
+  - page counts are unchanged, so saved progress and book notes are
+    unaffected.
+- **The firmware publish order:**
+  - no return between the turned decision and `publishTurned()`;
+  - every popup and error path publishes false first;
+  - every popup is followed by a render that republishes.
+- **`publishScreenIdentity` clearing the flag:**
+  - only `Activity::onEnter` calls it, for non-reader screens;
+  - every screen pushed over the reader is a non-reader screen;
+  - a pop always re-renders through `renderContents`, with no
+    restore-the-old-framebuffer path.
+- **The sleep tick otherwise:**
+  - nothing asks for frames during sleep;
+  - a call with nothing owed costs a few atomic reads;
+  - the wake reboot cannot race a present;
+  - the desktop installs none.
+- **`SDL_EVENT_WINDOW_SAFE_AREA_CHANGED` cannot loop.** Nothing the handler or
+  the layout does changes the safe area.
+- **The iPad `g_zenRowTopPx` fix and `TurnedPageChannel`:** both behave as
+  described.

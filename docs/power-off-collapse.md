@@ -272,8 +272,11 @@ exists for is the one moment headless QA cannot see — the same hole
 `CROSSPOINT_SIM_LOG_PRESENTS` fills for the page-turn flash.
 
 **And it keeps running after the animation ends.** The sleep loop owns the
-thread, so `presentIfNeeded` is not called for the whole sleep, and since
-2026-08-24 its own capture is behind the veto — so the terminal black screen
+thread, so `presentIfNeeded` is not called for the whole sleep on the desktop
+-- on iOS the host's sleep tick (2026-10-04) calls it, and it returns at the
+veto for as long as `SimulatorOverlay::collapseOwnsGlass()`, the same
+definition, which also stops that tick turning the window under the collapse
+-- and since 2026-08-24 its own capture is behind the veto — so the terminal black screen
 would otherwise be the one state a script cannot ask for. The finished branch
 redraws black and captures rather than reading back a presented buffer, whose
 contents are undefined.
