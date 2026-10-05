@@ -1323,18 +1323,19 @@ text, which no pad layout can prevent.
 
 ## The turned page's landscape (2026-10-04)
 
-A wide-table page ([T-021] in the firmware) is drawn turned, for a reader who
-turns the device clockwise -- true since the firmware fix of 2026-10-04; it
-shipped reading after a counter-clockwise turn. While one is up, the phone may
-rotate into the ONE landscape a clockwise turn produces (`LandscapeLeft`, the
-home edge on the left); the page is presented as `LandscapeClockwise`, the
-panel's native frame turned 180 degrees, which on such a page is the table the
-right way up; the pad splits to the side margins (G3: Back/Select and POWER left,
-Left/Right and the rocker right) with paper on the page only; and the next
-upright page -- or any screen pushed over the page, such as the chapter list,
-or sleep -- snaps the app back to portrait, held sideways or not. The iPad (which
-rotates freely anyway) shows the table upright in landscape too, with its own
-thumb-row placement. Zen keeps no pad in either.
+A wide-table page ([T-021] in the firmware) is drawn with its TABLE turned
+clockwise -- header down the page's right edge -- so the reader turns the
+device COUNTER-clockwise to read it (owner 2026-10-04, correcting TestFlight
+build 304, which had it the other way: *"the iphone would need to be turned ccw
+not clockwise"*). While one is up, the phone may rotate into the ONE landscape
+that turn produces (`LandscapeRight`, the home edge on the right); the page is
+presented as `LandscapeCounterClockwise`, the panel's native frame, which on
+such a page is the table the right way up; the pad splits to the side margins
+(G3: Back/Select and POWER left, Left/Right and the rocker right) with paper on
+the page only; and the next upright page -- or any screen pushed over the page,
+such as the chapter list, or sleep -- snaps the app back to portrait, held
+sideways or not. The iPad (which rotates freely anyway) shows the table upright
+in landscape too, with its own thumb-row placement. Zen keeps no pad in either.
 
 - Signal: `HalGPIO::publishTurnedPage` (firmware inline no-op), latched by
   `src/TurnedPageChannel.h` (host-tested) and cleared by every non-reader screen

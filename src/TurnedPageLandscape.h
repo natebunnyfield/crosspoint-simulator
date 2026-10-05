@@ -3,19 +3,22 @@
 // THE TURNED PAGE'S LANDSCAPE, decided purely (docs/turned-page-landscape-plan-2026-10-04.md).
 //
 // A wide-table page ([T-021] in the firmware's TODO.md) is drawn on an ordinary
-// portrait page with its content turned for a reader who turns the device
-// CLOCKWISE. The firmware publishes when one is up (HalGPIO::publishTurnedPage,
-// read through SimulatorOverlay::turnedPageShowing). While it is, the iOS app
-// accepts landscape; turned clockwise, the app rotates, the page is presented
-// as a landscape frame (HalDisplay substitutes LandscapeClockwise, the panel's
-// native frame turned 180 degrees, which is the clockwise page the right way
-// up), and the pad splits to the two side margins (G3). On the next upright
+// portrait page with its TABLE turned clockwise -- header down the page's right
+// edge -- so the reader turns the device COUNTER-clockwise to read it. The
+// firmware publishes when one is up (HalGPIO::publishTurnedPage, read through
+// SimulatorOverlay::turnedPageShowing). While it is, the iOS app accepts
+// landscape; turned counter-clockwise, the app rotates, the page is presented
+// as the panel's native landscape frame (HalDisplay substitutes
+// LandscapeCounterClockwise -- on this page that frame IS the table the right
+// way up), and the pad splits to the two side margins (G3). On the next upright
 // page the app snaps back to portrait.
 //
-// The page itself was set for a COUNTER-clockwise turn until 2026-10-04, so a
-// clockwise-only phone showed it upside down first; the firmware now sets it
-// for the clockwise turn the ruling names (crosspoint-reader
-// lib/Epub/Epub/parsers/RotatedTablePlacement.h), on the X3 and here alike.
+// THE DIRECTION WAS MIXED UP FOR ONE BUILD. TestFlight 304 flipped the page to
+// read after a clockwise turn and rotated the phone on a clockwise turn, from a
+// reading of the 2026-08-19 ruling as the reader's turn; the owner, 2026-10-04:
+// "the iphone would need to be turned ccw not clockwise, you've mixed things
+// up". "Clockwise" names the TABLE's rotation on the page; the device's turn is
+// always the opposite one (crosspoint-reader docs/ui-conventions.md).
 //
 // Everything here is pure, because every way it fails is silent: a wrong hint
 // leaves the phone unable to rotate (or rotating on every page), and a wrong
@@ -31,15 +34,19 @@
 //       panel only;
 //   Q4  the zone gestures follow the landscape page's edges;
 //   Q5  phone and iPad.
-// Standing ruling 2026-08-19: rotation is CLOCKWISE only, so the phone gains
-// exactly one landscape -- UIInterfaceOrientationLandscapeLeft, the home edge on
-// the left, which is what a clockwise turn produces.
+// Standing ruling 2026-08-19, corrected 2026-10-04: the table turns clockwise,
+// so the reader turns the phone COUNTER-clockwise, and the phone gains exactly
+// that one landscape -- UIInterfaceOrientationLandscapeRight, the home edge on
+// the RIGHT (UIKit's interface orientations are named for where the content
+// rotates, so "Right" is the counter-clockwise DEVICE turn). Verified in the
+// iOS Simulator by its own screen capture, which is in DEVICE coordinates: the
+// app's landscape puts the UI's top along the device's right edge.
 
 namespace turnedpage {
 
 // The SDL_HINT_ORIENTATIONS value the iOS host should hold.
-//   phone: "Portrait" -- except while a turned page shows, when the clockwise
-//          landscape joins it. SDL re-reads the hint on every UIKit query
+//   phone: "Portrait" -- except while a turned page shows, when the
+//          counter-clockwise landscape ("LandscapeRight") joins it. SDL re-reads the hint on every UIKit query
 //          (SDL_uikitwindow.m, UIKit_GetSupportedOrientations), so changing it
 //          and asking UIKit to re-query is the whole mechanism, and dropping it
 //          is the snap-back: the current landscape stops being supported.
@@ -55,7 +62,7 @@ inline const char *hintFor(bool isPad, bool turned, bool forceLandscape) {
     return turned && forceLandscape ? "LandscapeLeft LandscapeRight"
                                     : "Portrait LandscapeLeft LandscapeRight";
   if (!turned) return "Portrait";
-  return forceLandscape ? "LandscapeLeft" : "Portrait LandscapeLeft";
+  return forceLandscape ? "LandscapeRight" : "Portrait LandscapeRight";
 }
 
 // Whether the landscape presentation applies: a turned page in a window wider

@@ -706,8 +706,8 @@ extern "C" void CrossPointIOS_setKeyboardHeight(float heightPt) {
 // docs/turned-page-landscape-plan-2026-10-04.md). The geometry is
 // turnedpage::layoutFor (pure, host-tested); this converts it to device pixels
 // and publishes it:
-//   * the panel is PRESENTED as a landscape frame, the native one turned 180
-//     degrees (LandscapeClockwise: the clockwise page's table upright), and
+//   * the panel is PRESENTED as its native landscape frame
+//     (LandscapeCounterClockwise: on a turned page, the table upright) and
 //     fitted, centered, into the box the four insets leave;
 //   * zen off: the pad split to the side margins, G3 -- today's left half
 //     (Back/Select, Power) on the left, its right half (Left/Right, Up/Down) on
