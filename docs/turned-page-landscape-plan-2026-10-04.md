@@ -4,7 +4,12 @@ Owner, 2026-10-04: *"when a landscape view is active (viz wide table is
 rendered), the ui and gestures need to be rotated as well. ask me questions to
 develop a plan then proceed after my okay"*.
 
-**Status: BUILT 2026-10-04 on the owner's okay ("yes"); adversarial review the same day (eight findings, all handled -- see "Adversarial review" at the foot); the page's DIRECTION fixed in the firmware on the owner's ruling ("Clockwise: fix the page"); verified in the iOS Simulator (iPhone Air and iPad Pro 13). Device feel UNCONFIRMED until tried on the phone.**
+**Status: SHIPPED 2026-10-04 as TestFlight build 304 (marketing 0.1.1), built on the owner's okay ("yes").**
+- Two adversarial reviews, every finding handled; both are at the foot of this doc.
+- The page's DIRECTION was fixed in the firmware on the owner's ruling ("Clockwise: fix the page").
+- Verified in the iOS Simulator (iPhone Air and iPad Pro 13).
+- The firmware commits (`5f0dc54e5`, `1c55af44b`, `983424f1c`) are LOCAL. The firmware fork's `main` was 26 commits behind and pushing it is not covered by the standing push rule. The TestFlight build compiles from the local checkout; the X3 gets the clockwise page when it is next flashed from it.
+- Device feel UNCONFIRMED until tried on the phone.
 
 ## What exists (verified 2026-10-04)
 
