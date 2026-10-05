@@ -93,3 +93,49 @@ The median is right in every cut (0.99 / 0.92 / 1.02 / 1.06). The outliers:
 3. **The N's height**, and the diagonals' apex overshoot.
 4. **Single letters:** I, J narrow; T, W, Z wide; the light rounds and the
    heavy L / E / Z.
+
+## Levers for fix 1, the Bold capitals' light strokes (found 2026-10-04, nothing changed)
+
+Read from the builders, round 481. The bold capitals have five kinds of light
+stroke, and each has its own dial.
+
+- **Bars:** `pen.CAP_BAR` = the pen's horizontal x 1.18 (round 94). It is the
+  pen's own width, so its ratio to the stem is the same at every weight. That
+  is why the bars do not lighten as the face gets heavier. Per letter, in
+  `outlines/glyphs/caps_straight.py`:
+  - E and F: x 1.0;
+  - H: 0.95;
+  - A: 0.9;
+  - G: 0.8;
+  - L's foot: x 1.0;
+  - Z: x 1.0;
+  - T: 0.85 x `T_BAR_K`. `T_BAR_K` is 0.76 at the 700 only, from round 415,
+    and is the precedent for a bold-only factor.
+- **Bowls** (O, C, G, D, Q and the bowls of B P R): `primitives.ring` and
+  `half_bowl` take the pen's width at each tangent. `ring` already has the
+  per-letter contrast lever, `con`: it re-spreads the widths about their mean,
+  so above 1 the thins thin without moving the family's `BOWL_HAIR` /
+  `BOWL_MAX`. No capital passes it today.
+  The lowercase o's hairline sits on an owner-ruled legibility floor
+  (`O_FLOOR_ADJ` 0.50 x stem, rounds 92 and 265: the hairs went gray at 13 pt).
+  A capital's hairline is the same kind of trade and is his to rule, not ours
+  to tune.
+- **Thin diagonals** (A V W X Y M K): `caps_straight.pw` makes the thin stroke
+  0.72 x the pen's width at its angle. Above stem 84, `DIAG_CAP` caps only the
+  THICK.
+- **Thin stems:** the N, through `_n_thin`, traced from Charter at 0.57 of the
+  cap stem (round 415, ruled). Already done.
+- **Serifs:** the wedge family at the 400's size above stem 84 (round 277).
+  They are blunt by design (the Albertus model).
+  **The "thin" column overstates I, L, J and U**: their p10 is a stem or a
+  wedge, because they have no hairline to lighten. They read 2.35-3.34x the
+  references only because the references' serifs taper to points.
+
+Ranked by the Bold's thin against the reference median (thin = p10 over the
+n stem): I 3.34, L 2.97, J 2.90, U 2.35, H 2.08, E and F 2.04, Y 2.04,
+Z 1.93, X 1.88, W 1.87, V 1.85, A 1.84, M 1.66, K 1.60, the rounds and the
+bowled letters 1.46-1.55, T 1.24, N 1.00. Left out the serif-only four, the
+gap is spread evenly over the bars, the diagonals and the bowls. That points
+to one bold-only factor per kind, not letter fixes. A target that matches the
+bold lowercase's contrast (0.86 of the references) needs the capitals' thins
+at about 0.67x their current weight.
