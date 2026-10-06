@@ -357,11 +357,19 @@ without changing that header.
 Two rows on a five-column square grid (owner-approved layout 2026-08-02):
 
 ```
-[Back|Select]      [Left|Right]     <- front rockers, full squares, hugging
-                                       the panel's bottom edge
-[Power]              [Up|Down]      <- half-height row, anchored at the screen
-                                       bottom, clear of the home indicator
+  [Back|Select]  [Left|Right]       <- front rockers, full squares, hugging
+                                       the panel's bottom edge, 32 pt in from
+                                       the side margins
+  [Power]        [Up|Down]          <- the rocker row, 16 pt under the front
+                                       row (POWER half height)
 ```
+
+**THUMB REACH, 2026-10-06** (owner: *"take a pass at button layout so thumbs can
+easily and always reach them"*; `docs/thumb-reach-2026-10-06.md`, option P-B).
+Until then the rocker row was anchored at the screen's bottom (9.5-20 mm above
+the phone's edge, where the thumbs' published 70% reach band starts at 34 mm),
+and the pairs sat flush to the 16 pt margins (the outer cell 5-16 mm in, where
+the band starts at 15 mm). The front row and the page's size did not move.
 
 UP/DOWN are the X3's SIDE buttons (fixed page-turn pair), fused into one
 rocker at the right of the bottom row; POWER sits at the left. BACK/SELECT and
@@ -546,7 +554,11 @@ computed mockups: the "device_mockups" artifact). `TARGETED_DEVICE_FAMILY` is
   Back|Select in the left margin, Left|Right in the right (thumb height when
   gripping the tablet's sides).
 - The bottom row keeps its screen-bottom anchor in the same margin columns:
-  Power bottom-left, Up|Down rocker bottom-right.
+  Power bottom-left, Up|Down rocker bottom-right. **Superseded 2026-10-06
+  (thumb reach, option T-B):** POWER and the rocker now hang 16 pt under the
+  front pairs on the thumb row, in the same columns. On the bottom edge they
+  were about 65 mm below the thumb row, past a thumb's measured maximum reach
+  (`docs/thumb-reach-2026-10-06.md`).
 - Cell = min(60pt, margin fit): 60pt everywhere except iPad mini portrait
   (54pt — its 108pt margin holds a two-cell rocker exactly, flush to both
   edges). The phone's kPipLift / kTopReserve / chassis gap do not apply — the
@@ -1155,7 +1167,9 @@ is the comfortable figure — it costs the mini nothing but 4 pt of cell (54 -> 
 and every other frame keeps 60.
 
 **The bottom row must clear the display's corner arcs** (owner ruling
-2026-08-06). Moving the rockers outward pushes POWER and UP|DOWN into the two
+2026-08-06). *Since 2026-10-06 the row hangs under the front pairs on the thumb
+row, far above the corners, so this no longer binds; the analysis stands for any
+control that returns to the bottom edge.* Moving the rockers outward pushes POWER and UP|DOWN into the two
 bottom corners, and an iPad's corners are rounded — so past a certain inset the
 display itself clips the control. A clipped control is dead, not merely ugly:
 the pixels under the arc are not on the screen, so neither is the touch.

@@ -3,9 +3,26 @@
 Owner, 2026-10-06: *"take a pass at button layout so thumbs can easily and
 always reach them"*.
 
-**Status: FINDINGS AND OPTIONS. Nothing in the app has changed yet.** The
-options are mockups composed from the app's own captures, with each control's
-pixels cut from the real render and moved, and they wait on his choice. Sources
+**Status: SHIPPED, the recommended set: P-B, L-B and T-B.** The options were
+published as mockups composed from the app's own captures
+(https://claude.ai/artifact/G2mSTy26NSpjveuzEzkudB), and the owner answered
+*"go"*. One detail differs from the T-B mockup: the front pairs stay exactly on
+the ruled thumb row (2026-08-09) and the rocker row hangs under them, where the
+mockup had nudged the whole block 24 pt up to center it.
+
+**Verified on fresh Simulator captures** (iPhone Air, iPad Pro 13), positions
+measured off the outlines, in pt:
+- phone portrait: front row 629-693 (unchanged), rocker row 709-773 (was
+  806-870), pairs at 48-177 and 243-372 (were 16-145 and 275-404);
+- phone landscape: upper row 132-196, rocker 212-276 (was 336-400);
+- iPad portrait: front pairs 898-958 (centered on the thumb row at 928),
+  rocker 974-1006 (was about 1319-1351);
+- iPad landscape: front pairs 554-614, rocker 630-662 (was 975-1007).
+
+Host test `turned_page_landscape` pins the landscape half: the phone's blocks
+are centered on the height, and the iPad's rocker hangs under the front pairs.
+Both new checks fail on the old layout (checked). The portrait halves live in
+the shim and are verified by capture only. Device feel is UNCONFIRMED. Sources
 are named in the section below, and every number here is either measured from a
 capture or quoted from one of them.
 
