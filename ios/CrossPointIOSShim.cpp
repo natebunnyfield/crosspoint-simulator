@@ -647,6 +647,13 @@ void layoutPadTablet(float W, float H, float S) {
   // bar or the tablet's dismiss key, which is the iPhone pattern.
   const float lowerY =
       H - SDL_max(safeBottom, kHomeInsetMin) - half;
+  // THUMB REACH (owner 2026-10-06; option T-B, docs/thumb-reach-2026-10-06.md):
+  // POWER and the page rocker sat on the bottom edge, about 65 mm under the
+  // thumb row -- past the measured mean MAXIMUM thumb reach (52-61 mm), so every
+  // press of them took a change of grip. They now hang 16 pt under the front
+  // pairs, which stay exactly on the ruled thumb row (2026-08-09). The keyboard
+  // chip keeps the bottom-center place it had (`lowerY`, below).
+  const float rockerY = midY + cell + 16.0f;
 
   auto place = [&](int idx, float x, float y, float w, float h) {
     g_pad[idx].rect = {x * S, y * S, w * S, h * S};
@@ -666,7 +673,7 @@ void layoutPadTablet(float W, float H, float S) {
           W, margin, edge, cell, leftX, rightX + 2.0f * cell, leftX,
           W - (rightX + 2.0f * cell));
 
-  place(kPadPower, leftX, lowerY, cell, half);
+  place(kPadPower, leftX, rockerY, cell, half);
   // The page-color button used to take the column beside POWER here. Removed
   // 2026-08-24; that column is empty again, which is what it was before the
   // button existed.
@@ -676,8 +683,8 @@ void layoutPadTablet(float W, float H, float S) {
   // rocker in the ios sim" hours earlier, and the ruling it was cut under was
   // about the e-ink panel's drawn side-button HINTS (T-011 in the firmware),
   // not the pad's real control. On iOS the pad is the only input there is.
-  place(kPadUp, rightX, lowerY, cell, half);
-  place(kPadDown, rightX + cell, lowerY, cell, half);
+  place(kPadUp, rightX, rockerY, cell, half);
+  place(kPadDown, rightX + cell, rockerY, cell, half);
 
   // The keyboard chip, one cell wide and centerd under the page -- the same
   // rule as the phone, in the only horizontal space the tablet's side-margin
@@ -972,11 +979,26 @@ void layoutPad(int outW, int outH) {
 
   const auto colX = [&](int c) { return kMargin + c * kSquare; };
 
-  // Top row: the two fused front rockers at the grid's ends.
-  place(kPadBack, colX(0), upperY, kSquare, kCellH);
-  place(kPadConfirm, colX(1), upperY, kSquare, kCellH);
-  place(kPadLeft, colX(cols - 2), upperY, kSquare, kCellH);
-  place(kPadRight, colX(cols - 1), upperY, kSquare, kCellH);
+  // THUMB REACH (owner 2026-10-06, "take a pass at button layout so thumbs can
+  // easily and always reach them"; option P-B, docs/thumb-reach-2026-10-06.md).
+  // Measured against published reach data, the rocker row sat 9.5-20 mm above
+  // the phone's bottom edge where the thumbs' 70% reach band starts at 34 mm,
+  // and each pair's outer cell hugged the edge, 5-16 mm in where the band
+  // starts at 15 mm. So the rocker row hangs kRowClear under the front row
+  // instead of at the bottom, and both pairs come kPairInset in from the
+  // margin. The front row stays on the chassis ruling (2026-08-02), and the page
+  // keeps its size: the band reserved for the pad is unchanged, and the strip
+  // under the rocker row is simply empty.
+  constexpr float kPairInset = 32.0f;
+  const float rockerY = upperY + kCellH + kRowClear;   // <= lowerY, since upperY <= maxUpper
+  const float leftPairX = colX(0) + kPairInset;
+  const float rightPairX = colX(cols - 2) - kPairInset;
+
+  // Top row: the two fused front rockers, in from the grid's ends.
+  place(kPadBack, leftPairX, upperY, kSquare, kCellH);
+  place(kPadConfirm, leftPairX + kSquare, upperY, kSquare, kCellH);
+  place(kPadLeft, rightPairX, upperY, kSquare, kCellH);
+  place(kPadRight, rightPairX + kSquare, upperY, kSquare, kCellH);
 
   // Bottom row: POWER in the first column, the fused side rocker at the end.
   //
@@ -992,14 +1014,14 @@ void layoutPad(int outW, int outH) {
   // It hangs from the row's BOTTOM edge, so it shares a baseline with the
   // full-height rocker beside it instead of floating in the middle of the row.
   const float kPowerH = SDL_roundf(kCellH / 2.0f / 8.0f) * 8.0f;
-  place(kPadPower, colX(0), lowerY + (kCellH - kPowerH), kSquare, kPowerH);
+  place(kPadPower, leftPairX, rockerY + (kCellH - kPowerH), kSquare, kPowerH);
   // The page-color button used to hang from POWER's baseline in column 1.
   // Removed 2026-08-24; column 1 is empty again, which is what it was before
   // the button existed. POWER is unchanged -- it keeps its half height and its
   // bottom-edge hang, which is a ruling of its own (see above).
   // The side rocker, restored 2026-08-19 -- see the note in the phone layout.
-  place(kPadUp, colX(cols - 2), lowerY, kSquare, kCellH);
-  place(kPadDown, colX(cols - 1), lowerY, kSquare, kCellH);
+  place(kPadUp, rightPairX, rockerY, kSquare, kCellH);
+  place(kPadDown, rightPairX + kSquare, rockerY, kSquare, kCellH);
 
   // The keyboard chip: 48pt square, matching the "Hide keyboard" bar button's
   // size (kButton in CrossPointKeyboardBar.mm -- change one, change the other,
@@ -1013,7 +1035,7 @@ void layoutPad(int outW, int outH) {
   // clears POWER and the side rocker, and the reserved band below is
   // untouched.
   constexpr float kChipSide = 48.0f;
-  g_kbChip = {((W - kChipSide) / 2.0f) * S, (lowerY + (kCellH - kChipSide) / 2.0f) * S,
+  g_kbChip = {((W - kChipSide) / 2.0f) * S, (rockerY + (kCellH - kChipSide) / 2.0f) * S,
               kChipSide * S, kChipSide * S};
 
   // Reserve the pad's band out of the panel's space: the chassis-ratio gap

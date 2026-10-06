@@ -158,6 +158,19 @@ int main() {
       check(L.back.y + L.back.h / 2 == c.H - kThumbRowFromBottom &&
                 L.left.y + L.left.h / 2 == c.H - kThumbRowFromBottom,
             what);
+      // THUMB REACH (owner 2026-10-06): POWER and the rocker hang just under the
+      // front pairs, not on the bottom edge ~65 mm away (past a thumb's reach).
+      std::snprintf(what, sizeof what, "%s: POWER and the rocker hang under the front pairs", c.name);
+      check(L.power.y == L.back.y + L.back.h + kRowClear && L.up.y == L.power.y &&
+                L.down.y == L.power.y,
+            what);
+    } else {
+      // THUMB REACH (owner 2026-10-06): each side's 2x2 block centered on the
+      // safe area's height, where two-handed thumbs rest -- not at the bottom.
+      const float blockMid = (L.back.y + (L.up.y + L.up.h)) / 2.0f;
+      const float safeMid = (L.insetTop + (c.H - L.insetBottom)) / 2.0f;
+      std::snprintf(what, sizeof what, "%s: the button blocks centered on the height", c.name);
+      check(blockMid - safeMid < 0.5f && safeMid - blockMid < 0.5f, what);
     }
     // Zen: no pad, and the page gets the margins back.
     const Layout Z = layoutFor(c.W, c.H, c.sL, c.sR, c.sT, c.sB, true, c.isPad);

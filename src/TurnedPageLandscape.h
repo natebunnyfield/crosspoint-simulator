@@ -97,7 +97,6 @@ constexpr float kRowClear = 16.0f;    // between the upper and lower rows
 constexpr float kChip = 48.0f;        // the keyboard chip's square
 constexpr float kEdgeMin = 8.0f;      // never closer than this to a screen edge
 constexpr float kHalf = 32.0f;        // the tablet's half-height bottom row (layoutPadTablet)
-constexpr float kHomeMin = 16.0f;     // kHomeInsetMin: the bottom floor on a device with no safe area
 constexpr float kThumbRowFromBottom = 448.0f;   // the TABLET's thumb row (owner ruling 2026-08-09, iPad only)
 constexpr float kBand = 2.0f * kCell + 2.0f * kMargin;   // one side's pad band
 
@@ -108,8 +107,10 @@ constexpr float kBand = 2.0f * kCell + 2.0f * kMargin;   // one side's pad band
 // isPad: the iPad keeps ITS OWN control placement (owner Q5: "its own landscape
 // layout"): the front pairs on the tablet's thumb row, 448 pt up from the bottom
 // edge (ruling 2026-08-09, iPad only), and POWER and the page rocker at half
-// height along the bottom, exactly as layoutPadTablet places them. The phone
-// keeps its own: full-height rows grown up from the bottom, POWER half height.
+// height hanging just under them, exactly as layoutPadTablet places them since
+// the thumb-reach pass (owner 2026-10-06, docs/thumb-reach-2026-10-06.md). The
+// phone keeps its own: full-height rows, the 2x2 block centered on the height,
+// POWER half height.
 inline Layout layoutFor(float W, float H, float safeL, float safeR, float safeT,
                         float safeB, bool zen, bool isPad = false) {
   Layout L;
@@ -128,24 +129,28 @@ inline Layout layoutFor(float W, float H, float safeL, float safeR, float safeT,
   const float xL = edgeL + kMargin;                     // left pair's left edge
   const float xR = W - edgeR - kMargin - 2.0f * kCell;  // right pair's left edge
   if (isPad) {
-    const float bottom = safeB > kHomeMin ? safeB : kHomeMin;
-    const float lowerY = H - bottom - kHalf;
     const float midY = H - kThumbRowFromBottom - kCell / 2.0f;
+    // THUMB REACH (owner 2026-10-06, T-B): POWER and the rocker hang kRowClear
+    // under the front pairs, which stay on the ruled thumb row, instead of on
+    // the bottom edge ~65 mm below it (past a thumb's measured maximum reach).
+    const float rockerY = midY + kCell + kRowClear;
     L.back = {xL, midY, kCell, kCell};
     L.confirm = {xL + kCell, midY, kCell, kCell};
     L.left = {xR, midY, kCell, kCell};
     L.right = {xR + kCell, midY, kCell, kCell};
-    L.power = {xL, lowerY, kCell, kHalf};
-    L.up = {xR, lowerY, kCell, kHalf};
-    L.down = {xR + kCell, lowerY, kCell, kHalf};
+    L.power = {xL, rockerY, kCell, kHalf};
+    L.up = {xR, rockerY, kCell, kHalf};
+    L.down = {xR + kCell, rockerY, kCell, kHalf};
     L.chip = {xL + kCell - kChip / 2.0f, midY - kRowClear - kChip, kChip, kChip};
     return L;
   }
-  // The phone: both rows anchored to the bottom of the safe area, the lower row
-  // first, as the portrait phone grows its rows up from the bottom -- the thumbs
-  // of a two-handed landscape grip rest low on the sides.
-  const float lowerY = H - L.insetBottom - kCellH;
-  const float upperY = lowerY - kRowClear - kCellH;
+  // The phone: the 2x2 block on each side CENTERED on the safe area's height,
+  // where the thumbs of a two-handed landscape grip rest (owner 2026-10-06,
+  // L-B, docs/thumb-reach-2026-10-06.md). Both rows were anchored to the bottom,
+  // which put the rocker 3-14 mm above the bottom edge.
+  const float blockH = 2.0f * kCellH + kRowClear;
+  const float upperY = L.insetTop + (H - L.insetTop - L.insetBottom - blockH) / 2.0f;
+  const float lowerY = upperY + kCellH + kRowClear;
   L.back = {xL, upperY, kCell, kCellH};
   L.confirm = {xL + kCell, upperY, kCell, kCellH};
   L.left = {xR, upperY, kCell, kCellH};
