@@ -1332,7 +1332,8 @@ that turn produces (`LandscapeRight`, the home edge on the right); the page is
 presented as `LandscapeCounterClockwise`, the panel's native frame, which on
 such a page is the table the right way up; the pad splits to the side margins
 (G3: Back/Select and POWER left, Left/Right and the rocker right) with paper on
-the page only; and the next upright page -- or any screen pushed over the page,
+the page only, its four corners rounded with the paper card's own squircle and
+radius (owner 2026-10-05, "need rounded corners"); and the next upright page -- or any screen pushed over the page,
 such as the chapter list, or sleep -- snaps the app back to portrait, held
 sideways or not. The iPad (which rotates freely anyway) shows the table upright
 in landscape too, with its own thumb-row placement. Zen keeps no pad in either.

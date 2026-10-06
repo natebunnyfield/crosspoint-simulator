@@ -455,3 +455,30 @@ the content's rotation or the device's turn, and settle it with a picture, not
 a sentence. They are always opposite, and one word ("clockwise") was read both
 ways inside a single day.
 
+
+## Rounded corners (owner 2026-10-05)
+
+*"need rounded corners"*. In the turned page's landscape the paper is the
+panel alone on a black surround, and its four corners were square: the layout
+skips the paper card's top band (`paintTopBezel`) and the tablet's bottom
+fillets.
+
+They are now rounded into the black with the paper card's own corner, the same
+squircle (n = 2.8, measured off Apple's display mask; see `paintTopBezel`) and
+the same radius rule:
+- the phone: the module / 2, falling back to 8 pt before the zen placement has
+  measured a module;
+- the iPad: unit / 8.
+
+`paperCornerRadiusPx` was extracted from `paintBottomFillets`, so the bottom
+pair and the new `paintTopFillets` read one answer. The bottom pair's own
+arithmetic is unchanged.
+
+**Measured in the Simulator,** on captures of the forced landscape:
+
+| | radius | cut at the diagonal | nearest table ink to a corner |
+|---|---|---|---|
+| iPhone Air | 24 px (the 8 pt fallback) | 6 px | 19 px across, 31 px down |
+| iPad Pro 13 | 49 px | 11 px | 21 px across, 35 px down |
+
+Both inks sit outside the cut, so no ink is clipped.
