@@ -3,7 +3,7 @@
 Owner, 2026-10-06: *"take a pass at button layout so thumbs can easily and
 always reach them"*.
 
-**Status: SHIPPED, the recommended set: P-B, L-B and T-B.** The options were
+**Status: SHIPPED as TestFlight build 307 (0.1.1, 2026-10-06), the recommended set: P-B, L-B and T-B.** The options were
 published as mockups composed from the app's own captures
 (https://claude.ai/artifact/G2mSTy26NSpjveuzEzkudB), and the owner answered
 *"go"*. One detail differs from the T-B mockup: the front pairs stay exactly on
