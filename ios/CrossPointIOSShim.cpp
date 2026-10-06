@@ -2761,10 +2761,11 @@ void setRGBFromPanelPaper(SDL_Renderer *r) {
   SDL_SetRenderDrawColor(r, pal.paper[0], pal.paper[1], pal.paper[2], 255);
 }
 
-void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
-                       bool intoBlack) {
-  if (panel.w <= 0.0f || panel.h <= 0.0f) return;
-  constexpr float kCornerExponent = 2.8f;
+// The paper's corner radius in device px, clamped to half `clampW` -- the ONE
+// answer paintBottomFillets and the turned page's four corners read, so the
+// pairs cannot drift apart. Extracted from paintBottomFillets (2026-10-05) with
+// its reasoning, which follows unchanged.
+float paperCornerRadiusPx(float clampW) {
   // Same module as the top pair -- they are one rectangle (the 2026-08-20
   // ruling that matched them survives; only the number's SOURCE changed).
   // Same platform-forked divisor as paintTopBezel too, as of 2026-08-29: /2
@@ -2794,7 +2795,16 @@ void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
                           : !hasModule           ? kPaperCornerPt * g_ptScale
                           : kRadiusDivisor <= 0.0f ? 0.0f
                                                    : g_paperGapPx / kRadiusDivisor;
-  const float rad = SDL_min(moduleRad, panel.w / 2.0f);
+  return SDL_min(moduleRad, clampW / 2.0f);
+}
+
+constexpr float kCornerExponentFillets = 2.8f;   // paintTopBezel's measured squircle
+
+void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
+                       bool intoBlack) {
+  if (panel.w <= 0.0f || panel.h <= 0.0f) return;
+  constexpr float kCornerExponent = kCornerExponentFillets;
+  const float rad = paperCornerRadiusPx(panel.w);
   // A fillet must be painted in whatever the corner is being cut OUT of: the
   // field normally, black in zen, where the surround below the paper is black by
   // ruling. The wrong one leaves two pale nicks on a dark screen, which reads as
@@ -2820,6 +2830,28 @@ void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
     fillRect(r, panel.x + panel.w - inset, rowY, inset, 1.0f);
   }
   (void)outW;
+}
+
+// The page's TOP corners, for the turned page's landscape (owner 2026-10-05:
+// "need rounded corners"). There the paper is the panel alone on a black
+// surround, so the top pair is struck on the panel's own top edge rather than
+// under paintTopBezel's band -- with the same squircle and the same radius as
+// the bottom pair, because the four sit on one rectangle.
+void paintTopFillets(SDL_Renderer *r, const SDL_FRect &panel) {
+  if (panel.w <= 0.0f || panel.h <= 0.0f) return;
+  const float rad = paperCornerRadiusPx(panel.w);
+  SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+  const int rows = static_cast<int>(rad);
+  for (int i = 0; i < rows; i++) {
+    const float y = static_cast<float>(i);
+    const float v = (rad - y) / rad;   // 1 at the top edge, 0 where the curve meets the side
+    const float u = SDL_powf(SDL_max(0.0f, 1.0f - SDL_powf(v, kCornerExponentFillets)),
+                             1.0f / kCornerExponentFillets);
+    const float inset = rad * (1.0f - u);
+    if (inset <= 0.0f) continue;
+    fillRect(r, panel.x, panel.y + y, inset, 1.0f);
+    fillRect(r, panel.x + panel.w - inset, panel.y + y, inset, 1.0f);
+  }
 }
 
 // The software keyboard's toggle.
@@ -3123,6 +3155,10 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
       };
       for (const SDL_FRect &rc : around)
         if (rc.w > 0.0f && rc.h > 0.0f) SDL_RenderFillRect(r, &rc);
+      // ...and its four corners rounded into that black (owner 2026-10-05,
+      // "need rounded corners"): the paper card's own squircle and radius.
+      paintTopFillets(r, q);
+      paintBottomFillets(r, outW, q, /*intoBlack=*/true);
     }
     g_zenPaper = q;   // the paper is the page
     if (g_zen) {
