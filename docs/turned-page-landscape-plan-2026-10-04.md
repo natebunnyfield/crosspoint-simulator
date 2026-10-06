@@ -4,7 +4,7 @@ Owner, 2026-10-04: *"when a landscape view is active (viz wide table is
 rendered), the ui and gestures need to be rotated as well. ask me questions to
 develop a plan then proceed after my okay"*.
 
-**Status: SHIPPED 2026-10-04 as TestFlight build 305 (marketing 0.1.1), built on the owner's okay ("yes").** Build 304 had the DIRECTION mixed up; 305 corrects it (see "The direction, corrected" at the foot).
+**Status: SHIPPED as TestFlight build 306 (marketing 0.1.1, 2026-10-05), built on the owner's okay ("yes").** Build 304 had the DIRECTION mixed up; 305 corrected it (see "The direction, corrected" near the foot); 306 rounds the landscape page's corners (owner: "need rounded corners").
 - **The direction:** the table is turned CLOCKWISE on the page (header down the right edge), so the reader turns the phone COUNTER-clockwise, and the phone rotates on that turn only (`UIInterfaceOrientationLandscapeRight`). Owner, correcting build 304: *"the iphone would need to be turned ccw not clockwise, you've mixed things up"*.
 - Two adversarial reviews, every finding handled; both are at the foot of this doc. They describe the code as it then stood, with build 304's flip in it.
 - Verified in the iOS Simulator (iPhone Air and iPad Pro 13). The direction is verified by the Simulator's own screen capture, which is in DEVICE coordinates.
