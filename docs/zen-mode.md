@@ -310,7 +310,7 @@ of the glass.** Six override rows — all of the single-finger gestures, which i
 what *"(full configuration)"* asks for — every one of them blank.
 
 **THE BOUNDARY IS THE PAGE'S LEFT EDGE, NOT THE PAPER'S**, and that is a
-decision rather than a near miss. On the phone the SHEET bleeds to the glass:
+decision rather than a near miss. On the phone the SHEET bled to the glass until 2026-10-07 (it is the page alone now, so the two edges coincide):
 the pad's field is the page's own paper tone by design (measured 215,233,211
 against 215,233,211), so the paper has no left edge there at all and a
 paper-derived boundary would read 0 — i.e. no left-margin zone on the device
@@ -743,6 +743,16 @@ pins both sites at the source level. Measured on an iPhone Air simulator,
 is on the glass at the field-open present (chip box mean 192 against 0 for
 the band), and the tap logs `[kbchip] tap (zen) -> keyboard up`.
 SHIPPED -- UNCONFIRMED on device.
+
+**SUPERSEDED 2026-10-07** (owner: *"paper should be rounded and not extend past
+panel"*). On the phone the paper is now the PAGE alone, its four corners rounded,
+everything else black, in zen and out of it, which is what the iPad and the
+turned landscape already drew (`paintPad`, the `g_turnedLandscape || !s_isPad`
+branch). This paragraph and the "four cells past the line" one below are kept
+as the record of what it replaced. Each mode keeps the corner radius it had:
+106 px in zen (module/2), 24 px out of it (the 8 pt fallback), measured on an
+iPhone Air capture; no ink is clipped (the battery icon clears the zen corner
+by about 20 px).
 
 **The sheet BLEEDS TO THE GLASS.** It is not a card floating on black. Owner
 ruling 2026-08-20, picked off a side-by-side of two live renders rather than a
