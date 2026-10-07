@@ -1384,8 +1384,9 @@ Grown in one day; each is documented at its definition, this is the map:
   corner is no longer `HoldAbove` and the Power default does not reach it — the
   one behavior change, pinned by name in `tests/gesture_bindings_test.cpp` and
   written up in `docs/zen-mode.md`. The boundary is the PAGE's left edge and not
-  the paper's because on the phone the sheet bleeds to the glass, so a
-  paper-derived left edge would be 0 and the zone would not exist on the device
+  the paper's because on the phone the sheet bled to the glass (until
+  2026-10-07; the paper is the page alone now, so the two coincide), so a
+  paper-derived left edge would have been 0 and the zone would not exist on the device
   the owner reads on. The hold split by POSITION on 2026-08-27 (owner: *"change
   long tap to only swap zen/singlefinger modes if tap held for .75 sec above
   paper..."*), replacing a two-threshold shape in which one hold wanted to fire

@@ -3131,9 +3131,10 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     return;
   }
 
-  // Not in the turned page's landscape: there is no paper card to give a top
-  // edge to (paper on the panel only), and the surround below is black.
-  if (!g_turnedLandscape)
+  // Not in the turned page's landscape, nor on the phone: there is no paper
+  // card to give a top edge to (paper on the panel only), and the surround is
+  // black.
+  if (s_isPad && !g_turnedLandscape)
     paintTopBezel(r, outW, tabletMarginPx,
                   static_cast<float>(outW) - 2.0f * tabletMarginPx);
 
@@ -3164,7 +3165,13 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // the split pad (zen off) then draws on that black, transparent-faced, as the
   // tablet's does. In zen nothing else draws but the keyboard chip while a field
   // is open, the same exception as the portrait zen branch below.
-  if (g_turnedLandscape) {
+  //
+  // THE PHONE TAKES IT IN PORTRAIT TOO (owner 2026-10-07: "paper should be
+  // rounded and not extend past panel"). This reverses the 2026-08-20 ruling
+  // that the phone's sheet bleeds to the glass: the paper is the page, its
+  // four corners rounded, everything else black, zen or not -- what the iPad
+  // and the turned landscape already drew.
+  if (g_turnedLandscape || !s_isPad) {
     const SDL_FRect &q = g_zenPanel;
     if (q.w > 0.0f && q.h > 0.0f) {
       const float Wf = static_cast<float>(outW), Hf = static_cast<float>(outH);
@@ -3334,7 +3341,7 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // transparent is best" -- so on the tablet the face takes the ground it now
   // sits on. The pressed wash (faceDown) is untouched.
   Palette p = palette();
-  if (s_isPad || g_turnedLandscape) p.face[0] = p.face[1] = p.face[2] = 0;
+  p.face[0] = p.face[1] = p.face[2] = 0;   // every layout's pad sits on black now (2026-10-07)
   const float S = g_ptScale;
   // 8 pt — the 8 pt grid the pad aligns to. CrossPointKeyboardBar.mm already
   // uses cornerRadius = 8 with that exact comment. 12 pt was the old value;
