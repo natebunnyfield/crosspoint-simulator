@@ -673,6 +673,11 @@ void WebServer::begin() {
       }
       if (body.size() > bodyLength)
         body.resize(bodyLength);
+      // A raw handler (WebDAV PUT) is STREAMED: each recv goes straight to
+      // RAW_WRITE and is not kept, so an upload costs one socket buffer rather
+      // than the whole body (S-036, the last of its three copies). Everyone
+      // else still gets `body` in full, because they parse it after the read.
+      size_t received = body.size();
       if (hasRawHandlers) {
         impl_->emitRawEvent(*this, rawHandlers, RAW_START, nullptr, 0);
         for (size_t offset = 0; offset < body.size();
@@ -683,31 +688,33 @@ void WebServer::begin() {
                               reinterpret_cast<uint8_t *>(&body[offset]),
                               currentSize);
         }
+        std::string().swap(body);
       }
-      while (body.size() < bodyLength) {
+      while (received < bodyLength) {
         const ssize_t got = ::recv(client, buffer, sizeof(buffer), 0);
         if (got < 0 && errno == EINTR)
           continue;
         if (got <= 0)
           break;
-        const size_t offset = body.size();
-        const size_t wanted = bodyLength - body.size();
-        const size_t count = std::min(static_cast<size_t>(got), wanted);
-        body.append(buffer, count);
+        const size_t count =
+            std::min(static_cast<size_t>(got), bodyLength - received);
+        received += count;
         if (hasRawHandlers) {
-          for (size_t rawOffset = offset; rawOffset < body.size();
+          for (size_t rawOffset = 0; rawOffset < count;
                rawOffset += UPLOAD_CHUNK_SIZE) {
             const size_t currentSize =
-                std::min(UPLOAD_CHUNK_SIZE, body.size() - rawOffset);
+                std::min(UPLOAD_CHUNK_SIZE, count - rawOffset);
             impl_->emitRawEvent(*this, rawHandlers, RAW_WRITE,
-                                reinterpret_cast<uint8_t *>(&body[rawOffset]),
+                                reinterpret_cast<uint8_t *>(buffer + rawOffset),
                                 currentSize);
           }
+        } else {
+          body.append(buffer, count);
         }
       }
-      if (body.size() < bodyLength) {
+      if (received < bodyLength) {
         LOG_ERR("WEB", "[SIM] Incomplete request body: %zu/%zu bytes",
-                body.size(), bodyLength);
+                received, bodyLength);
         if (hasRawHandlers)
           impl_->emitRawEvent(*this, rawHandlers, RAW_ABORTED, nullptr, 0);
         auto contentTypeIt = headers.find("content-type");
@@ -732,8 +739,8 @@ void WebServer::begin() {
       // and reads neither the `plain` arg nor `currentBody`, so those two
       // copies were pure waste -- a 100 MB PUT peaked at ~2.3x the body in RAM
       // on a device the phone runs this shim on (S-036). Make the copies only
-      // when a NON-raw handler will actually read them, and free `body` right
-      // after for a raw handler.
+      // when a NON-raw handler will actually read them; for a raw handler
+      // `body` is already empty, the read above having streamed it.
       if (!hasRawHandlers) {
         if (contentType.find("application/x-www-form-urlencoded") !=
             std::string::npos) {
@@ -745,8 +752,6 @@ void WebServer::begin() {
         // The dispatch runs on another thread, so what it needs from this parse
         // travels with the request (a multipart POST's parser reads this).
         impl_->currentBody = body;
-      } else {
-        std::string().swap(body);
       }
 
       LOG_DBG("WEB", "[SIM] %s %s", methodText.c_str(), target.c_str());

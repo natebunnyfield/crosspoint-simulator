@@ -50,7 +50,11 @@ echo "seed" > "$WORK/fs_/books/seed.txt"
 # with no books the menu starts on row 0. RIGHT to File Transfer, CONFIRM to
 # open it, CONFIRM to start the server. Extra CONFIRMs are harmless.
 SCRIPT="200:QTAP:BACK:2500;4000:RIGHT;4900:RIGHT;5800:RIGHT;6800:CONFIRM;8000:CONFIRM;10000:CONFIRM;60000:QUIT"
-( cd "$WORK" && env SDL_VIDEODRIVER=dummy CROSSPOINT_SIM_HTTP_PORT="$HTTP" \
+# `exec`, so $! IS the simulator: without it $! was this subshell, cleanup
+# killed the subshell and orphaned the simulator on the port (the next run
+# SKIPped), and every RSS check below measured the subshell -- 0 MB whatever
+# the server did. Found 2026-10-06.
+( cd "$WORK" && exec env SDL_VIDEODRIVER=dummy CROSSPOINT_SIM_HTTP_PORT="$HTTP" \
     CROSSPOINT_SIM_WIFI_NETWORKS='Alpha:-40:open' \
     CROSSPOINT_SIM_INPUT_SCRIPT="$SCRIPT" "$BIN" > "$WORK/sim.log" 2>&1 ) &
 SIM_PID=$!
@@ -111,6 +115,29 @@ check('201' in st and content=='case-content' and not leftover, f"case MOVE pres
 # 4. a normal WebDAV PUT still works (raw path)
 st=http('PUT','/books/ok.txt',{'Content-Length':'7'},b'goodput')
 check('201' in st and os.path.exists(os.path.join(BOOKS,'ok.txt')) and open(os.path.join(BOOKS,'ok.txt')).read()=='goodput', f"normal PUT works ({st})")
+
+# 4b. a large WebDAV PUT is STREAMED, not buffered (S-036): sample the
+# simulator's RSS through the upload and take the PEAK -- the old code freed
+# its buffer straight after, so an after-reading could not see it (+116 MB
+# for 60 MB, measured 2026-09-04). Content checked by md5 too.
+import hashlib, threading
+_pid=int(os.environ.get('SIM_PID','0')) or None
+if _pid:
+    def _rss(): return int(subprocess.check_output(['ps','-o','rss=','-p',str(_pid)]).strip())//1024
+    big=os.urandom(60*1024*1024)
+    base=_rss(); peak=[base]; done=[False]
+    def _watch():
+        while not done[0]:
+            try: peak[0]=max(peak[0],_rss())
+            except Exception: pass
+            time.sleep(0.02)
+    t=threading.Thread(target=_watch); t.start()
+    st=http('PUT','/books/big.bin',{'Content-Length':str(len(big))},big,timeout=60)
+    done[0]=True; t.join()
+    path=os.path.join(BOOKS,'big.bin')
+    same=os.path.exists(path) and hashlib.md5(open(path,'rb').read()).hexdigest()==hashlib.md5(big).hexdigest()
+    check('201' in st and same, f"60 MB PUT lands intact ({st})")
+    check(peak[0]-base < 30, f"60 MB PUT peaked at +{peak[0]-base} MB RSS (buffered was ~+116)")
 
 # 5. path traversal cannot escape the card
 canary=os.path.join(WORK,'outside.txt'); open(canary,'w').write('SECRET')
