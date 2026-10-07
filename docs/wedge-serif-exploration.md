@@ -25,7 +25,7 @@
   F1 / F2 / F3 = `ALBO_FIG_1_TOP` raising the 1 from 433 to 448 / 460 / 470 (the flat figures' line, the 0, the
   Regular 2), `docs/albo-figure-one-2026-10-03.md`. The italic S/G reach was RULED LEAVE (owner "leave"),
   `docs/albo-italic-s-g-reach-2026-10-03.md`; the 1 shipped F1 (round 474) and its Bold Italic flag K2 (round 475). Round 473 shipped the adversarial review's fixes.
-- **2026-10-03 -- TWO OPTION PAGES OUT:** the Regular S thinner (owner: *"give me regular S options that are
+- **2026-10-03 -- TWO OPTION PAGES, BOTH RULED** (N2 shipped as round 471, Y2 as round 472): the Regular S thinner (owner: *"give me regular S options that are
   thinner"*), N1 / N2 narrower and L1 / L2 lighter-stroked, `docs/albo-regular-s-thinner-2026-10-03.md`; and the
   italic x's spacing (queued question 4, *"Show me options"*), Y1 / Y2 = round 461's added white halved / removed,
   `docs/albo-italic-x-spacing-2026-10-03.md`. Rounds 469-470 shipped from the same queue (the Regular S matched to
