@@ -3,8 +3,9 @@
 Owner todo (2026-10-03): *"make capitals the right size and shape and
 contrast"*.
 
-**Status: AUDIT. Nothing changed yet.** This is the measurement the fixes will
-be designed against.
+**Status: AUDIT.** This is the measurement the fixes are designed against.
+Fix 1 (the Bold capitals' contrast) is out as OPTIONS C1-C4, not ruled:
+`docs/albo-capitals-contrast-options-2026-10-06.md`.
 
 ## Method
 

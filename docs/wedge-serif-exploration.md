@@ -10,7 +10,9 @@
 - **2026-10-03 -- OWNER TODO, OPEN:** *"make capitals the right size and shape and contrast"* -- all the capitals,
   every cut. **Audit done 2026-10-04** (`docs/albo-capitals-audit-2026-10-04.md`): the bold capitals' contrast is
   two thirds of the bold lowercase's (the 400s match), the N ~5% short everywhere, the bold capitals 9% / 17% narrow.
-  Fixes next, as options. **2026-10-04, also:** *"'K' is too wide."* -- **DONE, rounds 477-480**: the Regular
+  **2026-10-06: fix 1 OUT AS OPTIONS** (not ruled): C1-C4 lighten the B and Z capitals' bars, thin diagonals
+  and bowls, B contrast 0.55 -> 0.58 / 0.67 / 0.68 / 0.80, Z 0.48 -> 0.55 / 0.63 / 0.63 / 0.70,
+  `docs/albo-capitals-contrast-options-2026-10-06.md`. Fixes 2-4 next. **2026-10-04, also:** *"'K' is too wide."* -- **DONE, rounds 477-480**: the Regular
   13.5% narrower (477) with its leg joined further out, J1 (478); the Bold the same width, the leg clipped under
   the arm and its connection points moved onto the Regular's (479); then, traced against 13 bold references
   that all end the arm FLAT ON THE CAP LINE, the Bold's arm cut level there with Albo's wedges at half their

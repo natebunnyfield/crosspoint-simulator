@@ -8564,6 +8564,22 @@ if ON:
     # but the cause is spread rather than level: the thicks were too thick and
     # the thins too thin for the company they keep.
     CAP_CON = float(os.environ.get("ALBO_ALD_CAP_CON", 2.20))
+    # THE BOLD ITALIC CAPITALS' LIGHT STROKES (options round, 2026-10-06; NOT
+    # RULED). caps_straight's CAP_BAR_BOLD / CAP_THIN_BOLD reach only the
+    # capitals this module does not redraw (C E F ...); the redrawn ones are
+    # drawn on the nib at CAP_CON, which is a thick-to-thin RATIO with the thick
+    # held, so a factor on it lightens the thins of a CURVED stroke and nothing
+    # else; a straight diagonal has one direction, so its hairline is the nib's
+    # thin (`cdiag`, scaled by CAP_THIN_BOLD). Above stem
+    # 84 only; 1.0 = round 481. CAP_BAR_BOLD also scales the bars drawn here
+    # (A G H L Z), read from caps_straight so the two cannot disagree.
+    # docs/albo-capitals-contrast-options-2026-10-06.md.
+    CAP_NIB_BOLD = float(os.environ.get("ALBO_CAP_NIB_BOLD", 1.0))
+    from .caps_straight import CAP_BAR_BOLD as _CBB, CAP_THIN_BOLD as _CTB
+    _IBAR = _CBB if S > 84.0 else 1.0
+    _ITHIN = _CTB if S > 84.0 else 1.0   # the nib's thin on a capital DIAGONAL (`cdiag`): a straight stroke has one direction, so CAP_CON cannot reach it
+    if S > 84.0:
+        CAP_CON = CAP_CON * CAP_NIB_BOLD
     # THE TWO DIAGONALS OF AN A, A V OR AN N TAKE THE SAME MULTIPLIER. The
     # nib is what makes one of them thick and the other a hairline -- its width
     # follows the stroke's direction -- so a per-stroke multiplier that differs
@@ -8949,7 +8965,7 @@ if ON:
         the kind of gap `cmp_aldine_glitch.py` reads as a notch."""
         w = CAP_W if w is None else w
         p_ = catmull([a, mid or ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
-        ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON, taper=False)
+        ws = nib_widths(p_, CS * w / S, CS * w * 0.30 * _ITHIN / S, CAP_CON, taper=False)   # _ITHIN: the bold-only thin, see CAP_NIB_BOLD
         ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(serif0 is None, serif1 is None)))]
         ws = ent_widths(ws, ENT_DIAG_WAIST)
         if _VW_HAIR[0] != 1.0 and (b[0] - a[0]) * (b[1] - a[1]) > 0:   # 2026-09-26: a rising stroke, the V/W hairline (VW_OPT)
@@ -8969,7 +8985,7 @@ if ON:
         inner top corners are bare, which is the roman's cut and not Flanker's)
         and each foot is two-sided. Six in all, where a roman H has six."""
         C = c["cap"]; x0 = CS * 0.6; x1 = x0 + 0.62 * C
-        bar = stroke([(x0, C * 0.54), (x1, C * 0.58)], TH_H * 1.25)
+        bar = stroke([(x0, C * 0.54), (x1, C * 0.58)], TH_H * 1.25 * _IBAR)
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
                          cstem_i(x1, 0, C, top='right', foot='both'), bar])
 
@@ -9110,7 +9126,7 @@ if ON:
         left = _flat_foot_diag((x0, 0), apex, A_DIAG)
         right = cdiag(apex, (x0 + w, 0), A_DIAG, serif1=1)
         bar = stroke([(x0 + w * 0.16, C * CAP_A_BAR), (x0 + w * 0.84, C * (CAP_A_BAR + 0.03))],
-                     TH_H * 1.20)
+                     TH_H * 1.20 * _IBAR)
         # the apex flag: a real italic A carries an entry reaching LEFT
         flag = stroke([(apex[0] - CS * 1.05 * CAP_A_FLAG, C * CAP_A_FLAG_Y),
                        (apex[0] + CS * 0.18, C)],
@@ -9239,7 +9255,7 @@ if ON:
             stem_ = stroke([(ex, ey), (ex + (cx + rx * 0.92 - ex) * 0.5, by)],
                            widths([(0.0, CS * 0.52), (1.0, CS * 0.86)]))
             bar = stroke([(cx + rx * 0.96, by), (cx + rx * G_BAR_IN, by + C * 0.012)],
-                         widths([(0.0, TH_H * 1.30), (1.0, TH_H * 0.70)]), cut1=CUT)
+                         widths([(0.0, TH_H * 1.30 * _IBAR), (1.0, TH_H * 0.70 * _IBAR)]), cut1=CUT)
             g = geom.ink([arc, lip, stem_, bar])
             # ROUND 387 -- THE SPUR'S FOOT NO LONGER STANDS OUT OF THE ARC. Owner
             # 2026-09-25, *"Yes, all four"* (round 385's fracture list). The spur
@@ -10660,7 +10676,7 @@ if ON:
         than as wedges, because a ribbon is the pen turning and a wedge is a
         cut."""
         C = c["cap"]; x0 = CS * 0.5; w = CAP_Z_W * C
-        th = TH_H * CAP_Z_BAR
+        th = TH_H * CAP_Z_BAR * _IBAR
         # round 167: every stroke but the tail carries a hand cut -- see the
         # table above the dials for where each press sits and why
         tp, tw = _z_hand([(x0, C - th / 2), (x0 + w, C - th / 2)], th, Z_HAND_TOP)
@@ -10709,7 +10725,7 @@ if ON:
         there -- the same rule `a_N` follows at its right stem, and the same one
         `g_L` follows by drawing `foot='left'`."""
         C = c["cap"]; x0 = CS * 0.6; w = CAP_L_W * C
-        th = TH_H * CAP_L_BAR
+        th = TH_H * CAP_L_BAR * _IBAR
         bar_p = catmull([(x0, th / 2), (x0 + w * 0.62, th / 2),
                          (x0 + w * 0.92, th * 0.9), (x0 + w, C * CAP_L_TURN)],
                         tension=0.5)
@@ -12524,7 +12540,7 @@ if ON:
         C = c["cap"]; x = CS / 2
         w = _CS.W_(c, which, 420 if which == 'E' else 400)
         frac = 0.74 if which == 'E' else 0.72
-        th = pen.CAP_BAR * 0.9
+        th = _CS.CAP_BAR * 0.9                       # the module's CAP_BAR: it carries CAP_BAR_BOLD above stem 84
         tip = (x + w * frac, C * 0.54 - th / 2)      # the bar's lower-right corner
         return PR.wedge(tip, (1.0, 0.0), (0.0, -1.0),
                         PR.WL * E_MIDSERIF, PR.WD * E_MIDSERIF, PR.DROP * E_MIDSERIF)

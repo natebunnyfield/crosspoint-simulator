@@ -14,6 +14,24 @@ from .. import primitives as PR
 from ..primitives import bowl_widths, widen_terminal
 
 def W_(c, ch, default): return default * c["W"].get(ch, 1.0)
+# THE BOLD CAPITALS' LIGHT STROKES (options round, 2026-10-06; NOT RULED).
+# Owner todo 2026-10-03: *"make capitals the right size and shape and
+# contrast"*; docs/albo-capitals-audit-2026-10-04.md measured the bold
+# capitals' contrast at 0.55 (B) and 0.48 (Z) of the references where the 400s
+# match, and found the gap spread evenly over the bars, the thin diagonals and
+# the bowls. One factor per kind, ABOVE STEM 84 ONLY, so the 400s cannot move.
+# All three default to 1.0 = round 481 byte for byte.
+#   CAP_BAR_BOLD  the bars (A E F G H L Z), via this module's CAP_BAR; the T
+#                 keeps pen.CAP_BAR and its own ruled T_BAR_K (round 415)
+#   CAP_THIN_BOLD round 51's 0.72 thin diagonal (A M V W); the X, Y and K arm
+#                 carry their own tuned or ruled factors and are left alone
+#   CAP_CON_BOLD  the bowls' contrast re-spread (`ring` / `bowl_widths` con) on the
+#                 capital ring and arc (O Q C); half_bowl (B D P R) has no con
+CAP_BAR_BOLD = float(os.environ.get("ALBO_CAP_BAR_BOLD", 1.0))
+CAP_THIN_BOLD = float(os.environ.get("ALBO_CAP_THIN_BOLD", 1.0))
+CAP_CON_BOLD = float(os.environ.get("ALBO_CAP_CON_BOLD", 1.0))
+if S > 84.0:
+    CAP_BAR = CAP_BAR * CAP_BAR_BOLD
 CW = TH_V * CAP_STEM          # the drawn cap stem, 87.9
 THIN = CW * 0.72              # the capitals' thin STEM (N's stems: round 51's _cstem thin=0.72)
 # ROUND 272 -- THE DIAGONALS ABOVE STEM 84. Owner 2026-09-19: *"for roman
@@ -34,6 +52,7 @@ def pw(p0, p1, mult=1.0):
     strokes 0.72 x that."""
     tn = tangents(line(p0, p1))[0]; th = pen.th_t(tn)
     if S > 84.0 and DIAG_CAP: th = min(th, S * DIAG_CAP)   # round 272, see DIAG_CAP
+    if S > 84.0 and mult == 0.72: mult *= CAP_THIN_BOLD   # round 51's thin only; see CAP_THIN_BOLD
     return th * mult
 BEAK_CUT = -28.0
 
@@ -356,7 +375,7 @@ def g_B(c):
 def cap_arc(c, rx_c, a0, a1, profile, cut0=None, cut1=None, k=BOWL_K, ry_c=None, cy=None):
     C = c["cap"]; ry = (C / 2 + OVER - TH_H / 2) if ry_c is None else ry_c; cy = C / 2 if cy is None else cy
     center = superellipse(rx_c + TH_V / 2, cy, rx_c, ry, math.radians(a0), math.radians(a1), k)
-    return stroke(center, bowl_widths(center, profile), cut0=cut0, cut1=cut1), center
+    return stroke(center, bowl_widths(center, profile, con=CAP_CON_BOLD if S > 84.0 else 1.0), cut0=cut0, cut1=cut1), center
 
 @glyph('C')
 def g_C(c):
@@ -1133,7 +1152,7 @@ def _n_thin():
 
 def cap_ring(c, rx_c):
     C = c["cap"]; rx = rx_c + TH_V / 2; ry = C / 2 + OVER
-    return ring(rx, C / 2, rx, ry)
+    return ring(rx, C / 2, rx, ry, con=CAP_CON_BOLD if S > 84.0 else 1.0)
 
 @glyph('O')
 def g_O(c):
@@ -1678,7 +1697,7 @@ T_BAR_K = float(os.environ.get("ALBO_ROM_T_BAR_K", 0.76))   # round 415: 0.76 sh
 @glyph('T')
 def g_T(c):
     C = c["cap"]; w = W_(c, 'T', 520); x = w / 2
-    th = CAP_BAR * 0.85 * (T_BAR_K if S > 84.0 and not pen.ITALIC else 1.0); yb = C - th / 2   # not ITALIC: the aldine T borrows this g_T (found by the leak check, 2026-09-26)   # round 94: was 0.62 of the pen's horizontal, a light line at 13 pt
+    th = pen.CAP_BAR * 0.85 * (T_BAR_K if S > 84.0 and not pen.ITALIC else 1.0); yb = C - th / 2   # not ITALIC: the aldine T borrows this g_T (found by the leak check, 2026-09-26)   # round 94: was 0.62 of the pen's horizontal, a light line at 13 pt
     b = bar(0, w, C, th, align='top', wedges=[('left', -1), ('right', -1)])
     return geom.ink([b, cstem(x, 0, yb + th * 0.5 - 4, top=None, foot='both', ent_span=(0, C))])
 
