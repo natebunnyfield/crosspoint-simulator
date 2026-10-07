@@ -276,10 +276,16 @@ BUILD_NUMBER=$(( LAST_BUILD + 1 ))
 # than shipped. Bumping via CROSSPOINT_MARKETING_VERSION tags the new version on
 # success, so the bump becomes the next run's default without anyone
 # remembering to pass it again.
-MV_FLOOR=$( { tr -d '[:space:]' < "$REPO/ios/MARKETING_VERSION" 2>/dev/null; echo
+MV_FLOOR=$( { [ -f "$REPO/ios/MARKETING_VERSION" ] && tr -d '[:space:]' < "$REPO/ios/MARKETING_VERSION"; echo
               git -C "$REPO" tag --list 'version-*' | sed 's/^version-//'; } \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
 MARKETING_VERSION="${CROSSPOINT_MARKETING_VERSION:-$MV_FLOOR}"
+# X.Y.Z only: a two-part 0.2 would pass the floor, ship, and then be dropped
+# by the floor's own filter, so the next run would go back to 0.1.1.
+if [ -n "$MARKETING_VERSION" ] && ! echo "$MARKETING_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "ERROR: marketing version '$MARKETING_VERSION' is not X.Y.Z" >&2
+  exit 1
+fi
 if [ -z "$MARKETING_VERSION" ]; then
   echo "ERROR: no marketing version -- ios/MARKETING_VERSION is missing and no" \
        "version-* tag exists" >&2
