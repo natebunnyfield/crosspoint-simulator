@@ -65,6 +65,19 @@ is a design choice rather than a slip:
   that a raw upload still fully BUFFERS the body in `body` before the handler
   runs, instead of recv->RAW_WRITE->free per chunk; removing that last copy is
   the recv-loop rewrite this entry keeps.
+  **That half FIXED 2026-10-06:** a raw handler's body is streamed, each recv
+  straight to RAW_WRITE and not kept (`src/WebServer.cpp`, `received` counts
+  instead of `body.size()`). Pinned by `test_web_server_hardening.sh` 4b, which
+  samples PEAK RSS through a 60 MB PUT and md5s the file: **+111 MB on the old
+  code, +0 MB on the new**, both on a freshly built binary. Only the
+  serialized-worker half above stays open, and it is a design choice for the
+  owner (accept pool vs shorter header timeout).
+  The same day found the test itself was blind: it launched the simulator in a
+  `( cd ... && env ... )` subshell, so `$!` was the SUBSHELL -- cleanup orphaned
+  the simulator on 18080 (the next run SKIPped on "port in use") and every RSS
+  check, including the 256 MB WebSocket one, measured a shell. `exec` fixes
+  both. Note the shell tests do not BUILD: they run whatever
+  `.pio/build/simulator*/program` the firmware checkout holds, so build first.
 
 Both are reachable from the network; neither is a crash by a crafted request
 (the three that were — the drip freezing Back, the 256 MB WebSocket
