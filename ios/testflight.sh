@@ -267,8 +267,32 @@ BUILD_NUMBER=$(( LAST_BUILD + 1 ))
 # Marketing version is bumped only on demand. TestFlight's daily upload cap
 # (error 90382) is per marketing version, so that is the lever when it trips —
 # waiting a day is the wrong fix.
-MARKETING_VERSION="${CROSSPOINT_MARKETING_VERSION:-0.1.0}"
-echo "version $MARKETING_VERSION, build $BUILD_NUMBER"
+#
+# THE VERSION MUST NEVER GO BACKWARDS (S-043). TestFlight orders by marketing
+# version first, so builds 246-252 went up as 0.1.0 under 245's 0.1.1 and the
+# phone kept offering 245 for a day. The floor is the higher of
+# ios/MARKETING_VERSION (tracked) and every `version-X.Y.Z` tag this script
+# leaves behind; unset means the floor, and a lower request is refused rather
+# than shipped. Bumping via CROSSPOINT_MARKETING_VERSION tags the new version on
+# success, so the bump becomes the next run's default without anyone
+# remembering to pass it again.
+MV_FLOOR=$( { tr -d '[:space:]' < "$REPO/ios/MARKETING_VERSION" 2>/dev/null; echo
+              git -C "$REPO" tag --list 'version-*' | sed 's/^version-//'; } \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+MARKETING_VERSION="${CROSSPOINT_MARKETING_VERSION:-$MV_FLOOR}"
+if [ -z "$MARKETING_VERSION" ]; then
+  echo "ERROR: no marketing version -- ios/MARKETING_VERSION is missing and no" \
+       "version-* tag exists" >&2
+  exit 1
+fi
+if [ -n "$MV_FLOOR" ] && [ "$MARKETING_VERSION" != "$MV_FLOOR" ] \
+   && [ "$(printf '%s\n%s\n' "$MARKETING_VERSION" "$MV_FLOOR" | sort -V | head -1)" = "$MARKETING_VERSION" ]; then
+  echo "ERROR: marketing version $MARKETING_VERSION is BELOW $MV_FLOOR, the highest" \
+       "already shipped. TestFlight would list this build under the older ones" \
+       "(S-043). Unset CROSSPOINT_MARKETING_VERSION or raise it." >&2
+  exit 1
+fi
+echo "version $MARKETING_VERSION (floor $MV_FLOOR), build $BUILD_NUMBER"
 
 say "Configure"
 # Optional bundled fonts: point CROSSPOINT_SEED_FONTS_DIR at a
@@ -611,6 +635,13 @@ git -C "$REPO" tag "build-$BUILD_NUMBER" 2>/dev/null \
 git -C "$REPO" push origin "build-$BUILD_NUMBER" 2>/dev/null \
   && echo "pushed build-$BUILD_NUMBER" \
   || echo "tag push failed (non-fatal) — push it later: git push origin build-$BUILD_NUMBER"
+# Record the marketing version as the new floor (S-043); a no-op when it exists.
+if ! git -C "$REPO" rev-parse -q --verify "refs/tags/version-$MARKETING_VERSION" >/dev/null; then
+  git -C "$REPO" tag "version-$MARKETING_VERSION" 2>/dev/null \
+    && git -C "$REPO" push origin "version-$MARKETING_VERSION" 2>/dev/null \
+    && echo "tagged and pushed version-$MARKETING_VERSION (the new floor)" \
+    || echo "version tag push failed (non-fatal) -- push it later: git push origin version-$MARKETING_VERSION"
+fi
 
 say "Uploaded"
 notify 4 rocket "CrossPoint X3 $MARKETING_VERSION ($BUILD_NUMBER) uploaded" \

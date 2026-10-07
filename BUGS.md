@@ -38,32 +38,6 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-043] TestFlight builds 246-252 shipped UNDER an older marketing version, so the phone kept showing 245
-**severity: medium (every ship for a day was invisible as "latest") · scope: `ios/testflight.sh`, `ios/CMakeLists.txt` · found 2026-09-28, owner: *"is latest testflight 245?"***
-
-Measured against App Store Connect (the API, same key the deploy uses): builds
-243-245 are marketing version **0.1.1**, builds 246-252 are **0.1.0**, all
-VALID and IN_BETA_TESTING. TestFlight orders by marketing version first, so
-0.1.1 (245) stayed on top and seven later builds sat under it.
-
-Mechanism, two silent failures stacked:
-1. `testflight.sh` defaults `MARKETING_VERSION` to 0.1.0 unless
-   `CROSSPOINT_MARKETING_VERSION` is passed. A session on 2026-09-27 hit the
-   per-version daily upload cap (error 90382), and the script's own advice is
-   to re-run with a bumped version through that env var -- so 243-245 went up
-   as 0.1.1, and nothing made 0.1.1 the new default. The next deploy, without
-   the variable, went backwards to 0.1.0.
-2. The script can ask App Store Connect for the latest build, but only through
-   a python with PyJWT, and this Mac has none: it prints "could not ask App
-   Store Connect ... numbering from local tags only" and continues. The same
-   blindness skips the post-upload processing watch. So nothing in the deploy
-   could see the version go backwards.
-
-Immediate repair: the round-426 tree re-shipped as 0.1.1 (build 253). Closing
-this needs a gate, not a remembered env var: the deploy should read the highest
-marketing version App Store Connect holds and refuse (or adopt it) when asked to
-upload under a lower one -- and PyJWT has to be present for any ASC check to run.
-
 ### [S-036] The host web server is one serialized worker holding three copies of every body
 **severity: low-medium (latent DoS / memory) · scope: `src/WebServer.cpp` · found 2026-09-04 by the network-surface hunt (`docs/network-surface-hunt-2026-09-04.md`, findings 7 and 8)**
 
@@ -326,6 +300,46 @@ trace, with Settings → Diagnostics Log switched on BEFORE the first click, the
 `diagnostics/firmware.log` read out of Files.
 
 ## FIXED
+
+### [S-043] TestFlight builds 246-252 shipped UNDER an older marketing version, so the phone kept showing 245 — FIXED 2026-10-06
+**severity: medium (every ship for a day was invisible as "latest") · scope: `ios/testflight.sh`, `ios/CMakeLists.txt` · found 2026-09-28, owner: *"is latest testflight 245?"***
+
+Measured against App Store Connect (the API, same key the deploy uses): builds
+243-245 are marketing version **0.1.1**, builds 246-252 are **0.1.0**, all
+VALID and IN_BETA_TESTING. TestFlight orders by marketing version first, so
+0.1.1 (245) stayed on top and seven later builds sat under it.
+
+Mechanism, two silent failures stacked:
+1. `testflight.sh` defaults `MARKETING_VERSION` to 0.1.0 unless
+   `CROSSPOINT_MARKETING_VERSION` is passed. A session on 2026-09-27 hit the
+   per-version daily upload cap (error 90382), and the script's own advice is
+   to re-run with a bumped version through that env var -- so 243-245 went up
+   as 0.1.1, and nothing made 0.1.1 the new default. The next deploy, without
+   the variable, went backwards to 0.1.0.
+2. The script can ask App Store Connect for the latest build, but only through
+   a python with PyJWT, and this Mac has none: it prints "could not ask App
+   Store Connect ... numbering from local tags only" and continues. The same
+   blindness skips the post-upload processing watch. So nothing in the deploy
+   could see the version go backwards.
+
+Immediate repair: the round-426 tree re-shipped as 0.1.1 (build 253). Closing
+this needs a gate, not a remembered env var: the deploy should read the highest
+marketing version App Store Connect holds and refuse (or adopt it) when asked to
+upload under a lower one -- and PyJWT has to be present for any ASC check to run.
+
+**Fixed 2026-10-06, both halves.** `ios/testflight.sh` now takes a FLOOR: the
+higher of `ios/MARKETING_VERSION` (tracked, 0.1.1) and every `version-X.Y.Z`
+tag. Unset `CROSSPOINT_MARKETING_VERSION` means the floor; a request below it
+exits 1 before anything builds; a successful upload tags and pushes
+`version-<shipped>`, so a 90382 bump becomes the next run's default without
+anyone remembering the env var. Exercised in isolation: unset → 0.1.1, 0.1.0 →
+REFUSED, 0.1.1 → 0.1.1, 0.1.2 → 0.1.2. And PyJWT is installed into
+`/usr/bin/python3` (`pip install --user pyjwt cryptography`, jwt 2.15.1), one of
+the interpreters the script probes; the same ASC query the script runs returned
+builds 303-307, all 0.1.1 VALID. The ASC check itself remains non-fatal by
+design: a Mac without PyJWT goes back to tags-only numbering, but the version
+floor does not depend on it.
+
 
 ### [S-040] The desktop killed any download that took over a minute, however healthy: `--max-time` is a cap on the whole transfer, not an idle timeout — FIXED 2026-09-06
 **severity: medium (every Update Library book, font and OTA image over ~60 s on the link failed on the desktop, and the failure read as the network) · scope: `src/SimHttpFetch.h`, comment in `ios/CrossPointHttp.mm` · found 2026-09-06 while auditing the transfer paths for the owner's "downloads and uploads fail with partial data transfers"; the same audit produced S-038**
