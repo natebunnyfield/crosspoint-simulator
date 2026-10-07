@@ -4,8 +4,9 @@ Owner todo (2026-10-03): *"make capitals the right size and shape and
 contrast"*. This is fix 1 of `docs/albo-capitals-audit-2026-10-04.md`: the bold
 capitals' contrast.
 
-**Status: OPTIONS, awaiting a ruling.** Nothing ships. The four dials default
-to 1.0, which is round 481 byte for byte.
+**Status: SHIPPED, C1** (owner *"C1 wins"*), as round 482
+(`docs/albo-round-482-2026-10-07.md`). Before the ruling: options; 1.0 on
+every dial is round 481 byte for byte.
 
 Proof page: https://claude.ai/artifact/QcF1PNp1nAJKYncZdtAoHS (drawn by
 `tools/wedge_serif/instruments/caps_contrast_proof.py`).

@@ -8574,7 +8574,7 @@ if ON:
     # 84 only; 1.0 = round 481. CAP_BAR_BOLD also scales the bars drawn here
     # (A G H L Z), read from caps_straight so the two cannot disagree.
     # docs/albo-capitals-contrast-options-2026-10-06.md.
-    CAP_NIB_BOLD = float(os.environ.get("ALBO_CAP_NIB_BOLD", 1.0))
+    CAP_NIB_BOLD = float(os.environ.get("ALBO_CAP_NIB_BOLD", 1.2))
     from .caps_straight import CAP_BAR_BOLD as _CBB, CAP_THIN_BOLD as _CTB
     _IBAR = _CBB if S > 84.0 else 1.0
     _ITHIN = _CTB if S > 84.0 else 1.0   # the nib's thin on a capital DIAGONAL (`cdiag`): a straight stroke has one direction, so CAP_CON cannot reach it

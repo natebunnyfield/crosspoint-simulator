@@ -20,15 +20,16 @@ def W_(c, ch, default): return default * c["W"].get(ch, 1.0)
 # capitals' contrast at 0.55 (B) and 0.48 (Z) of the references where the 400s
 # match, and found the gap spread evenly over the bars, the thin diagonals and
 # the bowls. One factor per kind, ABOVE STEM 84 ONLY, so the 400s cannot move.
-# All three default to 1.0 = round 481 byte for byte.
+# 1.0 = round 481 byte for byte. SHIPPED at C1 (owner "C1 wins", round 482):
+# bars 0.85, thin 0.85, con 1.0, and aldine.py CAP_NIB_BOLD 1.2.
 #   CAP_BAR_BOLD  the bars (A E F G H L Z), via this module's CAP_BAR; the T
 #                 keeps pen.CAP_BAR and its own ruled T_BAR_K (round 415)
 #   CAP_THIN_BOLD round 51's 0.72 thin diagonal (A M V W); the X, Y and K arm
 #                 carry their own tuned or ruled factors and are left alone
 #   CAP_CON_BOLD  the bowls' contrast re-spread (`ring` / `bowl_widths` con) on the
 #                 capital ring and arc (O Q C); half_bowl (B D P R) has no con
-CAP_BAR_BOLD = float(os.environ.get("ALBO_CAP_BAR_BOLD", 1.0))
-CAP_THIN_BOLD = float(os.environ.get("ALBO_CAP_THIN_BOLD", 1.0))
+CAP_BAR_BOLD = float(os.environ.get("ALBO_CAP_BAR_BOLD", 0.85))
+CAP_THIN_BOLD = float(os.environ.get("ALBO_CAP_THIN_BOLD", 0.85))
 CAP_CON_BOLD = float(os.environ.get("ALBO_CAP_CON_BOLD", 1.0))
 if S > 84.0:
     CAP_BAR = CAP_BAR * CAP_BAR_BOLD
