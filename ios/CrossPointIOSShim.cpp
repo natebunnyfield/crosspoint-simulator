@@ -281,12 +281,31 @@ SDL_FRect g_zenPaper{};
 // recognizers through CrossPointZen_paperBottomPx() at the foot of the file.
 // Writing it twice is how the finger and the picture start disagreeing about
 // where the paper ends.
+// OUT OF ZEN ON THE PHONE, THE PAPER SPACING (owner 2026-10-08, S1: "the
+// paper needs one top and two bottom spacing"): the paper extends one unit
+// above the page and two below it, and the pad drops by the two so it stays
+// under the paper. One unit = 24 pt, three 8 pt grid cells -- the largest whole
+// number of cells that keeps the pad clear of the home indicator on an iPhone
+// Air (72 px there). It costs thumb reach, and the owner took that trade:
+// the page rocker 25.5-36 mm -> 10.5-21 mm above the device's bottom
+// (docs/thumb-reach-2026-10-06.md). CROSSPOINT_SIM_PAPER_SPACE_PX overrides
+// the unit in device px; 0 turns it off.
+float g_ptScale = 3.0f;
+inline float paperSpacePx() {
+  static const float env = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_PAPER_SPACE_PX");
+    return e ? static_cast<float>(std::atof(e)) : -1.0f;
+  }();
+  return env >= 0.0f ? env : 24.0f * g_ptScale;
+}
+
 inline float zenPaperBottomPx() {
   // On the phone the paper is the page alone since 2026-10-07, so the
   // 'Below the Paper' zone starts at the page's bottom edge (owner, same day).
   static const bool isPad = CrossPointAppearance_isPad() == 1;
   // In zen the paper is the 1:2 sheet again, which ends at the rocker line.
-  if (!isPad && !g_zen && g_zenPanel.h > 0.0f) return g_zenPanel.y + g_zenPanel.h;
+  if (!isPad && !g_zen && g_zenPanel.h > 0.0f)   // the paper's bottom: two units below the page (S1)
+    return g_zenPanel.y + g_zenPanel.h + 2.0f * paperSpacePx();
   if (g_zenRowTopPx > 0.0f) return g_zenRowTopPx;
   return g_zenPanel.y + g_zenPanel.h;
 }
@@ -326,23 +345,6 @@ float g_zenTapDownY = 0.0f;
 // rule, same reason it is kept beside the classifier rather than read back
 // from it: the classifier resets itself on the last lift.
 float g_zenTapDownX = 0.0f;
-// OUT OF ZEN ON THE PHONE, THE PAPER SPACING (owner 2026-10-08, S1: "the
-// paper needs one top and two bottom spacing"): the paper extends one unit
-// above the page and two below it, and the pad drops by the two so it stays
-// under the paper. One unit = 24 pt, three 8 pt grid cells -- the largest whole
-// number of cells that keeps the pad clear of the home indicator on an iPhone
-// Air (72 px there). It costs thumb reach, and the owner took that trade:
-// the page rocker 25.5-36 mm -> 10.5-21 mm above the device's bottom
-// (docs/thumb-reach-2026-10-06.md). CROSSPOINT_SIM_PAPER_SPACE_PX overrides
-// the unit in device px; 0 turns it off.
-float g_ptScale = 3.0f;
-inline float paperSpacePx() {
-  static const float env = [] {
-    const char *e = std::getenv("CROSSPOINT_SIM_PAPER_SPACE_PX");
-    return e ? static_cast<float>(std::atof(e)) : -1.0f;
-  }();
-  return env >= 0.0f ? env : 24.0f * g_ptScale;
-}
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
@@ -353,7 +355,8 @@ float g_cardTopPx = 0.0f;
 // the layout publishes. g_cardTopPx itself still drives the layout.
 inline float zenPaperTopPx() {
   static const bool isPad = CrossPointAppearance_isPad() == 1;
-  if (!isPad && !g_zen && g_zenPanel.h > 0.0f) return g_zenPanel.y;   // zen: the 1:2 sheet's top
+  if (!isPad && !g_zen && g_zenPanel.h > 0.0f)   // the paper's top: one unit above the page (S1)
+    return g_zenPanel.y - paperSpacePx();   // zen: the 1:2 sheet's top, below
   return g_cardTopPx;
 }
 // TRUE while the turned page's landscape is laid out (a turned page in a window
