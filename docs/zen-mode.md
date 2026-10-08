@@ -811,8 +811,8 @@ shift does not depend on the ink insets), keyboard and font-size relayouts,
 zen toggles in both directions, the iPad paths, pad drawing against
 hit-testing, the other users of the zone functions, the removed margin pin, and
 the restored firmware row (one key, hand-persisted, web API, i18n). The pad's
-top row touching the paper on an iPhone SE was reported as cosmetic; the room
-cap above now sets the SE's unit too.
+top row touching the paper on an iPhone SE (gap 0 in the reviewer's model) was
+reported as cosmetic and is NOT fixed or measured; no SE Simulator is installed.
 
 **Construction measured, 2026-10-08** (owner: *"show me the finalized layout
 with circles and grid, then show me the current"*). The same saved reading page,
