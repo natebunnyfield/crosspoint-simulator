@@ -324,6 +324,16 @@ float g_zenTapDownX = 0.0f;
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
+// The TOP boundary the zones split on: where black ends and paper begins. On
+// the phone the paper is the page alone since 2026-10-07, so that is the
+// page's top edge (owner, same day: move the 'Above the Paper' zone to it);
+// before the first present has a page, and on the iPad, it is the card top
+// the layout publishes. g_cardTopPx itself still drives the layout.
+inline float zenPaperTopPx() {
+  static const bool isPad = CrossPointAppearance_isPad() == 1;
+  if (!isPad && g_zenPanel.h > 0.0f) return g_zenPanel.y;
+  return g_cardTopPx;
+}
 // TRUE while the turned page's landscape is laid out (a turned page in a window
 // wider than tall; src/TurnedPageLandscape.h). Set by every layoutPad pass;
 // paintPad reads it to paint the landscape surround and the split pad.
@@ -3172,6 +3182,10 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // four corners rounded, everything else black, zen or not -- what the iPad
   // and the turned landscape already drew.
   if (g_turnedLandscape || !s_isPad) {
+    // The paper is the page's own rect, at the page's own proportion. Owner
+    // 2026-10-07 asked first to keep the old sheet's h/w (1.686), saw that
+    // rendered at the page's width two ways (P1, P2), and ruled "309 works":
+    // the page alone, h/w 1.500. docs/zen-mode.md.
     const SDL_FRect &q = g_zenPanel;
     if (q.w > 0.0f && q.h > 0.0f) {
       const float Wf = static_cast<float>(outW), Hf = static_cast<float>(outH);
@@ -3813,7 +3827,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // because this verb is SDL's, not UIKit's -- one hit test, two
           // callers.
           const gesturebind::Zone zone = gesturebind::zoneFor(
-              g_zenTapDownX, g_zenTapDownY, zenPageLeftPx(), g_cardTopPx,
+              g_zenTapDownX, g_zenTapDownY, zenPageLeftPx(), zenPaperTopPx(),
               zenPaperBottomPx());
           const gesturebind::Gesture zoneRow =
               gesturebind::zoneGesture(gesturebind::OneFinger::Tap, zone);
@@ -4108,7 +4122,7 @@ extern "C" void CrossPointZen_spoilTapCandidate(void) {
 // the question answerable on the launch before zen has ever been entered. Zero
 // before the first layout, and a zero answers "everything is on the paper" --
 // the conservative direction, since a stray toggle is worse than a missed one.
-extern "C" float CrossPointZen_cardTopPx(void) { return g_cardTopPx; }
+extern "C" float CrossPointZen_cardTopPx(void) { return zenPaperTopPx(); }
 
 // ...and the PAPER'S BOTTOM EDGE, the other boundary the zones split on. This
 // is g_zenPaper's bottom, which is the old top-rocker line (g_zenRowTopPx) --
