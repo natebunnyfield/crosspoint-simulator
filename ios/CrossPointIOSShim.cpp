@@ -285,7 +285,8 @@ inline float zenPaperBottomPx() {
   // On the phone the paper is the page alone since 2026-10-07, so the
   // 'Below the Paper' zone starts at the page's bottom edge (owner, same day).
   static const bool isPad = CrossPointAppearance_isPad() == 1;
-  if (!isPad && g_zenPanel.h > 0.0f) return g_zenPanel.y + g_zenPanel.h;
+  // In zen the paper is the 1:2 sheet again, which ends at the rocker line.
+  if (!isPad && !g_zen && g_zenPanel.h > 0.0f) return g_zenPanel.y + g_zenPanel.h;
   if (g_zenRowTopPx > 0.0f) return g_zenRowTopPx;
   return g_zenPanel.y + g_zenPanel.h;
 }
@@ -335,7 +336,7 @@ float g_cardTopPx = 0.0f;
 // the layout publishes. g_cardTopPx itself still drives the layout.
 inline float zenPaperTopPx() {
   static const bool isPad = CrossPointAppearance_isPad() == 1;
-  if (!isPad && g_zenPanel.h > 0.0f) return g_zenPanel.y;
+  if (!isPad && !g_zen && g_zenPanel.h > 0.0f) return g_zenPanel.y;   // zen: the 1:2 sheet's top
   return g_cardTopPx;
 }
 // TRUE while the turned page's landscape is laid out (a turned page in a window
@@ -1242,6 +1243,14 @@ void layoutPad(int outW, int outH) {
       }
     } else if (!g_zen) {
       g_zenPanelShiftPx = 0.0f;
+      // THE SAME MODULE OUT OF ZEN, for the corner radius only (owner
+      // 2026-10-07: "K2 corners for both ... unified ui as before"). Same
+      // arithmetic as the zen branch, so a page has one radius in both modes;
+      // it moves nothing else -- no shift, no relayout.
+      if (panelHPx > 0 && g_zenRowTopPx > paperTopPx + panelHPx) {
+        const float slack = g_zenRowTopPx - paperTopPx - panelHPx;
+        g_paperGapPx = (slack + inkTopPx + inkBottomPx) / (1.0f + mult);
+      }
     }
   }
   // NOW consume the shift -- `want` above has already updated
@@ -3186,11 +3195,17 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // four corners rounded, everything else black, zen or not -- what the iPad
   // and the turned landscape already drew.
   if (g_turnedLandscape || !s_isPad) {
-    // The paper is the page's own rect, at the page's own proportion. Owner
-    // 2026-10-07 asked first to keep the old sheet's h/w (1.686), saw that
-    // rendered at the page's width two ways (P1, P2), and ruled "309 works":
-    // the page alone, h/w 1.500. docs/zen-mode.md.
-    const SDL_FRect &q = g_zenPanel;
+    // Out of zen the paper is the page's own rect (owner 2026-10-07, "309
+    // works", after seeing the old h/w kept two ways, P1 and P2). docs/zen-mode.md.
+    SDL_FRect q = g_zenPanel;
+    // ZEN ON THE PHONE: THE 1:2 SHEET AT THE PAGE'S WIDTH (owner 2026-10-07,
+    // "for zen, use 1:2 ratio"). The sheet runs from the card top to the rocker
+    // line, so the black band below it is twice the band above (Van de Graaf,
+    // the 2026-08-22 ruling), and the zen placement already sits the page in
+    // it. Out of zen the paper stays the page alone (build 309).
+    if (g_zen && !g_turnedLandscape && q.w > 0.0f && q.h > 0.0f &&
+        g_cardTopPx > 0.0f && g_zenRowTopPx > g_cardTopPx)
+      q = {q.x, g_cardTopPx, q.w, g_zenRowTopPx - g_cardTopPx};
     if (q.w > 0.0f && q.h > 0.0f) {
       const float Wf = static_cast<float>(outW), Hf = static_cast<float>(outH);
       SDL_SetRenderDrawColor(r, 0, 0, 0, 255);

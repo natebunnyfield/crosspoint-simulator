@@ -765,6 +765,19 @@ of zen. Options page: https://claude.ai/artifact/MhBx1yDoWTTczmLTJffKGZ.
 2026-10-07): `zenPaperTopPx()` in `ios/CrossPointIOSShim.cpp`, read by the tap
 and by `CrossPointZen_cardTopPx()` for the recognizers. The layout still reads
 `g_cardTopPx`. The iPad, whose card top already is the page's top, is unchanged.
+**Zen takes the 1:2 sheet back, and both modes share one corner** (owner
+2026-10-07, after the radius options K1/K2: *"for zen, use 1:2 ratio and K2
+corners for both. it should be unified ui as before"*). In zen the phone's paper
+is again the Van de Graaf sheet -- card top to the rocker line, black band below
+twice the band above -- but at the PAGE's width, so it no longer runs past the
+page sideways. Measured on an iPhone Air: paper 102-1157 x 204-2327, bands
+204 : 408. Out of zen the paper stays the page alone. Both modes take the
+module's corner, half the construction's top-margin circle (106 px here): the
+module is now computed out of zen too, for the radius only (no shift, no
+relayout). No ink is clipped in either mode. Zones follow the paper: in zen the
+two boundaries are the sheet's again (the card top and the rocker line); out of
+zen, the page's top and bottom (the two rulings below).
+
 **...and the "Below the Paper" zone starts at the page's bottom edge** (owner,
 same day, the mirror question): `zenPaperBottomPx()` returns the page's bottom
 on the phone rather than the old rocker line, about 370 px higher in zen. iPad
