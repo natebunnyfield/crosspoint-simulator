@@ -282,6 +282,10 @@ SDL_FRect g_zenPaper{};
 // Writing it twice is how the finger and the picture start disagreeing about
 // where the paper ends.
 inline float zenPaperBottomPx() {
+  // On the phone the paper is the page alone since 2026-10-07, so the
+  // 'Below the Paper' zone starts at the page's bottom edge (owner, same day).
+  static const bool isPad = CrossPointAppearance_isPad() == 1;
+  if (!isPad && g_zenPanel.h > 0.0f) return g_zenPanel.y + g_zenPanel.h;
   if (g_zenRowTopPx > 0.0f) return g_zenRowTopPx;
   return g_zenPanel.y + g_zenPanel.h;
 }

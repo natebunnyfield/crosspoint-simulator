@@ -765,6 +765,10 @@ of zen. Options page: https://claude.ai/artifact/MhBx1yDoWTTczmLTJffKGZ.
 2026-10-07): `zenPaperTopPx()` in `ios/CrossPointIOSShim.cpp`, read by the tap
 and by `CrossPointZen_cardTopPx()` for the recognizers. The layout still reads
 `g_cardTopPx`. The iPad, whose card top already is the page's top, is unchanged.
+**...and the "Below the Paper" zone starts at the page's bottom edge** (owner,
+same day, the mirror question): `zenPaperBottomPx()` returns the page's bottom
+on the phone rather than the old rocker line, about 370 px higher in zen. iPad
+unchanged.
 
 **The sheet BLEEDS TO THE GLASS.** It is not a card floating on black. Owner
 ruling 2026-08-20, picked off a side-by-side of two live renders rather than a
