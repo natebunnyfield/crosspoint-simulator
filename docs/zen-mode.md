@@ -754,6 +754,18 @@ as the record of what it replaced. Each mode keeps the corner radius it had:
 iPhone Air capture; no ink is clipped (the battery icon clears the zen corner
 by about 20 px).
 
+**The shape stays the page's own, h/w 1.500** (owner 2026-10-07, "309 works").
+He first asked to keep the old sheet's proportion (measured 1260 x 2124, h/w
+1.686), saw it rendered at the page's width two ways -- P1, the old sheet scaled
+to the page's width; P2, the page's top with the extra height below -- and kept
+build 309's page-alone paper. Both arms also ran under the top row of buttons out
+of zen. Options page: https://claude.ai/artifact/MhBx1yDoWTTczmLTJffKGZ.
+
+**The "Above the Paper" zone starts at the page's top edge on the phone** (owner
+2026-10-07): `zenPaperTopPx()` in `ios/CrossPointIOSShim.cpp`, read by the tap
+and by `CrossPointZen_cardTopPx()` for the recognizers. The layout still reads
+`g_cardTopPx`. The iPad, whose card top already is the page's top, is unchanged.
+
 **The sheet BLEEDS TO THE GLASS.** It is not a card floating on black. Owner
 ruling 2026-08-20, picked off a side-by-side of two live renders rather than a
 description: the bounded version spent 204 px of the 1260 on margin and read as
