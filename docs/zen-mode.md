@@ -790,6 +790,30 @@ Screen Margin picker is back (crosspoint-reader `src/SettingsList.h`) and the
 harness no longer pins the phone card's `screenMargin` to 5 at boot.
 Options page: https://claude.ai/artifact/EB62GSq6tDS4w4RfwN3LMH.
 
+Adversarial review before the build (2026-10-08) found, and this fixed:
+- **Smaller iPhones put the pad in the home-indicator area.** The unit was sized
+  on the Air alone, and the +2 units went on after the floor clamp. The drop is
+  now capped at the room above that floor, and the paper's unit shrinks to
+  match in whole 8 pt cells (`g_paperSpaceEffPx`). The bands stay 1 : 2 at any
+  unit. Measured on the Simulator, zen off: 13 mini bands 287 : 575, paper to
+  pad 69 px; iPhone 17 bands 322 : 644, pad 164 px (9.1 mm) above the bottom;
+  Air unchanged (312 : 624).
+- **The turned landscape's zones moved** with the S1 spacing, though its paper
+  is the page alone. The zone helpers exclude it now.
+- **Leaving the turned landscape could place the page ~330 px low for a frame**,
+  because the placement read back the landscape panel. It now reads back only a
+  portrait panel and keeps the last good base per window height. Not reproduced
+  on a capture; the fix follows the reviewer's model.
+
+Checked and CLEAN by the same review: the no-resize pairing (both insets read
+the shift once, after it is set), the first present, page turns out of zen (the
+shift does not depend on the ink insets), keyboard and font-size relayouts,
+zen toggles in both directions, the iPad paths, pad drawing against
+hit-testing, the other users of the zone functions, the removed margin pin, and
+the restored firmware row (one key, hand-persisted, web API, i18n). The pad's
+top row touching the paper on an iPhone SE was reported as cosmetic; the room
+cap above now sets the SE's unit too.
+
 **Construction measured, 2026-10-08** (owner: *"show me the finalized layout
 with circles and grid, then show me the current"*). The same saved reading page,
 iOS Simulator, overlays drawn from pixels by `tools/paper_construction_overlay.py`;

@@ -298,14 +298,25 @@ inline float paperSpacePx() {
   }();
   return env >= 0.0f ? env : 24.0f * g_ptScale;
 }
+// The unit actually laid out, in device px: paperSpacePx(), or less where the
+// pad has no room for two units below the paper above the home-indicator floor
+// (the 13 mini through the 16 Pro, adversarial review 2026-10-08), floored to
+// whole 8 pt cells. -1 until the first phone layout; the bands stay 1 : 2 at
+// any unit, since the paper takes one from above and two from below.
+extern bool g_turnedLandscape;   // defined below; the zone helpers read it
+float g_paperSpaceEffPx = -1.0f;
+inline float paperSpaceEffPx() {
+  return g_paperSpaceEffPx >= 0.0f ? g_paperSpaceEffPx : paperSpacePx();
+}
 
 inline float zenPaperBottomPx() {
   // On the phone the paper is the page alone since 2026-10-07, so the
   // 'Below the Paper' zone starts at the page's bottom edge (owner, same day).
   static const bool isPad = CrossPointAppearance_isPad() == 1;
   // In zen the paper is the 1:2 sheet again, which ends at the rocker line.
-  if (!isPad && !g_zen && g_zenPanel.h > 0.0f)   // the paper's bottom: two units below the page (S1)
-    return g_zenPanel.y + g_zenPanel.h + 2.0f * paperSpacePx();
+  if (!isPad && !g_zen && !g_turnedLandscape && g_zenPanel.h > 0.0f)   // the paper's bottom: two units below the page (S1)
+    return g_zenPanel.y + g_zenPanel.h + 2.0f * paperSpaceEffPx();
+  if (!isPad && g_turnedLandscape && g_zenPanel.h > 0.0f) return g_zenPanel.y + g_zenPanel.h;
   if (g_zenRowTopPx > 0.0f) return g_zenRowTopPx;
   return g_zenPanel.y + g_zenPanel.h;
 }
@@ -355,8 +366,9 @@ float g_cardTopPx = 0.0f;
 // the layout publishes. g_cardTopPx itself still drives the layout.
 inline float zenPaperTopPx() {
   static const bool isPad = CrossPointAppearance_isPad() == 1;
-  if (!isPad && !g_zen && g_zenPanel.h > 0.0f)   // the paper's top: one unit above the page (S1)
-    return g_zenPanel.y - paperSpacePx();   // zen: the 1:2 sheet's top, below
+  if (!isPad && !g_zen && !g_turnedLandscape && g_zenPanel.h > 0.0f)   // the paper's top: one unit above the page (S1)
+    return g_zenPanel.y - paperSpaceEffPx();
+  if (!isPad && g_turnedLandscape && g_zenPanel.h > 0.0f) return g_zenPanel.y;   // zen: the 1:2 sheet's top, below
   return g_cardTopPx;
 }
 // TRUE while the turned page's landscape is laid out (a turned page in a window
@@ -1003,7 +1015,13 @@ void layoutPad(int outW, int outH) {
     upperY = panelBottom + bottomGap - kCellH;
     if (upperY < panelBottom) upperY = panelBottom;
     if (upperY > maxUpper) upperY = maxUpper;
-    if (!g_zen && paperSpacePx() > 0.0f) upperY += 2.0f * paperSpacePx() / S;
+    if (!g_zen && !g_turnedLandscape) {
+      // Two units below the paper, but never past the floor maxUpper keeps.
+      const float roomPt = SDL_max(0.0f, maxUpper - upperY);
+      const float effPt = SDL_min(paperSpacePx() / S, SDL_floorf(roomPt / 2.0f / 8.0f) * 8.0f);
+      g_paperSpaceEffPx = effPt * S;
+      upperY += 2.0f * effPt;
+    }
   } else {
     upperY = maxUpper;
   }
@@ -1025,7 +1043,7 @@ void layoutPad(int outW, int outH) {
   // keeps its size: the band reserved for the pad is unchanged, and the strip
   // under the rocker row is simply empty.
   constexpr float kPairInset = 32.0f;
-  const float rockerY = upperY + kCellH + kRowClear;   // <= lowerY, since upperY <= maxUpper
+  const float rockerY = upperY + kCellH + kRowClear;   // <= lowerY: upperY <= maxUpper, the S1 drop included
   const float leftPairX = colX(0) + kPairInset;
   const float rightPairX = colX(cols - 2) - kPairInset;
 
@@ -1280,13 +1298,24 @@ void layoutPad(int outW, int outH) {
           const float topWant = (H * S - panelHPx) / (1.0f + s_offRatio);
           // The unshifted top is the published panel top less the shift that
           // pass consumed -- not card top + 12 pt, which measured 16 px short.
-          const float topNow = static_cast<float>(SimulatorOverlay::panelBottomPx() -
-                                                  SimulatorOverlay::panelHeightPx());
-          const float base = topNow - g_zenShiftThisPass;
+          // Read back only from a PORTRAIT panel: the first pass after the
+          // turned landscape still sees the landscape fit, which put the page
+          // ~330 px low for a frame (review 2026-10-08). The last good base is
+          // kept per window height.
+          static float s_base = -1.0f, s_baseH = -1.0f;
+          const int pw = SimulatorOverlay::panelWidthPx(), ph = SimulatorOverlay::panelHeightPx();
+          if (ph > pw) {
+            s_base = static_cast<float>(SimulatorOverlay::panelBottomPx() - ph) - g_zenShiftThisPass;
+            s_baseH = H;
+          }
+          const float base = (s_baseH == H && s_base >= 0.0f) ? s_base : -1.0f;
+          if (base < 0.0f) { g_zenPanelShiftPx = 0.0f; }
+          else {
           float want = topWant - base;
           if (want < 0.0f) want = 0.0f;
           if (want > band * S - 8.0f * S) want = band * S - 8.0f * S;
           g_zenPanelShiftPx = want;
+          }
         }
       }
       // THE SAME MODULE OUT OF ZEN, for the corner radius only (owner
@@ -3249,8 +3278,8 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // line, so the black band below it is twice the band above (Van de Graaf,
     // the 2026-08-22 ruling), and the zen placement already sits the page in
     // it. Out of zen the paper stays the page alone (build 309).
-    if (!g_zen && !g_turnedLandscape && !s_isPad && q.w > 0.0f && paperSpacePx() > 0.0f)
-      q = {q.x, q.y - paperSpacePx(), q.w, q.h + 3.0f * paperSpacePx()};
+    if (!g_zen && !g_turnedLandscape && !s_isPad && q.w > 0.0f && paperSpaceEffPx() > 0.0f)
+      q = {q.x, q.y - paperSpaceEffPx(), q.w, q.h + 3.0f * paperSpaceEffPx()};
     if (g_zen && !g_turnedLandscape && q.w > 0.0f && q.h > 0.0f &&
         g_cardTopPx > 0.0f && g_zenRowTopPx > g_cardTopPx)
       q = {q.x, g_cardTopPx, q.w, g_zenRowTopPx - g_cardTopPx};
