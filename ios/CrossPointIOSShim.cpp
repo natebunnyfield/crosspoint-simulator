@@ -326,6 +326,23 @@ float g_zenTapDownY = 0.0f;
 // rule, same reason it is kept beside the classifier rather than read back
 // from it: the classifier resets itself on the last lift.
 float g_zenTapDownX = 0.0f;
+// OUT OF ZEN ON THE PHONE, THE PAPER SPACING (owner 2026-10-08, S1: "the
+// paper needs one top and two bottom spacing"): the paper extends one unit
+// above the page and two below it, and the pad drops by the two so it stays
+// under the paper. One unit = 24 pt, three 8 pt grid cells -- the largest whole
+// number of cells that keeps the pad clear of the home indicator on an iPhone
+// Air (72 px there). It costs thumb reach, and the owner took that trade:
+// the page rocker 25.5-36 mm -> 10.5-21 mm above the device's bottom
+// (docs/thumb-reach-2026-10-06.md). CROSSPOINT_SIM_PAPER_SPACE_PX overrides
+// the unit in device px; 0 turns it off.
+float g_ptScale = 3.0f;
+inline float paperSpacePx() {
+  static const float env = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_PAPER_SPACE_PX");
+    return e ? static_cast<float>(std::atof(e)) : -1.0f;
+  }();
+  return env >= 0.0f ? env : 24.0f * g_ptScale;
+}
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
@@ -363,7 +380,6 @@ float g_zenShiftThisPass = 0.0f;
 // CrossPointAppearance_isPad()). g_paperGapPx itself is still the same
 // module on both platforms -- only what each platform DOES with it changed.
 float g_paperGapPx = 0.0f;
-float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
 
 // Height of the black band above the page, in device pixels; 0 = no band.
@@ -984,6 +1000,7 @@ void layoutPad(int outW, int outH) {
     upperY = panelBottom + bottomGap - kCellH;
     if (upperY < panelBottom) upperY = panelBottom;
     if (upperY > maxUpper) upperY = maxUpper;
+    if (!g_zen && paperSpacePx() > 0.0f) upperY += 2.0f * paperSpacePx() / S;
   } else {
     upperY = maxUpper;
   }
@@ -1243,6 +1260,32 @@ void layoutPad(int outW, int outH) {
       }
     } else if (!g_zen) {
       g_zenPanelShiftPx = 0.0f;
+      // OUT OF ZEN, THE GLASS BANDS IN WHOLE CIRCLES (owner 2026-10-08: "use
+      // integer multiples of circles not half", then "W2"). Left alone the
+      // page sat at card top + 12 pt, 256 : 896 px = 1 : 3.5 on an iPhone Air;
+      // it is now placed so the black below is twice the black above (384 :
+      // 768), through the same no-resize shift zen uses. The paper spacing
+      // (paperSpacePx) keeps that 1 : 2, since it takes one unit from above and
+      // two from below. The shift never goes negative and leaves the band 8 pt.
+      // CROSSPOINT_SIM_OFF_RATIO=n overrides n; 0 restores the old placement.
+      {
+        static const int s_offRatio = [] {
+          const char *e = std::getenv("CROSSPOINT_SIM_OFF_RATIO");
+          return e ? std::atoi(e) : 2;
+        }();
+        if (s_offRatio > 0 && panelHPx > 0) {
+          const float topWant = (H * S - panelHPx) / (1.0f + s_offRatio);
+          // The unshifted top is the published panel top less the shift that
+          // pass consumed -- not card top + 12 pt, which measured 16 px short.
+          const float topNow = static_cast<float>(SimulatorOverlay::panelBottomPx() -
+                                                  SimulatorOverlay::panelHeightPx());
+          const float base = topNow - g_zenShiftThisPass;
+          float want = topWant - base;
+          if (want < 0.0f) want = 0.0f;
+          if (want > band * S - 8.0f * S) want = band * S - 8.0f * S;
+          g_zenPanelShiftPx = want;
+        }
+      }
       // THE SAME MODULE OUT OF ZEN, for the corner radius only (owner
       // 2026-10-07: "K2 corners for both ... unified ui as before"). Same
       // arithmetic as the zen branch, so a page has one radius in both modes;
@@ -1264,7 +1307,7 @@ void layoutPad(int outW, int outH) {
   // a relayout; moving BOTH to read it here, together, after it is fresh,
   // removes the earlier failure mode (a stale read at the FIRST consumer)
   // without reopening it.
-  g_zenShiftThisPass = g_zen ? g_zenPanelShiftPx : 0.0f;
+  g_zenShiftThisPass = g_zenPanelShiftPx;   // 0 out of zen unless the bands are placed (2026-10-08)
   const float shiftPt = g_zenShiftThisPass / S;
   SimulatorOverlay::setBottomInset(static_cast<int>((band - shiftPt) * S));
   SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
@@ -1409,7 +1452,7 @@ void layoutPad(int outW, int outH) {
   const float kPaperMargin = 12.0f;    // paper above the page
   topInset = safeTop > 20.0f ? kCardTop + kPaperMargin : kTopReserve;
   g_cardTopPx = (safeTop > 20.0f ? kCardTop : topInset) * S;
-  if (g_zen) topInset += g_zenShiftThisPass / S;
+  topInset += g_zenShiftThisPass / S;   // both modes, paired with the band (2026-10-08)
   SDL_Log("[layout] safe top %.1f pt -> card top %.1f pt, page top %.1f pt (%s)",
           safeTop, safeTop > 20.0f ? kCardTop : topInset, topInset,
           safeTop > 20.0f ? "paper card below the cut-out" : "reserve");
@@ -3203,6 +3246,8 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // line, so the black band below it is twice the band above (Van de Graaf,
     // the 2026-08-22 ruling), and the zen placement already sits the page in
     // it. Out of zen the paper stays the page alone (build 309).
+    if (!g_zen && !g_turnedLandscape && !s_isPad && q.w > 0.0f && paperSpacePx() > 0.0f)
+      q = {q.x, q.y - paperSpacePx(), q.w, q.h + 3.0f * paperSpacePx()};
     if (g_zen && !g_turnedLandscape && q.w > 0.0f && q.h > 0.0f &&
         g_cardTopPx > 0.0f && g_zenRowTopPx > g_cardTopPx)
       q = {q.x, g_cardTopPx, q.w, g_zenRowTopPx - g_cardTopPx};

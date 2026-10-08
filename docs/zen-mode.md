@@ -778,6 +778,18 @@ relayout). No ink is clipped in either mode. Zones follow the paper: in zen the
 two boundaries are the sheet's again (the card top and the rocker line); out of
 zen, the page's top and bottom (the two rulings below).
 
+**Zen off on the phone: W2 and S1** (owner 2026-10-08, *"use integer multiples
+of circles not half"*, then *"W2 but the paper needs one top and two bottom
+spacing"*, then *"S1 and put the margin setting back"*). Out of zen the page is
+placed so the black below the paper is twice the black above, and the paper
+extends one unit (24 pt) above the page and two below. iPhone Air, measured: page
+384-1967, paper 312-2111, bands 312 : 624 = 1 : 2. The pad hangs below the
+paper, so the trade against the 2026-10-06 thumb-reach ruling was taken knowingly:
+the page rocker 25.5-36 mm -> 10.5-21 mm above the device's bottom. The firmware's
+Screen Margin picker is back (crosspoint-reader `src/SettingsList.h`) and the
+harness no longer pins the phone card's `screenMargin` to 5 at boot.
+Options page: https://claude.ai/artifact/EB62GSq6tDS4w4RfwN3LMH.
+
 **Construction measured, 2026-10-08** (owner: *"show me the finalized layout
 with circles and grid, then show me the current"*). The same saved reading page,
 iOS Simulator, overlays drawn from pixels by `tools/paper_construction_overlay.py`;
