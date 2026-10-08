@@ -38,61 +38,6 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-036] The host web server is one serialized worker holding three copies of every body — FIXED 2026-10-07 (both halves)
-**severity: low-medium (latent DoS / memory) · scope: `src/WebServer.cpp` · found 2026-09-04 by the network-surface hunt (`docs/network-surface-hunt-2026-09-04.md`, findings 7 and 8)**
-
-Two things the hunt measured and this session did not change, because each
-is a design choice rather than a slip:
-
-- **One accept worker, serialized, with 5 s socket timeouts.** One idle
-  connection delays the next client 4.7 s; a header dripped a byte per 0.5 s
-  holds the server for the whole drip; 30 idle connections put the 31st at a
-  64 s wait. Recovers the moment the peer stops. (Since 2026-09-06 the 5 s
-  covers the request line and headers only; a socket with headers in hand is
-  a transfer and gets 60 s -- S-038. The idle-connection arithmetic above is
-  unchanged; a dripped BODY now holds the worker longer.) The phone binds all
-  interfaces, so any LAN peer can do this. The fix is a small accept pool or
-  a shorter header timeout; either changes the shim's threading model, which
-  the firmware's `handleClient()` contract (`dispatchDone` parking) was built
-  around.
-- **A PUT body was held in three copies** — the worker's `body`, the
-  `String(body)` handed to the handler as `plain`, and `currentBody` — though
-  the raw handler (WebDAV PUT) has already streamed it to disk and reads
-  neither. TWO of the three are gone since 2026-09-04: a raw handler skips the
-  `plain` arg and the `currentBody` copy and frees `body` after streaming, so
-  a 60 MB PUT now adds 116 MB RSS (the single buffer plus its growth
-  transient) rather than the ~180 MB the three copies cost. What remains is
-  that a raw upload still fully BUFFERS the body in `body` before the handler
-  runs, instead of recv->RAW_WRITE->free per chunk; removing that last copy is
-  the recv-loop rewrite this entry keeps.
-  **That half FIXED 2026-10-06:** a raw handler's body is streamed, each recv
-  straight to RAW_WRITE and not kept (`src/WebServer.cpp`, `received` counts
-  instead of `body.size()`). Pinned by `test_web_server_hardening.sh` 4b, which
-  samples PEAK RSS through a 60 MB PUT and md5s the file: **+111 MB on the old
-  code, +0 MB on the new**, both on a freshly built binary. Only the
-  serialized-worker half above stays open, and it is a design choice for the
-  owner (accept pool vs shorter header timeout).
-  **Ruled and FIXED 2026-10-07: shorter header timeout** (owner, over an accept
-  pool). The header phase is now 1 s per read and 2 s in all; the 2 s deadline
-  is the part that matters, because SO_RCVTIMEO re-arms on every byte and no
-  per-read value could stop a drip. Test 4c, failing first on the old binary:
-  a GET behind an idle connection 4.9 s -> 0.9 s, behind a byte-dripping one
-  20.0 s -> 1.8 s. http_dispatch, http_stream, wifi_host, ws_fragment and
-  test_manage_files_and_wifi_nav still pass. The worker is still one thread, so
-  N simultaneous slow peers still queue, at about 2 s each instead of up to 5 s
-  each or unbounded.
-  The same day found the test itself was blind: it launched the simulator in a
-  `( cd ... && env ... )` subshell, so `$!` was the SUBSHELL -- cleanup orphaned
-  the simulator on 18080 (the next run SKIPped on "port in use") and every RSS
-  check, including the 256 MB WebSocket one, measured a shell. `exec` fixes
-  both. Note the shell tests do not BUILD: they run whatever
-  `.pio/build/simulator*/program` the firmware checkout holds, so build first.
-
-Both are reachable from the network; neither is a crash by a crafted request
-(the three that were — the drip freezing Back, the 256 MB WebSocket
-allocation, the case-only MOVE losing a file — were fixed the same day, see
-the hunt doc). Filed so the next pass starts here rather than re-measuring.
-
 ### [S-042] Update Fonts / Update Library freeze the screen on the phone — OPEN, NOT reproduced on the iOS Simulator; a flight recorder ships in its place
 **severity: high (owner, 2026-09-26: "in ios app update library and fonts both freezing screen", a REPEATED report after TestFlight builds 226/227 shipped firmware `a29b432f6`) · scope: not localized · found 2026-09-26 · measured on the iOS Simulator only; no iPhone is paired to this Mac**
 
@@ -322,6 +267,62 @@ trace, with Settings → Diagnostics Log switched on BEFORE the first click, the
 `diagnostics/firmware.log` read out of Files.
 
 ## FIXED
+
+### [S-036] The host web server is one serialized worker holding three copies of every body — FIXED 2026-10-07 (both halves)
+**severity: low-medium (latent DoS / memory) · scope: `src/WebServer.cpp` · found 2026-09-04 by the network-surface hunt (`docs/network-surface-hunt-2026-09-04.md`, findings 7 and 8)**
+
+Two things the hunt measured and this session did not change, because each
+is a design choice rather than a slip:
+
+- **One accept worker, serialized, with 5 s socket timeouts.** One idle
+  connection delays the next client 4.7 s; a header dripped a byte per 0.5 s
+  holds the server for the whole drip; 30 idle connections put the 31st at a
+  64 s wait. Recovers the moment the peer stops. (Since 2026-09-06 the 5 s
+  covers the request line and headers only; a socket with headers in hand is
+  a transfer and gets 60 s -- S-038. The idle-connection arithmetic above is
+  unchanged; a dripped BODY now holds the worker longer.) The phone binds all
+  interfaces, so any LAN peer can do this. The fix is a small accept pool or
+  a shorter header timeout; either changes the shim's threading model, which
+  the firmware's `handleClient()` contract (`dispatchDone` parking) was built
+  around.
+- **A PUT body was held in three copies** — the worker's `body`, the
+  `String(body)` handed to the handler as `plain`, and `currentBody` — though
+  the raw handler (WebDAV PUT) has already streamed it to disk and reads
+  neither. TWO of the three are gone since 2026-09-04: a raw handler skips the
+  `plain` arg and the `currentBody` copy and frees `body` after streaming, so
+  a 60 MB PUT now adds 116 MB RSS (the single buffer plus its growth
+  transient) rather than the ~180 MB the three copies cost. What remains is
+  that a raw upload still fully BUFFERS the body in `body` before the handler
+  runs, instead of recv->RAW_WRITE->free per chunk; removing that last copy is
+  the recv-loop rewrite this entry keeps.
+  **That half FIXED 2026-10-06:** a raw handler's body is streamed, each recv
+  straight to RAW_WRITE and not kept (`src/WebServer.cpp`, `received` counts
+  instead of `body.size()`). Pinned by `test_web_server_hardening.sh` 4b, which
+  samples PEAK RSS through a 60 MB PUT and md5s the file: **+111 MB on the old
+  code, +0 MB on the new**, both on a freshly built binary. Only the
+  serialized-worker half above stays open, and it is a design choice for the
+  owner (accept pool vs shorter header timeout).
+  **Ruled and FIXED 2026-10-07: shorter header timeout** (owner, over an accept
+  pool). The header phase is now 1 s per read and 2 s in all; the 2 s deadline
+  is the part that matters, because SO_RCVTIMEO re-arms on every byte and no
+  per-read value could stop a drip. Test 4c, failing first on the old binary:
+  a GET behind an idle connection 4.9 s -> 0.9 s, behind a byte-dripping one
+  20.0 s -> 1.8 s. http_dispatch, http_stream, wifi_host, ws_fragment and
+  test_manage_files_and_wifi_nav still pass. The worker is still one thread, so
+  N simultaneous slow peers still queue, at about 2 s each instead of up to 5 s
+  each or unbounded.
+  The same day found the test itself was blind: it launched the simulator in a
+  `( cd ... && env ... )` subshell, so `$!` was the SUBSHELL -- cleanup orphaned
+  the simulator on 18080 (the next run SKIPped on "port in use") and every RSS
+  check, including the 256 MB WebSocket one, measured a shell. `exec` fixes
+  both. Note the shell tests do not BUILD: they run whatever
+  `.pio/build/simulator*/program` the firmware checkout holds, so build first.
+
+Both are reachable from the network; neither is a crash by a crafted request
+(the three that were — the drip freezing Back, the 256 MB WebSocket
+allocation, the case-only MOVE losing a file — were fixed the same day, see
+the hunt doc). Filed so the next pass starts here rather than re-measuring.
+
 
 ### [S-043] TestFlight builds 246-252 shipped UNDER an older marketing version, so the phone kept showing 245 — FIXED 2026-10-06
 **severity: medium (every ship for a day was invisible as "latest") · scope: `ios/testflight.sh`, `ios/CMakeLists.txt` · found 2026-09-28, owner: *"is latest testflight 245?"***
