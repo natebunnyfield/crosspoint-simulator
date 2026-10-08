@@ -451,44 +451,12 @@ void seedBundledBooks() {
   ::closedir(dir);
 }
 
-// Pin the PHONE card's screenMargin to 5, unconditionally, at every boot.
-//
-// Owner layout-exactness order 2026-08-22; the number is from the research in
-// docs/zen-page-margins.md: at 10 the margin costs a full text line per page
-// (16 vs 17 slots at 18 pt) and buys nothing typographic, because in zen the
-// paper band outside the panel already supplies the outer margin — the
-// firmware margin inside the bitmap double-pays it. 5 keeps the panel's own
-// edge off the ink; the DEVICE'S SD card keeps whatever it holds (settings are
-// per card, and the firmware's Screen Margin picker row was removed the same
-// day, so nothing on the phone can move this again).
-//
-// A plain text edit rather than a JSON library: the firmware writes this file
-// with ArduinoJson and reads it back leniently, and FsPrep links no JSON
-// parser. Absent file or absent key needs no edit — CrossPointSettings.h's
-// SCREEN_MARGIN_DEFAULT is already 5.
-void pinScreenMargin() {
-  const char *path = ".crosspoint/settings.json";
-  std::ifstream in(path);
-  if (!in) return;
-  std::string s((std::istreambuf_iterator<char>(in)),
-                std::istreambuf_iterator<char>());
-  in.close();
-  const std::string key = "\"screenMargin\"";
-  const size_t k = s.find(key);
-  if (k == std::string::npos) return;
-  size_t p = k + key.size();
-  while (p < s.size() && (s[p] == ' ' || s[p] == ':')) p++;
-  size_t e = p;
-  while (e < s.size() && s[e] >= '0' && s[e] <= '9') e++;
-  if (e == p) return;  // not a bare number; leave the firmware to normalize it
-  if (s.compare(p, e - p, "5") == 0) return;  // already pinned
-  const std::string old = s.substr(p, e - p);
-  s.replace(p, e - p, "5");
-  std::ofstream out(path, std::ios::trunc);
-  if (!out) return;
-  out << s;
-  SDL_Log("[harness] pinned screenMargin %s -> 5 in %s", old.c_str(), path);
-}
+// The PHONE card's screenMargin is no longer pinned to 5 at boot (owner
+// 2026-10-08, "put the margin setting back"): the firmware's Screen Margin
+// picker is restored, and a boot-time pin would undo every change made in it.
+// The 2026-08-22 pin and its reasoning are in git history (6e345e9) and
+// docs/zen-page-margins.md. A card that never stored the key still reads
+// SCREEN_MARGIN_DEFAULT, 5.
 
 } // namespace
 
@@ -538,10 +506,6 @@ void CrossPointHarness_prepareFilesystem() {
   // Fonts the firmware downloaded into the hidden root on THIS layout become
   // visible too; see migrateFontFamilies for why and for the collision rule.
   migrateFontFamilies(".fonts", "fonts");
-
-  // After the migration (so a card migrated from fs_/ this very boot is
-  // pinned too), before the firmware ever reads settings.json.
-  pinScreenMargin();
 
   // Create the sideload targets eagerly so "books" and "fonts" exist in Files
   // from the very first launch, before the firmware ever touches storage.
