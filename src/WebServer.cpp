@@ -5,6 +5,7 @@
 #include "SimulatorRebootResets.h"
 #include <Logging.h>
 #include <arpa/inet.h>
+#include <chrono>
 #include <condition_variable>
 #include <fcntl.h>
 #include <mutex>
@@ -203,7 +204,14 @@ void sendSimpleResponse(int client, int code, const char *message) {
 // transfers" (2026-09-06). The response side matters as much as the body
 // side: the firmware streams a download through client.write() on this same
 // socket, and SO_SNDTIMEO governs that too.
-constexpr int HEADER_TIMEOUT_S = 5;
+//
+// 1 s per read and 2 s in all for the header phase (owner 2026-10-07, S-036's
+// remaining half, "shorter header timeout" over an accept pool). SO_RCVTIMEO
+// re-arms on every byte, so a peer dripping one byte every half second held
+// the worker for as long as it liked under any per-read value; the deadline is
+// what caps it. An idle connection now costs the next client ~1 s, not ~5 s.
+constexpr int HEADER_TIMEOUT_S = 1;
+constexpr int HEADER_DEADLINE_MS = 2000;
 constexpr int TRANSFER_TIMEOUT_S = 60;
 
 void setSocketTimeouts(int client, int seconds) {
@@ -566,7 +574,11 @@ void WebServer::begin() {
 
       std::string raw;
       char buffer[8192];
+      const auto headerDeadline = std::chrono::steady_clock::now() +
+                                  std::chrono::milliseconds(HEADER_DEADLINE_MS);
       while (raw.find("\r\n\r\n") == std::string::npos) {
+        if (std::chrono::steady_clock::now() >= headerDeadline)
+          break;
         const ssize_t got = ::recv(client, buffer, sizeof(buffer), 0);
         if (got < 0 && errno == EINTR)
           continue;

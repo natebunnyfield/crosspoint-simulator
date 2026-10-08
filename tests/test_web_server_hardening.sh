@@ -139,6 +139,29 @@ if _pid:
     check('201' in st and same, f"60 MB PUT lands intact ({st})")
     check(peak[0]-base < 30, f"60 MB PUT peaked at +{peak[0]-base} MB RSS (buffered was ~+116)")
 
+# 4c. one idle or dripping connection cannot hold the single worker for long
+# (S-036): the header phase gets 1 s per read and 2 s in all. Before, an idle
+# peer cost the next client ~5 s and a drip held it for the whole drip.
+import threading as _th
+def _timed_get():
+    t0=time.time(); st=http('GET','/books/ok.txt',timeout=20); return time.time()-t0, st
+idle=socket.create_connection(('127.0.0.1',HTTP), timeout=10)
+time.sleep(0.1)
+el,st=_timed_get(); idle.close()
+check(el < 2.5, f"GET behind an idle connection took {el:.1f} s (was ~5)")
+_stop=[False]
+def _drip():
+    try:
+        d=socket.create_connection(('127.0.0.1',HTTP), timeout=10)
+        for ch in b'GET /books/ok.txt HTTP/1.1\r\nHost: x\r\nX-Pad: ' + b'a'*40:
+            if _stop[0]: break
+            d.send(bytes([ch])); time.sleep(0.4)
+        d.close()
+    except Exception: pass
+dt=_th.Thread(target=_drip); dt.start(); time.sleep(0.2)
+el,st=_timed_get(); _stop[0]=True; dt.join()
+check(el < 3.5, f"GET behind a byte-dripping connection took {el:.1f} s (drip held it for ~30 s)")
+
 # 5. path traversal cannot escape the card
 canary=os.path.join(WORK,'outside.txt'); open(canary,'w').write('SECRET')
 st=http('GET','/books/..%2f..%2f..%2foutside.txt')
