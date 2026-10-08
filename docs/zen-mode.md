@@ -778,6 +778,26 @@ relayout). No ink is clipped in either mode. Zones follow the paper: in zen the
 two boundaries are the sheet's again (the card top and the rocker line); out of
 zen, the page's top and bottom (the two rulings below).
 
+**Construction measured, 2026-10-08** (owner: *"show me the finalized layout
+with circles and grid, then show me the current"*). The same saved reading page,
+iOS Simulator, overlays drawn from pixels by `tools/paper_construction_overlay.py`;
+page https://claude.ai/artifact/C7azqP9B6bictCZ6tCXnwc.
+
+| | paper (x, y) | glass bands | paper to ink | corner |
+|---|---|---|---|---|
+| 308 phone zen | 0-1259, 204-2327 | 204 : 408 = 1 : 2.0 | 221 : 416 = 1 : 1.88 | module (106) |
+| 308 phone off | 0-1259, 204-2735 | 204 : none | -- | 8 pt (24) |
+| 311 phone zen | 102-1157, 204-2327 | 204 : 408 = 1 : 2.0 | 221 : 416 = 1 : 1.88 | module (106) |
+| 311 phone off | 102-1157, 256-1839 | 256 : 896 = 1 : 3.5 | -- | module (106) |
+| iPad, both builds, both modes | 504-1559, 389-1972 | 389 : 779 = 1 : 2.0 | -- | unit/8 (49) |
+
+The 1.88 is this page's published ink insets (its last line ends short); the
+construction targets 1:2. No ink is clipped by any corner; the closest is 19 px
+(311 phone off, last line). Two capture traps cost a wrong set first: Home lists
+the MOST RECENT book first, so a "RIGHT, CONFIRM" script opens a different book
+every run (use CONFIRM alone after one setup run), and a book can open on a blank
+cover wrapper.
+
 **...and the "Below the Paper" zone starts at the page's bottom edge** (owner,
 same day, the mirror question): `zenPaperBottomPx()` returns the page's bottom
 on the phone rather than the old rocker line, about 370 px higher in zen. iPad
