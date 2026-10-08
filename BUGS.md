@@ -38,7 +38,7 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-036] The host web server is one serialized worker holding three copies of every body
+### [S-036] The host web server is one serialized worker holding three copies of every body — FIXED 2026-10-07 (both halves)
 **severity: low-medium (latent DoS / memory) · scope: `src/WebServer.cpp` · found 2026-09-04 by the network-surface hunt (`docs/network-surface-hunt-2026-09-04.md`, findings 7 and 8)**
 
 Two things the hunt measured and this session did not change, because each
@@ -72,6 +72,15 @@ is a design choice rather than a slip:
   code, +0 MB on the new**, both on a freshly built binary. Only the
   serialized-worker half above stays open, and it is a design choice for the
   owner (accept pool vs shorter header timeout).
+  **Ruled and FIXED 2026-10-07: shorter header timeout** (owner, over an accept
+  pool). The header phase is now 1 s per read and 2 s in all; the 2 s deadline
+  is the part that matters, because SO_RCVTIMEO re-arms on every byte and no
+  per-read value could stop a drip. Test 4c, failing first on the old binary:
+  a GET behind an idle connection 4.9 s -> 0.9 s, behind a byte-dripping one
+  20.0 s -> 1.8 s. http_dispatch, http_stream, wifi_host, ws_fragment and
+  test_manage_files_and_wifi_nav still pass. The worker is still one thread, so
+  N simultaneous slow peers still queue, at about 2 s each instead of up to 5 s
+  each or unbounded.
   The same day found the test itself was blind: it launched the simulator in a
   `( cd ... && env ... )` subshell, so `$!` was the SUBSHELL -- cleanup orphaned
   the simulator on 18080 (the next run SKIPped on "port in use") and every RSS
