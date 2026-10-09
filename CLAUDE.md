@@ -552,7 +552,7 @@ cluster and which board profile before touching geometry.
 **`SDL_PushEvent` cannot drive `SDL_GetKeyboardState`** — measured, not assumed. A pushed key event reaches the queue, so edge reads (`wasPressed`/`wasReleased`, which `update()` sets straight from the event) work; but SDL's internal keyboard state array is only written on the real-input path, so level reads (`isPressed`, `anyButtonHeld`, `powerHoldDuration`) stay false for injected keys. `powerHoldDuration()` returns 0 at its early exit, so long-press power-off never fires. Anything driving the simulator synthetically must either use the `CROSSPOINT_SIM_INPUT_SCRIPT` path (which writes `syntheticButtonDown[]` directly) or extend `HalGPIO` with a live injection API. See [ios/README.md](ios/README.md).
 
 **iPHONE MIRRORING DOES NOT RECEIVE CLICKS, AND THE CAUSE IS NOT KNOWN — S-041,
-open.** Read the entry before touching input, because the obvious diagnosis is
+closed unfixed by owner ruling 2026-10-09 (Mirroring stays unsupported).** Read the entry before touching input, because the obvious diagnosis is
 wrong and it is convincing. It goes: Mirroring delivers a click as
 `UITouchTypeIndirectPointer`; SDL3's UIKit backend diverts that touch type to
 `SDL_SendMouseButton` and `continue`s without emitting any `SDL_EVENT_FINGER_*`;

@@ -90,7 +90,7 @@ stays.**
 The full record, with every run and the review, is `crosspoint-reader`
 `docs/update-progress-2026-09-26.md` section 8.
 
-### [S-041] Under iPhone Mirroring the app does not receive clicks or taps — OPEN, cause NOT established; the first hypothesis was refuted and an input trace ships in its place
+### [S-041] Under iPhone Mirroring the app does not receive clicks or taps — CLOSED by owner ruling 2026-10-09 ("Close S-041"): Mirroring stays unsupported, cause NOT established; the input trace stays in place (off unless Diagnostics Log is on)
 **severity: high (owner, 2026-09-20: "iphone mirroring ... is not receiving clicks and taps") · scope: not yet localized; `ios/CrossPointIOSShim.cpp` (`padWatch`, `traceInput`) is where the instrument lives · found 2026-09-20 · NOT reproducible on this Mac: Mirroring needs the owner's phone, and both screen-control requests were declined, so every line below is read off sources rather than measured under Mirroring**
 
 **THE MECHANISM IS NOW REPRODUCED AND CURED, on the same binary — fixed in
