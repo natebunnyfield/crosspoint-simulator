@@ -7,6 +7,10 @@ which letters need reshaping"*.
 **Status: a FINDING pass. Nothing was drawn, built or shipped.** Every letter
 below is a question for the owner to rule on, not a decision.
 
+**RULED 2026-10-09 (owner, "Yes, in rank order"):** draw options from this
+list one letter per round, in rank order, starting with the roman u (the a and
+o stay with their existing rulings).
+
 - **Surveyed:** commit `2ad5c37` (round 480, the Bold K) and the four fonts
   built for it: **R** Regular, **I** Italic, **B** Bold, **Z** Bold Italic.
 - **Corpus:** his 41 epubs under `~/src/claude-tools/*/epub/` (the files

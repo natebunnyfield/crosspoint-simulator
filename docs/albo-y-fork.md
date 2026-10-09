@@ -196,6 +196,10 @@ sandbox at `PLUNGE 0.0` reproduces the shipped `y` outline point for point.
 
 ## 5. Recommendation
 
+**SUPERSEDED 2026-09-26 (noted 2026-10-09):** the italic y's tail was settled
+by the curl, round 413 (owner: "curl wins for italic y"); the plunge below was
+never built and is no longer asked.
+
 **Ship the plunge, not the retraction.** Concretely: add `Y_TAIL_PLUNGE` and
 ladder 0.45 / 0.60 / 0.75 / 0.85 for the owner to pick from. My own pick off the
 four built is **0.60** — 0.85 buys 14 more units of hang and starts to read as a

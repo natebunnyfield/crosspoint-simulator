@@ -55,7 +55,7 @@ the change it was on.
 |---|---|---|
 | Status | **shipped** | the row and the gate **shipped 2026-08-31** (§7 Decision 1); the arm-to-setting mapping is still **not built** |
 | Changes what the reader sees | no | not yet — the gate is wired but pinned at `armCount=1`, which its own contract makes a no-op (§7) |
-| Needs an owner decision first | no | Decision 1 (the gate) is answered; Decision 2 (colour) stays open |
+| Needs an owner decision first | no | Decision 1 (the gate) and Decision 2 (colour: keep the freeze, owner 2026-08-29) are both answered |
 | Files | `src/ReadingLog.h`, `src/ReadingChannel.h`, firmware `lib/hal/HalGPIO.h` + `src/activities/reader/PageTextMetrics.h`, `tools/reading_report.py` | `src/ReadingArm.h` |
 | Tests | `tests/reading_log_test.cpp`, `tests/reading_report_test.py`, firmware `test/page_text_metrics` | `tests/reading_arm_test.cpp` |
 
@@ -451,7 +451,7 @@ in isolation. **The row's on-device round trip is NOT observable headlessly**
 (NSUserDefaults lives in the app's sandboxed container) — SHIPPED, UNCONFIRMED
 on device.
 
-Decision 2 below is unaffected and still open — a COLOUR arm remains blocked on
+Decision 2 below was answered 2026-08-29 (keep the freeze) — a COLOUR arm stays out on
 the frozen page.
 
 ### Decision 2 — the page palette is frozen, and that is an owner question

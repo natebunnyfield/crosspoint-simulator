@@ -426,6 +426,11 @@ row in a fifteen-row list, and that is the crowding, not this row's derivation.
 
 ## 8. Open, for the owner to rule on
 
+**MOOT since 2026-08-24 (noted 2026-10-09):** the phone's page palette is frozen
+(`src/FrozenPage.h`) and no control reaches a named preset, so items 1 and 4
+change nothing a reader sees and are no longer asked. They reopen only if the
+freeze lifts.
+
 1. **Does Red CRT's dark half get to be actually red?** It is `#FF6F6C`
    (a bright scarlet) because 7:1 forbids anything more saturated — the
    authentic `#FF1B00` measures 5.41:1 against pure black and cannot be fixed.

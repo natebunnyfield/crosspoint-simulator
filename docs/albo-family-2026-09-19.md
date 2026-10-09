@@ -749,6 +749,10 @@ Confirmed on both italics and on no roman. The aldine u's right stem is
 with the stem's width — 22 units under its own left stem at the 400 and 57
 at the 700. Not corrected in this round; awaiting the ruling.
 
+**RULED 2026-10-09 (owner, "Fix it, show options"):** re-measure on the
+current fonts, then draw options that bring the right stem to the left's height
+(full height, or the cut kept shallower), queued after the roman u.
+
 **What remains before a TestFlight build carries these fonts** (asked the
 same day). Albo is already an installed family in the firmware recipe
 (`lib/EpdFont/scripts/sd-fonts.yaml`, installed 2026-09-14) and the seed
