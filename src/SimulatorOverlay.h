@@ -23,6 +23,14 @@ using DrawFn = void (*)(SDL_Renderer *renderer, int outWidthPx, int outHeightPx)
 // Register (or clear, with nullptr) the overlay painter.
 void setDrawCallback(DrawFn fn);
 
+// Called on the main thread at the top of every present, BEFORE the panel is
+// fitted, with the output size in device pixels. A host whose reserved bands
+// depend on the panel rect settles them here (with refitPanel), so the page
+// this present draws and the chrome the draw callback paints come from the
+// same geometry. 2026-10-09; nullptr (the default, every desktop run) skips it.
+using PreFitFn = void (*)(int outWidthPx, int outHeightPx);
+void setPreFitCallback(PreFitFn fn);
+
 // The color the presentation path clears to before the panel is drawn: the
 // field the panel sits on. Defaults to white, which matches a blank e-ink page
 // so the panel edge is invisible. On desktop the window is exactly panel-sized
@@ -63,6 +71,12 @@ int panelBottomPx();
 // the first manual-placement present). Lets the pad scale hardware-derived
 // proportions (the chassis panel-to-buttons gap) with the presented panel
 // instead of hardcoding screen points.
+// Run the manual-placement fit NOW, with the bands as currently set, and
+// publish the panel rect the next present will draw -- without presenting.
+// Returns true when the rect changed. For a host whose bands are derived from
+// the panel rect (the iOS phone's pad), so it can settle that loop before a
+// present instead of across several. Main thread only. 2026-10-09.
+bool refitPanel(int outW, int outH);
 int panelHeightPx();
 
 // The panel's presented left edge and width, same units and same lifecycle

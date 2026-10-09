@@ -876,13 +876,37 @@ scripted finger tap at a coordinate.
 published as an integer, so a fractional placement came back rounded and the
 next pass absorbed the rounding: iPhone Air zen went 256 -> 355 -> 356, a second
 relayout to move the page 1 px. The target top is now rounded first, and the
-Air goes 256 -> 356 in one pass. NOT fixed, measured the same day: the iPhone
-13 mini (point scale 2.875) still takes several passes on entering zen
-(194 -> 207 -> 266 -> 257 -> 259). The page's size changes between the first
-passes as the side circle clamps, and with the size steady a 7 px shift change
-moved the page 9 px, consistent with the truncation in `setTopInset` /
-`setBottomInset` (`static_cast<int>` of point values times 2.875). It settles
-and stays settled.
+Air goes 256 -> 356 in one pass. The iPhone 13 mini still took several presents at launch, in BOTH modes
+(194 -> 235 -> 294 -> 285 -> 287 zen off; 194 -> 207 -> 266 -> 257 -> 259 zen
+on), and that one is fixed too (owner, same day: "Fix it"). Turning zen on or
+off mid-session was already a single move (287 -> 259); the steps were the
+launch. Cause: the pad's band is derived from the presented panel height, and
+the placement reads the presented panel top back, so every layout answer
+changed the fit it was computed from, and the present loop settled it one
+present at a time. The panel fit now lives in `fitManualPanel` in
+`src/HalDisplay.cpp`, `SimulatorOverlay::refitPanel` runs it between presents,
+and `layoutPadSettled` in the shim loops layout -> fit until nothing moves
+(at most six passes) before the next present. Measured: the mini's first
+present is its final position, 287 off and 259 in zen; the settled screens on
+the iPhone 17 and 13 mini are pixel-identical to build 315's; the Air lands at
+384 off and 356 in zen; the iPad mini settles in one pass. The insets are also
+whole pixels now, with the integer shift added to the top and taken from the
+bottom, so the fit box cannot wobble with the shift.
+
+The settle runs BEFORE the present fits the page, through
+`SimulatorOverlay::setPreFitCallback` (`relayoutBeforeFit` in the shim). The
+first version ran it inside the overlay callback, after the fit, and the
+adversarial review caught the cost: that present drew the page at the old rect
+while paintPad recorded the new one and painted the paper around it, so paper
+and page came from two answers for a frame. It also left the iPhone 17's
+mid-session zen at 342 where build 315 lands at 318; the hook version lands
+at 318. Review's other finding, latent and not acted on: the held-scale
+hysteresis now advances between presents too, so a fit sitting on a quantum
+edge could spend the six passes without settling; bounded, and not seen on
+any device measured. Checked CLEAN by that review: the fit moved byte for byte
+(no variable it owned is read after it), threading (all callers on the main
+thread), the integer inset pairing, the desktop letterbox path (refitPanel
+and the hook are no-ops there), the iPad and turned-landscape layouts.
 
 **...and the "Below the Paper" zone starts at the page's bottom edge** (owner,
 same day, the mirror question): `zenPaperBottomPx()` returns the page's bottom

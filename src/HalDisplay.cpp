@@ -1342,6 +1342,9 @@ static std::atomic<int> bottomInset{0};
 // Island; see SimulatorOverlay.h.
 static std::atomic<int> topInset{0};
 void setDrawCallback(DrawFn fn) { overlayDraw = fn; }
+static PreFitFn preFit = nullptr;
+void setPreFitCallback(PreFitFn fn) { preFit = fn; }
+PreFitFn preFitCallback() { return preFit; }
 void setClearColor(unsigned char r, unsigned char g, unsigned char b) {
   clearColor.store((static_cast<uint32_t>(r) << 16) |
                    (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(b));
@@ -3158,6 +3161,145 @@ std::atomic<int> &cornerDefocusStrengthRef() {
 }
 }  // namespace simtube
 
+// THE MANUAL-PLACEMENT FIT, in device pixels: the scale and the presented
+// panel rect for an output size and the four reserved bands. Pulled out of
+// presentIfNeeded on 2026-10-09 so SimulatorOverlay::refitPanel can run the
+// SAME arithmetic (hysteresis included) between presents: the iOS phone's pad
+// band is derived from the panel height this returns, and settling that loop
+// one present at a time moved the page several times at launch on a 13 mini.
+// Main thread only, like everything that touches the held scale.
+static void fitManualPanel(GfxRenderer::Orientation orientation, int outW,
+                           int outH, int inset, int topBand, int sideL,
+                           int sideR, float &scale, int &panelPxX,
+                           int &panelPxY, int &panelPxW, int &panelPxH) {
+  const float kW = static_cast<float>(HalDisplay::activeWidth());
+  const float kH = static_cast<float>(HalDisplay::activeHeight());
+  const bool portrait = isPortraitOrientation(orientation);
+  const float logW = portrait ? kH : kW;
+  const float logH = portrait ? kW : kH;
+  const float availH =
+      SDL_max(1.0f, static_cast<float>(outH - inset - topBand));
+  // The side bands (setSideInsets) bound the width the same way; 0 / 0 is
+  // the whole output, which is every layout but the turned page's landscape.
+  const float availW =
+      SDL_max(1.0f, static_cast<float>(outW - sideL - sideR));
+  scale = SDL_min(availW / logW, availH / logH);
+  // Keep the pixel-exact policy honest on this path too.
+  //
+  // ABOVE 1x the answer is the whole number below: one framebuffer pixel
+  // covers exactly N screen pixels and the dither survives.
+  //
+  // BELOW 1x there is no such answer, and this is the honest statement of
+  // the trade-off: a small phone genuinely cannot fit the page (an iPhone 13
+  // mini leaves 1500 px of height for a 1584 px page once the status-bar band
+  // and the pad's band are taken, an SE leaves 822), the next integer
+  // reciprocal (1/2) is far too small to drop to, so the panel is decimated
+  // by nearest-neighbor and some framebuffer rows and columns are simply not
+  // drawn. Nothing here can avoid that.
+  //
+  // What it CAN do is put the result on whole device pixels, by quantising
+  // the scale to kPixelQuantum steps. Two things follow, and neither is
+  // cosmetic: the decimation phase is then identical for every row and
+  // column instead of the rect sitting half a pixel off the grid, and the
+  // page's edges land where the chrome anchored to them is drawn (the pad
+  // hangs off panelBottom, which is an integer). The quantisation itself
+  // costs under half a percent of the panel -- far less than the ~5% the
+  // phone is short by.
+  if (kLogicalPresentation == SDL_LOGICAL_PRESENTATION_INTEGER_SCALE) {
+    if (scale >= 1.0f) {
+      scale = SDL_floorf(scale);
+    } else {
+      // HYSTERESIS, and it is load-bearing. The band the host reserves is
+      // DERIVED from the panel height published below -- the phone's pad
+      // hangs off the page's bottom edge at a fraction of its height -- so
+      // what is decided here comes back as a change in availH. That loop's
+      // gain is well under 1 and settles on its own while the scale is
+      // continuous; quantised, a fixed point that falls between two steps
+      // flips between them forever, and because every flip requests a
+      // present, an app that should present once per page presents on every
+      // frame instead. Measured on an iPhone SE before this clause: an
+      // endless 548x822 <-> 544x816 flip at the display rate.
+      //
+      // So hold the current step until the fit leaves it by a whole step --
+      // which the loop's own residual (a fraction of a step) never does, and
+      // a real change (rotation, a keyboard coming up) always does. The cost
+      // is that a genuine one-step change is ignored: 0.4% of the panel,
+      // smaller than the quantisation it rides on.
+      static float heldScale = 0.0f;
+      static int heldOutW = -1, heldOutH = -1;
+      if (outW != heldOutW || outH != heldOutH) {
+        heldScale = 0.0f;
+        heldOutW = outW;
+        heldOutH = outH;
+      }
+      if (heldScale > 0.0f &&
+          SDL_fabsf(scale - heldScale) <= 1.0f / pixelQuantum()) {
+        scale = heldScale;
+      } else {
+        scale =
+            SDL_max(1.0f, SDL_floorf(scale * pixelQuantum())) / pixelQuantum();
+        heldScale = scale;
+      }
+    }
+  }
+  // The filter follows the scale that was just settled, not the build flag.
+  // Set here rather than at texture creation because `scale` is only known
+  // once the host's reserved bands are in; it is a cheap per-present setter
+  // and SDL only touches the sampler when the value changes.
+  SDL_SetTextureScaleMode(texture, panelScaleModeFor(scale));
+
+  // TOP-ALIGNED, not centered: the pad sits directly under the panel's
+  // bottom edge (published below), so slack space goes under the pad
+  // instead of splitting above and below the page. The alignment is to the
+  // BOTTOM of the reserved top band, never to y=0 -- on a phone that band is
+  // the status bar and the Island, and the page must start below it.
+  //
+  // Floored, and the panel rect below is built in whole pixels, because the
+  // dst rect is derived from them: a half-pixel top margin puts the whole
+  // page half a pixel off the grid, which is the thing the quantisation
+  // above exists to avoid.
+  // ...except the turned page's landscape (SimulatorOverlay::
+  // setPresentLandscapeUpright), which CENTERS: its pad is split to the side
+  // margins, nothing hangs below the page, and on an iPad held landscape the
+  // page at its whole-number scale leaves half the height spare.
+  const float topMargin = SimulatorOverlay::presentLandscapeUpright()
+      ? SDL_floorf(topBand + (availH - logH * scale) / 2.0f)
+      : SDL_floorf(topBand + SDL_min(16.0f, (availH - logH * scale) / 2.0f));
+  // The PRESENTED panel rect -- what the page actually occupies on the glass,
+  // in device pixels. Everything else here derives from it, so it is computed
+  // once, in integers, rather than recovered from the dst rect (which is a
+  // different shape; see below).
+  panelPxW = static_cast<int>(logW * scale);
+  panelPxH = static_cast<int>(logH * scale);
+  panelPxX = sideL + (static_cast<int>(availW) - panelPxW) / 2;
+  panelPxY = static_cast<int>(topMargin);
+}
+
+extern GfxRenderer renderer;   // the firmware's, as presentIfNeeded reads it
+namespace SimulatorOverlay {
+// See SimulatorOverlay.h. The same fit presentIfNeeded makes, published
+// without a present; a no-op on the letterbox path (no band reserved), which
+// is every desktop run.
+bool refitPanel(int outW, int outH) {
+  const int inset = bottomInset.load(), topBand = topInset.load();
+  const int sideL = leftInset.load(), sideR = rightInset.load();
+  if (!(inset > 0 || topBand > 0 || sideL > 0 || sideR > 0) || outW <= 0 || outH <= 0)
+    return false;
+  const GfxRenderer::Orientation orientation =
+      presentLandscapeUpright() ? GfxRenderer::LandscapeCounterClockwise
+                                : renderer.getOrientation();
+  float scale = 0.0f;
+  int x = 0, y = 0, w = 0, h = 0;
+  fitManualPanel(orientation, outW, outH, inset, topBand, sideL, sideR, scale,
+                 x, y, w, h);
+  const bool moved = panelBottom.exchange(y + h) != y + h;
+  const bool movedH = panelHeight.exchange(h) != h;
+  const bool movedL = panelLeft.exchange(x) != x;
+  const bool movedW = panelWidth.exchange(w) != w;
+  return moved || movedH || movedL || movedW;
+}
+}  // namespace SimulatorOverlay
+
 void HalDisplay::presentIfNeeded() {
   // For the [timing] line: the main loop's pass period as seen from here,
   // and how long this call spends BEFORE the timing frame is armed (the
@@ -3582,6 +3724,13 @@ void HalDisplay::presentIfNeeded() {
   // and centered on the panel's display center in both orientations: for
   // landscape it IS the display area, for portrait the rotation about its
   // center turns it into one.
+  // The host's pre-fit settle (SimulatorOverlay::setPreFitCallback): it may
+  // move the bands below, so it runs before they are read.
+  if (SimulatorOverlay::PreFitFn pf = SimulatorOverlay::preFitCallback()) {
+    int pfW = 0, pfH = 0;
+    SDL_GetCurrentRenderOutputSize(sdl_renderer, &pfW, &pfH);
+    if (pfW > 0 && pfH > 0) pf(pfW, pfH);
+  }
   const int inset = SimulatorOverlay::bottomInset.load();
   const int topBand = SimulatorOverlay::topInset.load();
   const int sideL = SimulatorOverlay::leftInset.load();
@@ -3596,105 +3745,10 @@ void HalDisplay::presentIfNeeded() {
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
     int outW = 0, outH = 0;
     SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH);
-    const bool portrait = isPortraitOrientation(orientation);
-    const float logW = portrait ? kH : kW;
-    const float logH = portrait ? kW : kH;
-    const float availH =
-        SDL_max(1.0f, static_cast<float>(outH - inset - topBand));
-    // The side bands (setSideInsets) bound the width the same way; 0 / 0 is
-    // the whole output, which is every layout but the turned page's landscape.
-    const float availW =
-        SDL_max(1.0f, static_cast<float>(outW - sideL - sideR));
-    float scale = SDL_min(availW / logW, availH / logH);
-    // Keep the pixel-exact policy honest on this path too.
-    //
-    // ABOVE 1x the answer is the whole number below: one framebuffer pixel
-    // covers exactly N screen pixels and the dither survives.
-    //
-    // BELOW 1x there is no such answer, and this is the honest statement of
-    // the trade-off: a small phone genuinely cannot fit the page (an iPhone 13
-    // mini leaves 1500 px of height for a 1584 px page once the status-bar band
-    // and the pad's band are taken, an SE leaves 822), the next integer
-    // reciprocal (1/2) is far too small to drop to, so the panel is decimated
-    // by nearest-neighbor and some framebuffer rows and columns are simply not
-    // drawn. Nothing here can avoid that.
-    //
-    // What it CAN do is put the result on whole device pixels, by quantising
-    // the scale to kPixelQuantum steps. Two things follow, and neither is
-    // cosmetic: the decimation phase is then identical for every row and
-    // column instead of the rect sitting half a pixel off the grid, and the
-    // page's edges land where the chrome anchored to them is drawn (the pad
-    // hangs off panelBottom, which is an integer). The quantisation itself
-    // costs under half a percent of the panel -- far less than the ~5% the
-    // phone is short by.
-    if (kLogicalPresentation == SDL_LOGICAL_PRESENTATION_INTEGER_SCALE) {
-      if (scale >= 1.0f) {
-        scale = SDL_floorf(scale);
-      } else {
-        // HYSTERESIS, and it is load-bearing. The band the host reserves is
-        // DERIVED from the panel height published below -- the phone's pad
-        // hangs off the page's bottom edge at a fraction of its height -- so
-        // what is decided here comes back as a change in availH. That loop's
-        // gain is well under 1 and settles on its own while the scale is
-        // continuous; quantised, a fixed point that falls between two steps
-        // flips between them forever, and because every flip requests a
-        // present, an app that should present once per page presents on every
-        // frame instead. Measured on an iPhone SE before this clause: an
-        // endless 548x822 <-> 544x816 flip at the display rate.
-        //
-        // So hold the current step until the fit leaves it by a whole step --
-        // which the loop's own residual (a fraction of a step) never does, and
-        // a real change (rotation, a keyboard coming up) always does. The cost
-        // is that a genuine one-step change is ignored: 0.4% of the panel,
-        // smaller than the quantisation it rides on.
-        static float heldScale = 0.0f;
-        static int heldOutW = -1, heldOutH = -1;
-        if (outW != heldOutW || outH != heldOutH) {
-          heldScale = 0.0f;
-          heldOutW = outW;
-          heldOutH = outH;
-        }
-        if (heldScale > 0.0f &&
-            SDL_fabsf(scale - heldScale) <= 1.0f / pixelQuantum()) {
-          scale = heldScale;
-        } else {
-          scale =
-              SDL_max(1.0f, SDL_floorf(scale * pixelQuantum())) / pixelQuantum();
-          heldScale = scale;
-        }
-      }
-    }
-    // The filter follows the scale that was just settled, not the build flag.
-    // Set here rather than at texture creation because `scale` is only known
-    // once the host's reserved bands are in; it is a cheap per-present setter
-    // and SDL only touches the sampler when the value changes.
-    SDL_SetTextureScaleMode(texture, panelScaleModeFor(scale));
-
-    // TOP-ALIGNED, not centered: the pad sits directly under the panel's
-    // bottom edge (published below), so slack space goes under the pad
-    // instead of splitting above and below the page. The alignment is to the
-    // BOTTOM of the reserved top band, never to y=0 -- on a phone that band is
-    // the status bar and the Island, and the page must start below it.
-    //
-    // Floored, and the panel rect below is built in whole pixels, because the
-    // dst rect is derived from them: a half-pixel top margin puts the whole
-    // page half a pixel off the grid, which is the thing the quantisation
-    // above exists to avoid.
-    // ...except the turned page's landscape (SimulatorOverlay::
-    // setPresentLandscapeUpright), which CENTERS: its pad is split to the side
-    // margins, nothing hangs below the page, and on an iPad held landscape the
-    // page at its whole-number scale leaves half the height spare.
-    const float topMargin = SimulatorOverlay::presentLandscapeUpright()
-        ? SDL_floorf(topBand + (availH - logH * scale) / 2.0f)
-        : SDL_floorf(topBand + SDL_min(16.0f, (availH - logH * scale) / 2.0f));
-    // The PRESENTED panel rect -- what the page actually occupies on the glass,
-    // in device pixels. Everything else here derives from it, so it is computed
-    // once, in integers, rather than recovered from the dst rect (which is a
-    // different shape; see below).
-    const int panelPxW = static_cast<int>(logW * scale);
-    const int panelPxH = static_cast<int>(logH * scale);
-    const int panelPxX = sideL + (static_cast<int>(availW) - panelPxW) / 2;
-    const int panelPxY = static_cast<int>(topMargin);
+    float scale = 0.0f;
+    int panelPxX = 0, panelPxY = 0, panelPxW = 0, panelPxH = 0;
+    fitManualPanel(orientation, outW, outH, inset, topBand, sideL, sideR, scale,
+                   panelPxX, panelPxY, panelPxW, panelPxH);
     // NOT the presented rect: dst is LANDSCAPE-shaped in every orientation,
     // because SDL_RenderTextureRotated rotates it about its own center and the
     // texture is the landscape framebuffer. In portrait it therefore reaches
