@@ -874,6 +874,25 @@ void layoutTurnedLandscape(float W, float H, float S) {
           L.insetBottom, L.padShown ? "split (G3)" : "none (zen)");
 }
 
+// THE LAYOUT, SETTLED BEFORE A PRESENT (2026-10-09). The phone's pad band is
+// derived from the presented panel height, and the zen and S1 placements read
+// the presented panel top back, so each layoutPad answer changes the fit it
+// was computed from. Left to the present loop, that settled one present at a
+// time: the page moved 194 -> 235 -> 294 -> 285 -> 287 at launch on an iPhone
+// 13 mini. SimulatorOverlay::refitPanel runs the present's own fit between
+// passes, so the loop settles here and the next present draws the answer.
+// Bounded: six passes is more than any measured settle took.
+void layoutPad(int outW, int outH);
+void layoutPadSettled(int outW, int outH) {
+  layoutPad(outW, outH);
+  for (int i = 0; i < 6; ++i) {
+    const bool moved = SimulatorOverlay::refitPanel(outW, outH);
+    if (!moved && g_padLaidOut) break;
+    g_padLaidOut = true;
+    layoutPad(outW, outH);
+  }
+}
+
 void layoutPad(int outW, int outH) {
   const float S = g_ptScale;
   const float W = static_cast<float>(outW) / S;
@@ -1410,9 +1429,17 @@ void layoutPad(int outW, int outH) {
   // a relayout; moving BOTH to read it here, together, after it is fresh,
   // removes the earlier failure mode (a stale read at the FIRST consumer)
   // without reopening it.
-  g_zenShiftThisPass = g_zenPanelShiftPx;   // 0 out of zen unless the bands are placed (2026-10-08)
-  const float shiftPt = g_zenShiftThisPass / S;
-  SimulatorOverlay::setBottomInset(static_cast<int>((band - shiftPt) * S));
+  // WHOLE DEVICE PIXELS, and the two insets truncated BEFORE the shift moves
+  // between them (2026-10-09). Truncating (band - shift/S) * S and
+  // (top + shift/S) * S separately let the fit box's height and the page's top
+  // wobble a pixel or two with the shift at a fractional point scale -- the 13
+  // mini's 2.875 -- so the readback base moved with the shift and the page
+  // stepped 294 -> 285 -> 287 instead of landing. An integer shift added to
+  // and taken from two integer insets keeps the box exact and the top exactly
+  // base + shift.
+  g_zenShiftThisPass = SDL_roundf(g_zenPanelShiftPx);   // 0 out of zen unless the bands are placed (2026-10-08)
+  const int shiftPxI = static_cast<int>(g_zenShiftThisPass);
+  SimulatorOverlay::setBottomInset(static_cast<int>(band * S) - shiftPxI);
   SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
           g_zen ? "on " : "off", band, upperY, g_zenRowTopPx,
           SimulatorOverlay::panelHeightPx(), SimulatorOverlay::panelWidthPx());
@@ -1555,11 +1582,12 @@ void layoutPad(int outW, int outH) {
   const float kPaperMargin = 12.0f;    // paper above the page
   topInset = safeTop > 20.0f ? kCardTop + kPaperMargin : kTopReserve;
   g_cardTopPx = (safeTop > 20.0f ? kCardTop : topInset) * S;
+  const int topInsetPxI = static_cast<int>(topInset * S) + shiftPxI;   // paired with the band (2026-10-08, integer 2026-10-09)
   topInset += g_zenShiftThisPass / S;   // both modes, paired with the band (2026-10-08)
   SDL_Log("[layout] safe top %.1f pt -> card top %.1f pt, page top %.1f pt (%s)",
           safeTop, safeTop > 20.0f ? kCardTop : topInset, topInset,
           safeTop > 20.0f ? "paper card below the cut-out" : "reserve");
-  SimulatorOverlay::setTopInset(static_cast<int>(topInset * S));
+  SimulatorOverlay::setTopInset(topInsetPxI);
 
   // THE BEZEL BAND: where the black stops and the paper CARD's rounded top
   // corners start, in device pixels, or 0 for "do not paint one". paintTopBezel
@@ -3184,13 +3212,14 @@ void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
            innerW - keyW, keyH);
 }
 
-void paintPad(SDL_Renderer *r, int outW, int outH) {
-  // SimulatorOverlay holds a single draw callback, so the pad's painter is
-  // also the dispatch point for the read-aloud word highlight. First, so the
-  // pad never paints under it (their areas are disjoint anyway: highlight on
-  // the panel, pad in the reserved band).
-  CrossPointReadAloud_paintHighlight(r, outW, outH, g_dark ? 1 : 0);
-
+// THE RELAYOUT GATE, run BEFORE the present fits the page (2026-10-09; it
+// sat inside paintPad, after the fit). Adversarial review: once the layout
+// settles the fit itself (layoutPadSettled), running it after the fit
+// published the NEW panel rect while this present's page was drawn at the OLD
+// one, and the rest of paintPad recorded g_zenPanel from the new rect and
+// painted the paper around it -- paper and page from two different answers
+// for a frame. Registered with SimulatorOverlay::setPreFitCallback.
+void relayoutBeforeFit(int outW, int outH) {
   // Relayout when the panel's published bottom edge moves (first present,
   // orientation change) as well as on size changes.
   static int s_layoutPanelBottom = -1;
@@ -3215,10 +3244,23 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // not move, the gate never fires again, and the recomputed shift sat
     // unconsumed forever. That was the stable wrong fixed point.
     g_padLaidOut = true;
-    layoutPad(outW, outH);
-    s_layoutPanelBottom = panelBottom;
+    layoutPadSettled(outW, outH);
+    s_layoutPanelBottom = SimulatorOverlay::panelBottomPx();   // the settled rect, which this present's fit will draw
     s_layoutKeyboardPt = keyboardPt;
   }
+}
+
+void paintPad(SDL_Renderer *r, int outW, int outH) {
+  // SimulatorOverlay holds a single draw callback, so the pad's painter is
+  // also the dispatch point for the read-aloud word highlight. First, so the
+  // pad never paints under it (their areas are disjoint anyway: highlight on
+  // the panel, pad in the reserved band).
+  CrossPointReadAloud_paintHighlight(r, outW, outH, g_dark ? 1 : 0);
+
+  // Normally already done by relayoutBeforeFit, before this present fitted
+  // the page; this call is then a no-op. Kept for a present that reached here
+  // without one.
+  relayoutBeforeFit(outW, outH);
 
   // SQUARE MODULE, HORIZONTAL -- superseded twice the same day. First ask
   // (owner, from a render: "right now, it is unusually and incoherently wide
@@ -3742,7 +3784,7 @@ bool windowPixelSize(SDL_WindowID id, float *w, float *h) {
 void zenPreWarmLayout() {
   float outW = 0.0f, outH = 0.0f;
   if (windowPixelSize(g_windowId, &outW, &outH))
-    layoutPad(static_cast<int>(outW), static_cast<int>(outH));
+    layoutPadSettled(static_cast<int>(outW), static_cast<int>(outH));
 }
 
 // THE INPUT TRACE: the first few events padWatch is handed, with the state
@@ -4474,6 +4516,7 @@ void CrossPointHarness_begin() {
   if (windows) SDL_free(windows);
 
   SimulatorOverlay::setDrawCallback(paintPad);
+  SimulatorOverlay::setPreFitCallback(relayoutBeforeFit);
 
   // A wake begins with no fingers on glass; drop any state a pre-sleep touch
   // left behind — the tap candidate and the gesture trackers included, since
