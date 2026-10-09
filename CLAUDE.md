@@ -1373,7 +1373,9 @@ Grown in one day; each is documented at its definition, this is the map:
   the older gestures' arbitration is untouched. Found by adversarial review, not
   by a test, and now pinned by one.
 - **THE LANDING POINT PICKS THE LAYER, and the three boundaries are already
-  published.** Above `g_cardTopPx` (where black ends and paper begins), at or
+  published.** (On the phone the top and bottom boundaries are read through
+  `zenPaperTopPx()` / `zenPaperBottomPx()`, which follow whichever paper is
+  drawn -- S1 out of zen, C32 in zen, since 2026-10-08.) Above `g_cardTopPx` (where black ends and paper begins), at or
   past `g_zenRowTopPx` (the sheet's bottom edge, the same `line` the zen painter
   cuts it at), and — since 2026-09-21 — left of `SimulatorOverlay::panelLeftPx()`
   (the PAGE's left edge, published as `CrossPointZen_pageLeftPx()`) are the three

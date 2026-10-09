@@ -304,6 +304,25 @@ inline float paperSpacePx() {
 // whole 8 pt cells. -1 until the first phone layout; the bands stay 1 : 2 at
 // any unit, since the paper takes one from above and two from below.
 extern bool g_turnedLandscape;   // defined below; the zone helpers read it
+// ZEN ON THE PHONE: THE PAPER IS THE WORDS PLUS CIRCLES (owner 2026-10-08:
+// "the paper should have one circle at the top and two circles below, measured
+// from paper edge to top words and paper edge to bottom words", "there needs to
+// be a side margin for paper", then "C32 wins"). The paper is the firmware's
+// text block plus one 32 pt circle above, two below and one on each side, and
+// the page is placed for 1 : 2 glass bands as zen off is. A screen too narrow
+// for the side circle takes the largest whole 8 pt circle that keeps the paper
+// on the glass (g_zenCirclePx). CROSSPOINT_SIM_ZEN_CIRCLE_PT overrides the 32;
+// a negative value restores build 312's sheet (card top to the rocker line).
+inline float zenCirclePt() {
+  static const float v = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_ZEN_CIRCLE_PT");
+    return e ? static_cast<float>(std::atof(e)) : 32.0f;
+  }();
+  return v;
+}
+float g_zenCirclePx = -1.0f;                                  // the circle in force, device px
+float g_zenPaperTopArmPx = -1.0f, g_zenPaperBotArmPx = -1.0f;  // the zen paper's edges, device px
+float g_zenInkLPx = 16.0f, g_zenInkRPx = 16.0f;  // published side insets, device px; 16 = what the reader publishes at the shipped margin, until it does
 float g_paperSpaceEffPx = -1.0f;
 inline float paperSpaceEffPx() {
   return g_paperSpaceEffPx >= 0.0f ? g_paperSpaceEffPx : paperSpacePx();
@@ -317,6 +336,8 @@ inline float zenPaperBottomPx() {
   if (!isPad && !g_zen && !g_turnedLandscape && g_zenPanel.h > 0.0f)   // the paper's bottom: two units below the page (S1)
     return g_zenPanel.y + g_zenPanel.h + 2.0f * paperSpaceEffPx();
   if (!isPad && g_turnedLandscape && g_zenPanel.h > 0.0f) return g_zenPanel.y + g_zenPanel.h;
+  if (!isPad && g_zen && zenCirclePt() >= 0.0f && g_zenPaperBotArmPx > g_zenPaperTopArmPx)
+    return g_zenPaperBotArmPx;   // zen: two circles below the words (C32)
   if (g_zenRowTopPx > 0.0f) return g_zenRowTopPx;
   return g_zenPanel.y + g_zenPanel.h;
 }
@@ -368,7 +389,9 @@ inline float zenPaperTopPx() {
   static const bool isPad = CrossPointAppearance_isPad() == 1;
   if (!isPad && !g_zen && !g_turnedLandscape && g_zenPanel.h > 0.0f)   // the paper's top: one unit above the page (S1)
     return g_zenPanel.y - paperSpaceEffPx();
-  if (!isPad && g_turnedLandscape && g_zenPanel.h > 0.0f) return g_zenPanel.y;   // zen: the 1:2 sheet's top, below
+  if (!isPad && g_turnedLandscape && g_zenPanel.h > 0.0f) return g_zenPanel.y;
+  if (!isPad && g_zen && zenCirclePt() >= 0.0f && g_zenPaperBotArmPx > g_zenPaperTopArmPx)
+    return g_zenPaperTopArmPx;   // zen: one circle above the words (C32)
   return g_cardTopPx;
 }
 // TRUE while the turned page's landscape is laid out (a turned page in a window
@@ -1217,6 +1240,8 @@ void layoutPad(int outW, int outH) {
         const float toDevice = presentedH / fbPortraitH;
         inkTopPx = t * toDevice;
         inkBottomPx = b * toDevice;
+        g_zenInkLPx = l * toDevice;
+        g_zenInkRPx = r * toDevice;
         inkSrc = "published";
       }
     }
@@ -1241,7 +1266,7 @@ void layoutPad(int outW, int outH) {
     // itself `if (!g_zen) return;`) unable to cover it.
     //
     // In zen nothing changes: same condition, same arithmetic, same shift.
-    if (g_zen && panelHPx > 0 && g_zenRowTopPx > paperTopPx + panelHPx) {
+    if (g_zen && zenCirclePt() < 0.0f && panelHPx > 0 && g_zenRowTopPx > paperTopPx + panelHPx) {
       const float slack = g_zenRowTopPx - paperTopPx - panelHPx;
       const float visTotal = slack + inkTopPx + inkBottomPx;
       const float aboveVis = visTotal / (1.0f + mult);
@@ -1279,7 +1304,7 @@ void layoutPad(int outW, int outH) {
         // one level deeper than the poll that already follows it.
         SimulatorOverlay::requestPresent();
       }
-    } else if (!g_zen) {
+    } else if (!g_zen || zenCirclePt() >= 0.0f) {
       g_zenPanelShiftPx = 0.0f;
       // OUT OF ZEN, THE GLASS BANDS IN WHOLE CIRCLES (owner 2026-10-08: "use
       // integer multiples of circles not half", then "W2"). Left alone the
@@ -1294,8 +1319,28 @@ void layoutPad(int outW, int outH) {
           const char *e = std::getenv("CROSSPOINT_SIM_OFF_RATIO");
           return e ? std::atoi(e) : 2;
         }();
-        if (s_offRatio > 0 && panelHPx > 0) {
-          const float topWant = (H * S - panelHPx) / (1.0f + s_offRatio);
+        const bool zenArm = g_zen && zenCirclePt() >= 0.0f;
+        // The first pass after the turned landscape still sees the landscape
+        // fit: its width, left edge and height would all place the page wrong.
+        // Such a pass keeps the last portrait shift and paper (review
+        // 2026-10-08).
+        const bool portraitFit = SimulatorOverlay::panelHeightPx() > SimulatorOverlay::panelWidthPx();
+        if (!portraitFit) g_zenPanelShiftPx = g_zenShiftThisPass;
+        float cPx = zenArm ? zenCirclePt() * S : 0.0f;
+        if (zenArm && portraitFit) {
+          // The side circle must stay on the glass: clamp to the room beside
+          // the words, in whole 8 pt cells.
+          const float pl = static_cast<float>(SimulatorOverlay::panelLeftPx());
+          const float pr = W * S - pl - static_cast<float>(SimulatorOverlay::panelWidthPx());
+          const float room = SDL_min(pl + g_zenInkLPx, pr + g_zenInkRPx);
+          if (cPx > room) cPx = SDL_max(0.0f, SDL_floorf(room / (8.0f * S)) * 8.0f * S);
+          g_zenCirclePx = cPx;
+        }
+        const float paperHArm = panelHPx - inkTopPx - inkBottomPx + 3.0f * cPx;
+        if ((s_offRatio > 0 || zenArm) && portraitFit && panelHPx > 0) {
+          const float topWant = zenArm
+              ? (H * S - paperHArm) / 3.0f + cPx - inkTopPx
+              : (H * S - panelHPx) / (1.0f + s_offRatio);
           // The unshifted top is the published panel top less the shift that
           // pass consumed -- not card top + 12 pt, which measured 16 px short.
           // Read back only from a PORTRAIT panel: the first pass after the
@@ -1315,6 +1360,12 @@ void layoutPad(int outW, int outH) {
           if (want < 0.0f) want = 0.0f;
           if (want > band * S - 8.0f * S) want = band * S - 8.0f * S;
           g_zenPanelShiftPx = want;
+          if (zenArm) {
+            g_zenPaperTopArmPx = base + want + inkTopPx - cPx;
+            g_zenPaperBotArmPx = g_zenPaperTopArmPx + paperHArm;
+            SDL_Log("[zen] circle %.0fpx ink=%.1f/%.1f paper %.0f-%.0f", cPx,
+                    inkTopPx, inkBottomPx, g_zenPaperTopArmPx, g_zenPaperBotArmPx);
+          }
           }
         }
       }
@@ -1326,6 +1377,7 @@ void layoutPad(int outW, int outH) {
         const float slack = g_zenRowTopPx - paperTopPx - panelHPx;
         g_paperGapPx = (slack + inkTopPx + inkBottomPx) / (1.0f + mult);
       }
+      if (g_zen && zenCirclePt() >= 0.0f && g_zenCirclePx >= 0.0f) g_paperGapPx = g_zenCirclePx;  // corner = circle / 2
     }
   }
   // NOW consume the shift -- `want` above has already updated
@@ -3280,7 +3332,14 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // it. Out of zen the paper stays the page alone (build 309).
     if (!g_zen && !g_turnedLandscape && !s_isPad && q.w > 0.0f && paperSpaceEffPx() > 0.0f)
       q = {q.x, q.y - paperSpaceEffPx(), q.w, q.h + 3.0f * paperSpaceEffPx()};
-    if (g_zen && !g_turnedLandscape && q.w > 0.0f && q.h > 0.0f &&
+    if (g_zen && !g_turnedLandscape && !s_isPad && q.w > 0.0f && zenCirclePt() >= 0.0f) {
+      if (g_zenPaperBotArmPx > g_zenPaperTopArmPx && g_zenCirclePx >= 0.0f) {
+        // One circle past the words on each side, as at the top.
+        const float x0 = q.x + g_zenInkLPx - g_zenCirclePx;
+        const float x1 = q.x + q.w - g_zenInkRPx + g_zenCirclePx;
+        q = {x0, g_zenPaperTopArmPx, x1 - x0, g_zenPaperBotArmPx - g_zenPaperTopArmPx};
+      }
+    } else if (g_zen && !g_turnedLandscape && q.w > 0.0f && q.h > 0.0f &&
         g_cardTopPx > 0.0f && g_zenRowTopPx > g_cardTopPx)
       q = {q.x, g_cardTopPx, q.w, g_zenRowTopPx - g_cardTopPx};
     if (q.w > 0.0f && q.h > 0.0f) {

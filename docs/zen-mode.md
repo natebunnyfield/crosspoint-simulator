@@ -834,6 +834,33 @@ the MOST RECENT book first, so a "RIGHT, CONFIRM" script opens a different book
 every run (use CONFIRM alone after one setup run), and a book can open on a blank
 cover wrapper.
 
+**Zen extension options, 2026-10-08** (owner: *"don't extend as much (or at
+all?) for zen"*, then *"the paper should have one circle at the top and two
+circles below, measured from paper edge to top words and paper edge to bottom
+words"* and *"there needs to be a side margin for paper"*). Study arm
+`CROSSPOINT_SIM_ZEN_CIRCLE_PT`: the paper is the
+firmware's text block plus one circle above, two below and one each side, and
+the page is placed for 1 : 2 glass bands. iPhone Air, same reading page,
+measured: Z0 (build 312) circle 212 px, paper 102-1157 x 204-2327; C32 (96 px)
+22-1237 x 298-2139; C24 (72 px) 46-1213 x 322-2091; C8 (24 px) 94-1165 x
+370-1995. Bands 1 : 2 in all four. 48 pt runs the paper off the glass at the
+sides (-26 to 1286), so 32 pt is the largest whole circle that leaves black
+beside it. The circles are measured to the text BLOCK; this page's last line ends
+short, so its measured words-to-bottom margin reads 2.2-2.6 rather than 2.
+Options page: https://claude.ai/artifact/BLsr97JRUmt2Do8BZUdsDh.
+
+**C32 is zen on the phone** (owner 2026-10-08, *"C32 wins"*). The paper is the
+text block plus one 32 pt circle above, two below and one each side; the page is
+placed for 1 : 2 glass bands; the corner is half the circle (48 px on an Air).
+A screen too narrow for the side circle takes the largest whole 8 pt circle that
+keeps the paper on the glass. Measured on the Simulator in zen: iPhone Air circle
+96 px, paper 22-1237 x 298-2139, bands 298 : 596; iPhone 17 circle 72 px (24 pt,
+clamped), bands 284 : 568; iPhone 13 mini circle 46 px (16 pt, clamped), bands
+250 : 501. The Above/Below the Paper zones follow the paper's top and bottom.
+`ios/CrossPointIOSShim.cpp` `zenCirclePt()`; `CROSSPOINT_SIM_ZEN_CIRCLE_PT`
+overrides it, and a negative value restores build 312's sheet. iPad, the turned
+landscape and zen off are unchanged.
+
 **...and the "Below the Paper" zone starts at the page's bottom edge** (owner,
 same day, the mirror question): `zenPaperBottomPx()` returns the page's bottom
 on the phone rather than the old rocker line, about 370 px higher in zen. iPad
