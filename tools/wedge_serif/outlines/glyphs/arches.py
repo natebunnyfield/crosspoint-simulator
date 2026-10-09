@@ -89,8 +89,9 @@ N_TRAP_GAP = 3.0   # the trap's apex sits where the air between the stem's edge 
 # a defect. THE OWNER HAS NOT RULED ON THIS: a departure to put to him. N_TRAP_DEPTH x S
 # restores it (0.05 was round 78's), at the crotch's tip.
 N_TRAP_DEPTH = float(os.environ.get("ALBO_ROM_N_TRAP", 0.0))
-def arch_geom(x0, x1, xh, ent_span=None, start=0.52, taper=0.30, taper_span=0.32, end_y=0.60):
+def arch_geom(x0, x1, xh, ent_span=None, start=0.52, taper=0.30, taper_span=0.32, end_y=0.60, start_k=None):
     if adj('n'): start, taper, taper_span = N_START_ADJ, N_JOIN_TAPER, N_JOIN_SPAN
+    if start_k is not None: start = start_k   # the u's options (round 483)
     sh_in = S * N_SHOULDER_IN if adj('n') else 0.0
     """The arch as the NIB writes it (owner 2026-09-13): a designed
     CENTERLINE -- leaves the left stem's inner edge at `start` x xh
@@ -216,8 +217,32 @@ def g_m(c):
     a1, c1 = arch(x0, x1, xh); a2, c2 = arch(x1, x2, xh)
     return geom.ink([left, mid, right, a1, a2], c1 + c2)
 
+# ROUND 483 -- THE u AS THE n TURNED OVER (owner 2026-10-09, "Yes, in rank
+# order", on docs/albo-word-images-2026-10-04.md 4.1). The n's arch lets go of
+# its stem 188 units below the x-line; the u's bowl reached its right stem only
+# 92 above the baseline, so the two read as different constructions in "number",
+# "under", "human". ALBO_ROM_U_BOWL:
+#   a  today: round 51's cubic, joining the right stem near 0.21 xh
+#   b  the n's own arch, rotated 180 degrees about the letter's centre -- a broad
+#      pen draws the same widths both ways, so this is literally the n turned over
+#   c  as b with the join raised halfway back toward today's (start 0.62 xh)
+U_BOWL = os.environ.get("ALBO_ROM_U_BOWL", "a")
+if U_BOWL not in ("a", "b", "c"): U_BOWL = "a"
+
+def _u_turned(c, start_k=None):
+    import shapely.affinity as _aff
+    xh = c["xh"]; x0 = S / 2; x1 = x0 + pen.NW
+    solid, cuts, _L, _R = arch_geom(x0, x1, xh, start_k=start_k)
+    turn = lambda g: _aff.rotate(g, 180, origin=((x0 + x1) / 2, xh / 2))
+    bowl = turn(solid)
+    left = stem(x0, 0.40 * xh - 30, xh, top='left', foot=None, ent_span=(0, xh))
+    right = stem(x1, 0, xh, top='left', foot='right', top_len=(0.85 if adj('u') else 1.0))
+    return geom.ink([left, right, bowl], [turn(k) for k in cuts])
+
 @glyph('u')
 def g_u(c):
+    if U_BOWL == "b" and not pen.ITALIC: return _u_turned(c)
+    if U_BOWL == "c" and not pen.ITALIC: return _u_turned(c, start_k=0.62)
     """Round 51's u on the nib: the left stem runs into a bowl whose
     centerline is a cubic solved to bottom out at the rounds' overshoot,
     the pen's widths along it thinning (taper_out 0.42 over 30%) into the
