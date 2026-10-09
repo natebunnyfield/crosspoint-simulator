@@ -377,6 +377,10 @@ constexpr int kZoneActionCount =
 // there is the black surround plus the card's gap -- still "left of the page",
 // still one definition.
 //
+// 2026-10-09: in ZEN on the phone the caller passes the C32 paper's left edge
+// instead (owner, "Paper's edge"), because that paper does have one -- one
+// circle past the words. zenPageLeftPx() in ios/CrossPointIOSShim.cpp decides.
+//
 // `Neither` is geometrically the paper, and that is all it is: a landing point
 // no override covers, so the global binding applies. It is deliberately NOT
 // named for the paper, because naming it would invite a behavior to be attached

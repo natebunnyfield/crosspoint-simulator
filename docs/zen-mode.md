@@ -861,6 +861,17 @@ clamped), bands 284 : 568; iPhone 13 mini circle 46 px (16 pt, clamped), bands
 overrides it, and a negative value restores build 312's sheet. iPad, the turned
 landscape and zen off are unchanged.
 
+**In zen the Left Margin zone ends at the C32 paper's left edge** (owner
+2026-10-09, "Paper's edge"). C32's paper reaches one circle past the words, so
+on an iPhone Air it starts at x = 22 while the page starts at 102; that 80 px
+strip used to count as left margin. `zenPageLeftPx()` now returns
+`zenPaperLeftPx()` while the C32 paper is drawn, the same expression `paintPad`
+draws the paper from, so the zone and the paper cannot disagree. Measured on the
+iPhone Air simulator: the `[zen] circle` log line prints `left 22`, and the
+painted paper starts at column 22. Out of zen, on the iPad and in the turned
+landscape nothing moves. The tap itself was not driven headlessly; there is no
+scripted finger tap at a coordinate.
+
 **...and the "Below the Paper" zone starts at the page's bottom edge** (owner,
 same day, the mirror question): `zenPaperBottomPx()` returns the page's bottom
 on the phone rather than the old rocker line, about 370 px higher in zen. iPad

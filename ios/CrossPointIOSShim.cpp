@@ -349,14 +349,27 @@ inline float zenPaperBottomPx() {
 // rect, and the same number the pad, the zen hit test and the read-aloud
 // painter already anchor to.
 //
-// NOT the paper's left edge: on the phone the sheet bleeds to the glass, so
-// the paper has no left edge to measure and a paper-derived boundary would be
-// 0 on the device the owner reads on. See the Zone comment in
-// ios/GestureBindings.h.
+// It was NOT the paper's left edge when written, because the sheet then bled
+// to the glass and a paper-derived boundary would have been 0. Zen's C32 paper
+// has a real left edge, and the zone follows it (below). See the Zone comment
+// in ios/GestureBindings.h.
 //
 // ONE DEFINITION, TWO CALLERS, like the bottom edge: the SDL finger path in
 // this file and the UIKit recognizers through CrossPointZen_pageLeftPx().
-inline float zenPageLeftPx() { return g_zenPanel.x; }
+// IN ZEN ON THE PHONE IT IS THE PAPER'S LEFT EDGE (owner 2026-10-09, "Paper's
+// edge"): C32's paper reaches one circle past the words, about 66 px left of
+// the page on an iPhone Air, and that strip is paper, not margin. Out of zen the
+// S1 paper is the page's width, so the two edges coincide and nothing moves.
+// zenPaperLeftPx() is also what paintPad draws the paper from -- one number.
+inline bool zenCircleArmLive() {
+  static const bool isPad = CrossPointAppearance_isPad() == 1;
+  return !isPad && g_zen && !g_turnedLandscape && zenCirclePt() >= 0.0f &&
+         g_zenPaperBotArmPx > g_zenPaperTopArmPx && g_zenCirclePx >= 0.0f;
+}
+inline float zenPaperLeftPx() { return g_zenPanel.x + g_zenInkLPx - g_zenCirclePx; }
+inline float zenPageLeftPx() {
+  return zenCircleArmLive() ? zenPaperLeftPx() : g_zenPanel.x;
+}
 
 // The zen GESTURE LANGUAGE replaced the zen tap zones on 2026-08-22 (owner:
 // The classifier -- pure, host-tested -- lives in ZenVerbs.h with the full
@@ -1363,8 +1376,9 @@ void layoutPad(int outW, int outH) {
           if (zenArm) {
             g_zenPaperTopArmPx = base + want + inkTopPx - cPx;
             g_zenPaperBotArmPx = g_zenPaperTopArmPx + paperHArm;
-            SDL_Log("[zen] circle %.0fpx ink=%.1f/%.1f paper %.0f-%.0f", cPx,
-                    inkTopPx, inkBottomPx, g_zenPaperTopArmPx, g_zenPaperBotArmPx);
+            SDL_Log("[zen] circle %.0fpx ink=%.1f/%.1f paper %.0f-%.0f left %.0f", cPx,
+                    inkTopPx, inkBottomPx, g_zenPaperTopArmPx, g_zenPaperBotArmPx,
+                    static_cast<float>(SimulatorOverlay::panelLeftPx()) + g_zenInkLPx - cPx);
           }
           }
         }
@@ -3335,7 +3349,7 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     if (g_zen && !g_turnedLandscape && !s_isPad && q.w > 0.0f && zenCirclePt() >= 0.0f) {
       if (g_zenPaperBotArmPx > g_zenPaperTopArmPx && g_zenCirclePx >= 0.0f) {
         // One circle past the words on each side, as at the top.
-        const float x0 = q.x + g_zenInkLPx - g_zenCirclePx;
+        const float x0 = zenPaperLeftPx();   // the Left Margin zone's boundary too
         const float x1 = q.x + q.w - g_zenInkRPx + g_zenCirclePx;
         q = {x0, g_zenPaperTopArmPx, x1 - x0, g_zenPaperBotArmPx - g_zenPaperTopArmPx};
       }
