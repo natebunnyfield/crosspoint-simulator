@@ -349,6 +349,8 @@ machine (`find /` found none).
 
 ### 4.1 u (R, B): the n's mirror that was never mirrored [measured]
 
+**RULED 2026-10-09: keep today's u (owner, "A reads best because of gravity").** Round 483 drew the n turned over and a halfway arm; neither ships. `docs/albo-round-483-2026-10-09.md`.
+
 **The stem joins**, in units at a 429 x-height (`word_parts.py`, the "stem
 joins" block). Each cell gives the n's arch depth below the x-line, then the
 u's bowl rise above the baseline:
