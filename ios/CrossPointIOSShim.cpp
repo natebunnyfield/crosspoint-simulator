@@ -1369,7 +1369,12 @@ void layoutPad(int outW, int outH) {
           const float base = (s_baseH == H && s_base >= 0.0f) ? s_base : -1.0f;
           if (base < 0.0f) { g_zenPanelShiftPx = 0.0f; }
           else {
-          float want = topWant - base;
+          // WHOLE DEVICE PIXELS. The panel top is published as an integer, so
+          // a fractional want came back rounded and the next pass's base
+          // absorbed the rounding: 256 -> 355 -> 356 on an iPhone Air, a second
+          // relayout to move the page 1 px (2026-10-09). An integer want keeps
+          // the base an integer and the readback exact, so it lands in one pass.
+          float want = SDL_roundf(topWant) - base;
           if (want < 0.0f) want = 0.0f;
           if (want > band * S - 8.0f * S) want = band * S - 8.0f * S;
           g_zenPanelShiftPx = want;
