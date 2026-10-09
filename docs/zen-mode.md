@@ -872,6 +872,18 @@ painted paper starts at column 22. Out of zen, on the iPad and in the turned
 landscape nothing moves. The tap itself was not driven headlessly; there is no
 scripted finger tap at a coordinate.
 
+**The placement lands in whole device pixels** (2026-10-09). The panel top is
+published as an integer, so a fractional placement came back rounded and the
+next pass absorbed the rounding: iPhone Air zen went 256 -> 355 -> 356, a second
+relayout to move the page 1 px. The target top is now rounded first, and the
+Air goes 256 -> 356 in one pass. NOT fixed, measured the same day: the iPhone
+13 mini (point scale 2.875) still takes several passes on entering zen
+(194 -> 207 -> 266 -> 257 -> 259). The page's size changes between the first
+passes as the side circle clamps, and with the size steady a 7 px shift change
+moved the page 9 px, consistent with the truncation in `setTopInset` /
+`setBottomInset` (`static_cast<int>` of point values times 2.875). It settles
+and stays settled.
+
 **...and the "Below the Paper" zone starts at the page's bottom edge** (owner,
 same day, the mirror question): `zenPaperBottomPx()` returns the page's bottom
 on the phone rather than the old rocker line, about 370 px higher in zen. iPad
