@@ -1389,7 +1389,8 @@ Grown in one day; each is documented at its definition, this is the map:
   the paper's because on the phone the sheet bled to the glass (until
   2026-10-07; the paper is the page alone now, so the two coincide), so a
   paper-derived left edge would have been 0 and the zone would not exist on the device
-  the owner reads on. The hold split by POSITION on 2026-08-27 (owner: *"change
+  the owner reads on. In zen on the phone the boundary is the C32 paper's left edge
+  instead (owner 2026-10-09), since that paper reaches a circle past the words. The hold split by POSITION on 2026-08-27 (owner: *"change
   long tap to only swap zen/singlefinger modes if tap held for .75 sec above
   paper..."*), replacing a two-threshold shape in which one hold wanted to fire
   two things; T-025 made the zones configurable and did NOT add a second
