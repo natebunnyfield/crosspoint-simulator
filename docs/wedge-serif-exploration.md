@@ -5,7 +5,8 @@
 - **2026-10-09 -- ROUND 486 SHIPPED (TestFlight, fonts-latest):** the o's contrast and weight, the a's contrast (Bold a 8%
   wider), the f's hook and advance (owner: *"winners Z O3 but heavier A2 but bold is too narrow F5"*). Regular common-word
   unevenness +0.0138 -> +0.0037 over the references, words worse than every reference 30 -> 13; Bold 28 -> 15.
-  `docs/albo-round-486-2026-10-09.md`. Round 485's c (options) is unruled.
+  `docs/albo-round-486-2026-10-09.md`. Round 485's c is CLOSED 2026-10-10, nothing ships: 1.6% of the
+  common words' unevenness, not a driver (`docs/albo-round-485-2026-10-09.md`).
 - **2026-10-09 -- THE WORD IMAGE IS THE OBJECTIVE, and the a and o are REOPENED** (owner: *"figure out how to make a
   better word image by adjusting letters in an intentional, evidence based way"*, then *"Yes, show options"* on the a and o).
   The decomposition: `docs/albo-word-image-drivers-2026-10-09.md` -- in the Regular the o (+7%) and a (+8%) are 39% of the
