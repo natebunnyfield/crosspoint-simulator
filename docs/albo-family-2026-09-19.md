@@ -749,9 +749,13 @@ Confirmed on both italics and on no roman. The aldine u's right stem is
 with the stem's width — 22 units under its own left stem at the 400 and 57
 at the 700. Not corrected in this round; awaiting the ruling.
 
-**RULED 2026-10-09 (owner, "Fix it, show options"):** re-measure on the
-current fonts, then draw options that bring the right stem to the left's height
-(full height, or the cut kept shallower), queued after the roman u.
+**RULED 2026-10-09 (owner, "Fix it, show options") -- then found ALREADY FIXED:**
+re-measured on the round-484 fonts (`it_u_stems.py`, unsheared, 429 x-height):
+the Italic u's stems top at 436 / 436 and the Bold Italic's at 438 / 436. Round
+273 (2026-09-19, same day as this section, `aldine.py` "THE RIGHT STEM'S TOP ON
+THE x-HEIGHT") fixed it and this paragraph stayed stale. The references run the
+right stem LOWER than the left by 0-16 units (Times 12, Berkeley 16, Charter 8),
+so today's equal tops are inside their practice. No options drawn; closed.
 
 **What remains before a TestFlight build carries these fonts** (asked the
 same day). Albo is already an installed family in the firmware recipe
