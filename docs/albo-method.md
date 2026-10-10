@@ -33,6 +33,13 @@ every page from round 485 on:
 4. **The references are the yardstick**, drawn on the page at one x-height
    beside the arms where the question is a shape.
 5. Change as much as is needed -- a letter may be redrawn, not only dialed.
+6. **The objective is the WORD IMAGE, not the letter's number.** Owner
+   2026-10-09: *"I need you to figure out how to make a better word image by
+   adjusting letters in an intentional, evidence based way."* Score every arm
+   on the common words' unevenness against the references
+   (`docs/albo-word-image-drivers-2026-10-09.md`), and pick letters by their
+   share of that, not by rank in a finding list. The u and the c were 1.7%
+   and 1.6% of the problem; the a, o and f are half of it.
 
 ## 0. The brief, and what each word in it constrains
 
