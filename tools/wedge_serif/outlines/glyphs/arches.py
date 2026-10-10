@@ -246,6 +246,11 @@ U_BOWL = os.environ.get("ALBO_ROM_U_BOWL", "a")
 # arch (ruled), and only the mirrored u (b) closes it. Whole-band color over
 # the n (references 0.944-1.005): a 0.928, f 0.945.
 if U_BOWL not in ("a", "b", "c", "d", "e", "f", "g", "h", "i"): U_BOWL = "a"
+# ALBO_ROM_U_WIDTH: the u's stem-to-stem distance x the n's (owner 2026-10-09,
+# "what about adjusting the width of u as well?"). 1.0 = the n's, which is what
+# every reference keeps (ink width 489 = the n's 489 in Albo; references
+# within 4 units of their own n). Below 1 the same ink sets darker in a word.
+U_WIDTH = float(os.environ.get("ALBO_ROM_U_WIDTH", 1.0))
 U_ARMS = {   # start (x xh, the bowl leaves the left stem), u_end, taper from, pen x
     "a": (0.40, 0.70, 0.7, 1.00), "d": (0.50, 0.70, 0.7, 1.00), "e": (0.40, 0.85, 0.8, 1.00),
     "f": (0.40, 0.70, 0.7, 1.08), "g": (0.46, 0.80, 0.75, 1.00), "h": (0.40, 0.70, 0.7, 1.15),
@@ -273,6 +278,7 @@ def g_u(c):
     xh = c["xh"]; x0 = S / 2; x1 = x0 + pen.NW
     over_c = pen.OVER - TH_H / 2
     u_start, u_end_arm, u_from, u_pen = U_ARMS.get(U_BOWL if not pen.ITALIC else "a", U_ARMS["a"])
+    if not pen.ITALIC and U_WIDTH != 1.0: x1 = x0 + pen.NW * U_WIDTH
     left = stem(x0, u_start * xh - 30, xh, top='left', foot=None, ent_span=(0, xh))
     cy = (8 * (-over_c) - xh * u_start - xh * 0.42) / 6
     center = cubic((x0, xh * u_start), (x0, cy), (x1, cy), (x1 + 4, xh * 0.42))
