@@ -2,6 +2,12 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-09; the log below is history)
 
+- **2026-10-10 -- ROUND 487 OPTIONS (not ruled):** the word image after build 318. Regular: the a is the one
+  driver left (21.7% of the deviation); the hood is the lever (A9 = hood 0.72 + end 0.80, A10 = hood 0.62, both
+  gap +0.0037 -> +0.0003); adding ink at the bottom (gravity) makes the word LESS even. Bold: the references cut the
+  narrow straight letters' white from Regular to Bold and Albo does not (T2: i l r u, gap -0.0022 -> -0.0057);
+  narrowing the straight letters (N) and widening the diagonals (W) are rejected by measurement. New instrument
+  `instruments/word_drivers.py`. `docs/albo-round-487-2026-10-10.md`.
 - **2026-10-09 -- ROUND 486 SHIPPED (TestFlight, fonts-latest):** the o's contrast and weight, the a's contrast (Bold a 8%
   wider), the f's hook and advance (owner: *"winners Z O3 but heavier A2 but bold is too narrow F5"*). Regular common-word
   unevenness +0.0138 -> +0.0037 over the references, words worse than every reference 30 -> 13; Bold 28 -> 15.

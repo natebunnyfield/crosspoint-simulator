@@ -19,6 +19,12 @@ from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, WL, WD, DROP, ENT, adj
 # entasis) -- so the thick diagonal lands on the stem. At and under 84 the
 # rule is round 51's and the 400 is byte-identical.
 DIAG_CAP = float(os.environ.get("ALBO_DIAG_CAP", 0.93))
+# ROUND 487 -- THE BOLD's DIAGONALS ARE NARROW. v w x y are sized on wf, and
+# the Bold's FJORD_WIDTH=95 takes 5% off them while their strokes thicken:
+# measured ink width Bold/Regular 0.96 against the references' median 1.03.
+# In his Bold words the w reads +10% dark, the y +6%. This dial widens the
+# roman v w x y above stem 84 only; 1.0 = today, the 400 is untouched.
+DIAG_W_700 = float(os.environ.get("ALBO_DIAG_W_700", 1.0)) if S > 84.0 else 1.0
 def pw(p0, p1, mult=1.0):
     """Round 51's rule for every diagonal (`_diag`): the width is `mult` x
     the PEN's width at the stroke's own angle -- a down-right stroke is the
@@ -82,7 +88,7 @@ def _vertex_clip(p0, p1, half=None):
 
 @glyph('v')
 def g_v(c):
-    xh = c["xh"]; wf = c["wf"]; w = 440 * wf
+    xh = c["xh"]; wf = c["wf"]; w = 440 * wf * DIAG_W_700
     p0, p1 = (S * 0.4, xh), (w / 2, 0); q0, q1 = (w - S * 0.4, xh), (w / 2 + S * 0.12, 0)
     # ROUND 248. Owner 2026-09-18: "restore v and w". The round-235 vertex
     # clip (R32) is off this letter; the v is round 232's again, both styles.
@@ -123,7 +129,7 @@ def _clean_apex_notch(b, d, apex, apex_x, apex_y, band=110):
 
 @glyph('w')
 def g_w(c):
-    xh = c["xh"]; wf = c["wf"]; w = 680 * wf
+    xh = c["xh"]; wf = c["wf"]; w = 680 * wf * DIAG_W_700
     tm = 0.68 if adj('w') else 0.72   # round 92 (adj 'w'): the darkest wide letter, its thins 0.72 -> 0.68 of the pen
     P = [((S * 0.4, xh), (w * 0.27, 0), 1.0, 1), ((w * 0.5, xh * 0.96), (w * 0.27 + S * 0.12, 0), tm, None),
          ((w * 0.5, xh * 0.96), (w * 0.73, 0), 1.0, None), ((w - S * 0.4, xh), (w * 0.73 + S * 0.12, 0), tm, -1)]
@@ -207,7 +213,7 @@ def x_bl_anchor(q0, q1):
 
 @glyph('x')
 def g_x(c):
-    xh = c["xh"]; wf = c["wf"]; w = 430 * wf
+    xh = c["xh"]; wf = c["wf"]; w = 430 * wf * DIAG_W_700
     p0, p1 = (S * 0.4, xh), (w - S * 0.4, 0); q0, q1 = (w - S * 0.4, xh), (S * 0.4, 0)
     # owner 2026-09-14: "increase the visual weight of the bottom left serif
     # in 'x'" -- that serif ends the THIN diagonal, so the family's wedge
@@ -236,7 +242,7 @@ Y_TAIL_FLOOR = float(os.environ.get("ALBO_ROM_Y_TAIL_FLOOR", 0.33))   # ships 0.
 
 @glyph('y')
 def g_y(c):
-    xh = c["xh"]; wf = c["wf"]; desc = c["desc"]; w = 440 * wf
+    xh = c["xh"]; wf = c["wf"]; desc = c["desc"]; w = 440 * wf * DIAG_W_700
     # ROUND 267 -- THE DIAGONAL MUST REACH THE TAIL AT ANY WEIGHT. Its end was
     # -S x 0.4 below the line: an overlap sized in the stem, crossing a tail
     # whose path sits on the descender grid. At the 200's stem of 43.8 that is

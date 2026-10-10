@@ -1,6 +1,7 @@
 """word_rows.py -- labeled rows of text from several fonts at one x-height (the compact options image).
 
     python3 instruments/word_rows.py out.png 90 "A  today::Albo-BoldItalic.ttf::ocecoa" "D1::other.ttf::ocecoa"
+    (a font inside a collection: "Charter B::/System/Library/Fonts/Supplemental/Charter.ttc#3::text")
 
 The owner rules fastest from ONE small labeled image with today on top (memory: compact option images).
 """
@@ -11,7 +12,9 @@ XHPX=int(sys.argv[2]); out=sys.argv[1]; specs=sys.argv[3:]
 rows=[]
 for spec in specs:
     lab, path, text = spec.split("::")
-    f=freetype.Face(path); f.set_pixel_sizes(0,200); f.load_char('x', freetype.FT_LOAD_NO_HINTING); xh=f.glyph.metrics.height/64
+    idx=0
+    if "#" in path: path, idx = path.rsplit("#", 1); idx=int(idx)   # 2026-10-10: "path#N" picks a face inside a .ttc (Charter Bold is Charter.ttc#3)
+    f=freetype.Face(path, idx); f.set_pixel_sizes(0,200); f.load_char('x', freetype.FT_LOAD_NO_HINTING); xh=f.glyph.metrics.height/64
     size=int(200*XHPX/xh); f.set_pixel_sizes(0,size)
     H=int(XHPX*2.0); base=int(XHPX*1.55); W=260+int(size*0.75*len(text))+40
     im=Image.new("L",(W,H),250); d=ImageDraw.Draw(im); d.text((14,base-XHPX//2-16),lab,fill=40,font=F)

@@ -686,6 +686,15 @@ BOWL['hair'] = 1.0 - 0.5 * pen.CONTRAST
 # used to sit under all of them at 1.32. The `1 - 0.5c` line above is kept as
 # the history of how the dial used to be derived; it no longer decides.
 BOWL['hair'] = float(os.environ.get('ALBO_BOWL_HAIR', 0.46))
+# ROUND 487 -- THE BOLD's ROUNDS READ DARK in his words (e +4.3%, s +6.4%, a
+# +3.1%; word_drivers.py on build 318) where its straight letters read pale.
+# Measured single-letter: the Bold e's band is 1.022 of its n against the
+# references' 0.977. This scales the whole bowl profile (hair and max alike,
+# so the contrast ratio holds) above stem 84 only; 1.0 = today, every build
+# at or under 84 is byte-identical.
+BOWL_W_700 = float(os.environ.get('ALBO_BOWL_W_700', 1.0))
+if S > 84.0 and BOWL_W_700 != 1.0:
+    BOWL['hair'] *= BOWL_W_700; BOWL['max'] *= BOWL_W_700
 
 def bowl_th(tn):
     """Width of a bowl stroke at tangent tn: the switched profile, or the pen."""

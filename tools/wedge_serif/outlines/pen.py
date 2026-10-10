@@ -134,6 +134,13 @@ FOOT = DESIGN["foot_scale"]                  # feet are 0.85 of a top wedge's le
 CUT = math.radians(DESIGN["cut_deg"])        # 20 deg pen cut
 BOWL_K = DESIGN["bowl_k"]                    # 2.1: the family's superellipse
 NW = DESIGN["n_width"] * WF + (S - 110) * 0.9   # the n's stem-to-stem distance
+# ROUND 487 -- the Bold's straight letters are WIDE: the n's ink grows 1.14x
+# from the Regular (references' median 1.03) because the term above widens the
+# stem-to-stem distance 44 units from stem 66.9 to 116 while the stems grow
+# 49 each; the references shrink the counter to absorb the heavier stem.
+# ALBO_BOLD_NW_K takes K x (S - 66.9) back off above stem 84 (K 1.0 = the
+# references' median n ink ratio); 0 = today, the 400 is untouched.
+if S > 84.0: NW -= _env("ALBO_BOLD_NW_K", 0.0) * (S - 66.9)
 N_COUNTER = NW - S
 N_COUNTER_FULL = DESIGN["n_width"] * WIDTH + (S - 110) * 0.9 - S   # the UNCONDENSED n counter the word space is 1.7 x of (round 20)
 class FlooredPen:

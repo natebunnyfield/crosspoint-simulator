@@ -890,6 +890,18 @@ BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, 
 # a longer bar (F_BAR_R) lands its ink in the next slot and reads paler still.
 if os.environ.get("ALBO_ROM_F_BEARING"):
     BEARING_ADJ['f'] = tuple(float(v) for v in os.environ["ALBO_ROM_F_BEARING"].split(","))
+# ROUND 487 -- a BOLD-ONLY bearing adjustment, for options. Measured against
+# the references (word_drivers / the R-to-B census, 2026-10-10): from Regular
+# to Bold the references cut the narrow straight letters' white -- i by 11
+# units, t 12, r 8, l 7, u 7 -- while keeping the n h m's; Albo carries the
+# 400's bench answers to the Bold in the same units (weights-transfer arm a)
+# and cuts 2-3. In his Bold words the i reads -9%, the l -7%, the r -5%.
+# ALBO_BOLD_SB_ADJ="i:-6,-5/l:-4,-3" (";" also separates) adds (lsb, rsb) per letter above stem
+# 84 only. Unset = today. Not a bench row: an option to put to the owner.
+BOLD_SB_ADJ = {}
+if os.environ.get("ALBO_BOLD_SB_ADJ"):
+    for _it in os.environ["ALBO_BOLD_SB_ADJ"].replace("/", ";").split(";"):   # "/" works where ";" would end a shell command
+        _c, _v = _it.split(":"); BOLD_SB_ADJ[_c] = tuple(float(x) for x in _v.split(","))
 # ROUND 373 -- THE ROMAN CAPITALS' OWN BEARING DELTAS, starting with the X.
 # Owner 2026-09-23: *"X .89 wins, adjust spacing around x."* Narrowing the X
 # did NOT move its gaps -- the solver narrows ink and advance together, so every
@@ -1311,6 +1323,8 @@ def fit(ch, conts, c):
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
     if not (ALD is not None and ALD.ON) and ch in ROM_LC_ADJ:
         lsb += ROM_LC_ADJ[ch][0]; rsb += ROM_LC_ADJ[ch][1]      # round 308
+    if not (ALD is not None and ALD.ON) and pen.S > 84.0 and ch in BOLD_SB_ADJ:
+        lsb += BOLD_SB_ADJ[ch][0]; rsb += BOLD_SB_ADJ[ch][1]    # round 487, Bold only, see BOLD_SB_ADJ
     if ALD is not None and ALD.ON and ch in ALD_FIG_ADJ:
         lsb += ALD_FIG_ADJ[ch][0]; rsb += ALD_FIG_ADJ[ch][1]    # round 376
     if not (ALD is not None and ALD.ON) and ch in ROM_CAP_ADJ:

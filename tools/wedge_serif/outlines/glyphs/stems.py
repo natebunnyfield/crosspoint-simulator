@@ -638,6 +638,17 @@ A_W = float(os.environ.get("ALBO_ROM_A_W", 1.08 if S > 84.0 else 1.0))   # round
 A_HOOD_W = float(os.environ.get("ALBO_ROM_A_HOOD_W", 0.92))   # round 94: the hood's stroke x this (both its outer run-then-arc and the underside cubic); a dial since round 486 (the a reopened, owner 2026-10-09: hood 0.77 of the n stem against the references' 0.57-0.81, median 0.60)
 A_CON = float(os.environ.get("ALBO_ROM_A_CON", 1.4))   # round 486 ships A2 (owner "A2 but bold is too narrow"); 1.0 = before
 A_FLOOR = float(os.environ.get("ALBO_ROM_A_FLOOR", 0.35))   # round 486, with A_CON   # round 486: the bowl's least width x S (0.5 = today's floor, which binds before any hairline can thin)   # round 486: the bowl's widths re-spread about their mean (thins thinner, thicks thicker; 1.0 = today). The bowl's top hairline is 0.55 of the stem; references 0.39-0.45
+# ROUND 487 -- the a is the Regular's last word-image driver (21.7% of the
+# common words' deviation after round 486, +6.5% dark in his words). Measured
+# by quarters against the references (word_parts): top 0.813 vs 0.678, middle
+# 1.005 vs 0.903, bottom 0.926 vs 1.056; the hood's terminal 0.901 vs 0.834.
+# Top-heavy where every reference is bottom-heavy. Two dials, both = today:
+#   ALBO_ROM_A_HOOD_END  the hood profile's last knot (the terminal's weight
+#       before the finial swell), 1.0 = today
+#   ALBO_ROM_A_BOT_W     the bowl's width x this at the baseline, ramped in
+#       from 0.30 xh down, 1.0 = today
+A_HOOD_END = float(os.environ.get("ALBO_ROM_A_HOOD_END", 1.0))
+A_BOT_W = float(os.environ.get("ALBO_ROM_A_BOT_W", 1.0))
 A_UNDER_LEAN = 14   # round 86's curve 8 lean, for the underside cubic
 A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
 # ALBO_ROM_A_OPT -- R17, owner 2026-09-18: "remove corner on shoulder, also
@@ -725,7 +736,7 @@ def g_a(c):
         tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
         tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
         under = cubic((x, xh * start_f + _L), (x + A_UNDER_LEAN * wf, xh * up + _ar + _L), (x - 236 * wf * A_W, peak + 44 + _ar + _L), (x - 286 * wf * A_W, xh * 0.72 + _L))
-        under0 = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.0)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.0)])   # round 275: the 1.12 at the end is the finial's swell now (below)
+        under0 = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, A_HOOD_END)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, A_HOOD_END)])   # round 275: the 1.12 at the end is the finial's swell now (below)
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
@@ -745,7 +756,7 @@ def g_a(c):
         return 1.0 if t <= _t0 else (_hf if t >= _t1 else 1.0 + (_hf - 1.0) * (t - _t0) / (_t1 - _t0))
     def _build(f0):
         if A_HOOD_FLUSH:
-            prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.0)])   # the stem's width held through the turn
+            prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, A_HOOD_END)])   # the stem's width held through the turn; round 487: the end knot is a dial
             prof_ = lambda t: prof0(t) * A_HOOD_W * _ramp(t)   # round 94 (owner: "slightly reduce the top stroke of 'a'")
             under_prof = lambda t: under0(t) * A_HOOD_W * _ramp(t)   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
             # ROUND 275 -- THE HOOD'S TERMINAL IS THE c's TOP FINIAL (owner:
@@ -828,6 +839,8 @@ def g_a(c):
         w = PR.bowl_th(tans_o[i]) * (A_BOWL_ADJ if adj('a') else 1.0)
         if _acon != 1.0: w = _gm * (w / _gm) ** _acon
         w = max(w, S * (A_FLOOR if not pen.ITALIC else 0.5))
+        if A_BOT_W != 1.0 and not pen.ITALIC and p[1] < xh * 0.30:   # round 487: weight into the bowl's bottom (gravity), ramped from 0.30 xh to the baseline
+            w *= 1.0 + (A_BOT_W - 1.0) * (1.0 - max(p[1], 0.0) / (xh * 0.30))
         u = max(0.0, min(1.0, (p[0] - (xin - 90.0)) / 90.0)); u = u * u * (3 - 2 * u)
         return w * (1 - u) + NEAR_STEM_W * u
     solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=6)
