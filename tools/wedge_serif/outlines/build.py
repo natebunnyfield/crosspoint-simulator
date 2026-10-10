@@ -883,6 +883,13 @@ ROUND_LC_RSB = 11
 # kept the old bearings: measured the same way it ran 11 tight on the left and
 # 16 on the right against the o. 'g' goes (-11,-19) -> (0,-3).
 BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, -1), 'f': (5, 25), 'g': (0, -3), 'h': (0, -2), 'i': (0, -1), 'j': (0, 14), 'k': (0, 18), 'l': (-3, 2), 'm': (0, -2), 'n': (4, 0), 'o': (0, -2), 'p': (-11, -1), 'q': (0, 37), 'r': (2, 13), 's': (17, 19), 't': (-11, 0), 'u': (-9, 3), 'v': (-1, -4), 'w': (6, 4), 'x': (42, 0), 'y': (0, 13), 'z': (0, -23), 'ﬀ': (0, 16)}
+# ROUND 486 (the f, owner 2026-10-09): ALBO_ROM_F_BEARING="lsb,rsb" replaces
+# the f's row above. Measured at a 429 x-height the f's advance is 359 against
+# the references' 288 (its ink 339 against 312; lsb 50 against 28, rsb -30
+# against -58): the pale f in his words (-13.5%) is its SLOT, not its ink --
+# a longer bar (F_BAR_R) lands its ink in the next slot and reads paler still.
+if os.environ.get("ALBO_ROM_F_BEARING"):
+    BEARING_ADJ['f'] = tuple(float(v) for v in os.environ["ALBO_ROM_F_BEARING"].split(","))
 # ROUND 373 -- THE ROMAN CAPITALS' OWN BEARING DELTAS, starting with the X.
 # Owner 2026-09-23: *"X .89 wins, adjust spacing around x."* Narrowing the X
 # did NOT move its gaps -- the solver narrows ink and advance together, so every

@@ -20,6 +20,12 @@ from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, adj
 # italic's o is its own. 1.0 / 1.0 is round 225 exactly.
 O_RX_ADJ = float(os.environ.get("ALBO_ROM_O_RX", 0.93))
 O_W_ADJ = float(os.environ.get("ALBO_ROM_O_W", 1.10))
+# ROUND 486 (the o reopened, owner 2026-10-09): ALBO_ROM_O_CON re-spreads the
+# o's own widths about their mean (ring's `con`; 1.0 = today) -- thins thinner,
+# sides thicker, the family's profile untouched. Measured at a 429 x-height:
+# Albo's o thins 0.57 of the n stem and sides 1.17; references' thins
+# 0.41-0.51 (median 0.43), sides 1.07-1.16 (median 1.14).
+O_CON = float(os.environ.get("ALBO_ROM_O_CON", 1.0))
 O_RX = 227; C_RX = 210; E_RX = 186   # centerline radii of the record (x wf); the outer adds half the pen's vertical
 # ROUND 111. _IO is the ONE place IT_OVAL may be read from, and both the o's
 # constructions now go through it. Round 101 wrote `pen.IT_OVAL` straight into
@@ -56,7 +62,7 @@ O_FLOOR_ADJ = float(__import__('os').environ.get('ALBO_O_FLOOR', 0.50))   # roun
 def g_o(c):
     if adj('o'):
         xh = c["xh"]; wf = c["wf"] * _IO; rx = O_RX * O_RX_ADJ * wf + TH_V / 2 * O_W_ADJ   # round 225: the o's own size and weight dials
-        solid, outer, inner = ring(rx, xh / 2, rx, xh / 2 + OVER, w_scale=O_W_ADJ, floor=S * O_FLOOR_ADJ); return solid
+        solid, outer, inner = ring(rx, xh / 2, rx, xh / 2 + OVER, w_scale=O_W_ADJ, floor=S * O_FLOOR_ADJ, con=(O_CON if not pen.ITALIC else 1.0)); return solid
     solid, outer, inner = o_ring(c, O_RX * O_RX_ADJ, w_scale=O_W_ADJ)
     return solid
 

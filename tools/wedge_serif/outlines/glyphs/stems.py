@@ -241,6 +241,7 @@ F_BAR_TH = float(os.environ.get("ALBO_ROM_F_BAR_TH", 1.15))   # round 430: the t
 # ...and its RIGHT reach (owner: "crossbar seems a bit short on right side"):
 # units added to the bar's right end, lone f only. Measured right of the stem at
 # 1000 px: Albo 116, Georgia 124, Palatino 125, Hoefler 124, Charter 140. 0 = today.
+F_HOOK_X = float(os.environ.get("ALBO_ROM_F_HOOK_X", 0.0))   # round 486 (the f, owner 2026-10-09): the hook's end moved right this many units (0 = today; the hook overhangs the advance by 30 against the references' 54-98, median 58)
 F_BAR_R = float(os.environ.get("ALBO_ROM_F_BAR_R", 16.0))   # round 430: right arm 116 -> 132 (R2); 0 = round 429
 F_BAR_CUT_DEG = float(os.environ.get("ALBO_ROM_F_BAR_CUT", 8.0))   # round 246: the bar's end faces lean this much, bottom-left to top-right; 0 is round 235
 def f_bar(x, xh, wf, th, opt, reach_r=0.0):
@@ -291,7 +292,7 @@ def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_c
     # hook's left edge -- the spur on the italic long s and on every italic
     # f-ligature (owner 2026-09-24, "the weirdness and stray hairy mess").
     # The roman never draws an entry; the standalone italic f is aldine's.
-    end = hook_end or (x + r * 1.25, asc - r * 0.55); c2 = hook_c2 or (x + r * 0.9, asc + 8)
+    end = hook_end or (x + r * 1.25 + (F_HOOK_X if not pen.ITALIC else 0.0), asc - r * 0.55); c2 = hook_c2 or (x + r * 0.9 + (F_HOOK_X if not pen.ITALIC else 0.0) * 0.5, asc + 8)   # round 486: F_HOOK_X reaches the hook right, in units
     hook = cubic((x, asc - r), (x, asc + 8), c2, end)
     prof = hook_profile or [(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)]
     hook_cut1 = CUT if hook_cut else None
@@ -634,7 +635,9 @@ A_LIFT_700 = float(os.environ.get("ALBO_ROM_A_LIFT_700", 6))
 A_BOWL_TOP = float(os.environ.get("ALBO_ROM_A_BOWL_TOP", 0.60))
 A_BOWL_TOP_700 = float(os.environ.get("ALBO_ROM_A_BOWL_TOP_700", 0.60))
 A_W = float(os.environ.get("ALBO_ROM_A_W", 1.0))
-A_HOOD_W = 0.92   # round 94: the hood's stroke x this (both its outer run-then-arc and the underside cubic)
+A_HOOD_W = float(os.environ.get("ALBO_ROM_A_HOOD_W", 0.92))   # round 94: the hood's stroke x this (both its outer run-then-arc and the underside cubic); a dial since round 486 (the a reopened, owner 2026-10-09: hood 0.77 of the n stem against the references' 0.57-0.81, median 0.60)
+A_CON = float(os.environ.get("ALBO_ROM_A_CON", 1.0))
+A_FLOOR = float(os.environ.get("ALBO_ROM_A_FLOOR", 0.5))   # round 486: the bowl's least width x S (0.5 = today's floor, which binds before any hairline can thin)   # round 486: the bowl's widths re-spread about their mean (thins thinner, thicks thicker; 1.0 = today). The bowl's top hairline is 0.55 of the stem; references 0.39-0.45
 A_UNDER_LEAN = 14   # round 86's curve 8 lean, for the underside cubic
 A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
 # ALBO_ROM_A_OPT -- R17, owner 2026-09-18: "remove corner on shoulder, also
@@ -815,9 +818,16 @@ def g_a(c):
     tans_o = geom.tangents(outer_closed, closed=True); n_o = len(outer_closed)
     NEAR_STEM_W = 40.0
     A_BOWL_ADJ = 0.92   # round 92 (adj 'a'): the bowl's stroke x this; 0.85 -> 0.92 (owner, round 93: "don't thin out 'a' as much")
+    # round 486: A_CON re-spreads the bowl's widths about their geometric mean
+    # (ring's `con` rule), and the floor that held the hairline at 0.5 S is a
+    # dial with it (ALBO_ROM_A_FLOOR) -- at 1.0 / 0.5 every line is today's.
+    _gm = S * math.sqrt(PR.BOWL['hair'] * PR.BOWL['max']) * (A_BOWL_ADJ if adj('a') else 1.0) if PR.BOWL else S
+    _acon = A_CON if not pen.ITALIC else 1.0
     def wfn2(t):
         i = min(n_o - 1, int(round(t * n_o))); p = outer_closed[i]
-        w = max(PR.bowl_th(tans_o[i]) * (A_BOWL_ADJ if adj('a') else 1.0), S * 0.5)
+        w = PR.bowl_th(tans_o[i]) * (A_BOWL_ADJ if adj('a') else 1.0)
+        if _acon != 1.0: w = _gm * (w / _gm) ** _acon
+        w = max(w, S * (A_FLOOR if not pen.ITALIC else 0.5))
         u = max(0.0, min(1.0, (p[0] - (xin - 90.0)) / 90.0)); u = u * u * (3 - 2 * u)
         return w * (1 - u) + NEAR_STEM_W * u
     solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=6)
