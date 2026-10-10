@@ -200,9 +200,9 @@ written to the card, zero errors (`docs/library-sync-on-ios.md`, commit
   re-seeded off (`68c73fb`, S-023 in `BUGS.md`); and a crafted 24-byte file
   that could crash the reader through an integer overflow, found by
   adversarial review and reproduced under ASan (`539ea13`).
-- **S-019 (the 50%-CPU battery report) is half closed.** The page-fade loop is
-  fixed; the phosphor-trail live window is still open pending an owner ruling
-  — see `BUGS.md`.
+- **S-019 (the 50%-CPU battery report):** both loops bounded (corrected
+  2026-09-02) — see `BUGS.md`. (This line said "half closed, pending an owner
+  ruling" until 2026-10-10; nothing was pending.)
 
 Mac app / firmware-release parity for this specific tag is not recorded in
 this repo and was not re-verified for this entry; the desktop canary (the
