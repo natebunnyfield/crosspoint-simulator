@@ -89,12 +89,30 @@ def g_c(c):
         prof = widen_terminal(widen_terminal(None, True), False)
         solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=CUT, cut1=CUT); return solid
     top = 1.10 if adj('c') else 1.30   # round 92 (adj 'c'): both terminals heavy (band +15% Albertus) -- the top's swell 1.30 -> 1.10
+    # ROUND 485 -- THE ROMAN c AGAINST THE REFERENCES (docs/albo-word-images-2026-10-04.md
+    # 4.2: -11.1% in his words, below every reference at 7 of 9 sizes). Measured
+    # at a 429 x-height by word_parts.py, Albo against six references' medians:
+    # ink width 401 (refs 321-376, median 355); mouth 335 (212-326, median 274);
+    # the bowl's left thickness 70 (76-90, median 81); the bottom terminal 0.70
+    # of the pen. One dial per KIND, each default = today, each arm set so the
+    # property it moves lands on the references' MEDIAN and no further:
+    #   ALBO_ROM_C_RX    the ring's centerline radius (210)          -> width
+    #   ALBO_ROM_C_ARC   the terminals' angle from the axis, both (42) -> mouth
+    #   ALBO_ROM_C_PEN   the bowl's pen x (1.0)                       -> weight
+    #   ALBO_ROM_C_BOT   the bottom terminal's end, x the pen (0.70)  -> terminal
+    #   ALBO_ROM_C_TOP_SWELL  the top terminal's swell x the pen (1.10; references' top terminal 1.20-1.89 of the n stem, Albo 1.28)
+    if not pen.ITALIC:
+        top = (C_TOP_SWELL if C_TOP_SWELL > 0 else top) * C_PEN
+    c_rx = C_RX * (C_RX_ADJ if not pen.ITALIC else 1.0)
+    c_a0 = C_ARC if not pen.ITALIC else 40
+    c_a1 = 360 - C_ARC if not pen.ITALIC else 318
+    c_bot = C_BOT if not pen.ITALIC else 0.70
     # ROUND 275: the top's swell and face are the family's finial primitives
     # now (PR.finial_widths / PR.finial_cut, the c's own numbers moved there
     # so the round finials elsewhere could take them); this composes to the
     # same widths as widths([(0.0, 1.10), (0.13, 1.0), ...]) did, and the cut
     # resolves to the -28 degrees the c always carried. Byte-identical.
-    prof = finial_widths(1.0, True, widths([(0.0, 1.0), (0.82, 1.0), (1.0, 0.70)]), swell=top)
+    prof = finial_widths(C_PEN if not pen.ITALIC else 1.0, True, widths([(0.0, 1.0), (0.82, 1.0), (1.0, c_bot)]), swell=top)
     c_cut = finial_cut(_c_center(c), True)
     if pen.ITALIC:
         solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=c_cut, cut1=CUT)
@@ -124,10 +142,10 @@ def g_c(c):
     #   e  the beak with its lip: the capital C's terminal (the swell, the
     #      face, the 0.35 x 0.6 bracket wedge hanging into the aperture)
     if C_TOP == 'a':
-        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=c_cut, cut1=CUT, smooth=True)
+        solid, center = open_arc(c, c_rx * _IO, c_a0, c_a1, prof, cut0=c_cut, cut1=CUT, smooth=True)
         return geom.ink([solid])
     if C_TOP == 'e':
-        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=c_cut, cut1=CUT, smooth=True)
+        solid, center = open_arc(c, c_rx * _IO, c_a0, c_a1, prof, cut0=c_cut, cut1=CUT, smooth=True)
         lip = beak(center, PR.bowl_th(geom.tangents(center)[0]) * top, True, -28.0, lip=(0.35, 0.6))
         return geom.ink([solid, lip])
     if C_TOP == 'c':
@@ -140,6 +158,11 @@ def g_c(c):
         return geom.ink([solid, end_wedge(center, w0, True, -1, 0.9)])
     return geom.ink([solid])
 C_TOP = os.environ.get("ALBO_ROM_C_TOP", "a")   # round 273, see g_c
+C_RX_ADJ = float(os.environ.get("ALBO_ROM_C_RX", 210.0)) / 210.0   # round 485, see g_c
+C_ARC = float(os.environ.get("ALBO_ROM_C_ARC", 42.0))
+C_PEN = float(os.environ.get("ALBO_ROM_C_PEN", 1.0))
+C_BOT = float(os.environ.get("ALBO_ROM_C_BOT", 0.70))
+C_TOP_SWELL = float(os.environ.get("ALBO_ROM_C_TOP_SWELL", 0.0))   # 0 = the round-92 1.10
 
 def _c_center(c):
     """The c's centerline exactly as open_arc builds it for g_c (the roman
