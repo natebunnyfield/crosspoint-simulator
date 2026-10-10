@@ -2,6 +2,12 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-09; the log below is history)
 
+- **2026-10-09 -- OWNER RULING, HOW OPTIONS ARE MADE** (on the u pages, *"M wins, only give me mathematically
+  sound options. change shapes as much as is needed in a variety of ways, do not overfit, use reference fonts"*):
+  every arm on an option page must be derived from a measurement against the reference faces, not from a hunch;
+  the arms should differ in KIND (shape, weight, width, construction), not be a ladder of one dial; a fit that
+  matches the references' number by moving one letter until it does is overfitting and is not an option; the
+  references are the yardstick. Round 484 shipped M (the roman u 10% narrower; `docs/albo-round-484-2026-10-09.md`).
 - **2026-10-09 -- OWNER RULING, GRAVITY:** the roman u keeps its low join (round 483 drew the n turned over;
   owner *"A reads best because of gravity"*). The word-images u finding is reworked in round 484 as ink added
   LOW -- `docs/fjord-glyph-guide.md` "Gravity". The word-images list (2026-10-04) is being worked in rank order

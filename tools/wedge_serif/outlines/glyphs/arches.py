@@ -251,7 +251,7 @@ if U_BOWL not in ("a", "b", "c", "d", "e", "f", "g", "h", "i", "p"): U_BOWL = "a
 # "what about adjusting the width of u as well?"). 1.0 = the n's, which is what
 # every reference keeps (ink width 489 = the n's 489 in Albo; references
 # within 4 units of their own n). Below 1 the same ink sets darker in a word.
-U_WIDTH = float(os.environ.get("ALBO_ROM_U_WIDTH", 1.0))
+U_WIDTH = float(os.environ.get("ALBO_ROM_U_WIDTH", 0.90))   # round 484: M ships (owner 2026-10-09, "M wins"); 1.0 was rounds 51-483
 U_ARMS = {   # start (x xh, the bowl leaves the left stem), u_end, taper from, pen x
     "a": (0.40, 0.70, 0.7, 1.00), "d": (0.50, 0.70, 0.7, 1.00), "e": (0.40, 0.85, 0.8, 1.00),
     "f": (0.40, 0.70, 0.7, 1.08), "g": (0.46, 0.80, 0.75, 1.00), "h": (0.40, 0.70, 0.7, 1.15),

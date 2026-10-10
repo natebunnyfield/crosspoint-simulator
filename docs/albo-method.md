@@ -12,6 +12,28 @@ printed page to a typeface without spending days on things that cannot work.
 
 ---
 
+
+## 0. How an option page is made (owner ruling 2026-10-09)
+
+*"only give me mathematically sound options. change shapes as much as is
+needed in a variety of ways, do not overfit, use reference fonts."* So, for
+every page from round 485 on:
+
+1. **Start from a measurement against the references.** Each arm answers a
+   number the references establish (`word_measure.py`, `word_parts.py`,
+   `cmp_aldine_*`, the capitals audit), and the page prints that number for
+   every arm beside the references' range.
+2. **Vary in kind, not in degree.** A page is shape, weight, width and
+   construction arms side by side, not one dial at five settings. A ladder
+   is for the pick AFTER the kind is chosen.
+3. **Do not overfit.** Matching the references' median by pushing one letter
+   until the number lands (the u at 14% narrower, round 484's O) is not an
+   option; an arm must stay inside what the references themselves do with
+   that letter's proportions.
+4. **The references are the yardstick**, drawn on the page at one x-height
+   beside the arms where the question is a shape.
+5. Change as much as is needed -- a letter may be redrawn, not only dialed.
+
 ## 0. The brief, and what each word in it constrains
 
 The owner's standing brief, verbatim:
