@@ -38,7 +38,16 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-042] Update Fonts / Update Library freeze the screen on the phone — OPEN, NOT reproduced on the iOS Simulator; a flight recorder ships in its place
+(none as of 2026-10-10: S-042 and S-041 moved below on their owner rulings)
+
+## FIXED
+
+### [S-042] Update Fonts / Update Library freeze the screen on the phone — CLOSED 2026-10-10 by owner ruling ("Close it") under the silence-closes-a-shipped-fix rule; the flight recorder stays in the build
+
+**CLOSED 2026-10-10.** Build 229 (2026-09-26) shipped the two candidate fixes
+below; no re-report through build 318. Owner ruling 2026-10-10: close.
+Reopens on any new report; `diagnostics/update-trace.log` (Diagnostics Log
+on) is the first thing to ask for when it does.
 **severity: high (owner, 2026-09-26: "in ios app update library and fonts both freezing screen", a REPEATED report after TestFlight builds 226/227 shipped firmware `a29b432f6`) · scope: not localized · found 2026-09-26 · measured on the iOS Simulator only; no iPhone is paired to this Mac**
 
 The first fix (worker thread per step, heartbeat repaint) was proven on the
@@ -266,7 +275,6 @@ iPhone Air simulator, a tap still classifies and turns the page.
 trace, with Settings → Diagnostics Log switched on BEFORE the first click, then
 `diagnostics/firmware.log` read out of Files.
 
-## FIXED
 
 ### [S-036] The host web server is one serialized worker holding three copies of every body — FIXED 2026-10-07 (both halves)
 **severity: low-medium (latent DoS / memory) · scope: `src/WebServer.cpp` · found 2026-09-04 by the network-surface hunt (`docs/network-surface-hunt-2026-09-04.md`, findings 7 and 8)**
