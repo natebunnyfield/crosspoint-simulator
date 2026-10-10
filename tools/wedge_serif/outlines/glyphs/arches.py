@@ -245,7 +245,8 @@ U_BOWL = os.environ.get("ALBO_ROM_U_BOWL", "a")
 # a 0.938, d 0.947, e 0.939, f 0.949, g 0.943 -- the deficit is the n's deep
 # arch (ruled), and only the mirrored u (b) closes it. Whole-band color over
 # the n (references 0.944-1.005): a 0.928, f 0.945.
-if U_BOWL not in ("a", "b", "c", "d", "e", "f", "g", "h", "i"): U_BOWL = "a"
+#   p  today's bowl 5% heavier (for the width ladder's hedge arm)
+if U_BOWL not in ("a", "b", "c", "d", "e", "f", "g", "h", "i", "p"): U_BOWL = "a"
 # ALBO_ROM_U_WIDTH: the u's stem-to-stem distance x the n's (owner 2026-10-09,
 # "what about adjusting the width of u as well?"). 1.0 = the n's, which is what
 # every reference keeps (ink width 489 = the n's 489 in Albo; references
@@ -254,7 +255,7 @@ U_WIDTH = float(os.environ.get("ALBO_ROM_U_WIDTH", 1.0))
 U_ARMS = {   # start (x xh, the bowl leaves the left stem), u_end, taper from, pen x
     "a": (0.40, 0.70, 0.7, 1.00), "d": (0.50, 0.70, 0.7, 1.00), "e": (0.40, 0.85, 0.8, 1.00),
     "f": (0.40, 0.70, 0.7, 1.08), "g": (0.46, 0.80, 0.75, 1.00), "h": (0.40, 0.70, 0.7, 1.15),
-    "i": (0.50, 0.70, 0.7, 1.08),
+    "i": (0.50, 0.70, 0.7, 1.08), "p": (0.40, 0.70, 0.7, 1.05),
 }
 
 def _u_turned(c, start_k=None):
