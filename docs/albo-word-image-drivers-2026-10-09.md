@@ -93,3 +93,10 @@ of tokens in a word less even than every reference), not on the letter alone.
   rare in the common words: the c is in 3 of the top 100.
 - The terminal arms on the c (T, K) change its shape toward the references
   and its color by under 1%.
+
+## Ruled 2026-10-09: the a and o are reopened
+
+Owner, shown this table: *"Yes, show options."* Arms for the a and o by kind
+(counter, hairline, bowl weight, width), each from a reference number, scored
+on the top-100 words' evenness; today's a and o stay as the first arm. The f
+and the Bold's widths proceed alongside.

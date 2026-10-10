@@ -2,6 +2,10 @@
 
 ## STATE (read this first; each bullet is dated, the newest 2026-10-09; the log below is history)
 
+- **2026-10-09 -- THE WORD IMAGE IS THE OBJECTIVE, and the a and o are REOPENED** (owner: *"figure out how to make a
+  better word image by adjusting letters in an intentional, evidence based way"*, then *"Yes, show options"* on the a and o).
+  The decomposition: `docs/albo-word-image-drivers-2026-10-09.md` -- in the Regular the o (+7%) and a (+8%) are 39% of the
+  common words' unevenness and the f (-14%) 12%; the u and c under 2% each. The round-226 o ruling and the a's are open again.
 - **2026-10-09 -- OWNER RULING, HOW OPTIONS ARE MADE** (on the u pages, *"M wins, only give me mathematically
   sound options. change shapes as much as is needed in a variety of ways, do not overfit, use reference fonts"*):
   every arm on an option page must be derived from a measurement against the reference faces, not from a hunch;
