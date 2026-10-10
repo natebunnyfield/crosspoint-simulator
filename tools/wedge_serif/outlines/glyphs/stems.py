@@ -241,7 +241,7 @@ F_BAR_TH = float(os.environ.get("ALBO_ROM_F_BAR_TH", 1.15))   # round 430: the t
 # ...and its RIGHT reach (owner: "crossbar seems a bit short on right side"):
 # units added to the bar's right end, lone f only. Measured right of the stem at
 # 1000 px: Albo 116, Georgia 124, Palatino 125, Hoefler 124, Charter 140. 0 = today.
-F_HOOK_X = float(os.environ.get("ALBO_ROM_F_HOOK_X", 0.0))   # round 486 (the f, owner 2026-10-09): the hook's end moved right this many units (0 = today; the hook overhangs the advance by 30 against the references' 54-98, median 58)
+F_HOOK_X = float(os.environ.get("ALBO_ROM_F_HOOK_X", 28.0))   # round 486 ships F5 (owner); 0 = before   # round 486 (the f, owner 2026-10-09): the hook's end moved right this many units (0 = today; the hook overhangs the advance by 30 against the references' 54-98, median 58)
 F_BAR_R = float(os.environ.get("ALBO_ROM_F_BAR_R", 16.0))   # round 430: right arm 116 -> 132 (R2); 0 = round 429
 F_BAR_CUT_DEG = float(os.environ.get("ALBO_ROM_F_BAR_CUT", 8.0))   # round 246: the bar's end faces lean this much, bottom-left to top-right; 0 is round 235
 def f_bar(x, xh, wf, th, opt, reach_r=0.0):
@@ -634,10 +634,10 @@ A_LIFT = float(os.environ.get("ALBO_ROM_A_LIFT", 10))
 A_LIFT_700 = float(os.environ.get("ALBO_ROM_A_LIFT_700", 6))
 A_BOWL_TOP = float(os.environ.get("ALBO_ROM_A_BOWL_TOP", 0.60))
 A_BOWL_TOP_700 = float(os.environ.get("ALBO_ROM_A_BOWL_TOP_700", 0.60))
-A_W = float(os.environ.get("ALBO_ROM_A_W", 1.0))
+A_W = float(os.environ.get("ALBO_ROM_A_W", 1.08 if S > 84.0 else 1.0))   # round 486: the Bold a 8% wider (owner "bold is too narrow"; measured 396 against the Bold references' 398-485, median 421 -> 422)
 A_HOOD_W = float(os.environ.get("ALBO_ROM_A_HOOD_W", 0.92))   # round 94: the hood's stroke x this (both its outer run-then-arc and the underside cubic); a dial since round 486 (the a reopened, owner 2026-10-09: hood 0.77 of the n stem against the references' 0.57-0.81, median 0.60)
-A_CON = float(os.environ.get("ALBO_ROM_A_CON", 1.0))
-A_FLOOR = float(os.environ.get("ALBO_ROM_A_FLOOR", 0.5))   # round 486: the bowl's least width x S (0.5 = today's floor, which binds before any hairline can thin)   # round 486: the bowl's widths re-spread about their mean (thins thinner, thicks thicker; 1.0 = today). The bowl's top hairline is 0.55 of the stem; references 0.39-0.45
+A_CON = float(os.environ.get("ALBO_ROM_A_CON", 1.4))   # round 486 ships A2 (owner "A2 but bold is too narrow"); 1.0 = before
+A_FLOOR = float(os.environ.get("ALBO_ROM_A_FLOOR", 0.35))   # round 486, with A_CON   # round 486: the bowl's least width x S (0.5 = today's floor, which binds before any hairline can thin)   # round 486: the bowl's widths re-spread about their mean (thins thinner, thicks thicker; 1.0 = today). The bowl's top hairline is 0.55 of the stem; references 0.39-0.45
 A_UNDER_LEAN = 14   # round 86's curve 8 lean, for the underside cubic
 A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
 # ALBO_ROM_A_OPT -- R17, owner 2026-09-18: "remove corner on shoulder, also

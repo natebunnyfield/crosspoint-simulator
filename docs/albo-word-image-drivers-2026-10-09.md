@@ -100,3 +100,9 @@ Owner, shown this table: *"Yes, show options."* Arms for the a and o by kind
 (counter, hairline, bowl weight, width), each from a reference number, scored
 on the top-100 words' evenness; today's a and o stay as the first arm. The f
 and the Bold's widths proceed alongside.
+
+## After round 486 (shipped the same day)
+
+Regular: gap +0.0138 -> +0.0037, 30 -> 13 words worse than every reference.
+Bold: +0.0093 -> -0.0022, 28 -> 15. The a is still +6.8% in the Regular (its
+hood was not in the shipped arm); the o and f are within 2%.

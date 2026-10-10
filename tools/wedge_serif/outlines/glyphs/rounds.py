@@ -19,13 +19,15 @@ from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, adj
 # and the classic italic's, which are not the ask. Roman only -- the aldine
 # italic's o is its own. 1.0 / 1.0 is round 225 exactly.
 O_RX_ADJ = float(os.environ.get("ALBO_ROM_O_RX", 0.93))
-O_W_ADJ = float(os.environ.get("ALBO_ROM_O_W", 1.10))
+O_W_ADJ = float(os.environ.get("ALBO_ROM_O_W", 1.10))   # SHARED: the g's open bowl, the Greek and the o-derived symbols read this; the o itself takes O_W_O below (round 486)
+O_W_O = float(os.environ.get("ALBO_ROM_O_W_O", 1.0))   # round 486: the o's own ring pen, O3 "but heavier" (owner 2026-10-09); 1.10 (= O_W_ADJ) was rounds 225-485
+O_FLOOR_O = float(os.environ.get("ALBO_ROM_O_FLOOR_O", 0.35))   # round 486: the o's own hairline floor x S, so O3's contrast can thin; the shared O_FLOOR_ADJ (0.50, the round-92 ruling) stays for every other bowl
 # ROUND 486 (the o reopened, owner 2026-10-09): ALBO_ROM_O_CON re-spreads the
 # o's own widths about their mean (ring's `con`; 1.0 = today) -- thins thinner,
 # sides thicker, the family's profile untouched. Measured at a 429 x-height:
 # Albo's o thins 0.57 of the n stem and sides 1.17; references' thins
 # 0.41-0.51 (median 0.43), sides 1.07-1.16 (median 1.14).
-O_CON = float(os.environ.get("ALBO_ROM_O_CON", 1.0))
+O_CON = float(os.environ.get("ALBO_ROM_O_CON", 1.4))   # round 486 ships O3 (owner "Z ... O3 but heavier"); 1.0 = rounds 225-485
 O_RX = 227; C_RX = 210; E_RX = 186   # centerline radii of the record (x wf); the outer adds half the pen's vertical
 # ROUND 111. _IO is the ONE place IT_OVAL may be read from, and both the o's
 # constructions now go through it. Round 101 wrote `pen.IT_OVAL` straight into
@@ -61,8 +63,9 @@ O_FLOOR_ADJ = float(__import__('os').environ.get('ALBO_O_FLOOR', 0.50))   # roun
 @glyph('o')
 def g_o(c):
     if adj('o'):
-        xh = c["xh"]; wf = c["wf"] * _IO; rx = O_RX * O_RX_ADJ * wf + TH_V / 2 * O_W_ADJ   # round 225: the o's own size and weight dials
-        solid, outer, inner = ring(rx, xh / 2, rx, xh / 2 + OVER, w_scale=O_W_ADJ, floor=S * O_FLOOR_ADJ, con=(O_CON if not pen.ITALIC else 1.0)); return solid
+        _ow = O_W_O if not pen.ITALIC else O_W_ADJ; _of = O_FLOOR_O if not pen.ITALIC else O_FLOOR_ADJ   # round 486: roman o only
+        xh = c["xh"]; wf = c["wf"] * _IO; rx = O_RX * O_RX_ADJ * wf + TH_V / 2 * _ow   # round 225: the o's own size and weight dials
+        solid, outer, inner = ring(rx, xh / 2, rx, xh / 2 + OVER, w_scale=_ow, floor=S * _of, con=(O_CON if not pen.ITALIC else 1.0)); return solid
     solid, outer, inner = o_ring(c, O_RX * O_RX_ADJ, w_scale=O_W_ADJ)
     return solid
 
