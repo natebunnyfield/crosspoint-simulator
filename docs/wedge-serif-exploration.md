@@ -1,6 +1,11 @@
 # Wedge-serif exploration ("Albo", named round 58; "fjord" until then)
 
-## STATE (read this first; each bullet is dated, the newest 2026-10-04; the log below is history)
+## STATE (read this first; each bullet is dated, the newest 2026-10-09; the log below is history)
+
+- **2026-10-09 -- OWNER RULING, GRAVITY:** the roman u keeps its low join (round 483 drew the n turned over;
+  owner *"A reads best because of gravity"*). The word-images u finding is reworked in round 484 as ink added
+  LOW -- `docs/fjord-glyph-guide.md` "Gravity". The word-images list (2026-10-04) is being worked in rank order
+  (owner, same day); the italic u's short right stem is queued after it (owner: "Fix it, show options").
 
 - **2026-10-04 -- OWNER TODO, DONE (round 481):** *"raise middot and other mid punctuation to be optically
   vertically centered"* -- `docs/albo-mid-punctuation-2026-10-04.md`: against the x-height the middle dot, hyphen

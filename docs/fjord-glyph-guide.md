@@ -546,3 +546,17 @@ shared code with a knob, never into a bold-only copy of a glyph.
 - The `Cut` chamfer on diagonals under 20 vertices (round 36 trap): fixing
   `diag` to 40 samples touches every diagonal capital.
 - The reader route (README, "Taking a font to the reader").
+
+## Gravity: a bowl's weight sits on the baseline (owner ruling 2026-10-09)
+
+The roman u's bowl joins its right stem low (bowl rise 92 units at a 429
+x-height, inside the references' 74-122) and the owner keeps it there: shown
+the n's arch turned over as the u (round 483, B and C), he ruled *"A reads
+best because of gravity."* The weight of a bowl that opens upward belongs at
+its bottom, on the baseline; carrying it up a stem to match the n's deep
+shoulder reads as a letter hung from above. So a u, and by the same reading
+any open-topped bowl, is not fixed by mirroring an arch. A color fault in
+such a letter is fixed by adding ink LOW -- a fuller turn, more weight held
+into the join, the curve leaving its first stem higher -- never by raising
+the join. `docs/albo-round-483-2026-10-09.md`, `docs/albo-round-484-2026-10-09.md`.
+

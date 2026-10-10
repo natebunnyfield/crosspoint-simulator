@@ -226,8 +226,31 @@ def g_m(c):
 #   b  the n's own arch, rotated 180 degrees about the letter's centre -- a broad
 #      pen draws the same widths both ways, so this is literally the n turned over
 #   c  as b with the join raised halfway back toward today's (start 0.62 xh)
+# RULED A, 2026-10-09: "A reads best because of gravity" -- the bowl's weight
+# sits on the baseline, and b/c carried it up the right stem. Round 484's
+# arms keep the join where it is (bowl rise 92, inside the references' 74-122)
+# and put ink only where word_parts.py measured the u light: the MIDDLE band,
+# 0.938 of the n against the references' 0.995-1.030. Three places it can come
+# from without lifting the weight:
+#   d  the bowl leaves the LEFT stem higher (0.50 xh, was 0.40): the curve's
+#      thick carries further up the left side; the right join is untouched
+#   e  the bowl keeps more of its weight INTO the right stem (u_end 0.85, was
+#      0.70, over the last 20% instead of 30%): ink low and right, under the join
+#   f  the bowl's pen 8% heavier along the whole curve: color, the turn fuller
+#   g  d + e together, each by half (0.46 / 0.80)
 U_BOWL = os.environ.get("ALBO_ROM_U_BOWL", "a")
-if U_BOWL not in ("a", "b", "c"): U_BOWL = "a"
+#   h  the bowl's pen 15% heavier
+#   i  d and f together: leaves the left stem at 0.50 xh, pen 8% heavier
+# Measured (word_parts.py, u's middle band over the n's; references 0.995-1.03):
+# a 0.938, d 0.947, e 0.939, f 0.949, g 0.943 -- the deficit is the n's deep
+# arch (ruled), and only the mirrored u (b) closes it. Whole-band color over
+# the n (references 0.944-1.005): a 0.928, f 0.945.
+if U_BOWL not in ("a", "b", "c", "d", "e", "f", "g", "h", "i"): U_BOWL = "a"
+U_ARMS = {   # start (x xh, the bowl leaves the left stem), u_end, taper from, pen x
+    "a": (0.40, 0.70, 0.7, 1.00), "d": (0.50, 0.70, 0.7, 1.00), "e": (0.40, 0.85, 0.8, 1.00),
+    "f": (0.40, 0.70, 0.7, 1.08), "g": (0.46, 0.80, 0.75, 1.00), "h": (0.40, 0.70, 0.7, 1.15),
+    "i": (0.50, 0.70, 0.7, 1.08),
+}
 
 def _u_turned(c, start_k=None):
     import shapely.affinity as _aff
@@ -249,13 +272,15 @@ def g_u(c):
     right stem; left stem top wedge, right stem top wedge and right foot."""
     xh = c["xh"]; x0 = S / 2; x1 = x0 + pen.NW
     over_c = pen.OVER - TH_H / 2
-    left = stem(x0, 0.40 * xh - 30, xh, top='left', foot=None, ent_span=(0, xh))
-    cy = (8 * (-over_c) - xh * 0.4 - xh * 0.42) / 6
-    center = cubic((x0, xh * 0.4), (x0, cy), (x1, cy), (x1 + 4, xh * 0.42))
+    u_start, u_end_arm, u_from, u_pen = U_ARMS.get(U_BOWL if not pen.ITALIC else "a", U_ARMS["a"])
+    left = stem(x0, u_start * xh - 30, xh, top='left', foot=None, ent_span=(0, xh))
+    cy = (8 * (-over_c) - xh * u_start - xh * 0.42) / 6
+    center = cubic((x0, xh * u_start), (x0, cy), (x1, cy), (x1 + 4, xh * 0.42))
     base = pen_widths(center)
     floor = S * PR.BOWL['arch_floor'] if (PR.BOWL and PR.BOWL.get('arch_floor')) else 0.0
-    u_end = 0.70 if adj('u') else 0.58   # round 92 (adj 'u'): light (band -11%) -- the bowl holds more weight into the right stem, the right top wedge a little shorter
-    wfn = lambda t: max(base(t) * (1.0 if t < 0.7 else (u_end + (1 - u_end) * (1 - (3 * ((t - 0.7) / 0.3) ** 2 - 2 * ((t - 0.7) / 0.3) ** 3)))), floor)
+    u_end = (u_end_arm if adj('u') else 0.58)   # round 92 (adj 'u'): light (band -11%) -- the bowl holds more weight into the right stem, the right top wedge a little shorter
+    u_rem = 1.0 - u_from
+    wfn = lambda t: max(u_pen * base(t) * (1.0 if t < u_from else (u_end + (1 - u_end) * (1 - (3 * ((t - u_from) / u_rem) ** 2 - 2 * ((t - u_from) / u_rem) ** 3)))), floor)
     bowl = stroke(center, wfn)
     right = stem(x1, 0, xh, top='left', foot='right', top_len=(0.85 if adj('u') else 1.0))
     return geom.ink([left, right, bowl])
