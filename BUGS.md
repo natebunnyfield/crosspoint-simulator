@@ -42,6 +42,46 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## FIXED
 
+### [S-044] In zen the paper sat a third of a page above the first line of a section-opening page — FIXED 2026-10-11 on a worktree branch, not yet in a TestFlight build; device UNCONFIRMED
+
+**[S-044] The zen paper measured to the text BLOCK, not to the ink** — visible wrong picture · `ios/CrossPointIOSShim.cpp` zen placement, `src/HalDisplay.cpp` pixel writers · FIXED 2026-10-11
+
+Owner, with a phone screenshot of the East of Eden dedication ("PASCAL COVICI")
+in zen: *"the first text in a page does not have space above it, so that
+there is only one circle unit above the optical visual first text on the
+page, and two units below the lowest text."* Measured on the iPhone Air
+Simulator, same page, dark, C32 (circle 96 px): paper top to first ink
+**352 px = 3.7 circles**, last ink to paper bottom 271 px = 2.8.
+
+Cause: the C32 paper (docs/zen-mode.md, 2026-10-08) was placed from the insets
+the reader PUBLISHES -- `orientedMarginTop - capInkTrim`, the text block's
+top on a body page -- and the dedication is its own spine section, whose first
+page the firmware opens with the chapter sinkage (crosspoint-reader
+`lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp` `kChapterSinkageFraction`
+/ `newPageStartY()`: viewport / 5 snapped down to whole lines, owner ruling
+2026-08-22, "include chapter drop as the only exception to collapse space
+above rule"). The published inset does not know the sinkage, so the paper sat
+one circle plus the drop (150 logical px, measured on the X3 desktop build:
+first ink at row 164 against 13 on a body page) above the first ink. The
+bottom had the same shape: a page whose last line ends short measured 2.2-2.8
+circles instead of 2 (docs/zen-mode.md recorded the 2.2-2.6 on 2026-10-08).
+
+Fix (host side; the firmware's sinkage stands, it is a ruling): the display's
+pixel writers measure the page's own first and last ink ROWS from the level
+buffer of every new picture of a reader page (`src/PageInkRows.h`, portrait
+rows = framebuffer columns under the X3's rotation; background = the corners'
+majority so a dark page measures the same), under the staged-insets gate so an
+"Indexing" popup over the old page is never measured; the zen placement strikes
+the circles from them (`inkSrc = "ink"`), the side insets stay published. After:
+**96 px = 1.00 circle above, 192 px = 2.00 below**; the page's scale unchanged.
+`CROSSPOINT_SIM_ZEN_INK=0` keeps the old arm for an A/B. Residual, recorded
+not fixed: the glass bands on that page read 428 : 799 (1 : 1.87) rather than
+1 : 2, because the shift that drops the page is clamped at the band's room
+(`want > band * S - 8 * S`), a limit older than this change. Tests:
+`tests/page_ink_rows_test.cpp` (axis, polarity, blank page, torn pair).
+Before/after: https://claude.ai/artifact/CqAhwdENSX2HzNsjc34U7D. Account:
+docs/zen-page-margins.md §7.
+
 ### [S-042] Update Fonts / Update Library freeze the screen on the phone — CLOSED 2026-10-10 by owner ruling ("Close it") under the silence-closes-a-shipped-fix rule; the flight recorder stays in the build
 
 **CLOSED 2026-10-10.** Build 229 (2026-09-26) shipped the two candidate fixes

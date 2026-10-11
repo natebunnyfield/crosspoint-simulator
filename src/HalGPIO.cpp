@@ -7,6 +7,7 @@
 
 #include "FontFamilyStepChannel.h"
 #include "OpenActionMenuChannel.h"
+#include "PageInkRows.h"
 #include "ReaderInsetsChannel.h"
 #include "HostKeyboardState.h"
 #include "ReadAloudLines.h"
@@ -1545,11 +1546,30 @@ void HalGPIO::publishReaderTextInsets(int topPx, int rightPx, int bottomPx,
   readerInsetsChannel.publish(topPx, rightPx, bottomPx, leftPx);
 }
 
+// THE PAGE'S OWN INK ROWS (2026-10-11, owner: "only one circle unit above the
+// optical visual first text on the page, and two units below the lowest
+// text"). Measured by the display's pixel writers from the level buffer of
+// every picture written while a reader page is being drawn, and read by the
+// iOS zen placement in preference to the published insets: the published top
+// is where the text BLOCK starts, which on a spine section's first page sits
+// a chapter sinkage above the first line (src/PageInkRows.h).
+static pageink::InkRowsChannel pageInkRowsChannel;
+
 namespace SimulatorOverlay {
 bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left) {
   return readerInsetsChannel.read(top, right, bottom, left);
 }
 void commitReaderTextInsets() { readerInsetsChannel.commit(); }
+bool readerPageInkRowsPx(int &first, int &last) {
+  return pageInkRowsChannel.read(first, last);
+}
+void commitReaderPageInkRows(const uint8_t *levels, int w, int h) {
+  // Same gate as the staged insets: only while the picture being written is
+  // the page the reader announced (publishReaderPageIdentity), never the
+  // popup drawn over the old page during a build.
+  if (!readerInsetsChannel.pageDrawing()) return;
+  pageInkRowsChannel.publish(pageink::inkRowsPortrait(levels, w, h));
+}
 } // namespace SimulatorOverlay
 
 // --- Turned page -------------------------------------------------------------

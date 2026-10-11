@@ -500,6 +500,20 @@ run open_action_menu_channel \
 run reader_insets_channel \
   c++ -std=c++20 -Isrc -o "$OUT/reader_insets_channel" tests/reader_insets_channel_test.cpp
 
+# 2026-10-11, owner: "only one circle unit above the optical visual first text
+# on the page, and two units below the lowest text". The zen paper (C32) was
+# placed from the insets the reader PUBLISHES -- the text block's top -- and on
+# a spine section's first page the firmware's chapter sinkage drops the first
+# line a third of a page below that, so the paper sat one circle plus the
+# sinkage above the first ink (the East of Eden dedication, on his phone).
+# src/PageInkRows.h measures the page's own first and last ink ROWS from the
+# level buffer the display writes, in portrait rows (framebuffer COLUMNS: the
+# X3 renders rotated), and the shim strikes the circles from those. Silent
+# failure modes pinned: the axis swapped (paper hugging the page's sides), a
+# dark page read as all ink, a blank page placed around nothing, a torn pair.
+run page_ink_rows \
+  c++ -std=c++20 -Isrc -o "$OUT/page_ink_rows" tests/page_ink_rows_test.cpp
+
 # 2026-10-11, the font-size FLASH (docs/font-resize-flash-jitter-2026-10-11.md):
 # the coalescing hold that keeps the 1-bit pass off the glass was asked once,
 # without the pixel lock, so a present already in flight when the 1-bit pass

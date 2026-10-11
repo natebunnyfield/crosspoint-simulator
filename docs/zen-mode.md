@@ -845,8 +845,12 @@ measured: Z0 (build 312) circle 212 px, paper 102-1157 x 204-2327; C32 (96 px)
 22-1237 x 298-2139; C24 (72 px) 46-1213 x 322-2091; C8 (24 px) 94-1165 x
 370-1995. Bands 1 : 2 in all four. 48 pt runs the paper off the glass at the
 sides (-26 to 1286), so 32 pt is the largest whole circle that leaves black
-beside it. The circles are measured to the text BLOCK; this page's last line ends
-short, so its measured words-to-bottom margin reads 2.2-2.6 rather than 2.
+beside it. The circles were measured to the text BLOCK at the time; this page's last line ends
+short, so its measured words-to-bottom margin read 2.2-2.6 rather than 2 -- **since
+2026-10-11 the circles are struck from the page's own INK** (owner: "only one circle
+unit above the optical visual first text on the page, and two units below the lowest
+text"; S-044, docs/zen-page-margins.md §7), so a section-opening page's chapter
+sinkage and a short last line no longer pad the paper.
 Options page: https://claude.ai/artifact/BLsr97JRUmt2Do8BZUdsDh.
 
 **C32 is zen on the phone** (owner 2026-10-08, *"C32 wins"*). The paper is the

@@ -104,6 +104,19 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
 // them then presented the old page in the new place (2026-10-11,
 // StagedReaderInsets in src/ReaderInsetsChannel.h).
 void commitReaderTextInsets();
+// THE PAGE'S OWN INK, first and last PORTRAIT row (framebuffer px), measured
+// from the picture the display last wrote while a reader page was being drawn
+// (src/PageInkRows.h). false until a page with ink has been written, and
+// again after a blank one. The iOS zen placement prefers this pair to the
+// published insets (owner 2026-10-11: one circle above the optical first text,
+// two below the lowest), because the published top is the text BLOCK's start
+// and a spine section's first page drops its first line below it by the
+// firmware's chapter sinkage.
+bool readerPageInkRowsPx(int &first, int &last);
+// Called by the display's pixel writers with the finished level buffer of a
+// new picture (never a reconvert), under the pixel lock; inert unless the
+// reader announced the page being drawn (the staged-insets gate).
+void commitReaderPageInkRows(const uint8_t *levels, int w, int h);
 
 // WHETHER THE PAGE ON SCREEN IS TURNED, as published by EpubReaderActivity
 // through HalGPIO::publishTurnedPage on every displayed page: true for a

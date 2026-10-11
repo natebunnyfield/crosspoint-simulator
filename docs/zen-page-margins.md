@@ -354,3 +354,64 @@ above for the detail; summarized against each item below.
   unchecked in this pass whether that has since changed), cluster-count cpl
   method rejected (§2a), p1 early-break residual unexplained (§3; unchecked
   in this pass).
+
+## 7. The paper is placed from the page's INK, not the text block (owner ruling 2026-10-11)
+
+Owner, with a phone screenshot of the East of Eden dedication in zen: *"the
+first text in a page does not have space above it, so that there is only one
+circle unit above the optical visual first text on the page, and two units
+below the lowest text."* A ruling on the C32 paper (docs/zen-mode.md,
+2026-10-08): the circle is measured to the INK, not to the text block.
+
+**What the space was.** The dedication is its own spine section, and the
+firmware opens every section's first page with the chapter sinkage of
+2026-08-22 (§3 above; crosspoint-reader
+`lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp`, `kChapterSinkageFraction`
+and `newPageStartY()`: viewport / 5, snapped down to whole lines). The paper
+was placed from the published insets (§6 item 2), which are the text block's
+top (`orientedMarginTop - capInkTrim`, `EpubReaderActivity.cpp:1134`) and know
+nothing of the drop. Measured, X3 desktop build at device pixels (card margin
+5, the book's own section-opening page): first ink at row 164 against row 13
+on the following body page, so the sinkage is 150 logical px. On the iPhone
+Air Simulator in zen, dark, C32 (circle 96 px): paper top to first ink 352
+px = 3.7 circles; last ink to paper bottom 271 px = 2.8 (a page whose last
+line ends short; the 2026-10-08 measurement already read 2.2-2.6).
+
+**The fix, host side.** `src/PageInkRows.h`: the display's pixel writers
+(`src/HalDisplay.cpp`, both the 1-bit and the antialiased writer) measure the
+first and last ink rows of every NEW picture of a reader page from the level
+buffer, in portrait rows (framebuffer COLUMNS -- the X3 renders rotated,
+`GfxRenderer.cpp rotateCoordinates`, Portrait: `phyX = y`), with the background
+taken as the corners' majority so a dark page measures like a light one; under
+the staged-insets gate (`StagedReaderInsets::pageDrawing()`), so the "Indexing"
+popup drawn over the OLD page during a build is never measured as the new one.
+`ios/CrossPointIOSShim.cpp`'s zen placement reads
+`SimulatorOverlay::readerPageInkRowsPx` and, in the C32 arm, strikes the circles
+from the ink rows instead of the published pair (`inkSrc = "ink"`; the side
+insets stay published, the sentence is about above and below);
+`pollReaderInsets` edge-triggers on the ink rows too, since they move on every
+page turn. `CROSSPOINT_SIM_ZEN_INK=0` keeps the published arm for an A/B.
+
+**Measured after**, same Simulator, same page: paper top to first ink **96 px
+= 1.00 circle**, last ink to paper bottom **192 px = 2.00 circles**; the page's
+scale is unchanged (the panel is placed, never re-fit). Before/after page:
+https://claude.ai/artifact/CqAhwdENSX2HzNsjc34U7D.
+
+**Residual, recorded not fixed.** The glass bands on that page read 428 : 799
+(1 : 1.87) rather than 1 : 2: with a shorter paper the page wants to drop
+further than the existing clamp allows (`want > band * S - 8 * S`, the rule
+that leaves the band 8 pt), a limit older than this change. The firmware's
+sinkage itself stands -- it is the 2026-08-22 ruling and the device's e-ink
+page still shows the drop; if the owner wants the drop gone everywhere, the
+exact change is `kChapterSinkageFraction` / `newPageStartY()` returning 0,
+with a `SECTION_FILE_VERSION` bump (every cached book repaginates once).
+
+**Checked and found clean.** The reader's converter and the published insets
+are not involved (the insets arrive correctly; they describe the block). The
+dedication's HTML carries no heading and no blank paragraph: `<p
+class="calibre10"><b>PASCAL COVICI</b></p>` with `margin-top: 0.25em`, which
+the page-top collapse of §3 already drops. The `@page { margin-top: 5pt }`
+rule in its head is not honored by the parser (grep negative) and is not the
+cause. Tests green from the worktree: `page_ink_rows` (new), `zen_*`,
+`sheet_identity`, `font_resize_wiring`, `reader_insets_channel`,
+`present_hold`. Device feel UNCONFIRMED.

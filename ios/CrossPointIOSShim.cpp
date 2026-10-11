@@ -1276,6 +1276,33 @@ void layoutPad(int outW, int outH) {
         g_zenInkRPx = r * toDevice;
         inkSrc = "published";
       }
+      // THE PAGE'S OWN INK, in zen (owner 2026-10-11, on a dedication page
+      // whose first line sat a third of a page under the paper's top: "only
+      // one circle unit above the optical visual first text on the page, and
+      // two units below the lowest text"). The published top is where the
+      // text BLOCK starts; on a spine section's first page the firmware drops
+      // the first line below it by its chapter sinkage (viewport / 5 in whole
+      // lines, ChapterHtmlSlimParser.cpp kChapterSinkageFraction), and a page
+      // whose last line ends short leaves more than two circles under its
+      // last ink. So the C32 paper takes the first and last ink ROWS of the
+      // picture itself (src/PageInkRows.h, measured by the pixel writers under
+      // the staged-insets gate) and the circles are struck from those. The
+      // side insets stay published: the sentence is about above and below.
+      // CROSSPOINT_SIM_ZEN_INK=0 is the before arm (the published block), for
+      // an A/B on one binary; unset or 1 is what ships.
+      static const bool s_inkArm = [] {
+        const char *e = std::getenv("CROSSPOINT_SIM_ZEN_INK");
+        return !(e && std::atoi(e) == 0);
+      }();
+      int f = 0, lastRow = 0;
+      if (s_inkArm && g_zen && zenCirclePt() >= 0.0f &&
+          SimulatorOverlay::readerPageInkRowsPx(f, lastRow) &&
+          fbPortraitH > 0 && presentedH > 0 && lastRow >= f) {
+        const float toDevice = presentedH / fbPortraitH;
+        inkTopPx = f * toDevice;
+        inkBottomPx = (fbPortraitH - 1.0f - lastRow) * toDevice;
+        inkSrc = "ink";
+      }
     }
     SDL_Log("[zen] ink insets (%s): top=%.1fpx bottom=%.1fpx", inkSrc,
             inkTopPx, inkBottomPx);
@@ -2139,11 +2166,19 @@ void pollReaderInsets() {
   if (!g_zen) return;
   static int s_top = std::numeric_limits<int>::min();
   static int s_bottom = std::numeric_limits<int>::min();
+  static int s_first = std::numeric_limits<int>::min();
+  static int s_last = std::numeric_limits<int>::min();
   int t = 0, r = 0, b = 0, l = 0;
   if (!SimulatorOverlay::readerTextInsetsPx(t, r, b, l)) return;
-  if (t == s_top && b == s_bottom) return;
+  // The page's own ink rows move on every page turn (src/PageInkRows.h), and
+  // the C32 paper is placed from them, so they are part of the edge too.
+  int f = std::numeric_limits<int>::min(), lastRow = std::numeric_limits<int>::min();
+  SimulatorOverlay::readerPageInkRowsPx(f, lastRow);
+  if (t == s_top && b == s_bottom && f == s_first && lastRow == s_last) return;
   s_top = t;
   s_bottom = b;
+  s_first = f;
+  s_last = lastRow;
   g_padLaidOut = false;  // force the relayout that re-places the zen sheet
   // Pre-warm BEFORE requesting the present, same reason as the toggle sites
   // (see zenPreWarmLayout()'s comment): otherwise the very first present

@@ -1099,6 +1099,12 @@ uint64_t renderBwPixels(const uint8_t *fb,
           white ? GrayscalePreview::kWhite : GrayscalePreview::kBlack;
     }
   }
+  // The page's own ink rows, for the zen paper (src/PageInkRows.h): measured
+  // from the raw levels, before ink rounding moves an edge, and only for a
+  // new picture of a reader page.
+  if (!reconvertingFrame && pixelBufIsBookPage)
+    SimulatorOverlay::commitReaderPageInkRows(levelBuf, HalDisplay::activeWidth(),
+                                             HalDisplay::activeHeight());
   writePixelsFromLevels(ramp, display.isInverted(), einkTransition);
   lastPixelWriter.store('B');
   if (presentFlashWanted()) {
@@ -1195,6 +1201,11 @@ uint64_t composeGrayscalePreview() {
       levelBuf[y * HalDisplay::activeWidth() + x] = level;
     }
   }
+  // The composed page's ink rows, same rule as the 1-bit writer above; the
+  // antialiased edges can only widen the ink by a pixel, never move a line.
+  if (!reconvertingFrame && pixelBufIsBookPage)
+    SimulatorOverlay::commitReaderPageInkRows(levelBuf, HalDisplay::activeWidth(),
+                                             HalDisplay::activeHeight());
   // No 255-level flip for inversion: the dark palette's ink->paper
   // direction already runs light-on-dark (see PanelPalette above).
   writePixelsFromLevels(ramp, display.isInverted());
