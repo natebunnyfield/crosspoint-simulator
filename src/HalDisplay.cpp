@@ -10,7 +10,6 @@
 #include "FieldSelection.h"
 #include "GlassCapture.h"
 #include "GrayscalePreview.h"
-#include "PageInkRows.h"
 #include "LaidStructure.h"
 #include "FirmwareLogFile.h"
 #include "InkRounding.h"
@@ -1100,17 +1099,6 @@ uint64_t renderBwPixels(const uint8_t *fb,
           white ? GrayscalePreview::kWhite : GrayscalePreview::kBlack;
     }
   }
-  // The page's own ink rows, for the zen paper (src/PageInkRows.h): MEASURED
-  // here, from the raw levels before ink rounding moves an edge, and only for
-  // a new picture of a reader page -- but COMMITTED below, after this writer
-  // arms the coalescing hold. The zen poll defers an edge on the rows while
-  // the hold is up, and a commit made before the arm was visible to it in the
-  // ~25 ms the conversion takes (measured: a dark page's 1-bit base, one row
-  // high, relaid out on its own, then the compose relaid out again).
-  const bool measureInk = !reconvertingFrame && pixelBufIsBookPage;
-  const pageink::Rows inkRows = measureInk
-      ? pageink::inkRowsPortrait(levelBuf, HalDisplay::activeWidth(), HalDisplay::activeHeight())
-      : pageink::Rows{};
   writePixelsFromLevels(ramp, display.isInverted(), einkTransition);
   lastPixelWriter.store('B');
   if (presentFlashWanted()) {
@@ -1120,7 +1108,6 @@ uint64_t renderBwPixels(const uint8_t *fb,
   } else {
     presentHoldUntil.store(SDL_GetTicks() + kPresentHoldMs);
   }
-  if (measureInk) SimulatorOverlay::commitReaderPageInkRows(inkRows);
   requestDirtyPresent();
   return seq;
 }
@@ -1208,13 +1195,6 @@ uint64_t composeGrayscalePreview() {
       levelBuf[y * HalDisplay::activeWidth() + x] = level;
     }
   }
-  // The composed page's ink rows, same rule as the 1-bit writer above (measure
-  // here, commit after the hold is settled below); the antialiased edges can
-  // only widen the ink by a pixel, never move a line.
-  const bool measureInk = !reconvertingFrame && pixelBufIsBookPage;
-  const pageink::Rows inkRows = measureInk
-      ? pageink::inkRowsPortrait(levelBuf, HalDisplay::activeWidth(), HalDisplay::activeHeight())
-      : pageink::Rows{};
   // No 255-level flip for inversion: the dark palette's ink->paper
   // direction already runs light-on-dark (see PanelPalette above).
   writePixelsFromLevels(ramp, display.isInverted());
@@ -1263,7 +1243,6 @@ uint64_t composeGrayscalePreview() {
   // re-presenting it, so suppressing this one is what gives the flash length.
   const uint64_t flashUntil = presentFlashUntil.load();
   if (flashUntil <= SDL_GetTicks()) presentHoldUntil.store(0);
-  if (measureInk) SimulatorOverlay::commitReaderPageInkRows(inkRows);
   requestDirtyPresent();
   return seq;
 }
@@ -1416,10 +1395,6 @@ static std::atomic<int> panelLeft{0};
 static std::atomic<int> panelWidth{0};
 int panelBottomPx() { return panelBottom.load(); }
 int panelHeightPx() { return panelHeight.load(); }
-bool presentHeldNow() {
-  const uint64_t until = presentHoldUntil.load();
-  return until != 0 && SDL_GetTicks() < until;
-}
 int panelLeftPx() { return panelLeft.load(); }
 int panelWidthPx() { return panelWidth.load(); }
 void requestPresent() { requestDirtyPresent(); }

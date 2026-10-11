@@ -4,6 +4,13 @@
 #
 #   ios/testflight.sh            archive + export + upload
 #   ios/testflight.sh --no-upload    stop after producing the IPA
+#   ios/testflight.sh --adhoc        same gates and archive, then an AD HOC export
+#                                    staged in build/ota/ for an over-the-air install
+#                                    from https://soup.taild108cf.ts.net/x3/ (no
+#                                    upload, no tag). docs/ad-hoc-install-2026-10-11.md
+#                                    -- an ad hoc build will NOT install over a
+#                                    TestFlight copy, and deleting the app wipes the
+#                                    card and both credentials.
 #
 # Prerequisites, in the order they bite:
 #
@@ -52,7 +59,13 @@ EXPORT_DIR="$REPO/build/export"
 IPA="$EXPORT_DIR/CrossPointX3.ipa"
 
 UPLOAD=1
+ADHOC=0
 [[ "${1:-}" == "--no-upload" ]] && UPLOAD=0
+[[ "${1:-}" == "--adhoc" ]] && { UPLOAD=0; ADHOC=1; }
+# Where the phone fetches an ad hoc build from. The served directory is
+# build/ota/; something must serve it at this URL (see the doc above).
+OTA_DIR="$REPO/build/ota"
+OTA_URL="${CROSSPOINT_OTA_URL:-https://soup.taild108cf.ts.net/x3}"
 
 AUTH=(-allowProvisioningUpdates
       -authenticationKeyPath "$ASC_KEY_PATH"
@@ -580,9 +593,15 @@ echo "  dSYM $APP_UUID, $DSYM_CUS compile units, $(du -sh "$ARCHIVE/dSYMs" | cut
 
 say "Export IPA"
 rm -rf "$EXPORT_DIR"
+EXPORT_OPTIONS="$REPO/ios/ExportOptions.plist"
+if [[ $ADHOC -eq 1 ]]; then
+  # The manifest URLs live in the export options, so write a copy with them.
+  EXPORT_OPTIONS="$REPO/build/ExportOptions-AdHoc.plist"
+  sed -e "s|@OTA_URL@|$OTA_URL|g" "$REPO/ios/ExportOptions-AdHoc.plist.in" > "$EXPORT_OPTIONS"
+fi
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE" \
-  -exportOptionsPlist "$REPO/ios/ExportOptions.plist" \
+  -exportOptionsPlist "$EXPORT_OPTIONS" \
   -exportPath "$EXPORT_DIR" \
   "${AUTH[@]}" | tail -5
 
@@ -599,6 +618,34 @@ say "Verify purpose strings"
 # unconditional copy that demanded NSCameraUsageDescription and failed run
 # 21 on a key Info.plist.in deliberately omits. One check, two callers.
 "$REPO/ios/verify-purpose-strings.sh" "$IPA"
+
+if [[ $ADHOC -eq 1 ]]; then
+  say "Stage ad hoc build"
+  mkdir -p "$OTA_DIR"
+  # Fixed name, because the manifest's appURL names it.
+  cp "$IPA" "$OTA_DIR/CrossPointX3.ipa.part" && mv "$OTA_DIR/CrossPointX3.ipa.part" "$OTA_DIR/CrossPointX3.ipa"
+  cp "$EXPORT_DIR/manifest.plist" "$OTA_DIR/manifest.plist"
+  _icon="$REPO/ios/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+  sips -z 57 57 "$_icon" --out "$OTA_DIR/icon57.png" >/dev/null
+  sips -z 512 512 "$_icon" --out "$OTA_DIR/icon512.png" >/dev/null
+  _sha=$(git -C "$REPO" rev-parse --short HEAD)
+  cat > "$OTA_DIR/index.html" <<HTML
+<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>CrossPoint X3</title>
+<body style="font:20px -apple-system;padding:24px">
+<p>CrossPoint X3 $MARKETING_VERSION ($BUILD_NUMBER), ad hoc, commit $_sha, $(date '+%Y-%m-%d %H:%M')</p>
+<p><a href="itms-services://?action=download-manifest&amp;url=$OTA_URL/manifest.plist">Install</a></p>
+<p style="font-size:15px">Will not install over a TestFlight copy. Deleting the app erases the card and both credentials.</p>
+</body>
+HTML
+  echo "$(date '+%Y-%m-%d %H:%M') build $BUILD_NUMBER $MARKETING_VERSION $_sha" >> "$OTA_DIR/builds.log"
+  if curl -s -o /dev/null -f "$OTA_URL/manifest.plist"; then
+    echo "  served at $OTA_URL/"
+  else
+    echo "  WARNING: $OTA_URL/manifest.plist does not answer -- start the server (docs/ad-hoc-install-2026-10-11.md)"
+  fi
+  notify 4 rocket "CrossPoint X3 $MARKETING_VERSION ($BUILD_NUMBER) ad hoc ready" "$OTA_URL/"
+  exit 0
+fi
 
 if [[ $UPLOAD -eq 0 ]]; then
   say "Stopping before upload (--no-upload)"

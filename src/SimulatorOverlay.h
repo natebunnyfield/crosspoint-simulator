@@ -2,7 +2,6 @@
 
 #include <cstdint>
 
-#include "PageInkRows.h"
 #include "SimulatorDials.h"
 
 struct SDL_Renderer;
@@ -105,27 +104,6 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
 // them then presented the old page in the new place (2026-10-11,
 // StagedReaderInsets in src/ReaderInsetsChannel.h).
 void commitReaderTextInsets();
-// THE PAGE'S OWN INK, first and last PORTRAIT row (framebuffer px), measured
-// from the picture the display last wrote while a reader page was being drawn
-// (src/PageInkRows.h). false until a page with ink has been written, and
-// again after a blank one. The iOS zen placement prefers this pair to the
-// published insets (owner 2026-10-11: one circle above the optical first text,
-// two below the lowest), because the published top is the text BLOCK's start
-// and a spine section's first page drops its first line below it by the
-// firmware's chapter sinkage.
-bool readerPageInkRowsPx(int &first, int &last);
-// Called by the display's pixel writers with the rows they measured from the
-// finished level buffer of a new picture (never a reconvert), under the pixel
-// lock and AFTER the writer has armed or released the coalescing hold (the
-// poll below defers an edge while the hold is up); inert unless the reader
-// announced the page being drawn (the staged-insets gate).
-void commitReaderPageInkRows(const pageink::Rows &rows);
-// TRUE while the coalescing hold is keeping a written frame off the glass
-// (src/PresentHold.h: the 1-bit base pass arms it for 30 ms so the compose
-// 13-22 ms later is the frame that lands). The zen poll defers an edge on the
-// ink rows while it is true, so the base pass's measurement of a dark page
-// (which lacks every glyph's partial top edge) never relayouts on its own.
-bool presentHeldNow();
 
 // WHETHER THE PAGE ON SCREEN IS TURNED, as published by EpubReaderActivity
 // through HalGPIO::publishTurnedPage on every displayed page: true for a

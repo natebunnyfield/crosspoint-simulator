@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Ad hoc ("release-testing" since Xcode 15): signed for the devices
+       registered on the team, installed over the air from build/ota/.
+       ios/testflight.sh --adhoc substitutes @OTA_URL@. -->
+  <key>method</key>
+  <string>release-testing</string>
+
+  <key>teamID</key>
+  <string>887M8FR447</string>
+
+  <key>signingStyle</key>
+  <string>automatic</string>
+
+  <key>destination</key>
+  <string>export</string>
+
+  <!-- One universal IPA; the manifest names exactly one file. -->
+  <key>thinning</key>
+  <string>&lt;none&gt;</string>
+
+  <key>manifest</key>
+  <dict>
+    <key>appURL</key>
+    <string>@OTA_URL@/CrossPointX3.ipa</string>
+    <key>displayImageURL</key>
+    <string>@OTA_URL@/icon57.png</string>
+    <key>fullSizeImageURL</key>
+    <string>@OTA_URL@/icon512.png</string>
+  </dict>
+</dict>
+</plist>

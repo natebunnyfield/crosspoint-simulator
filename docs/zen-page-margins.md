@@ -357,6 +357,15 @@ above for the detail; summarized against each item below.
 
 ## 7. The paper is placed from the page's INK, not the text block (owner ruling 2026-10-11)
 
+**REVERTED 2026-10-11, owner, on build 325 (the first install carrying it):** *"the pages are now
+fucked up. the placement and size of each page should be the same for all pages in all books. it
+has also broken home screen navigation."* His screenshot showed Home with the paper cut to a band
+ending at the second row. The code of 6339d11a and ea4eb41f was restored to `build-323`
+(`git diff build-323 -- src ios tests` is empty apart from `ios/testflight.sh`); this record
+stands. Any later fix for the dedication-page gap must keep one paper size and placement for
+every page and every book.
+
+
 Owner, with a phone screenshot of the East of Eden dedication in zen: *"the
 first text in a page does not have space above it, so that there is only one
 circle unit above the optical visual first text on the page, and two units

@@ -171,13 +171,6 @@ class StagedReaderInsets {
     return live_.read(top, right, bottom, left);
   }
 
-  // True from the page identity (markPageDrawing) until the next publish at
-  // the top of a render: the pictures written meanwhile ARE the page. The
-  // page's own ink rows (src/PageInkRows.h) are measured under the same gate,
-  // for the same reason the insets are staged -- an "Indexing" popup over the
-  // old page must not be measured as the new one.
-  bool pageDrawing() const { return armed_.load(std::memory_order_acquire); }
-
  private:
   ReaderInsetsChannel staged_;
   ReaderInsetsChannel live_;
