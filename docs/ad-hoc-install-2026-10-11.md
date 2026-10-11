@@ -76,8 +76,19 @@ that is also untested.
 - No build number or tag history unless the script writes one.
 - No TestFlight crash reports; pull crash logs off the phone instead.
 
-## Not done yet
+## 5. Ad hoc over ad hoc: updates in place, keeping the card (owner-confirmed 2026-10-11)
 
-- A script (`ios/adhoc.sh`) wrapping testflight.sh's gates + archive + ad hoc export + copy
-  into `build/ota/`.
-- Measuring an ad hoc → ad hoc update over an existing install, checking that the card survives.
+- Build 325 (commit 1bf9f493) installed over the build-323 ad hoc copy with no delete; the owner
+  confirmed the card and both credentials survived.
+- The fixed build (95faa605) carried the SAME build number, 325, and still installed over it.
+  The script now numbers past the last build in `build/ota/builds.log` anyway (3199ff15).
+- The flow is `CROSSPOINT_SEED_FONTS_DIR=$HOME/src/crosspoint-reader/fs_/fonts ios/testflight.sh --adhoc`,
+  then Install at https://soup.taild108cf.ts.net/x3/. It runs straight from an agent shell on soup
+  (signing worked with no Terminal.app hop).
+
+## Still open
+
+- The server on 127.0.0.1:8791 is a bare process, not a launchd agent; after a reboot `/x3`
+  returns 502 until it is restarted.
+- Going back to TestFlight from ad hoc is untested and may need a delete. Do not suggest one
+  without warning first.
