@@ -3597,7 +3597,10 @@ void HalDisplay::presentIfNeeded() {
                           screenshotDue)) {
       pendingPresent.store(true);
       sim_update_trace::declined("coalescing hold (armed while waiting)");
-      if (presentLogWanted())
+      // Also while the Diagnostics Log is on, like [compose]: the env var
+      // cannot be set on a phone, and this line is how a device run shows the
+      // check doing its job (review of 576ad65, finding 2).
+      if (presentLogWanted() || firmwarelog::armed())
         SDL_Log("[present] declined: a pixel write armed the hold while this "
                 "present waited for the frame");
       return;

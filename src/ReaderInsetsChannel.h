@@ -128,11 +128,28 @@ class ReaderInsetsChannel {
 // new placement and the composed new page land on one present.
 class StagedReaderInsets {
  public:
-  // Render task, at the top of a reader render.
+  // Render task, at the top of a reader render. DISARMS: the insets wait for
+  // the page that carries them, not merely for the next picture.
   void publish(int topPx, int rightPx, int bottomPx, int leftPx) {
+    armed_.store(false, std::memory_order_release);
     staged_.publish(topPx, rightPx, bottomPx, leftPx);
     pending_.store(true, std::memory_order_release);
   }
+
+  // Render task: the reader has committed to drawing the page these insets
+  // belong to (HalGPIO::publishReaderPageIdentity, which renderContents calls
+  // once per displayed page, before its first displayBuffer). ONLY after this
+  // may a write commit them.
+  //
+  // WHY NOT "the next write" (adversarial review of 576ad65, finding 1): between
+  // the publish at the top of render() and the page there can be OTHER
+  // pictures -- the "Indexing" popup that showBuildPopup draws over the OLD
+  // page once a build passes BUILD_POPUP_DELAY_MS (2 s), and the full-build
+  // popup on a percent jump. A commit on those put the old page in the new
+  // place for the rest of the build: the same jitter, two seconds later. The
+  // page identity is the signal the firmware already sends for exactly "this
+  // is the page being displayed", so no firmware change is needed.
+  void markPageDrawing() { armed_.store(true, std::memory_order_release); }
 
   // The pixel writer, when it writes a NEW picture (never a reconvert of an
   // old one). Returns true when a staged publish was promoted. A publish that
@@ -140,6 +157,7 @@ class StagedReaderInsets {
   // (identically) by the next commit -- harmless, and never a mix: each side
   // is a ReaderInsetsChannel, which cannot tear.
   bool commit() {
+    if (!armed_.load(std::memory_order_acquire)) return false;
     if (!pending_.exchange(false, std::memory_order_acq_rel)) return false;
     int t = 0, r = 0, b = 0, l = 0;
     if (!staged_.read(t, r, b, l)) return false;
@@ -157,4 +175,5 @@ class StagedReaderInsets {
   ReaderInsetsChannel staged_;
   ReaderInsetsChannel live_;
   std::atomic<bool> pending_{false};
+  std::atomic<bool> armed_{false};
 };

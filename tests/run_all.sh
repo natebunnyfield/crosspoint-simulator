@@ -509,8 +509,24 @@ run reader_insets_channel \
 # for ~60 ms on the phone, never on a page turn (nothing presents then), and
 # invisible to every capture because a due screenshot overrides the hold.
 # The staged-insets half of the same fix is in reader_insets_channel above.
+# THESE TWO GUARD THE PURE PIECES, NOT THE WIRING: delete the second check from
+# presentIfNeeded and both still pass. font_resize_wiring below is the gate on
+# the wiring.
 run present_hold \
   c++ -std=c++17 -Isrc -o "$OUT/present_hold" tests/present_hold_test.cpp
+
+# ...and its WIRING, as a SOURCE GATE (adversarial review of 576ad65, finding 3:
+# removing the fix left every test green). A structural check on the source
+# text, not a behavioral test -- the race needs the render thread, the main
+# thread and a present in flight at the 1-bit write, and it never reproduced on
+# the desktop even before the fix, so no headless run here can fail without it.
+# Fails when the second hold check leaves the upload's pixel-lock block, when a
+# caught present stops staying owed, when its decline line stops logging under
+# the Diagnostics Log, when either pixel writer stops committing the staged
+# insets (or commits on a reconvert), or when the page identity stops arming
+# them. Proven to fail with the second check deleted.
+run_direct font_resize_wiring \
+  python3 tests/font_resize_wiring_test.py
 
 # THE TURNED PAGE'S LANDSCAPE (owner 2026-10-04, docs/turned-page-landscape-plan-2026-10-04.md):
 # src/TurnedPageLandscape.h decides what the iOS app may rotate to and lays out

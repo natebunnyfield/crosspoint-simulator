@@ -1646,6 +1646,9 @@ void HalGPIO::publishReaderPageIdentity(uint64_t bookKey, int32_t spineIndex,
   readerSpineIndex.store(static_cast<int>(spineIndex));
   readerPageInSpine.store(static_cast<int>(pageInSpine));
   readerPageValid.store(true);
+  // The page the staged insets belong to is now the one being drawn; the next
+  // pixel write commits them (StagedReaderInsets::markPageDrawing).
+  readerInsetsChannel.markPageDrawing();
   const sheetid::Sheet sheet = sheetid::sheetForPage(
       bookKey, static_cast<int>(spineIndex), static_cast<int>(pageInSpine));
   sheetSeedValue.store(sheet.seed);

@@ -162,6 +162,8 @@ int main() {
     CHECK(!ch.commit());  // nothing staged: nothing to promote
     ch.publish(14, 16, 16, 16);
     CHECK(!ch.read(t, r, b, l));  // published, NOT yet on the glass
+    CHECK(!ch.commit());  // a write before the page (a popup) promotes nothing
+    ch.markPageDrawing();
     CHECK(ch.commit());
     CHECK(ch.read(t, r, b, l));
     CHECK(t == 14 && r == 16 && b == 16 && l == 16);
@@ -172,6 +174,12 @@ int main() {
     ch.publish(12, 16, 16, 16);
     CHECK(ch.read(t, r, b, l));
     CHECK(t == 14);
+    // A build past 2 s draws "Indexing" over the OLD page: that write must
+    // leave the old insets live (review of 576ad65, finding 1).
+    CHECK(!ch.commit());
+    CHECK(ch.read(t, r, b, l));
+    CHECK(t == 14);
+    ch.markPageDrawing();  // renderContents: this page is the one displayed
     CHECK(ch.commit());
     CHECK(ch.read(t, r, b, l));
     CHECK(t == 12);
@@ -179,7 +187,16 @@ int main() {
     // Two publishes before one write: the LATER one is what lands.
     ch.publish(20, 1, 2, 3);
     ch.publish(-7, 4, 5, 6);
+    ch.markPageDrawing();
     CHECK(ch.commit());
+
+    // A page identity from a PREVIOUS render does not arm a newer publish:
+    // the publish disarms.
+    ch.markPageDrawing();
+    ch.publish(30, 1, 1, 1);
+    CHECK(!ch.commit());
+    CHECK(ch.read(t, r, b, l));
+    CHECK(t == -7);
     CHECK(ch.read(t, r, b, l));
     CHECK(t == -7 && r == 4 && b == 5 && l == 6);
   }

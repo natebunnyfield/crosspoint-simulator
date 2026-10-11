@@ -74,10 +74,27 @@ check catching exactly the present that would have been the flash.
 ## The fix (simulator only, no firmware change)
 
 1. **Insets go live with their page** -- `StagedReaderInsets` in `src/ReaderInsetsChannel.h`.
-   `HalGPIO::publishReaderTextInsets` now STAGES; both pixel writers in `src/HalDisplay.cpp`
-   (`renderBwPixels`, `composeGrayscalePreview`) call `SimulatorOverlay::commitReaderTextInsets()` when
-   they write a new picture (never on a reconvert, `reconvertingFrame`), under the pixel lock and before
-   they arm the hold. The host's relayout therefore follows the new page's 1-bit write, its present is
+   `HalGPIO::publishReaderTextInsets` now STAGES (and disarms); `HalGPIO::publishReaderPageIdentity`
+   ARMS (`markPageDrawing`); both pixel writers in `src/HalDisplay.cpp` (`renderBwPixels`,
+   `composeGrayscalePreview`) call `SimulatorOverlay::commitReaderTextInsets()` when they write a new
+   picture (never on a reconvert, `reconvertingFrame`), under the pixel lock and before they arm the
+   hold, and the commit promotes only an armed publish.
+
+   **Why the arm (adversarial review of 576ad65, finding 1).** The first version committed on ANY new
+   picture. Between the publish at the top of `render()` and the page there can be other pictures: the
+   "Indexing" popup `showBuildPopup` draws over the OLD page once a build passes
+   `BUILD_POPUP_DELAY_MS` (2 s, `EpubReaderActivity.cpp:238-256`), and the full-build popup on a
+   percent jump (`:1194`). A commit on those put the old page in the new place for the rest of the build
+   -- the same jitter, two seconds later. `renderContents` publishes the page identity once per displayed
+   page, before that page's first `displayBuffer` (`EpubReaderActivity.cpp:1763`; its own comment calls it
+   "the commitment that this page is the one being displayed"), and both popups come before it, so arming
+   on it closes the case. Chosen over the alternative of moving the firmware's insets publish after the
+   page's first `displayBuffer` (the turned-page shape) because it needs no firmware change, and because a
+   publish landing AFTER the 1-bit write would leave the commit for the compose -- whose release of the
+   hold presents the new page at the OLD placement first, then relayouts: a two-step move.
+   **Verified by the unit test only** (`reader_insets_channel_test`: a write between the publish and the
+   page identity leaves the old insets live); no build here took 2 s, so the popup case was not run on the
+   Simulator. The host's relayout therefore follows the new page's 1-bit write, its present is
    held with that frame, and the new placement and the composed new page land on one present. Same
    shape as the firmware's turned-page fix (publish after the first `displayBuffer`, review 2026-10-04
    finding 5), done host-side so the firmware is untouched.
@@ -85,10 +102,24 @@ check catching exactly the present that would have been the flash.
    checks in `presentIfNeeded`. If a pixel write armed the hold while the present waited, the present is
    declined and left OWED (`pendingPresent` set again), exactly like the first check.
 
-Tests: `tests/reader_insets_channel_test.cpp` (staged case: invisible until committed, the old insets
-stay readable until the new page is written, the later of two publishes wins) and
-`tests/present_hold_test.cpp` (0 = no hold, a due screenshot wins, the deadline is exclusive, the race).
-Both are in `tests/run_all.sh` with their rationale.
+Tests, and what each one can and cannot catch:
+
+- `tests/reader_insets_channel_test.cpp` -- the `StagedReaderInsets` CLASS: invisible until armed and
+  committed, a popup write before the page identity promotes nothing, the old insets stay readable until
+  the new page is written, the later of two publishes wins, a stale arm does not cover a newer publish.
+- `tests/present_hold_test.cpp` -- the PREDICATE: 0 = no hold, a due screenshot wins, the deadline is
+  exclusive.
+- **These two guard the pure pieces, not the wiring**: with the second check deleted from
+  `presentIfNeeded`, both still pass (review finding 3). `tests/font_resize_wiring_test.py` is the gate on
+  the wiring, and it is a SOURCE GATE -- a structural check on the text of `HalDisplay.cpp` and
+  `HalGPIO.cpp`, not a behavioral test. It fails when the second check leaves the upload's pixel-lock
+  block, when a caught present stops staying owed, when the decline line stops logging under the
+  Diagnostics Log, when a pixel writer stops committing (or commits on a reconvert), or when the page
+  identity stops arming; proven to fail with the second check deleted. No behavioral host test exists for
+  the race because it needs a present in flight at the 1-bit write, which never happened on the desktop
+  even before the fix (old build: 0 of 2 steps), so a desktop present-count runner would pass either way.
+
+All three are in `tests/run_all.sh` with that rationale.
 
 ## What was checked and found CLEAN
 
@@ -106,8 +137,26 @@ Both are in `tests/run_all.sh` with their rationale.
 - **Reconverts** do not commit insets, so a palette flip mid-render cannot publish a page not yet drawn.
 - **Desktop canary** (`pio run -e simulator_x3`, AS_SHIPPED, 2x, 2 steps): 0 B presents, identical to
   the old build.
-- Host tests run: `reader_insets_channel`, `present_hold`, `glass_capture`, the five `zen` tests,
-  `test_sleep_wake`, `test_foreground_wake`, `test_queued_tap_wake`, `test_read_aloud_capture` -- all PASS.
+- **After the arm was added** (second commit): iOS Simulator `after5`, 6 zen steps, 0 B presents, 6
+  declines, the relayout still follows each step's `displayBuffer`. (`after4`, on a cold-booted Simulator,
+  ran 3 steps with 0 B on a step; its 2 B presents were at boot -- the reconvert issue below.)
+- Host tests, all PASS: `reader_insets_channel`, `present_hold`, `font_resize_wiring`, `glass_capture`,
+  the five `zen` tests (compiled from source by the runner). The shell tests `test_sleep_wake`,
+  `test_foreground_wake`, `test_queued_tap_wake`, `test_read_aloud_capture` run the firmware checkout's
+  `.pio/build/simulator/program` (hardcoded in the scripts): in the first commit's session that binary
+  PREDATED the fix (it was never rebuilt, only `simulator_x3` was), so those four passes said nothing
+  about it; the reviewer re-ran the three wake tests against the post-fix `simulator_x3` binary and they
+  passed. For the second commit both envs were rebuilt from this tree (`pio run -e simulator` and
+  `-e simulator_x3`, 01:44) and all four shell tests passed against the rebuilt `simulator` binary.
+
+## Known cosmetic edge: the deliberate flash can be declined
+
+With `CROSSPOINT_SIM_PRESENT_FLASH=1` (desktop only; frozen off on the phone), `composeGrayscalePreview`
+stores `presentHoldUntil = flashUntil` BEFORE it takes `pixelBufMutex`. A present that passed the first
+check with the 1-bit frame wanted, and that wins the lock before the compose does, is then declined by the
+second check -- so the deliberate flash frame is occasionally not shown. Reported by the review, not
+changed: it only affects an opt-in desktop effect whose capture was already timing-dependent in the old
+build.
 
 ## Found and NOT fixed (outside the ask)
 
@@ -122,10 +171,16 @@ planes "are still cached"; they are not. Pre-existing, unrelated to font size; a
 
 On the phone, in zen, step the font size (2-finger swipe left/right) a few times. Expect: the old page
 holds still, then the new page arrives (the CRT beam sweep, as on any page turn) at its settled place --
-no page jumping up for a moment, no hard black-and-white frame. With Diagnostics Log on,
-`diagnostics/firmware.log` should carry one `[present] declined: a pixel write armed the hold ...` line
-when the race would have fired, and no `frame from B` line on a step (the latter only with
-`CROSSPOINT_SIM_LOG_PRESENTS`).
+no page jumping up for a moment, no hard black-and-white frame.
+
+To see the check work on a TestFlight build: turn on **Settings > CrossPoint X3 > Diagnostics Log**, step
+the font a few times, then open **Files > On My iPhone > CrossPoint X3 > diagnostics > firmware.log**. A
+`[host] [present] declined: a pixel write armed the hold while this present waited for the frame` line
+is the second check catching a present that would have shown the 1-bit frame (it logs under the
+Diagnostics Log since the second commit; the first commit logged it only under the env var, which a phone
+cannot set). Expect at most one per step, and not necessarily one: the race is timing-dependent. There is
+no on-phone `frame from B` counter -- the `[present]` line needs `CROSSPOINT_SIM_LOG_PRESENTS`, which only
+a Simulator or desktop run can set.
 
 ## Method (re-runnable)
 
