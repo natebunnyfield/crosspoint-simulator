@@ -275,6 +275,13 @@ elif [ -z "$ASC_LAST" ]; then
   echo "could not ask App Store Connect for the latest build -- numbering from" \
        "local tags only ($LAST_BUILD). If Apple renumbers this upload, that is why."
 fi
+# An ad hoc build creates no tag and reaches no App Store Connect, so neither
+# source above sees it: also number past the last one staged in build/ota.
+OTA_LAST=$(awk '{print $4}' "$REPO/build/ota/builds.log" 2>/dev/null | sort -n | tail -1)
+if [ -n "$OTA_LAST" ] && [ "$OTA_LAST" -gt "$LAST_BUILD" ] 2>/dev/null; then
+  echo "last ad hoc build staged was $OTA_LAST -- numbering past it"
+  LAST_BUILD=$OTA_LAST
+fi
 BUILD_NUMBER=$(( LAST_BUILD + 1 ))
 
 # Marketing version is bumped only on demand. TestFlight's daily upload cap
