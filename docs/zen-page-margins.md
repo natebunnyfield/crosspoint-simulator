@@ -484,3 +484,5 @@ is portrait-only) and the e-ink path (the levels are measured before
 Tests, from the worktree: page_ink_rows PASS, page_ink_wiring PASS, zen_verbs
 PASS, zen_hold PASS, zen_pref_sync PASS, frozen_page PASS, zen_keyboard_chip
 PASS, reader_insets_channel PASS, present_hold PASS, font_resize_wiring PASS.
+
+Shipped as TestFlight build 324 (marketing 0.1.1), 2026-10-11; device feel UNCONFIRMED.
