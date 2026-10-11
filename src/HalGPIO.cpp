@@ -1534,7 +1534,11 @@ void HalGPIO::injectOpenActionMenu() { openActionMenuChannel.inject(); }
 // why this is ONE packed atomic rather than four independent ones (S-034: a
 // torn read across a font-size change or a page turn fed a wrong `want` shift
 // into the zen layout, "full height then immediately single-finger mode").
-static ReaderInsetsChannel readerInsetsChannel;
+// STAGED since 2026-10-11: render() publishes at its top, before the page is
+// drawn, and the host must not see the insets until the page is
+// (StagedReaderInsets, docs/font-resize-flash-jitter-2026-10-11.md). The
+// display's pixel writers commit them.
+static StagedReaderInsets readerInsetsChannel;
 
 void HalGPIO::publishReaderTextInsets(int topPx, int rightPx, int bottomPx,
                                       int leftPx) {
@@ -1545,6 +1549,7 @@ namespace SimulatorOverlay {
 bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left) {
   return readerInsetsChannel.read(top, right, bottom, left);
 }
+void commitReaderTextInsets() { readerInsetsChannel.commit(); }
 } // namespace SimulatorOverlay
 
 // --- Turned page -------------------------------------------------------------

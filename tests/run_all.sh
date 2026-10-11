@@ -500,6 +500,18 @@ run open_action_menu_channel \
 run reader_insets_channel \
   c++ -std=c++20 -Isrc -o "$OUT/reader_insets_channel" tests/reader_insets_channel_test.cpp
 
+# 2026-10-11, the font-size FLASH (docs/font-resize-flash-jitter-2026-10-11.md):
+# the coalescing hold that keeps the 1-bit pass off the glass was asked once,
+# without the pixel lock, so a present already in flight when the 1-bit pass
+# wrote pixelBuf uploaded that frame -- the writer arms the hold inside the
+# lock, after the write. presentIfNeeded now asks again under the lock, through
+# this one predicate. Silent failure mode: a full-screen black-and-white frame
+# for ~60 ms on the phone, never on a page turn (nothing presents then), and
+# invisible to every capture because a due screenshot overrides the hold.
+# The staged-insets half of the same fix is in reader_insets_channel above.
+run present_hold \
+  c++ -std=c++17 -Isrc -o "$OUT/present_hold" tests/present_hold_test.cpp
+
 # THE TURNED PAGE'S LANDSCAPE (owner 2026-10-04, docs/turned-page-landscape-plan-2026-10-04.md):
 # src/TurnedPageLandscape.h decides what the iOS app may rotate to and lays out
 # the split pad, and every way either goes wrong is silent -- a phone that cannot

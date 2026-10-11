@@ -151,6 +151,39 @@ int main() {
     CHECK(tornReads.load() == 0);
   }
 
+  // --- STAGED: a publish is invisible until the page that carries it is
+  // written (2026-10-11, docs/font-resize-flash-jitter-2026-10-11.md). The
+  // host relaid the zen page from insets the render task published BEFORE it
+  // drew the reflowed page, presenting the old page at the new placement.
+  {
+    StagedReaderInsets ch;
+    int t = -1, r = -1, b = -1, l = -1;
+    CHECK(!ch.read(t, r, b, l));
+    CHECK(!ch.commit());  // nothing staged: nothing to promote
+    ch.publish(14, 16, 16, 16);
+    CHECK(!ch.read(t, r, b, l));  // published, NOT yet on the glass
+    CHECK(ch.commit());
+    CHECK(ch.read(t, r, b, l));
+    CHECK(t == 14 && r == 16 && b == 16 && l == 16);
+    CHECK(!ch.commit());  // a second write of the same page promotes nothing
+
+    // The font step: the new top is staged while the old page is still up,
+    // and the host keeps reading the OLD insets until the new page is written.
+    ch.publish(12, 16, 16, 16);
+    CHECK(ch.read(t, r, b, l));
+    CHECK(t == 14);
+    CHECK(ch.commit());
+    CHECK(ch.read(t, r, b, l));
+    CHECK(t == 12);
+
+    // Two publishes before one write: the LATER one is what lands.
+    ch.publish(20, 1, 2, 3);
+    ch.publish(-7, 4, 5, 6);
+    CHECK(ch.commit());
+    CHECK(ch.read(t, r, b, l));
+    CHECK(t == -7 && r == 4 && b == 5 && l == 6);
+  }
+
   if (failures == 0) {
     std::printf("reader_insets_channel_test: all tests passed\n");
     return 0;

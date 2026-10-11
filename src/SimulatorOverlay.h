@@ -97,6 +97,13 @@ int panelWidthPx();
 // publisher; declared here because this namespace is already the host-facing
 // window onto panel geometry (panel*Px above).
 bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
+// Promote the insets the reader last published to the ones
+// readerTextInsetsPx() returns. Called ONLY by the display's pixel writers
+// when they write a new picture: the reader publishes at the top of its
+// render, before the page exists, and a host that re-placed the page from
+// them then presented the old page in the new place (2026-10-11,
+// StagedReaderInsets in src/ReaderInsetsChannel.h).
+void commitReaderTextInsets();
 
 // WHETHER THE PAGE ON SCREEN IS TURNED, as published by EpubReaderActivity
 // through HalGPIO::publishTurnedPage on every displayed page: true for a

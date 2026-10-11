@@ -101,3 +101,60 @@ class ReaderInsetsChannel {
   std::atomic<uint64_t> packed_{0};
   std::atomic<bool> valid_{false};
 };
+
+// THE INSETS REACH THE HOST WITH THE PAGE THEY DESCRIBE, NOT BEFORE IT
+// (2026-10-11, owner: "not flash display and jitter layout on font resize";
+// docs/font-resize-flash-jitter-2026-10-11.md).
+//
+// EpubReaderActivity::render() publishes its insets at the TOP of the render,
+// before the section is rebuilt and before a pixel of the new page is drawn.
+// On a page turn they rarely move, but a font-size step changes the cap-ink
+// trim and therefore the top inset, and the iOS zen layout re-places the page
+// from it within a frame (pollReaderInsets -> relayout -> requestPresent). So
+// the host re-laid the glass and presented while the render task was still
+// building the reflowed chapter: the OLD page at the NEW placement (the
+// jitter), and that present, already past the coalescing hold, then waited
+// for pixelBufMutex while the 1-bit pass wrote and uploaded the 1-bit frame
+// (the flash). Measured on the iOS Simulator: present #9 "frame from B" 63 ms
+// after the relayout, on a font step and on no page turn.
+//
+// The turned-page channel had the same shape and was fixed the same way in
+// the firmware (publish after the page's first displayBuffer, adversarial
+// review 2026-10-04, finding 5). This one is fixed host-side, without a
+// firmware change: the publish is STAGED, and the display's pixel writers
+// COMMIT it when they write the page -- the first instant the new insets and
+// the picture they belong to exist together. From there the coalescing hold
+// that suppresses the 1-bit frame also holds the relayout's present, so the
+// new placement and the composed new page land on one present.
+class StagedReaderInsets {
+ public:
+  // Render task, at the top of a reader render.
+  void publish(int topPx, int rightPx, int bottomPx, int leftPx) {
+    staged_.publish(topPx, rightPx, bottomPx, leftPx);
+    pending_.store(true, std::memory_order_release);
+  }
+
+  // The pixel writer, when it writes a NEW picture (never a reconvert of an
+  // old one). Returns true when a staged publish was promoted. A publish that
+  // lands between the exchange and the read is promoted now and promoted again
+  // (identically) by the next commit -- harmless, and never a mix: each side
+  // is a ReaderInsetsChannel, which cannot tear.
+  bool commit() {
+    if (!pending_.exchange(false, std::memory_order_acq_rel)) return false;
+    int t = 0, r = 0, b = 0, l = 0;
+    if (!staged_.read(t, r, b, l)) return false;
+    live_.publish(t, r, b, l);
+    return true;
+  }
+
+  // The host. Only committed insets: false until the first page that carried
+  // a publish has been written.
+  bool read(int &top, int &right, int &bottom, int &left) const {
+    return live_.read(top, right, bottom, left);
+  }
+
+ private:
+  ReaderInsetsChannel staged_;
+  ReaderInsetsChannel live_;
+  std::atomic<bool> pending_{false};
+};

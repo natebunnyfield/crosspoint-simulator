@@ -35,6 +35,7 @@
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
+#include "PresentHold.h"
 #include "SimUpdateTrace.h"
 #include "SimKeepAwake.h"
 
@@ -1081,7 +1082,14 @@ uint64_t renderBwPixels(const uint8_t *fb,
   const uint64_t seq = ++pixelBufSeq;
   sim_update_trace::frameWritten(seq);
   pixelBufWriteMs.store(SDL_GetTicks());
-  if (!reconvertingFrame) pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
+  if (!reconvertingFrame) {
+    pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
+    // The reader's insets go live with the page they describe -- see
+    // StagedReaderInsets (src/ReaderInsetsChannel.h). Under the pixel lock,
+    // and before this writer arms the coalescing hold, so the host's
+    // relayout for them can only present once the hold lets this page out.
+    SimulatorOverlay::commitReaderTextInsets();
+  }
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const LevelRamp ramp(pal);
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
@@ -1163,7 +1171,14 @@ uint64_t composeGrayscalePreview() {
   const uint64_t seq = ++pixelBufSeq;
   sim_update_trace::frameWritten(seq);
   pixelBufWriteMs.store(SDL_GetTicks());
-  if (!reconvertingFrame) pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
+  if (!reconvertingFrame) {
+    pixelBufIsBookPage = SimulatorOverlay::sheetIsReaderPage();
+    // The reader's insets go live with the page they describe -- see
+    // StagedReaderInsets (src/ReaderInsetsChannel.h). Under the pixel lock,
+    // and before this writer arms the coalescing hold, so the host's
+    // relayout for them can only present once the hold lets this page out.
+    SimulatorOverlay::commitReaderTextInsets();
+  }
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
     for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool baseWhite = getBit(bwBase, x, y);
@@ -3383,7 +3398,7 @@ void HalDisplay::presentIfNeeded() {
   // wall-clock instant and must not silently receive a frame from 40 ms later.
   const uint64_t holdUntil = presentHoldUntil.load();
   if (holdUntil != 0 && !screenshotDue) {
-    if (SDL_GetTicks() < holdUntil) {
+    if (presentheld::held(holdUntil, SDL_GetTicks(), screenshotDue)) {
       if (pendingPresent.load()) sim_update_trace::declined("coalescing hold");
       return;  // pendingPresent untouched: still owed, lands next pass
     }
@@ -3568,6 +3583,25 @@ void HalDisplay::presentIfNeeded() {
   bool reconvertOnly = false;
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
+    // THE HOLD, ASKED AGAIN NOW THAT THE PICTURE IS OURS (2026-10-11). The
+    // coalescing check above runs WITHOUT the pixel lock, so a present that
+    // passed it with nothing held could then wait here while the render task's
+    // 1-bit pass wrote pixelBuf -- and that pass arms the hold inside the same
+    // lock, after writing. This present would then upload the 1-bit frame the
+    // hold exists to suppress. A present is only in flight at that instant when
+    // something else asked for one mid-render; the iOS zen relayout on a font
+    // step did, every time (measured: "frame from B" 63 ms after the relayout,
+    // docs/font-resize-flash-jitter-2026-10-11.md). Declined the same way as
+    // above: the frame stays OWED and lands when the hold lets it out.
+    if (presentheld::held(presentHoldUntil.load(), SDL_GetTicks(),
+                          screenshotDue)) {
+      pendingPresent.store(true);
+      sim_update_trace::declined("coalescing hold (armed while waiting)");
+      if (presentLogWanted())
+        SDL_Log("[present] declined: a pixel write armed the hold while this "
+                "present waited for the frame");
+      return;
+    }
     const size_t live = static_cast<size_t>(activeWidth()) * activeHeight();
     if (wantPrevFrame) {
       contentChanged = pixelBufSeq != presentedSeq;
