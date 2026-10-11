@@ -320,6 +320,18 @@ inline float zenCirclePt() {
   }();
   return v;
 }
+// THE INK ARM (2026-10-11): the C32 paper's top and bottom edges are struck
+// from the page's own first and last ink rows (src/PageInkRows.h).
+// CROSSPOINT_SIM_ZEN_INK=0 is the before arm, the published text block, for
+// an A/B on one binary; unset or 1 is what ships. Read by the placement and
+// by pollReaderInsets, so the old arm neither places nor polls on the rows.
+inline bool zenInkArm() {
+  static const bool v = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_ZEN_INK");
+    return !(e && std::atoi(e) == 0);
+  }();
+  return v;
+}
 float g_zenCirclePx = -1.0f;                                  // the circle in force, device px
 float g_zenPaperTopArmPx = -1.0f, g_zenPaperBotArmPx = -1.0f;  // the zen paper's edges, device px
 float g_zenInkLPx = 16.0f, g_zenInkRPx = 16.0f;  // published side insets, device px; 16 = what the reader publishes at the shipped margin, until it does
@@ -1258,6 +1270,11 @@ void layoutPad(int outW, int outH) {
     constexpr float kInkBottomInsetPx = 35.0f;
     float inkTopPx = kInkTopInsetPx;
     float inkBottomPx = kInkBottomInsetPx;
+    // The paper's edges, device px from the panel's top and bottom: the
+    // page's own first and last ink rows when the ink arm has them, else the
+    // published pair (src/PageInkRows.h). Placement never reads these.
+    float edgeTopPx = inkTopPx;
+    float edgeBottomPx = inkBottomPx;
     const char *inkSrc = "fallback";
     {
       int t = 0, r = 0, b = 0, l = 0;
@@ -1288,20 +1305,25 @@ void layoutPad(int outW, int outH) {
       // picture itself (src/PageInkRows.h, measured by the pixel writers under
       // the staged-insets gate) and the circles are struck from those. The
       // side insets stay published: the sentence is about above and below.
-      // CROSSPOINT_SIM_ZEN_INK=0 is the before arm (the published block), for
-      // an A/B on one binary; unset or 1 is what ships.
-      static const bool s_inkArm = [] {
-        const char *e = std::getenv("CROSSPOINT_SIM_ZEN_INK");
-        return !(e && std::atoi(e) == 0);
-      }();
+      // ONLY THE PAPER'S EDGES follow the ink. The panel's placement (`want`
+      // below) stays on the published insets, byte-identical to before, so
+      // the words never move between two body pages because one ends on a
+      // descender and the other does not (adversarial review 2026-10-11,
+      // finding 1: by the algebra the panel would have moved -2/3 of any
+      // change in the first ink row and +1/3 of any change in the last, ~4
+      // device px at the phone's 10 pt). The sentence is about the paper's
+      // edges, not the words' place on the glass.
       int f = 0, lastRow = 0;
-      if (s_inkArm && g_zen && zenCirclePt() >= 0.0f &&
+      if (zenInkArm() && g_zen && zenCirclePt() >= 0.0f &&
           SimulatorOverlay::readerPageInkRowsPx(f, lastRow) &&
           fbPortraitH > 0 && presentedH > 0 && lastRow >= f) {
         const float toDevice = presentedH / fbPortraitH;
-        inkTopPx = f * toDevice;
-        inkBottomPx = (fbPortraitH - 1.0f - lastRow) * toDevice;
-        inkSrc = "ink";
+        edgeTopPx = f * toDevice;
+        edgeBottomPx = (fbPortraitH - 1.0f - lastRow) * toDevice;
+        inkSrc = "published+ink";
+      } else {
+        edgeTopPx = inkTopPx;
+        edgeBottomPx = inkBottomPx;
       }
     }
     SDL_Log("[zen] ink insets (%s): top=%.1fpx bottom=%.1fpx", inkSrc,
@@ -1425,10 +1447,14 @@ void layoutPad(int outW, int outH) {
           if (want > band * S - 8.0f * S) want = band * S - 8.0f * S;
           g_zenPanelShiftPx = want;
           if (zenArm) {
-            g_zenPaperTopArmPx = base + want + inkTopPx - cPx;
-            g_zenPaperBotArmPx = g_zenPaperTopArmPx + paperHArm;
-            SDL_Log("[zen] circle %.0fpx ink=%.1f/%.1f paper %.0f-%.0f left %.0f", cPx,
-                    inkTopPx, inkBottomPx, g_zenPaperTopArmPx, g_zenPaperBotArmPx,
+            // The paper: one circle above the page's first ink, two below its
+            // last (owner 2026-10-11), struck from the panel the shift above
+            // placed; clamped to the glass. With no ink rows the edges are the
+            // published pair and this is the 2026-10-08 paper exactly.
+            g_zenPaperTopArmPx = SDL_max(0.0f, base + want + edgeTopPx - cPx);
+            g_zenPaperBotArmPx = SDL_min(H * S, base + want + panelHPx - edgeBottomPx + 2.0f * cPx);
+            SDL_Log("[zen] circle %.0fpx ink=%.1f/%.1f edges=%.1f/%.1f (%s) paper %.0f-%.0f left %.0f", cPx,
+                    inkTopPx, inkBottomPx, edgeTopPx, edgeBottomPx, inkSrc, g_zenPaperTopArmPx, g_zenPaperBotArmPx,
                     static_cast<float>(SimulatorOverlay::panelLeftPx()) + g_zenInkLPx - cPx);
           }
           }
@@ -2171,9 +2197,26 @@ void pollReaderInsets() {
   int t = 0, r = 0, b = 0, l = 0;
   if (!SimulatorOverlay::readerTextInsetsPx(t, r, b, l)) return;
   // The page's own ink rows move on every page turn (src/PageInkRows.h), and
-  // the C32 paper is placed from them, so they are part of the edge too.
+  // the C32 paper's edges are struck from them, so they are part of the edge
+  // too -- only while the ink arm is on (CROSSPOINT_SIM_ZEN_INK=0 keeps the
+  // old arm behavior-identical: no relayout per page turn; review finding 4).
   int f = std::numeric_limits<int>::min(), lastRow = std::numeric_limits<int>::min();
-  SimulatorOverlay::readerPageInkRowsPx(f, lastRow);
+  if (zenInkArm()) {
+    SimulatorOverlay::readerPageInkRowsPx(f, lastRow);
+    // Rows that moved while a present is HELD are not an edge yet. An
+    // antialiased page is written twice, the 1-bit base and the compose
+    // 13-22 ms later, and on a DARK page the base lacks every glyph's partial
+    // top edge, so the base measures first = R+1 and the compose R: edging on
+    // both relaid out and presented twice per page turn (review finding 2).
+    // The 1-bit writer cannot know whether planes will follow (the strip
+    // writer is where "a compose is now guaranteed" is first known), so the
+    // host waits out the same hold the glass already waits out: the compose
+    // releases it, and a page with no compose relayouts when its own frame
+    // is let out, 30 ms after the write, in the same present.
+    if (f != s_first || lastRow != s_last) {
+      if (SimulatorOverlay::presentHeldNow()) { f = s_first; lastRow = s_last; }
+    }
+  }
   if (t == s_top && b == s_bottom && f == s_first && lastRow == s_last) return;
   s_top = t;
   s_bottom = b;

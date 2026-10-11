@@ -74,13 +74,26 @@ majority so a dark page measures the same), under the staged-insets gate so an
 "Indexing" popup over the old page is never measured; the zen placement strikes
 the circles from them (`inkSrc = "ink"`), the side insets stay published. After:
 **96 px = 1.00 circle above, 192 px = 2.00 below**; the page's scale unchanged.
-`CROSSPOINT_SIM_ZEN_INK=0` keeps the old arm for an A/B. Residual, recorded
-not fixed: the glass bands on that page read 428 : 799 (1 : 1.87) rather than
-1 : 2, because the shift that drops the page is clamped at the band's room
-(`want > band * S - 8 * S`), a limit older than this change. Tests:
-`tests/page_ink_rows_test.cpp` (axis, polarity, blank page, torn pair).
-Before/after: https://claude.ai/artifact/CqAhwdENSX2HzNsjc34U7D. Account:
+`CROSSPOINT_SIM_ZEN_INK=0` keeps the old arm for an A/B. Tests:
+`tests/page_ink_rows_test.cpp` (axis, polarity, blank page, torn pair) and
+`tests/page_ink_wiring_test.py` (the wiring). Before/after:
+https://claude.ai/artifact/CqAhwdENSX2HzNsjc34U7D. Account:
 docs/zen-page-margins.md §7.
+
+Adversarial review of 6339d11a, same day, four findings, all resolved
+(§7a of that doc has the proofs): (1) the first version moved the PANEL with
+the ink rows, so the words shifted between body pages by a descender's worth
+-- the rows now move only the paper's edges and the panel's shift stays on
+the published insets, byte-identical to main (three consecutive pages, both
+arms: the words' glass rows identical, 649-699 / 649-1859 / 410-1869); the
+cost is that a section-opening page's glass bands are no longer 1 : 2 (553 :
+674 on the dedication), since the paper shrinks around the ink while the
+panel stays; (2) a dark page relaid out twice per turn (the 1-bit base lacks
+the glyphs' partial top edge, so it measured one row high) -- the writers
+now commit the rows after their hold store and the poll defers a rows edge
+while the present is held: one relayout per turn, 5-8 ms after the compose,
+measured; (3) a source gate on the wiring, added; (4) the old arm polled on
+the rows, gated. The earlier residual (428 : 799 bands) is superseded by (1).
 
 ### [S-042] Update Fonts / Update Library freeze the screen on the phone — CLOSED 2026-10-10 by owner ruling ("Close it") under the silence-closes-a-shipped-fix rule; the flight recorder stays in the build
 

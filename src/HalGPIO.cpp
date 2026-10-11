@@ -1563,12 +1563,12 @@ void commitReaderTextInsets() { readerInsetsChannel.commit(); }
 bool readerPageInkRowsPx(int &first, int &last) {
   return pageInkRowsChannel.read(first, last);
 }
-void commitReaderPageInkRows(const uint8_t *levels, int w, int h) {
+void commitReaderPageInkRows(const pageink::Rows &rows) {
   // Same gate as the staged insets: only while the picture being written is
   // the page the reader announced (publishReaderPageIdentity), never the
   // popup drawn over the old page during a build.
   if (!readerInsetsChannel.pageDrawing()) return;
-  pageInkRowsChannel.publish(pageink::inkRowsPortrait(levels, w, h));
+  pageInkRowsChannel.publish(rows);
 }
 } // namespace SimulatorOverlay
 

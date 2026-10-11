@@ -415,3 +415,72 @@ rule in its head is not honored by the parser (grep negative) and is not the
 cause. Tests green from the worktree: `page_ink_rows` (new), `zen_*`,
 `sheet_identity`, `font_resize_wiring`, `reader_insets_channel`,
 `present_hold`. Device feel UNCONFIRMED.
+
+### 7a. Adversarial review of 6339d11a (2026-10-11), and what was done with each finding
+
+1. **The panel moved with the ink (must fix, fixed).** The first version fed
+   the ink rows into `inkTopPx`/`inkBottomPx`, which the panel's shift (`want`)
+   also reads, so the TEXT BLOCK moved on the glass between two body pages by
+   -2/3 of any change in the first ink row and +1/3 of any change in the last
+   (a descender on the last line, ~4 device px at 10 pt). Now the rows feed
+   only `edgeTopPx`/`edgeBottomPx`; `paperHArm`, `topWant` and `want` stay on
+   the published pair, byte-identical to main, and the paper's edges are
+   struck from the placed panel: top = first ink - one circle, bottom = last
+   ink + two circles, clamped to the glass. **Proof** (iPhone Air Simulator,
+   three consecutive pages from spine 5, one binary, both arms): the words'
+   glass rows are identical arm to arm -- 649-699, 649-1859 and 410-1869 in
+   both -- while the ink arm's paper reads 96 above / 192 below on each (the
+   second and third pages end 1859 vs 1869, a descender's difference, and the
+   panel did not move). The dedication's first page re-captured: 96 / 192.
+   The cost, stated: on a section-opening page the glass bands are no longer
+   1 : 2 (553 : 674 on the dedication; the panel sits where the published
+   block put it and the paper shrinks around the ink). The 1 : 2 bands and
+   "the words never move" cannot both hold on a page whose ink block differs
+   from its published block; the review ruled for the words.
+2. **A dark page relaid out twice per turn (must fix, fixed).** The 1-bit
+   base of a dark page lacks every glyph's partial top edge
+   (`GrayscalePreview::previewLevel`), so it measured first = R+1 and the
+   compose R, and the poll edged on both. Shape taken: the writers still
+   MEASURE after the level loop and before ink rounding, but COMMIT only
+   after their own hold store (`presentHoldUntil`), and the poll defers a
+   rows edge while `SimulatorOverlay::presentHeldNow()` is true. The 1-bit
+   writer cannot know whether planes will follow (the strip writer is where
+   "a compose is now guaranteed" is first known), so the host waits out the
+   hold the glass already waits out: the compose releases it and the poll
+   edges once; a page with no compose edges when its own frame is let out.
+   A first attempt committed before the hold was armed and the poll saw the
+   rows in the ~25 ms the conversion takes (measured: two relayouts 54 ms
+   apart on the third turn). **Proof**, firmware dark mode, Simulator, with
+   `CROSSPOINT_SIM_LOG_PRESENTS=1`: turn 1 `[compose]` 15:00:37.154 then one
+   `[zen] published ink insets ... -> relayout` at .159; turn 2 compose
+   43.125, one relayout at .133; turn 3 compose 49.099 and no relayout (the
+   rows did not change). Boot still shows two (the published insets replacing
+   the fallback, then the rows after the first compose), as before.
+3. **No gate on the wiring (must add, added).** `tests/page_ink_wiring_test.py`,
+   registered in `tests/run_all.sh` as `page_ink_wiring`: both writers
+   measure under the `!reconvertingFrame && pixelBufIsBookPage` gate, after
+   `commitReaderTextInsets` and the level loop, before `writePixelsFromLevels`,
+   and commit after their hold store and before `requestDirtyPresent`; the
+   HalGPIO commit gates on `pageDrawing()`; the shim reads the rows into the
+   paper's edges only (and `paperHArm`/`topWant` still read the published
+   pair); the poll defers on `presentHeldNow()` and reads the rows only with
+   the ink arm on.
+4. **The old arm polled on the rows (should fix, fixed).** `zenInkArm()` is
+   a file-scope latch read by the placement and by `pollReaderInsets`, so
+   with `CROSSPOINT_SIM_ZEN_INK=0` neither places nor edges on the rows.
+5. **Blank-page scan cost (noted).** `inkRowsPortrait` already returns after
+   the forward scan finds no ink (one walk, ~0.4 M byte reads), and on an
+   inked page both scans stop at the first ink from their end; left as is.
+
+Review's clean list, carried here so the next pass does not re-read it: the
+portrait/landscape axis mapping (`phyX = y`), the corner-majority background,
+the blank-page fallback to the published pair, the staged `pageDrawing()`
+gate, threading (the commit under `pixelBufMutex`, one atomic in the
+channel), units and signs (`fbPortraitH - 1 - last`), the fit box (the panel
+is placed, never re-fit), the env latch, the turned landscape (the zen arm
+is portrait-only) and the e-ink path (the levels are measured before
+`writePixelsFromLevels`, where the e-ink transition runs).
+
+Tests, from the worktree: page_ink_rows PASS, page_ink_wiring PASS, zen_verbs
+PASS, zen_hold PASS, zen_pref_sync PASS, frozen_page PASS, zen_keyboard_chip
+PASS, reader_insets_channel PASS, present_hold PASS, font_resize_wiring PASS.

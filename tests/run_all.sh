@@ -542,6 +542,18 @@ run present_hold \
 run_direct font_resize_wiring \
   python3 tests/font_resize_wiring_test.py
 
+# 2026-10-11, the zen paper's ink rows (S-044): the pure header is pinned by
+# page_ink_rows above; this is the gate on the WIRING -- both pixel writers
+# measuring after the level loop and before ink rounding, under the
+# reconvert/book-page gate; the HalGPIO commit behind the page-identity arm;
+# the shim striking only the PAPER's edges from the rows (the panel's shift
+# stays on the published insets, or the words move between two body pages by
+# a descender's worth, review finding 1); the poll deferring a rows edge while
+# the present is held (a dark page's 1-bit base measures one row high, finding
+# 2) and ignoring the rows with the ink arm off (finding 4).
+run_direct page_ink_wiring \
+  python3 tests/page_ink_wiring_test.py
+
 # THE TURNED PAGE'S LANDSCAPE (owner 2026-10-04, docs/turned-page-landscape-plan-2026-10-04.md):
 # src/TurnedPageLandscape.h decides what the iOS app may rotate to and lays out
 # the split pad, and every way either goes wrong is silent -- a phone that cannot
