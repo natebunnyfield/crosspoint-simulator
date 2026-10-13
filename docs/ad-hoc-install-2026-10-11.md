@@ -86,9 +86,13 @@ that is also untested.
   then Install at https://soup.taild108cf.ts.net/x3/. It runs straight from an agent shell on soup
   (signing worked with no Terminal.app hop).
 
-## Still open
+## 6. RETIRED (owner 2026-10-13, verbatim: *"Retire ad hoc"*, over making the server a LaunchAgent)
 
-- The server on 127.0.0.1:8791 is a bare process, not a launchd agent; after a reboot `/x3`
-  returns 502 until it is restarted.
-- Going back to TestFlight from ad hoc is untested and may need a delete. Do not suggest one
-  without warning first.
+- Done 2026-10-13: the `/x3` route removed (`tailscale serve --https=443 --set-path /x3 off`;
+  `/v1` and `/books` left as they were) and the `127.0.0.1:8791` server stopped. `/x3` now
+  answers 404. `build/ota/` and `ios/testflight.sh --adhoc` are left in place, so bringing it
+  back is sections 2 and 5: start the server, re-add the route.
+- Builds go through TestFlight only.
+- Still untested: going back to TestFlight from an ad hoc install. If the phone holds the ad hoc
+  copy, the TestFlight build may not install over it, and the delete that would take wipes the
+  card and both credentials. Warn before suggesting one.
