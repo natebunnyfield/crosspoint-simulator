@@ -190,12 +190,38 @@ built for `arm64-apple-ios` from `build/ios-verify`, driven with
 [17097] [INF] [LIB] no GitHub token configured
 ```
 
-Note what is NOT there: no `NO_WIFI`. On the desktop this same screen says "No
-Wi-Fi connection" unless File Transfer has run first, because `WiFi.status()`
-answers from a member that nothing has set. On the phone it answers from
+Note what is NOT there: no `NO_WIFI`. On the phone `WiFi.status()` answers from
 `NWPathMonitor`, so the reader is connected from launch and Update Library is
-reachable straight off Home. That difference is the whole reason the feature can
-"just work" there.
+reachable straight off Home.
+
+*Superseded on the desktop, 2026-10-20.* This paragraph used to go on: "On the
+desktop this same screen says 'No Wi-Fi connection' unless File Transfer has run
+first, because `WiFi.status()` answers from a member that nothing has set." No
+longer. Owner: *"not say 'Need wifi' but just connect to the last wifi on its own
+smoothly without blocking prompts."* Library Update, Font Update and Firmware
+Update now join a saved network themselves under their CHECKING frame
+(firmware `src/network/SavedWifiJoin.h`, policy and the boot-load bug it fixes in
+`src/network/SavedWifiPlan.h`). On a host build with no saved network the join
+calls `WiFi.begin()` once, which this simulator's `src/WiFi.h` answers with the
+host's own association, so the desktop gets past the gate too. Measured on
+`simulator_x3` with an empty card:
+
+```
+[16684] [ACT] Entering activity: LibraryUpdate
+[16684] [INF] [WIFIJOIN] Joining the host's network
+[16698] [INF] [WIFIJOIN] Joined "" in 14 ms; waiting for the resolver
+[16698] [INF] [WIFIJOIN] Resolver answered for api.github.com
+[16723] [INF] [LIB] no GitHub token configured
+```
+
+(`Joined ""` is from the run before that log line was reworded to read "Joined
+the host's network".) With `CROSSPOINT_SIM_WIFI_CONNECT=fail` the same run gives
+up in 114 ms (100 of it the radio cycle each attempt now starts with) and shows "No Wi-Fi connection", which is now the screen for a card
+with nothing it can join, not for a network it never tried. On the PHONE an
+offline host now answers `WiFi.begin()` with `WL_CONNECT_FAILED` rather than
+`WL_DISCONNECTED`, so the same screen says so at once instead of after the join's
+20-30 s window, which nothing the app does could shorten (`src/WiFi.h`,
+pinned in `tests/wifi_host_test.cpp`).
 
 **A token in the Settings key** — a value invented on the spot for this run,
 `fake_pat_NOT_A_REAL_TOKEN_for_plumbing_proof`, written with

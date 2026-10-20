@@ -126,6 +126,24 @@ void testOffWifiFailsTheScanHonestly() {
   expect(std::string(WiFi.localIP().toString().c_str()) == "0.0.0.0",
          "no address when offline");
 
+  // A join attempted while offline is REFUSED, not left pending: the firmware's
+  // update screens wait out a 20-30 s window on a pending join, and on a phone
+  // nothing the app does can end it (2026-10-20).
+  expect(WiFi.begin("Home Network", "pw") == WL_CONNECT_FAILED,
+         "offline begin is refused");
+  expect(WiFi.status() == WL_CONNECT_FAILED,
+         "and status keeps saying so while still offline");
+  WiFi.disconnect(true);
+  expect(WiFi.status() == WL_DISCONNECTED,
+         "dropping the attempt clears the refusal");
+  WiFi.begin("Home Network", "pw");
+  sim_wifi_host::testSetNetwork(onWifi("Home Network", -58));
+  expect(WiFi.status() == WL_CONNECTED,
+         "the host coming back online reports connected");
+  sim_wifi_host::testSetNetwork(sim_wifi_host::Network{});
+  expect(WiFi.status() == WL_DISCONNECTED,
+         "and a later loss is plain disconnected, not a stale refusal");
+
 }
 
 // ASSOCIATED BUT UNNAMED IS STILL ASSOCIATED, and it used to fail the scan.

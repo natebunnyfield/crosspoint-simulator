@@ -81,6 +81,8 @@ class WiFiClass {
 
   wifi_mode_t currentMode = WIFI_OFF;
   wl_status_t currentStatus = WL_DISCONNECTED;
+  // begin() was called while the host had no network; see begin().
+  bool hostJoinRefused = false;
   String currentSsid;
   std::array<uint8_t, 6> currentBssid{0x02, 0x00, 0x00, 0x00, 0x00, 0x02};
   wifi_scan_method_t scanMethod = WIFI_FAST_SCAN;
@@ -225,10 +227,20 @@ public:
     // cannot change that, so "connect" is a status read, not an action. The
     // requested SSID is ignored rather than recorded: reporting back a network
     // we are not on would be the one lie this whole backend exists to avoid.
+    //
+    // An OFFLINE host answers the join as refused, not as pending (2026-10-20).
+    // The firmware's update screens now join a saved network themselves and
+    // wait out a 20-30 s window for it (firmware src/network/SavedWifiPlan.h);
+    // on a phone nothing the app does can end that wait, so reporting
+    // WL_DISCONNECTED -- "still trying" -- held the screen for the whole window
+    // before it said "No Wi-Fi connection". WL_CONNECT_FAILED is the answer the
+    // firmware already treats as final. It lasts until the host is back on a
+    // network or the firmware drops the attempt (disconnect / WIFI_OFF).
     if (sim_wifi_host::available()) {
       const auto net = sim_wifi_host::current();
       currentSsid = String(hostSsidOrLabel(net.ssid));
-      currentStatus = net.connected ? WL_CONNECTED : WL_DISCONNECTED;
+      hostJoinRefused = !net.connected;
+      currentStatus = net.connected ? WL_CONNECTED : WL_CONNECT_FAILED;
       return currentStatus;
     }
     currentSsid = ssid ? ssid : "Simulator WiFi (fake)";
@@ -255,9 +267,13 @@ public:
     return currentStatus;
   }
   wl_status_t status() {
-    if (sim_wifi_host::available())
-      return sim_wifi_host::current().connected ? WL_CONNECTED
-                                                : WL_DISCONNECTED;
+    if (sim_wifi_host::available()) {
+      if (sim_wifi_host::current().connected) {
+        hostJoinRefused = false;
+        return WL_CONNECTED;
+      }
+      return hostJoinRefused ? WL_CONNECT_FAILED : WL_DISCONNECTED;
+    }
     return currentStatus;
   }
   IPAddress localIP() {
@@ -278,11 +294,14 @@ public:
     (void)wifioff;
     (void)eraseap;
     currentStatus = WL_DISCONNECTED;
+    hostJoinRefused = false;
   }
   void mode(int mode) {
     currentMode = static_cast<wifi_mode_t>(mode);
-    if (mode == WIFI_OFF)
+    if (mode == WIFI_OFF) {
       currentStatus = WL_DISCONNECTED;
+      hostJoinRefused = false;
+    }
   }
   bool softAP(const char *ssid, const char *pass = NULL, int channel = 1,
               int hidden = 0, int max_connection = 4) {
