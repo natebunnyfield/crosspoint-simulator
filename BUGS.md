@@ -66,8 +66,6 @@ is already established, so the investigation does not start from zero:
 each), moving the cursor through Settings and Home; a frame that repeats an
 older one is the "flashback".
 
-(none as of 2026-10-10: S-042 and S-041 moved below on their owner rulings)
-
 ## FIXED
 
 ### [S-044] In zen the paper sat a third of a page above the first line of a section-opening page — REVERTED 2026-10-11 (was FIXED in build 324) on a worktree branch, not yet in a TestFlight build; device UNCONFIRMED
