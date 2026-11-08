@@ -38,6 +38,34 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-045] A "flashback stutter" on menu navigation in the iOS app — OPEN, reported 2026-11-07, not yet investigated
+**severity: medium (visual; menus) · scope: iOS app, cause unknown · reported by the owner 2026-11-07, verbatim: "there is a flashback stutter glitch that is happening on ios app on menu navigation"**
+
+Recorded as a todo at the owner's word; nothing has been reproduced yet. What
+is already established, so the investigation does not start from zero:
+
+- **Which build.** The newest export is build **362** (0.1.1), archived
+  2026-11-07 18:29 from simulator `36009903`, whose `CrossPointSources` pin the
+  firmware at `de49776e4`. That firmware predates the same evening's lag work
+  (`1e2549a40` onward: press-fired lists, tile-diff windowed presents, deferred
+  anti-aliasing), so none of THAT can be the cause in this build — but all of
+  it will be in the next one, and it changes exactly the menu present path, so
+  re-check the symptom on the next build before attributing anything.
+- **Not the windowed refresh.** `HalDisplay::displayWindow` here presents the
+  whole frame (`src/HalDisplay.cpp`, "The window is not modelled"), so a
+  windowed firmware present cannot show a stale region by itself.
+- **Candidates to look at first** (unverified): the present hold that waits
+  ~30 ms for an anti-aliased compose (`docs/crt-beam-and-flash.md`; a 1-bit
+  frame followed by its composed twin reads as a flash), any surface effect
+  that keeps the previous frame on screen (trail, page fade, e-ink-mode
+  ghosting keyed on FAST refreshes), and the zen paper relayout per page
+  (S-044's area).
+
+**Next step:** reproduce in the iOS simulator with the Diagnostics Log on and
+`CROSSPOINT_SIM_LOG_PRESENTS=1` (counts presents and tags which pass wrote
+each), moving the cursor through Settings and Home; a frame that repeats an
+older one is the "flashback".
+
 (none as of 2026-10-10: S-042 and S-041 moved below on their owner rulings)
 
 ## FIXED
