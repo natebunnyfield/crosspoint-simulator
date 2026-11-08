@@ -84,15 +84,21 @@ inline SemaphoreHandle_t xSemaphoreCreateMutex() {
   return sem;
 }
 
-inline bool xSemaphoreTake(SemaphoreHandle_t sem, uint32_t /*ticksToWait*/) {
+inline bool xSemaphoreTake(SemaphoreHandle_t sem, uint32_t ticksToWait) {
   if (!sem)
     return true;
   const uint64_t self = simsemphr::currentOwnerToken();
   std::unique_lock<std::mutex> lock(sem->m);
   // Recursive: the holder walks straight back in. Everyone else waits for the
   // count to reach zero.
-  sem->cv.wait(lock,
-               [sem, self] { return sem->holdCount == 0 || sem->ownerToken == self; });
+  const auto available = [sem, self] { return sem->holdCount == 0 || sem->ownerToken == self; };
+  // A zero timeout is a TRY: the firmware's RenderLock::Mode::Try (and any
+  // other non-blocking take) must see "busy" here as it does on the device,
+  // or the simulator blocks where the firmware means to skip. Other finite
+  // timeouts still wait for the holder, as this shim always has.
+  if (ticksToWait == 0 && !available())
+    return false;
+  sem->cv.wait(lock, available);
   sem->ownerToken = self;
   sem->holder = xTaskGetCurrentTaskHandle();
   sem->holdCount++;

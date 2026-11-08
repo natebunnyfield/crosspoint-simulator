@@ -86,6 +86,7 @@ public:
 
   // Button input methods
   void update();
+  bool isButtonContactClosed();
   bool isPressed(uint8_t buttonIndex) const;
   bool wasPressed(uint8_t buttonIndex) const;
   bool wasAnyPressed() const;

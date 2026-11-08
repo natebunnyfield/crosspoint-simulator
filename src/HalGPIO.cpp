@@ -1258,6 +1258,11 @@ void HalGPIO::update() {
   updateHomeKeyHold();
 }
 
+// The firmware asks this from inside long work on the loop task to stop early
+// for a press (the reader's background chapter build). The desktop has no ADC
+// ladder to read raw; a press is seen at the next update(), as on the Picco.
+bool HalGPIO::isButtonContactClosed() { return false; }
+
 bool HalGPIO::isPressed(uint8_t buttonIndex) const {
   if (buttonIndex >= NUM_BUTTONS)
     return false;

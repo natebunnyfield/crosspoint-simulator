@@ -22,7 +22,7 @@ namespace {
 bool takenWithin(SemaphoreHandle_t sem, std::chrono::milliseconds limit) {
   std::atomic<bool> got{false};
   std::thread t([&] {
-    xSemaphoreTake(sem, 0);
+    xSemaphoreTake(sem, portMAX_DELAY);  // a BLOCKING probe (0 ticks is a try)
     got = true;
     xSemaphoreGive(sem);
   });
@@ -105,6 +105,22 @@ int main() {
   simsemphr::forceReleaseAllForReboot();
   CHECK(xQueuePeek(a, nullptr, 0) == pdTRUE && xQueuePeek(b, nullptr, 0) == pdTRUE &&
          "every registered mutex is released, not only the most recent");
+
+  // --- a zero timeout is a TRY, as on the device ---------------------------
+  // The firmware's RenderLock::Mode::Try takes with 0 ticks and skips its idle
+  // work when the render task holds the lock; a shim that waited here instead
+  // would block the main loop where the device does not.
+  SemaphoreHandle_t t0 = xSemaphoreCreateMutex();
+  {
+    std::thread holder([&] { xSemaphoreTake(t0, portMAX_DELAY); });
+    holder.join();  // held by a thread that is gone: busy until released
+  }
+  CHECK(xSemaphoreTake(t0, 0) == pdFALSE && "a try on a mutex someone else holds must fail at once");
+  simsemphr::forceReleaseAllForReboot();
+  CHECK(xSemaphoreTake(t0, 0) == pdTRUE && "a try on a free mutex takes it");
+  CHECK(xSemaphoreTake(t0, 0) == pdTRUE && "and the holder may re-enter (recursive, as before)");
+  xSemaphoreGive(t0);
+  xSemaphoreGive(t0);
 
   std::puts("semphr_reboot: PASS");
   return 0;
