@@ -5,13 +5,13 @@
 # adds, removes, or renames a translation unit.
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : de49776e447b687412ebae1dd1f59dffbcc603a6
-# TU counts  : 148 firmware, 27 simulator (6 C, 169 C++)
+# pinned at  : 1b7fc3b262d72cca5b6efe7296b5c0db542fabfb
+# TU counts  : 151 firmware, 27 simulator (6 C, 172 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "de49776e447b687412ebae1dd1f59dffbcc603a6")
+set(CROSSPOINT_FIRMWARE_PIN "1b7fc3b262d72cca5b6efe7296b5c0db542fabfb")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -125,6 +125,8 @@ set(CROSSPOINT_FW_SOURCES
   src/WifiCredentialStore.cpp
   src/activities/Activity.cpp
   src/activities/ActivityManager.cpp
+  src/activities/UiListActivity.cpp
+  src/activities/UiTabListActivity.cpp
   src/activities/boot_sleep/BootActivity.cpp
   src/activities/boot_sleep/CalendarSleepScreen.cpp
   src/activities/boot_sleep/HolidayCalculator.cpp
@@ -167,6 +169,7 @@ set(CROSSPOINT_FW_SOURCES
   src/activities/util/PrettyView.cpp
   src/activities/util/TextViewerActivity.cpp
   src/components/UITheme.cpp
+  src/components/UiAppHost.cpp
   src/components/themes/BaseTheme.cpp
   src/components/themes/lyra/Lyra3CoversTheme.cpp
   src/components/themes/lyra/LyraSixTheme.cpp
