@@ -1,4 +1,5 @@
 #include "HalDisplay.h"
+#include "SimLatencyTrace.h"
 #include "SimulatorRebootResets.h"
 
 #include <GfxRenderer.h>
@@ -2516,6 +2517,11 @@ void HalDisplay::refreshDisplay(RefreshMode mode, bool /*turnOffScreen*/) {
   // Lent out: there is nothing coherent to convert, and presenting a half-owned
   // buffer would show a torn frame. The lender's own refresh follows.
   if (!fb) return;
+  if (simlat::enabled()) {
+    char tag[32];
+    std::snprintf(tag, sizeof tag, "refresh fb=%08x", simlat::frameHash(fb, getBufferSize()));
+    simlat::note(tag, static_cast<int>(mode));
+  }
   snapshotBwBase(fb);
   // The mode is only READ by e-ink mode (src/EinkPanel.h); with it off the
   // argument is ignored exactly as it always was.
@@ -5211,6 +5217,7 @@ void HalDisplay::preconditionGrayscale() {}
 void HalDisplay::preconditionGrayscale(uint16_t, uint16_t, uint16_t, uint16_t) {
 }
 void HalDisplay::copyGrayscaleLsbBuffers(const uint8_t *lsbBuffer) {
+  simlat::note("gray-lsb-whole");
   // The whole-frame AA fallback (no strip support / OOM) reaches the planes
   // through here instead, and needs the same extension or it flashes on every
   // page while the strip path does not.
@@ -5233,11 +5240,13 @@ void HalDisplay::cleanupGrayscaleBuffers(const uint8_t *bwBuffer) {
   }
 }
 void HalDisplay::displayGrayBuffer(bool, const unsigned char *, bool) {
+  simlat::note("gray-display");
   composeGrayscalePreview();
 }
 
 void HalDisplay::writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
                                           uint16_t yStart, uint16_t numRows) {
+  simlat::note(lsbPlane ? "gray-strip-lsb" : "gray-strip-msb", yStart);
   if (!rows || numRows == 0 || yStart >= activeHeight()) {
     return;
   }

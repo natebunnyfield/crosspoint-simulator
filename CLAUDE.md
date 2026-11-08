@@ -1285,6 +1285,14 @@ Grown in one day; each is documented at its definition, this is the map:
   3x an OUTPUT-space field costs ~30 ms per page turn and a PANEL-space one
   ~490 ms, and the GPU readback everyone assumed was the expensive item is
   2-6%.
+- **`CROSSPOINT_SIM_LOG_LATENCY=1`**: one `[lat]` line per input edge
+  (`btn-down`/`btn-up`, `touch-*`) and per panel call (`refresh fb=<hash>
+  <mode>`, `gray-display`, gray strips), stamped with `micros()` and carrying
+  the storage opens/reads/seeks/writes since the previous line. The frame hash
+  exposes a refresh that repaints an identical frame -- a whole waveform for
+  nothing. Latched like LOG_TIMING. `src/SimLatencyTrace.h`; summarizer and
+  findings in the firmware's `tools/latency/` and
+  `docs/lag-reduction-plan-2026-11-07.md`.
 - **`CROSSPOINT_SIM_IMPORT_FILE=<path>`**: drives the book-import path (copy
   to card, then open) exactly as an incoming Files/share-sheet epub does.
 - **Zen zones fire only for deliberate taps**: single finger, ≤28 px travel,

@@ -1,4 +1,5 @@
 #include "HalGPIO.h"
+#include "SimLatencyTrace.h"
 
 #include "SimHostBattery.h"
 #include "SimKeepAwake.h"
@@ -478,6 +479,7 @@ void updateTouchMovement(float panelNx, float panelNy) {
 }
 
 void beginTouch(float logicalNx, float logicalNy) {
+  simlat::note("touch-down");
   if (!BoardConfig::hasTouch())
     return;
   float panelNx = 0.0f;
@@ -507,6 +509,7 @@ void moveTouch(float logicalNx, float logicalNy) {
 }
 
 void endTouch(float logicalNx, float logicalNy) {
+  simlat::note("touch-up");
   if (!touchState.down)
     return;
   moveTouch(logicalNx, logicalNy);
@@ -1303,6 +1306,7 @@ bool HalGPIO::wasAnyReleased() const {
 void HalGPIO::injectButtonDown(uint8_t buttonIndex) {
   if (buttonIndex >= NUM_BUTTONS)
     return;
+  simlat::note("btn-down", buttonIndex);
   SimulatorOverlay::notePageInteraction();
   // Synthetic input enters below SDL, so the event-pump skip above never sees
   // it -- and a headless run has no other way to prove the warm-up IS
@@ -1321,6 +1325,7 @@ void HalGPIO::injectButtonDown(uint8_t buttonIndex) {
 }
 
 void HalGPIO::injectButtonUp(uint8_t buttonIndex) {
+  simlat::note("btn-up", buttonIndex);
   if (buttonIndex >= NUM_BUTTONS)
     return;
   releasedThisFrame[buttonIndex] = true;

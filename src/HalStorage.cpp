@@ -1,4 +1,5 @@
 #include "HalStorage.h"
+#include "SimLatencyTrace.h"
 
 #include "SimCompressedFile.h"
 
@@ -314,6 +315,7 @@ bool HalFile::getModifyDateTime(uint16_t *pdate, uint16_t *ptime) {
 }
 
 bool HalFile::seek(size_t pos) {
+  simlat::countSeek();
   if (!impl || impl->fd < 0)
     return false;
   if (impl->cpz) {
@@ -323,6 +325,7 @@ bool HalFile::seek(size_t pos) {
   return lseek(impl->fd, (off_t)pos, SEEK_SET) >= 0;
 }
 bool HalFile::seek64(uint64_t pos) {
+  simlat::countSeek();
   if (!impl || impl->fd < 0)
     return false;
   if (pos > static_cast<uint64_t>(std::numeric_limits<off_t>::max()))
@@ -334,6 +337,7 @@ bool HalFile::seek64(uint64_t pos) {
   return lseek(impl->fd, static_cast<off_t>(pos), SEEK_SET) >= 0;
 }
 bool HalFile::seekCur(int64_t offset) {
+  simlat::countSeek();
   if (!impl || impl->fd < 0)
     return false;
   if (impl->cpz) {
@@ -345,6 +349,7 @@ bool HalFile::seekCur(int64_t offset) {
   return lseek(impl->fd, (off_t)offset, SEEK_CUR) >= 0;
 }
 bool HalFile::seekSet(size_t offset) {
+  simlat::countSeek();
   if (!impl || impl->fd < 0)
     return false;
   if (impl->cpz) {
@@ -383,6 +388,7 @@ int HalFile::read(void *buf, size_t count) {
     return n;
   }
   ssize_t n = ::read(impl->fd, buf, count);
+  simlat::countRead(n);
   return (int)n;
 }
 int HalFile::read() {
@@ -391,9 +397,12 @@ int HalFile::read() {
   uint8_t c;
   if (impl->cpz)
     return read(&c, 1) == 1 ? c : -1;
-  return (::read(impl->fd, &c, 1) == 1) ? c : -1;
+  const bool ok1 = ::read(impl->fd, &c, 1) == 1;
+  simlat::countRead(ok1 ? 1 : 0);
+  return ok1 ? c : -1;
 }
 size_t HalFile::write(const void *buf, size_t count) {
+  simlat::countWrite();
   if (!impl || impl->fd < 0)
     return 0;
   // Unreachable by construction -- the decoder is only attached to O_RDONLY
@@ -409,6 +418,7 @@ size_t HalFile::write(const uint8_t *buf, size_t count) {
   return write(static_cast<const void *>(buf), count);
 }
 size_t HalFile::write(uint8_t b) {
+  simlat::countWrite();
   if (!impl || impl->fd < 0)
     return 0;
   return (::write(impl->fd, &b, 1) == 1) ? 1 : 0;
@@ -485,6 +495,7 @@ bool HalFile::isOpen() const {
 HalFile::operator bool() const { return isOpen(); }
 
 HalFile HalStorage::open(const char *path, const oflag_t oflag) {
+  simlat::countOpen();
   std::string full = resolveStoragePath(path);
   HalFile f;
   if (full.empty()) {
