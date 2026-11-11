@@ -420,3 +420,27 @@ until their `seedfonts-cpz` directories were removed by hand. Do that as part
 of closing a trial, or `rm -rf build/ios-dev`. (The trial list itself is a
 CACHE variable and has the same staleness; `cmake -U CROSSPOINT_IOS_TRIAL_FAMILIES
 build/ios-dev` re-reads the default, never edit the cache file.)
+
+## Private families: bundled, claimed, never named here (2026-11-11)
+
+The owner keeps some families of his own in private repos, and they must never
+be named in this public repo or in the firmware's public `sd-fonts.yaml`. Owner
+2026-11-11, on getting one onto the phone: *"include it with build like albo"*.
+`installed_families` cannot claim such a family without publishing its name,
+and the trial list is checked in. So there is a third claim, kept on the
+machine:
+
+- `ios/private-fonts.local` (gitignored) lists one `<Family>/*.cpfont` tree per
+  line, `~` allowed. `CROSSPOINT_PRIVATE_FONTS_DIRS` (colon-separated) overrides
+  it for one run.
+- `ios/testflight.sh` copies the seed tree and every private tree into
+  `build/seedfonts-merged` (rsync, mtimes kept, so the compressor still skips
+  unchanged files) and bundles that instead. A family name in both trees fails
+  the deploy.
+- It passes the private names as `CROSSPOINT_IOS_PRIVATE_FAMILIES` on every
+  configure, empty when there is no list, so a stale cache value cannot
+  outlive its tree. `ios/CMakeLists.txt` treats them as claimed. A name that
+  is also installed or on trial, or that is not in the bundle, fails configure.
+- The shared simulator card (`fs_/fonts`) is left alone. That matters: a
+  private family without the eight reader arrows would fail the firmware's
+  `SdFontArrows` host test for every session that runs it against the card.

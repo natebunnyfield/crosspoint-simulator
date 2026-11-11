@@ -466,10 +466,37 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
     "Families bundled for on-device evaluation only, exempt from the \
 installed_families check. Empty in a settled tree.")
 
+  # PRIVATE FAMILIES -- the owner's own unpublished families, merged into the
+  # seed tree by ios/testflight.sh from a gitignored per-machine list
+  # (ios/private-fonts.local). They are claimed HERE rather than in
+  # installed_families because that list lives in the firmware's PUBLIC
+  # sd-fonts.yaml and naming them there would publish them. testflight.sh
+  # passes this on every configure, empty when there is no list, so a stale
+  # cache value cannot outlive its tree.
+  set(CROSSPOINT_IOS_PRIVATE_FAMILIES
+    ""
+    CACHE STRING
+    "Private families bundled from a merged seed tree; set by ios/testflight.sh")
+  foreach(_family IN LISTS CROSSPOINT_IOS_PRIVATE_FAMILIES)
+    if(_family IN_LIST _installed_families OR
+       _family IN_LIST CROSSPOINT_IOS_TRIAL_FAMILIES)
+      message(FATAL_ERROR
+        "Seed fonts: ${_family} is a private family and also in "
+        "installed_families or CROSSPOINT_IOS_TRIAL_FAMILIES. Pick one list.")
+    endif()
+    if(NOT _family IN_LIST _seed_bundled_families)
+      message(FATAL_ERROR
+        "Seed fonts: private family ${_family} is not in the bundled tree "
+        "${_seed_source_dir}.")
+    endif()
+  endforeach()
+
   set(_unreachable_families "")
   set(_trial_bundled "")
   foreach(_family IN LISTS _seed_bundled_families)
-    if(_family IN_LIST CROSSPOINT_IOS_TRIAL_FAMILIES)
+    if(_family IN_LIST CROSSPOINT_IOS_PRIVATE_FAMILIES)
+      # claimed above
+    elseif(_family IN_LIST CROSSPOINT_IOS_TRIAL_FAMILIES)
       list(APPEND _trial_bundled "${_family}")
     elseif(NOT _family IN_LIST _installed_families)
       list(APPEND _unreachable_families "${_family}")
@@ -568,6 +595,11 @@ installed_families check. Empty in a settled tree.")
   endif()
 
   list(LENGTH _seed_bundled_families _n_fam)
+  list(LENGTH CROSSPOINT_IOS_PRIVATE_FAMILIES _n_private)
+  if(_n_private GREATER 0)
+    message(STATUS "Seed fonts: ${_n_private} of the ${_n_fam} are private families")
+    math(EXPR _n_fam "${_n_fam} - ${_n_private}")
+  endif()
   list(LENGTH _trial_bundled _n_trial)
   if(_trial_bundled)
     string(REPLACE ";" ", " _trial_bundled_text "${_trial_bundled}")

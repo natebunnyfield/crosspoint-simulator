@@ -326,6 +326,47 @@ say "Configure"
 # (they seed the phone's fonts/ folder at launch). CI builds its own; local
 # deploys opt in explicitly. The ${VAR[@]+...} guard keeps set -u happy on
 # macOS's bash 3.2 when the array is empty.
+# Private font trees. The owner's own unpublished families ship inside the app
+# but must never be named in this public repo or in the firmware's public
+# sd-fonts.yaml, so they cannot go through installed_families. Each line of the
+# gitignored ios/private-fonts.local (or the colon-separated
+# CROSSPOINT_PRIVATE_FONTS_DIRS) is a <Family>/*.cpfont tree. They are merged
+# with the seed tree into build/seedfonts-merged, which becomes the tree this
+# build bundles, and their family names go to CMake as
+# CROSSPOINT_IOS_PRIVATE_FAMILIES, which claims them in the unclaimed-bundle
+# gate. The shared simulator card is left alone. A family name in both trees
+# is an error, not an override.
+PRIVATE_FAMILIES=""
+_private_dirs=()
+if [[ -n "${CROSSPOINT_PRIVATE_FONTS_DIRS:-}" ]]; then
+  IFS=':' read -r -a _private_dirs <<< "$CROSSPOINT_PRIVATE_FONTS_DIRS"
+elif [[ -f "$REPO/ios/private-fonts.local" ]]; then
+  while IFS= read -r _line; do
+    [[ -z "$_line" || "$_line" == \#* ]] && continue
+    _private_dirs+=("${_line/#\~/$HOME}")
+  done < "$REPO/ios/private-fonts.local"
+fi
+if [[ ${#_private_dirs[@]} -gt 0 && -n "${CROSSPOINT_SEED_FONTS_DIR:-}" ]]; then
+  _merged="$REPO/build/seedfonts-merged"
+  mkdir -p "$_merged"
+  # -a keeps mtimes, so the compressor's per-file skip still works.
+  rsync -a --delete "$CROSSPOINT_SEED_FONTS_DIR/" "$_merged/"
+  for _pd in "${_private_dirs[@]}"; do
+    [[ -d "$_pd" ]] || { echo "ERROR: private font tree $_pd is not a directory"; exit 1; }
+    for _fam in "$_pd"/*/; do
+      _name="$(basename "$_fam")"
+      if [[ -e "$CROSSPOINT_SEED_FONTS_DIR/$_name" ]]; then
+        echo "ERROR: family $_name is in both the seed tree and a private tree"
+        exit 1
+      fi
+      rsync -a --delete "$_fam" "$_merged/$_name/"
+      PRIVATE_FAMILIES="${PRIVATE_FAMILIES:+$PRIVATE_FAMILIES;}$_name"
+    done
+  done
+  CROSSPOINT_SEED_FONTS_DIR="$_merged"
+  echo "seed fonts: merged $(echo "$PRIVATE_FAMILIES" | tr ';' '\n' | grep -c .) private famil(y/ies) into $_merged"
+fi
+
 SEED_FONTS_ARGS=()
 if [[ -n "${CROSSPOINT_SEED_FONTS_DIR:-}" ]]; then
   SEED_FONTS_ARGS=(-DCROSSPOINT_IOS_SEED_FONTS_DIR="$CROSSPOINT_SEED_FONTS_DIR")
@@ -422,6 +463,7 @@ cmake -S "$REPO" -B "$BUILD_DIR" -G Xcode \
   -DCROSSPOINT_IOS_TEAM_ID="$TEAM_ID" \
   -DCROSSPOINT_IOS_MARKETING_VERSION="$MARKETING_VERSION" \
   -DCROSSPOINT_IOS_BUILD_NUMBER="$BUILD_NUMBER" \
+  -DCROSSPOINT_IOS_PRIVATE_FAMILIES="$PRIVATE_FAMILIES" \
   ${SEED_FONTS_ARGS[@]+"${SEED_FONTS_ARGS[@]}"} >/dev/null
 
 say "Verify device profile"

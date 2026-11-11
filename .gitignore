@@ -33,3 +33,8 @@ settings.json
 # The reading-experiment ledger a desktop run appends to
 # (docs/reading-experiments.md). Per-machine measurement data.
 reading.jsonl
+# A per-machine list of PRIVATE font trees the TestFlight deploy merges into
+# the seed fonts (ios/testflight.sh, "Private font trees"). The trees are the
+# owner's own unpublished families, so neither their paths nor their names may
+# reach this public repo.
+ios/private-fonts.local
