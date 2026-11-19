@@ -277,7 +277,10 @@ elif [ -z "$ASC_LAST" ]; then
 fi
 # An ad hoc build creates no tag and reaches no App Store Connect, so neither
 # source above sees it: also number past the last one staged in build/ota.
-OTA_LAST=$(awk '{print $4}' "$REPO/build/ota/builds.log" 2>/dev/null | sort -n | tail -1)
+# `|| true`: a machine that never staged an ad hoc build has no builds.log, awk
+# exits 2, and under `set -euo pipefail` the deploy died here without a word
+# (Food, 2026-11-19).
+OTA_LAST=$(awk '{print $4}' "$REPO/build/ota/builds.log" 2>/dev/null | sort -n | tail -1 || true)
 if [ -n "$OTA_LAST" ] && [ "$OTA_LAST" -gt "$LAST_BUILD" ] 2>/dev/null; then
   echo "last ad hoc build staged was $OTA_LAST -- numbering past it"
   LAST_BUILD=$OTA_LAST
