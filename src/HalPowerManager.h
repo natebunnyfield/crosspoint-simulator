@@ -8,6 +8,7 @@
 #include <cassert>
 
 #include "HalGPIO.h"
+#include "BoardConfig.h"  // FREEINK_DEVICE_PICCO, read by name below
 
 class HalPowerManager;
 extern HalPowerManager powerManager; // Singleton

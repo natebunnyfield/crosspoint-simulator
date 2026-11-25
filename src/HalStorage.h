@@ -4,6 +4,7 @@
 #include <Stream.h>
 #include <common/FsApiConstants.h> // for oflag_t
 #include <freertos/semphr.h>
+#include "BoardConfig.h"  // FREEINK_DEVICE_PICCO, read by name below
 
 #include <cstdint>
 #include <memory>

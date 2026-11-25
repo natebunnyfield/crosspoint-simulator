@@ -114,6 +114,7 @@
 #include "GestureBindings.h"
 #include "ShakeFirstResponder.h"
 #include "HalGPIO.h"
+#include "BoardConfig.h"  // FREEINK_DEVICE_PICCO, read by name below
 #include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
 #include "SleepTouch.h"

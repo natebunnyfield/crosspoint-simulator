@@ -236,6 +236,21 @@ unsigned long piccoSynthPressedAt = 0;
 // contact is down "now" is its latest report (see readTouchContact).
 unsigned long piccoLastReportMs = 0;
 bool piccoToggleOn = false;
+// THE DECODER MUST SEE A CONTACT'S LAST STATE BEFORE IT LIFTS. The firmware's
+// gesture decoder (PiccoInput.h GestureDecoder) samples readTouchContact once
+// per frame. On the device the touch INT wakes the slice a contact starts in
+// and the controller keeps reporting, so every contact is sampled live at
+// least once. Here a whole tap -- down and up -- can arrive inside one event
+// pump (a 50 ms idle slice is a plain delay that pumps nothing), and a cancel
+// arrives as suppress-then-up in one callback; either way the next sample
+// would find no contact, the tap would vanish and the cancel would fire as a
+// release (adversarial review 2026-11-25, findings 3 and 4). So a lift waits,
+// down, until readTouchContact has reported the contact since its last change
+// (its start, or its suppression), and lands on the next update().
+bool piccoReadSinceChange = false;
+bool piccoPendingUp = false;
+float piccoPendingNx = 0.0f, piccoPendingNy = 0.0f;
+unsigned long piccoPendingSince = 0;  // SDL_GetTicks(), for the safety valve
 bool piccoBit(uint8_t mask, uint8_t i) { return i < 8 && ((mask >> i) & 1u); }
 // The firmware gates every touch query here (HalGPIO.cpp:276-350).
 inline bool piccoTouchGated() { return !piccoKeyboardTouch; }
@@ -440,6 +455,14 @@ const simreset::Registrar gGpioRebootReset{[] {
   // A menu request injected in the abandoned run must not surface on the
   // next boot's Manage Files.
   openActionMenuChannel.resetForReboot();
+#if FREEINK_DEVICE_PICCO
+  // The device's member is born false at every boot. Here it is a static that
+  // survives the iOS longjmp, and a reboot from inside a keyboard (a book
+  // shared in from Files, rebootForDocumentOpen) runs no onExit to close it:
+  // left true, every page tap of the next boot would be "inside a keyboard"
+  // and turn nothing (adversarial review 2026-11-25, finding 2).
+  piccoKeyboardTouch = false;
+#endif
 }};
 
 // CROSSPOINT_SIM_LOG_POWER=1: the GPIO half of the [power] stations (see
@@ -505,7 +528,16 @@ void updateTouchMovement(float panelNx, float panelNy) {
   }
 }
 
+void endTouchNow(float logicalNx, float logicalNy);
 void beginTouch(float logicalNx, float logicalNy) {
+#if FREEINK_DEVICE_PICCO
+  // A new contact while the last one's lift still waits: that lift happened.
+  if (piccoPendingUp) {
+    piccoPendingUp = false;
+    endTouchNow(piccoPendingNx, piccoPendingNy);
+  }
+  piccoReadSinceChange = false;
+#endif
   simlat::note("touch-down");
   if (!BoardConfig::hasTouch())
     return;
@@ -539,6 +571,31 @@ void moveTouch(float logicalNx, float logicalNy) {
 }
 
 void endTouch(float logicalNx, float logicalNy) {
+#if FREEINK_DEVICE_PICCO
+  if (touchState.down && !piccoReadSinceChange) {
+    piccoPendingUp = true;
+    piccoPendingNx = logicalNx;
+    piccoPendingNy = logicalNy;
+    piccoPendingSince = SDL_GetTicks();
+    return;
+  }
+  piccoPendingUp = false;
+#endif
+  endTouchNow(logicalNx, logicalNy);
+}
+#if FREEINK_DEVICE_PICCO
+// The deferred lift, once the decoder has sampled the contact -- or after
+// 250 ms whatever it saw, so a loop that never samples (the sleep loop) cannot
+// hold a finger down forever.
+void piccoApplyPendingUp() {
+  if (piccoPendingUp &&
+      (piccoReadSinceChange || SDL_GetTicks() - piccoPendingSince > 250)) {
+    piccoPendingUp = false;
+    endTouchNow(piccoPendingNx, piccoPendingNy);
+  }
+}
+#endif
+void endTouchNow(float logicalNx, float logicalNy) {
   simlat::note("touch-up");
   if (!touchState.down)
     return;
@@ -1010,6 +1067,8 @@ static void clearButtonState() {
   touchState = {};
 #if FREEINK_DEVICE_PICCO
   piccoSynthPressed = piccoSynthHeld = piccoSynthReleased = 0;
+  piccoPendingUp = false;
+  piccoReadSinceChange = false;
 #endif
   homeKeyDown = false;
   homeKeyPressedThisFrame = false;
@@ -1086,6 +1145,7 @@ void HalGPIO::beginFrame() {
 
 void HalGPIO::update() {
 #if FREEINK_DEVICE_PICCO
+  piccoApplyPendingUp();
   // A synthesized press lasts one frame: it releases here (HalGPIO.cpp:166-171).
   piccoSynthReleased = piccoSynthHeld;
   piccoSynthHeld = 0;
@@ -1970,6 +2030,11 @@ bool HalGPIO::wasTouchLongPress(float &nx, float &ny) const {
 }
 
 void HalGPIO::suppressTouchContact() {
+#if FREEINK_DEVICE_PICCO
+  // The decoder must see the contact end not-live before its lift lands.
+  if (touchState.down && !touchState.suppressed)
+    piccoReadSinceChange = false;
+#endif
   if (touchState.down || touchState.releasedThisFrame)
     touchState.suppressed = true;
 }
@@ -2015,7 +2080,12 @@ bool HalGPIO::wasTouchActivity() const {
 void HalGPIO::setSharedConfirmPowerShortPressEmitsPower(bool /*enabled*/) {}
 
 #if FREEINK_DEVICE_PICCO
-bool HalGPIO::hasToggleSwitch() const { return true; }
+// No switch on the host, and saying so is the honest answer: nothing can move
+// it (a phone has none, and no host control exists yet), and a present switch
+// stuck at "off" is not inert -- bound to Dark Mode it forces darkMode off at
+// every boot and hides the Dark Mode row as switch-owned (adversarial review
+// 2026-11-25, finding 5). With it absent the firmware offers its own toggles.
+bool HalGPIO::hasToggleSwitch() const { return false; }
 
 bool HalGPIO::isToggleSwitchOn() const { return piccoToggleOn; }
 
@@ -2041,6 +2111,7 @@ bool HalGPIO::readTouchContact(float &nx, float &ny, bool &live,
   // NOT gated: gestures are buttons on every screen (HalGPIO.cpp:358-370).
   if (!touchState.down)
     return false;
+  piccoReadSinceChange = true;
   live = !touchState.suppressed;
   if (live) {
     nx = touchState.currentNx;

@@ -14,6 +14,7 @@
 #include "CrossPointPrefs.h"
 #include "CrossPointReadAloud.h"
 #include "HalGPIO.h"
+#include "BoardConfig.h"  // FREEINK_DEVICE_PICCO, read by name below
 #include "VolumePageTurn.h"
 
 extern "C" void CrossPointZenRecognizers_fireGesture(int gesture);

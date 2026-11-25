@@ -154,6 +154,7 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
 
 #include "HalDisplay.h"
 #include "HalGPIO.h"
+#include "BoardConfig.h"  // FREEINK_DEVICE_PICCO, read by name below
 #include "PadCore.h"
 #include "PadPalette.h"
 #include "PanelPalette.h"
@@ -281,6 +282,18 @@ bool g_zen = std::getenv("CROSSPOINT_SIM_ZEN") != nullptr;
 // docs/picco-touch-on-ios-2026-11-25.md.
 SDL_FingerID g_piccoFinger = 0;
 bool g_piccoFingerDown = false;
+float g_piccoLastNx = 0.0f, g_piccoLastNy = 0.0f;  // the finger's last page point
+
+// The page finger is gone without a lift we can trust (a cancel, no geometry,
+// the app resigning active): end the contact with nothing fired. Suppressed
+// first, so the firmware's decoder sees it end not-live; the HAL holds the
+// lift until it has (HalGPIO.cpp piccoReadSinceChange).
+void piccoAbandonFinger() {
+  if (!g_piccoFingerDown) return;
+  g_piccoFingerDown = false;
+  gpio.suppressTouchContact();
+  gpio.injectTouchUp(g_piccoLastNx, g_piccoLastNy);
+}
 
 // Device pixels -> logical page coordinates (0..1 across the portrait page),
 // off the presented rect the read-aloud painter maps with. `clamp` is for a
@@ -3977,6 +3990,8 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           if (!g_piccoFingerDown) {
             g_piccoFingerDown = true;
             g_piccoFinger = e->tfinger.fingerID;
+            g_piccoLastNx = nx;
+            g_piccoLastNy = ny;
             gpio.injectTouchDown(nx, ny);
           }
           break;
@@ -4032,8 +4047,11 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         float nx = 0.0f, ny = 0.0f;
         if (windowPixelSize(e->tfinger.windowID, &outW, &outH) &&
             piccoPagePoint(e->tfinger.x * outW, e->tfinger.y * outH, true, nx,
-                           ny))
+                           ny)) {
+          g_piccoLastNx = nx;
+          g_piccoLastNy = ny;
           gpio.injectTouchMove(nx, ny);
+        }
         break;
       }
 #endif
@@ -4066,15 +4084,17 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     case SDL_EVENT_FINGER_CANCELED: {
 #if FREEINK_DEVICE_PICCO
       if (g_piccoFingerDown && e->tfinger.fingerID == g_piccoFinger) {
-        g_piccoFingerDown = false;
-        // iOS took the touch for itself (a call, Control Center): the contact
-        // ends with nothing fired, as a lost lift-off should not tap.
-        if (e->type == SDL_EVENT_FINGER_CANCELED) gpio.suppressTouchContact();
         float nx = 0.0f, ny = 0.0f;
-        if (!(windowPixelSize(e->tfinger.windowID, &outW, &outH) &&
+        // iOS took the touch for itself (a call, Control Center), or there is
+        // no geometry to place the lift: end it with nothing fired.
+        if (e->type == SDL_EVENT_FINGER_CANCELED ||
+            !(windowPixelSize(e->tfinger.windowID, &outW, &outH) &&
               piccoPagePoint(e->tfinger.x * outW, e->tfinger.y * outH, true,
-                             nx, ny)))
-          gpio.suppressTouchContact();  // no geometry: end it, fire nothing
+                             nx, ny))) {
+          piccoAbandonFinger();
+          break;
+        }
+        g_piccoFingerDown = false;
         gpio.injectTouchUp(nx, ny);
         break;
       }
@@ -4296,6 +4316,11 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       gpio.clearPendingButtonTaps();
       g_zenVerbs = zenverbs::Classifier{};
       applyActions(g_core.reset());
+#if FREEINK_DEVICE_PICCO
+      // The page finger dies here too, or a lift lost to the background would
+      // leave it owning the glass and every later page touch dropped.
+      piccoAbandonFinger();
+#endif
       break;
 
     // The pad is laid out from the output size, so a size change invalidates it.

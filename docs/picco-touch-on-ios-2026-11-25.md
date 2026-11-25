@@ -188,3 +188,67 @@ Firmware branch `picco-app` from `origin/main` 008f7da80; simulator branch
   page-point mapping assumes the portrait present.
 - E-Ink Mode stays on the Picco Settings page but models the X3's UC8253
   waveforms, not the Picco's SSD1677.
+
+## Adversarial review, 2026-11-25 (read-only agent, on 125e705e + c1891509a)
+
+No X3 regression found. Findings, most severe first, and what was done:
+
+1. **`tests/freeink_macro_include_test.py` was red.** Seven sites tested
+   `FREEINK_DEVICE_PICCO` without including `BoardConfig.h`. These were not
+   wrong builds, since the macro comes from the command line. FIXED: each file
+   includes `BoardConfig.h`, and the gate passes.
+2. **An in-process reboot left the keyboard touch gate open.**
+   `piccoKeyboardTouch` is a static that survives the iOS longjmp. A reboot
+   from inside a keyboard (a book shared in from Files) runs no `onExit`, so
+   every page tap of the next boot would count as inside a keyboard and turn
+   nothing. FIXED: cleared in the reboot reset registrar. Verified by reading
+   only; the desktop reboot is `execvp`, so no headless run can show it.
+3. **A tap inside one 50 ms idle slice was lost.** Down and up landed in one
+   event pump, and the decoder never sampled a live contact. REPRODUCED on the
+   old build: three 5 ms taps after idle moved the Home selection 1 row in one
+   run and 0 in another. FIXED: the Picco HAL holds a lift down until
+   `readTouchContact` has reported the contact since its last change (its start
+   or its suppression), then lands it on the next `update()`. A 250 ms safety
+   valve covers a loop that never samples. After the fix, the same script moved
+   3 rows in each of 2 runs. 80 ms taps, a 1000 ms hold, 5 ms key taps and a
+   left-edge Back swipe inside a keyboard all behave as before.
+4. **A cancelled touch still fired a gesture.** Suppress-then-up in one callback
+   meant the decoder next saw "no contact" and classified a release. FIXED by
+   the same hold: the decoder now sees the contact down and not live, and ends
+   it with nothing fired. The shim's cancel, no-geometry and resign-active
+   paths share `piccoAbandonFinger()`. The last of those resolves the
+   reviewer's open question: a page finger no longer outlives a background.
+5. **The slide switch was present but could never move.** Bound to Dark Mode,
+   it forced `darkMode` off at every boot and hid the Dark Mode row. FIXED:
+   `hasToggleSwitch()` is false on the host until a host control exists. The
+   frontlight rows stay hidden because `HalFrontlight::present()` is X4
+   Pro-only, which the default binding hides on the device too.
+6. Scripted `SWIPE` moves change Sticky's long-press and held-point reads along
+   a swipe path, and `wasSwipe` is unchanged. No test or doc uses `SWIPE`.
+   Kept; the path is what a finger does. Also: `simulator_x4_pro` never
+   selects the X4 Pro profile in `HalGPIO::begin()`, so desktop X4 Pro has no
+   touch. Pre-existing, not touched.
+
+Minor, not changed: the turned-page landscape mapping (Open, above). The Picco
+app's volume buttons are always the rocker and cannot be unbound. Reconfiguring
+a Picco build dir as X3 keeps the Picco bundle id; testflight.sh's device gate
+still fails closed. A five-number `CROSSPOINT_SIM_PAGE_FINGER` entry is
+ignored silently.
+
+**Checked and found clean** (reviewer's list):
+- `BoardConfig.h` guards. `HalGPIO.h` including `BoardConfig.h`: no `#ifdef`
+  flip, no layout change.
+- `piccoTouchGated()` folds to false off the Picco. `wasTouchActivity`
+  reduces to its original expression for X3 and X4.
+- The Picco HAL against firmware `lib/hal/HalGPIO.cpp`: every gate, `wasSwipe`,
+  synthesized press lifecycle, `getHeldTime`, `readTouchContact`,
+  `lastTouchReportMs`.
+- Shim finger ownership. The page mapping matches read-aloud's panel geometry
+  on phone and tablet. Retired pad slots are zeroed after every layout path.
+- Forced zen off: no recognizer or shake catcher is reached unguarded.
+- Volume up maps to `BTN_UP`, the rocker's upper end, which is next.
+- The settings generator drops only zen, gesture and reading-goal keys.
+- The X3 CMake, Info.plist and bundle id are unchanged.
+- The `PAGE_FINGER` hatch is inert when unset.
+- Stub signatures match the firmware call sites.
+- 12 of 13 Python catalog tests passed at review time; all 13 pass after fix 1.
