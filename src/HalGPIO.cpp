@@ -220,6 +220,28 @@ struct TouchState {
 };
 
 TouchState touchState;
+
+#if FREEINK_DEVICE_PICCO
+// Picco state, mirroring the firmware HAL's members (lib/hal/HalGPIO.h:126,
+// HalGPIO.cpp:163-171). File scope like every other piece of input state here.
+bool piccoKeyboardTouch = false;
+// Synthesized one-frame presses (injectButtonTap): pressed + held until the
+// next update(), released on that update.
+uint8_t piccoSynthPressed = 0;
+uint8_t piccoSynthHeld = 0;
+uint8_t piccoSynthReleased = 0;
+unsigned long piccoSynthPressedAt = 0;
+// millis() of the latest contact report. A finger resting on glass keeps
+// reporting on the TMA525C; SDL sends no event for a still finger, so while a
+// contact is down "now" is its latest report (see readTouchContact).
+unsigned long piccoLastReportMs = 0;
+bool piccoToggleOn = false;
+bool piccoBit(uint8_t mask, uint8_t i) { return i < 8 && ((mask >> i) & 1u); }
+// The firmware gates every touch query here (HalGPIO.cpp:276-350).
+inline bool piccoTouchGated() { return !piccoKeyboardTouch; }
+#else
+inline bool piccoTouchGated() { return false; }
+#endif
 // Set by update() when the app returned to the foreground this frame, cleared
 // by beginFrame() with the other per-frame edges, read by wasTouchActivity().
 // See the foreground latch below for why a reactivation has to count as
@@ -282,6 +304,11 @@ enum class SyntheticAction {
   KeyDown,
   KeyUp,
   TouchDown,
+  // A SWIPE's path between its down and its up, one step per ~16 ms. A real
+  // finger reports along the way, and a decoder that reads only the LIVE
+  // contact (the Picco's, components/PiccoInput.h) sees nothing of a swipe
+  // whose only samples are its two ends: the up arrives with the finger gone.
+  TouchMove,
   TouchUp,
   HomeDown,
   HomeUp,
@@ -497,6 +524,9 @@ void beginTouch(float logicalNx, float logicalNy) {
   touchState.currentNx = panelNx;
   touchState.currentNy = panelNy;
   touchState.pressedAt = SDL_GetTicks();
+#if FREEINK_DEVICE_PICCO
+  piccoLastReportMs = millis();
+#endif
 }
 
 void moveTouch(float logicalNx, float logicalNy) {
@@ -517,6 +547,9 @@ void endTouch(float logicalNx, float logicalNy) {
   touchState.releasedThisFrame = true;
   touchState.activityThisFrame = true;
   touchState.lastHeldMs = SDL_GetTicks() - touchState.pressedAt;
+#if FREEINK_DEVICE_PICCO
+  piccoLastReportMs = millis();
+#endif
 }
 
 void updateTouchHold() {
@@ -853,6 +886,15 @@ void initializeSyntheticEvents() {
                            duration, swipe)) {
           syntheticEvents.push_back(
               {atMs, SyntheticAction::TouchDown, -1, x1, y1});
+          if (swipe) {
+            constexpr unsigned long kStepMs = 16;
+            for (unsigned long t = kStepMs; t < duration; t += kStepMs) {
+              const float f = static_cast<float>(t) / static_cast<float>(duration);
+              syntheticEvents.push_back({atMs + t, SyntheticAction::TouchMove,
+                                         -1, x1 + (x2 - x1) * f,
+                                         y1 + (y2 - y1) * f});
+            }
+          }
           syntheticEvents.push_back(
               {atMs + duration, SyntheticAction::TouchUp, -1, x2, y2});
         }
@@ -898,6 +940,9 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::TouchDown:
       beginTouch(event.logicalNx, event.logicalNy);
+      break;
+    case SyntheticAction::TouchMove:
+      moveTouch(event.logicalNx, event.logicalNy);
       break;
     case SyntheticAction::TouchUp:
       endTouch(event.logicalNx, event.logicalNy);
@@ -963,6 +1008,9 @@ static void clearButtonState() {
     typedTextBuffer.clear();
   }
   touchState = {};
+#if FREEINK_DEVICE_PICCO
+  piccoSynthPressed = piccoSynthHeld = piccoSynthReleased = 0;
+#endif
   homeKeyDown = false;
   homeKeyPressedThisFrame = false;
   homeKeyTappedThisFrame = false;
@@ -980,7 +1028,11 @@ static int scancodeToButton(SDL_Scancode sc) {
 }
 
 void HalGPIO::begin() {
-#if defined(SIMULATOR_DEVICE_STICKY)
+#if defined(SIMULATOR_DEVICE_PICCO)
+  // Non-C3, like Sticky: the legacy discriminator stays X4.
+  _deviceType = DeviceType::X4;
+  BoardConfig::selectDevice(BoardConfig::Board::Picco);
+#elif defined(SIMULATOR_DEVICE_STICKY)
   // The firmware's non-C3 path leaves the legacy device discriminator on X4;
   // BoardConfig carries the actual Sticky identity and capabilities.
   _deviceType = DeviceType::X4;
@@ -1033,6 +1085,12 @@ void HalGPIO::beginFrame() {
 }
 
 void HalGPIO::update() {
+#if FREEINK_DEVICE_PICCO
+  // A synthesized press lasts one frame: it releases here (HalGPIO.cpp:166-171).
+  piccoSynthReleased = piccoSynthHeld;
+  piccoSynthHeld = 0;
+  piccoSynthPressed = 0;
+#endif
   // Once per PROCESS. The iOS reboot longjmps back through here with statics
   // intact, and SDL_AddEventWatch stacks -- N wakes would otherwise run the
   // watch N times per event.
@@ -1273,6 +1331,10 @@ bool HalGPIO::isPressed(uint8_t buttonIndex) const {
   // button either. The on-screen pad (syntheticButtonDown) is unaffected --
   // it never went through a scancode.
   const bool keyboardOwnsButton = keyboardOwnsButtonWhileTyping(buttonIndex);
+#if FREEINK_DEVICE_PICCO
+  if (piccoBit(piccoSynthHeld, buttonIndex))
+    return true;
+#endif
   return (keyboardOwnsButton && state[buttonScancode[buttonIndex]]) ||
          syntheticButtonDown[buttonIndex];
 }
@@ -1280,16 +1342,28 @@ bool HalGPIO::isPressed(uint8_t buttonIndex) const {
 bool HalGPIO::wasPressed(uint8_t buttonIndex) const {
   if (buttonIndex >= NUM_BUTTONS)
     return false;
+#if FREEINK_DEVICE_PICCO
+  if (piccoBit(piccoSynthPressed, buttonIndex))
+    return true;
+#endif
   return pressedThisFrame[buttonIndex];
 }
 
 bool HalGPIO::wasReleased(uint8_t buttonIndex) const {
   if (buttonIndex >= NUM_BUTTONS)
     return false;
+#if FREEINK_DEVICE_PICCO
+  if (piccoBit(piccoSynthReleased, buttonIndex))
+    return true;
+#endif
   return releasedThisFrame[buttonIndex];
 }
 
 bool HalGPIO::wasAnyPressed() const {
+#if FREEINK_DEVICE_PICCO
+  if (piccoSynthPressed != 0)
+    return true;
+#endif
   for (int i = 0; i < NUM_BUTTONS; i++) {
     if (pressedThisFrame[i])
       return true;
@@ -1298,6 +1372,10 @@ bool HalGPIO::wasAnyPressed() const {
 }
 
 bool HalGPIO::wasAnyReleased() const {
+#if FREEINK_DEVICE_PICCO
+  if (piccoSynthReleased != 0)
+    return true;
+#endif
   for (int i = 0; i < NUM_BUTTONS; i++) {
     if (releasedThisFrame[i])
       return true;
@@ -1761,6 +1839,11 @@ void HalGPIO::clearPendingButtonTaps() {
 }
 
 unsigned long HalGPIO::getHeldTime() const {
+#if FREEINK_DEVICE_PICCO
+  // A synthesized tap is a short press (HalGPIO.cpp:258-268).
+  if ((piccoSynthHeld | piccoSynthReleased) != 0)
+    return millis() - piccoSynthPressedAt;
+#endif
   // While a button is held: longest held time among the pressed buttons.
   // Nothing held: span of the last completed press, matching the device's
   // InputManager (buttonPressFinish - buttonPressStart survives the release).
@@ -1814,7 +1897,19 @@ bool HalGPIO::wasHomeKeyLongPressed() const {
   return homeKeyLongPressedThisFrame;
 }
 
+void HalGPIO::injectTouchDown(float logicalNx, float logicalNy) {
+  beginTouch(logicalNx, logicalNy);
+}
+void HalGPIO::injectTouchMove(float logicalNx, float logicalNy) {
+  moveTouch(logicalNx, logicalNy);
+}
+void HalGPIO::injectTouchUp(float logicalNx, float logicalNy) {
+  endTouch(logicalNx, logicalNy);
+}
+
 bool HalGPIO::wasTouchTap(float &nx, float &ny) const {
+  if (piccoTouchGated())
+    return false;
   if (!touchState.releasedThisFrame || touchState.movedBeyondTapSlop ||
       touchState.suppressed)
     return false;
@@ -1824,6 +1919,8 @@ bool HalGPIO::wasTouchTap(float &nx, float &ny) const {
 }
 
 bool HalGPIO::wasTouchDown(float &nx, float &ny) const {
+  if (piccoTouchGated())
+    return false;
   if (!touchState.pressedThisFrame)
     return false;
   nx = touchState.startNx;
@@ -1831,10 +1928,16 @@ bool HalGPIO::wasTouchDown(float &nx, float &ny) const {
   return true;
 }
 
-bool HalGPIO::wasTouchReleased() const { return touchState.releasedThisFrame; }
+bool HalGPIO::wasTouchReleased() const {
+  if (piccoTouchGated())
+    return false;
+  return touchState.releasedThisFrame;
+}
 
 bool HalGPIO::isTouchTapCandidate(float &nx, float &ny,
                                   unsigned long &heldMs) const {
+  if (piccoTouchGated())
+    return false;
   if (!touchState.down || touchState.movedBeyondTapSlop ||
       touchState.suppressed) {
     heldMs = 0;
@@ -1847,6 +1950,8 @@ bool HalGPIO::isTouchTapCandidate(float &nx, float &ny,
 }
 
 bool HalGPIO::isTouchHeldAt(float &nx, float &ny) const {
+  if (piccoTouchGated())
+    return false;
   if (!touchState.down || touchState.suppressed)
     return false;
   nx = touchState.currentNx;
@@ -1855,6 +1960,8 @@ bool HalGPIO::isTouchHeldAt(float &nx, float &ny) const {
 }
 
 bool HalGPIO::wasTouchLongPress(float &nx, float &ny) const {
+  if (piccoTouchGated())
+    return false;
   if (!touchState.longPressThisFrame || touchState.suppressed)
     return false;
   nx = touchState.startNx;
@@ -1867,10 +1974,22 @@ void HalGPIO::suppressTouchContact() {
     touchState.suppressed = true;
 }
 
-unsigned long HalGPIO::lastTouchHeldMs() const { return touchState.lastHeldMs; }
+unsigned long HalGPIO::lastTouchHeldMs() const {
+  if (piccoTouchGated())
+    return 0;
+  return touchState.lastHeldMs;
+}
 
 bool HalGPIO::wasSwipe(float &nxStart, float &nyStart, float &nxEnd,
                        float &nyEnd) const {
+#if FREEINK_DEVICE_PICCO
+  // Never a swipe on the Picco, keyboard or not (HalGPIO.cpp:330-344).
+  (void)nxStart;
+  (void)nyStart;
+  (void)nxEnd;
+  (void)nyEnd;
+  return false;
+#endif
   if (!touchState.releasedThisFrame || touchState.suppressed ||
       touchState.lastHeldMs > TOUCH_SWIPE_MAX_MS)
     return false;
@@ -1888,9 +2007,68 @@ bool HalGPIO::wasSwipe(float &nxStart, float &nyStart, float &nxEnd,
 }
 
 bool HalGPIO::wasTouchActivity() const {
+  // The foreground return is not a touch, so the Picco gate leaves it alone.
+  if (piccoTouchGated())
+    return hostResumeThisFrame;
   return touchState.activityThisFrame || hostResumeThisFrame;
 }
 void HalGPIO::setSharedConfirmPowerShortPressEmitsPower(bool /*enabled*/) {}
+
+#if FREEINK_DEVICE_PICCO
+bool HalGPIO::hasToggleSwitch() const { return true; }
+
+bool HalGPIO::isToggleSwitchOn() const { return piccoToggleOn; }
+
+void HalGPIO::setToggleSwitchForHost(const bool on) { piccoToggleOn = on; }
+
+// The device asks its charger for the input rail; the host's answer is the one
+// isUsbConnected() already gives (SimHostBattery: the phone's own charging
+// state, or the env var, or the historical default).
+bool HalGPIO::isUsbPowerPresent() const { return isUsbConnected(); }
+
+void HalGPIO::setKeyboardTouch(const bool on) {
+  if (on == piccoKeyboardTouch)
+    return;
+  piccoKeyboardTouch = on;
+  // A contact already down belongs to whatever was on screen before.
+  suppressTouchContact();
+}
+
+bool HalGPIO::isKeyboardTouchOn() const { return piccoKeyboardTouch; }
+
+bool HalGPIO::readTouchContact(float &nx, float &ny, bool &live,
+                               unsigned long &reportMs) const {
+  // NOT gated: gestures are buttons on every screen (HalGPIO.cpp:358-370).
+  if (!touchState.down)
+    return false;
+  live = !touchState.suppressed;
+  if (live) {
+    nx = touchState.currentNx;
+    ny = touchState.currentNy;
+  }
+  // A resting finger keeps reporting on the real controller; SDL sends
+  // nothing for a still finger, so a down contact reports "now". Without this
+  // the decoder's 200 ms freshness rule (PiccoInput.h HOLD_REPORT_GAP_MS)
+  // would refuse every hold, since a held finger does not move.
+  reportMs = millis();
+  return true;
+}
+
+void HalGPIO::injectButtonTap(const uint8_t index) {
+  if (index >= 8)
+    return;
+  const auto bit = static_cast<uint8_t>(1u << index);
+  piccoSynthPressed |= bit;
+  piccoSynthHeld |= bit;
+  piccoSynthPressedAt = millis();
+}
+
+bool HalGPIO::isTouchContactDown() const { return touchState.down; }
+
+unsigned long HalGPIO::lastTouchReportMs() const {
+  return touchState.down ? millis() : piccoLastReportMs;
+}
+#endif
 
 bool HalGPIO::consumeSimulatorSleepRequest() {
   const bool requested = simulatorSleepRequested;

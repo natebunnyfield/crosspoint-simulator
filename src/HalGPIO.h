@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 #include <BatteryMonitor.h>
+
+#include "BoardConfig.h"  // FREEINK_DEVICE_PICCO gates the Picco block below
 #include <InputManager.h>
 
 #include <string>
@@ -121,6 +123,20 @@ public:
   // to the harness, above this layer.
   void injectButtonDown(uint8_t buttonIndex);
   void injectButtonUp(uint8_t buttonIndex);
+
+  // --- Live touch injection (simulator-only; no firmware counterpart) -------
+  //
+  // The touch-panel half of the pair above: a host finger on the presented
+  // page, in LOGICAL normalized coordinates (0..1 across the portrait page the
+  // firmware draws, the same space CROSSPOINT_SIM_INPUT_SCRIPT's TAP/SWIPE and
+  // the desktop mouse use). Feeds the one touch model every touch query reads,
+  // so a board with touch (hasTouch(): X4 Pro, Sticky, Picco) sees exactly
+  // what a finger on its digitizer would. A no-op on a board without touch.
+  // The Picco iOS app is the caller (ios/CrossPointIOSShim.cpp padWatch); the
+  // X3 app never calls it, its gestures become buttons above this layer.
+  void injectTouchDown(float logicalNx, float logicalNy);
+  void injectTouchMove(float logicalNx, float logicalNy);
+  void injectTouchUp(float logicalNx, float logicalNy);
 
   // --- Host keyboard text entry -------------------------------------------
   //
@@ -398,6 +414,31 @@ public:
   void setSharedConfirmPowerShortPressEmitsPower(bool enabled);
   bool consumeSimulatorSleepRequest();
 
+#if FREEINK_DEVICE_PICCO
+  // --- BOOX Picco ----------------------------------------------------------
+  // MIRRORS the firmware's lib/hal/HalGPIO.h Picco block, signature for
+  // signature, and its semantics in lib/hal/HalGPIO.cpp: every touch query
+  // above reads "no touch" until a keyboard calls setKeyboardTouch(true),
+  // wasSwipe() is always false, and gestures reach activities only as buttons
+  // synthesized by the firmware's own decoder (MappedInputManager
+  // synthesizeGesture, components/PiccoInput.h) from readTouchContact().
+  bool hasToggleSwitch() const;
+  bool isToggleSwitchOn() const;
+  bool isUsbPowerPresent() const;
+  void prepareForDeepSleep() {}
+  void setKeyboardTouch(bool on);
+  bool isKeyboardTouchOn() const;
+  bool readTouchContact(float &nx, float &ny, bool &live,
+                        unsigned long &reportMs) const;
+  void injectButtonTap(uint8_t index);
+  bool isTouchContactDown() const;
+  unsigned long lastTouchReportMs() const;
+
+  // Simulator-only, no firmware counterpart: the host's side of the slide
+  // switch. A phone has no switch, so the harness (or a script) sets it.
+  void setToggleSwitchForHost(bool on);
+#endif
+
   // Setup wake up GPIO and enter deep sleep
   void startDeepSleep();
 
@@ -408,6 +449,9 @@ public:
 
   // Check if USB is connected
   bool isUsbConnected() const;
+  // Firmware: the last update()'s verdict, without a fresh poll
+  // (lib/hal/HalGPIO.h:518). The host's answer is already a cached read.
+  bool isUsbConnectedCached() const { return isUsbConnected(); }
 
   // Returns true once per edge (plug or unplug) since the last update()
   bool wasUsbStateChanged() const;

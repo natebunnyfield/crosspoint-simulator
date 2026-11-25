@@ -5,8 +5,34 @@
 # simulator_main calls into. Rendering belongs to HalDisplay, exactly as on
 # desktop -- the harness draws nothing.
 
-set(CROSSPOINT_IOS_BUNDLE_ID "com.natebunnyfield.crosspoint.x3" CACHE STRING
+# WHICH DEVICE THIS APP IS. X3 (the default, the shipping app) or PICCO, the
+# BOOX Picco as a second app built from the same source (owner 2026-11-25:
+# "Full Picco as a second app"; docs/picco-touch-on-ios-2026-11-25.md). The
+# Picco is a compile-time board in the firmware, so it cannot be a switch
+# inside the X3 app: it is a separate configure, a separate bundle id and a
+# separate card. X3 and the Picco differ in input as their devices do: the X3
+# app turns gestures into its seven buttons, the Picco app hands panel touches
+# to the firmware's own touch model and gesture decoder.
+set(CROSSPOINT_IOS_DEVICE "X3" CACHE STRING "Simulated device: X3 or PICCO")
+set_property(CACHE CROSSPOINT_IOS_DEVICE PROPERTY STRINGS X3 PICCO)
+if(CROSSPOINT_IOS_DEVICE STREQUAL "PICCO")
+  set(_crosspoint_default_bundle_id "com.natebunnyfield.crosspoint.picco")
+  set(CROSSPOINT_IOS_APP_NAME "CrossPoint Picco")
+elseif(CROSSPOINT_IOS_DEVICE STREQUAL "X3")
+  set(_crosspoint_default_bundle_id "com.natebunnyfield.crosspoint.x3")
+  set(CROSSPOINT_IOS_APP_NAME "CrossPoint X3")
+else()
+  message(FATAL_ERROR "CROSSPOINT_IOS_DEVICE must be X3 or PICCO, not '${CROSSPOINT_IOS_DEVICE}'")
+endif()
+set(CROSSPOINT_IOS_BUNDLE_ID "${_crosspoint_default_bundle_id}" CACHE STRING
   "iOS bundle identifier")
+# A cache written by an X3 configure keeps the X3 id; a Picco app must never
+# install over the X3 one (same id = same sandbox = the X3 card).
+if(CROSSPOINT_IOS_DEVICE STREQUAL "PICCO" AND
+   CROSSPOINT_IOS_BUNDLE_ID STREQUAL "com.natebunnyfield.crosspoint.x3")
+  message(FATAL_ERROR "CROSSPOINT_IOS_DEVICE=PICCO with the X3 bundle id; "
+    "pass -DCROSSPOINT_IOS_BUNDLE_ID=com.natebunnyfield.crosspoint.picco or use a fresh build dir")
+endif()
 set(CROSSPOINT_IOS_TEAM_ID "" CACHE STRING
   "Apple Developer Team ID. Required for device builds; leave empty for the Simulator.")
 
@@ -35,7 +61,24 @@ set_source_files_properties(${CROSSPOINT_ASSETS} PROPERTIES
 # Settings > CrossPoint X3. A .bundle is just a directory, and the only file in
 # it is Root.plist, so it goes in as a resource at that path rather than needing
 # a bundle target of its own.
-set(CROSSPOINT_SETTINGS_BUNDLE ${CMAKE_CURRENT_SOURCE_DIR}/Settings.bundle/Root.plist)
+if(CROSSPOINT_IOS_DEVICE STREQUAL "PICCO")
+  # The Picco app's Settings page is the X3 one minus the rows that drive the
+  # X3's gesture-to-button layer (Zen and every gesture group), which the
+  # Picco app does not run: its touches go to the firmware. Generated, so the
+  # two pages cannot drift: tools/gen_picco_settings_plist.py.
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Settings.bundle)
+  set(CROSSPOINT_SETTINGS_BUNDLE ${CMAKE_CURRENT_BINARY_DIR}/Settings.bundle/Root.plist)
+  execute_process(
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/../tools/gen_picco_settings_plist.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/Settings.bundle/Root.plist
+            ${CROSSPOINT_SETTINGS_BUNDLE}
+    RESULT_VARIABLE _picco_plist_rc)
+  if(NOT _picco_plist_rc EQUAL 0)
+    message(FATAL_ERROR "gen_picco_settings_plist.py failed (${_picco_plist_rc})")
+  endif()
+else()
+  set(CROSSPOINT_SETTINGS_BUNDLE ${CMAKE_CURRENT_SOURCE_DIR}/Settings.bundle/Root.plist)
+endif()
 set_source_files_properties(${CROSSPOINT_SETTINGS_BUNDLE} PROPERTIES
   MACOSX_PACKAGE_LOCATION "Resources/Settings.bundle")
 
@@ -666,7 +709,15 @@ target_link_libraries(CrossPointX3 PRIVATE crosspoint_core SDL3::SDL3
 #     renderLastScreenSleepScreen() never ran.
 #   * HalTiltSensor::begin() left _available false, contrary to ios/README.md.
 # SIMULATOR itself already reaches both layers via CROSSPOINT_DEFINES.
-target_compile_definitions(crosspoint_core PUBLIC SIMULATOR_DEVICE_X3)
+if(CROSSPOINT_IOS_DEVICE STREQUAL "PICCO")
+  # Both, on the command line, as the desktop simulator_picco env does: firmware
+  # TUs test FREEINK_DEVICE_PICCO before anything includes BoardConfig.h, and
+  # BoardConfig.h #errors on the first without the second.
+  target_compile_definitions(crosspoint_core PUBLIC SIMULATOR_DEVICE_PICCO
+    FREEINK_DEVICE_PICCO=1)
+else()
+  target_compile_definitions(crosspoint_core PUBLIC SIMULATOR_DEVICE_X3)
+endif()
 
 # Native-density glyph rasterisation, ON THE LIBRARY, not the app target.
 #

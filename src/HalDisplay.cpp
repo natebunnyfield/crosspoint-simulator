@@ -2115,7 +2115,9 @@ HalDisplay::~HalDisplay() {}
 #define SIMULATOR_CONTROLLER_TITLE "SSD1677"
 #endif
 
-#if defined(SIMULATOR_DEVICE_STICKY)
+#if defined(SIMULATOR_DEVICE_PICCO)
+static constexpr const char *WINDOW_TITLE = "Simulator - BOOX Picco (SSD1677)";
+#elif defined(SIMULATOR_DEVICE_STICKY)
 static constexpr const char *WINDOW_TITLE =
     "Simulator - Seeed Sticky (SSD1677)";
 #elif defined(SIMULATOR_DEVICE_X4_PRO)

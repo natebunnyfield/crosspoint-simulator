@@ -36,7 +36,7 @@
 #include <cstdint>
 
 struct SimulatorBuildIdentity {
-  // Which BoardConfig.h branch this TU compiled: "X3", "X4Pro" or "X4". The
+  // Which BoardConfig.h branch this TU compiled: "X3", "X4Pro", "Picco" or "X4". The
   // X4 case is the silent #else default, which is exactly why it is reported
   // by name rather than inferred from the absence of the other two.
   const char *device;
@@ -56,7 +56,9 @@ struct SimulatorBuildIdentity {
 
 namespace simulator_build_identity_detail {
 
-#if defined(SIMULATOR_DEVICE_X4_PRO)
+#if defined(SIMULATOR_DEVICE_PICCO)
+inline constexpr const char *kDevice = "Picco";
+#elif defined(SIMULATOR_DEVICE_X4_PRO)
 inline constexpr const char *kDevice = "X4Pro";
 #elif defined(SIMULATOR_DEVICE_X3)
 inline constexpr const char *kDevice = "X3";

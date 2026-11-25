@@ -19,6 +19,12 @@ public:
   HalStorage();
   bool begin();
   bool ready() const;
+#if FREEINK_DEVICE_PICCO
+  // Device: flushes SdFat's FAT cache and ends the SDMMC host before deep
+  // sleep (lib/hal/HalStorage.h:19-24). Host files are POSIX fds written
+  // through, so there is nothing to flush.
+  void prepareForDeepSleep() {}
+#endif
   std::vector<String> listFiles(const char *path = "/", int maxFiles = 200);
   // Read the entire file at `path` into a String. Returns empty string on
   // failure.

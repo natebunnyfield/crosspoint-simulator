@@ -50,7 +50,20 @@ public:
 
   // Setup wake up GPIO and enter deep sleep
   // Should be called inside main loop() to handle the currentLockMode
-  void startDeepSleep(HalGPIO &gpio) const;
+  // wakeOnHeldButton: the Picco's main.cpp passes whether its USB hold ended on
+  // a held Power press (lib/hal/HalPowerManager.h:86). The host's deep-sleep
+  // loop wakes on any press, so it changes nothing here.
+  void startDeepSleep(HalGPIO &gpio, bool wakeOnHeldButton = false) const;
+
+#if FREEINK_DEVICE_PICCO
+  // Device: light-sleeps while USB powers the Picco so it can draw a charge
+  // strip, returning true when Power ended the hold. The host has no charger
+  // to watch and its deep-sleep loop is already the sleep, so it reports "no
+  // USB hold" and main.cpp goes straight to that loop.
+  bool holdWhileUsbPowered(HalGPIO &, void (*)(bool, uint16_t)) const {
+    return false;
+  }
+#endif
 
   // Get battery percentage (range 0-100)
   uint16_t getBatteryPercentage() const;

@@ -60,6 +60,9 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
+#include <string>
+#include <vector>
 #include <cstdint>
 #include <limits>
 
@@ -260,6 +263,44 @@ bool g_padLaidOut = false;
 // could not be captured off-device at all, and the geometry is the half that
 // has pixels to check.
 bool g_zen = std::getenv("CROSSPOINT_SIM_ZEN") != nullptr;
+
+#if FREEINK_DEVICE_PICCO
+// THE PICCO APP (owner 2026-11-25: "Full Picco as a second app"; "touch is for
+// picco only and x4 and x3 are gesture based"). Same harness, three rules:
+//   * A finger that lands on the PAGE belongs to the firmware: it goes to
+//     HalGPIO's touch model as the Picco's TMA525C would report it, and the
+//     firmware's own decoder makes the gestures (PiccoInput.h: tap = next,
+//     swipes, hold = Confirm, left-edge swipe = Back; keys type in keyboards).
+//     Nothing on this side classifies it. Single touch, like the TMA525C.
+//   * No zen and no gesture recognizers: that layer turns gestures into X3
+//     buttons, which is exactly what the Picco firmware does for itself.
+//   * The pad shows the Picco's buttons only: the rocker (UP/DOWN slots,
+//     which the firmware maps to next/previous) and Power. No Back, Left,
+//     Right or Confirm capsules -- the Picco has no Back or arrows, and its
+//     GPIO5 "Confirm" is unconfirmed hardware (SDK BoardConfig.h PICCO).
+// docs/picco-touch-on-ios-2026-11-25.md.
+SDL_FingerID g_piccoFinger = 0;
+bool g_piccoFingerDown = false;
+
+// Device pixels -> logical page coordinates (0..1 across the portrait page),
+// off the presented rect the read-aloud painter maps with. `clamp` is for a
+// finger already down that slides off the page: it stays the same contact.
+bool piccoPagePoint(float fx, float fy, bool clamp, float &nx, float &ny) {
+  const float w = static_cast<float>(SimulatorOverlay::panelWidthPx());
+  const float h = static_cast<float>(SimulatorOverlay::panelHeightPx());
+  if (w <= 0.0f || h <= 0.0f) return false;
+  const float left = static_cast<float>(SimulatorOverlay::panelLeftPx());
+  const float top = static_cast<float>(SimulatorOverlay::panelBottomPx()) - h;
+  nx = (fx - left) / w;
+  ny = (fy - top) / h;
+  if (clamp) {
+    nx = std::clamp(nx, 0.0f, 1.0f);
+    ny = std::clamp(ny, 0.0f, 1.0f);
+    return true;
+  }
+  return nx >= 0.0f && nx < 1.0f && ny >= 0.0f && ny < 1.0f;
+}
+#endif
 // The page's rect on the last present, in device pixels -- the zen hit-test
 // needs it, and it is the same rect the pad already anchors to.
 SDL_FRect g_zenPanel{};
@@ -893,7 +934,18 @@ void layoutPadSettled(int outW, int outH) {
   }
 }
 
+static void layoutPadImpl(int outW, int outH);
 void layoutPad(int outW, int outH) {
+  layoutPadImpl(outW, outH);
+#if FREEINK_DEVICE_PICCO
+  // The Picco has no Back, arrows or (confirmed) Confirm: those slots retire
+  // the way the side-rocker ruling retires a slot -- a zero rect draws nothing
+  // and hit-tests nothing, pairs included (paintPad's pair guard).
+  for (int i : {kPadBack, kPadConfirm, kPadLeft, kPadRight})
+    g_pad[i].rect = SDL_FRect{0.0f, 0.0f, 0.0f, 0.0f};
+#endif
+}
+static void layoutPadImpl(int outW, int outH) {
   const float S = g_ptScale;
   const float W = static_cast<float>(outW) / S;
   const float H = static_cast<float>(outH) / S;
@@ -2174,6 +2226,20 @@ void pollReaderInsets() {
 // visit to Settings.app could silently revert a toggle the reader had
 // already made.
 void pollZenMode() {
+#if FREEINK_DEVICE_PICCO
+  // No zen in the Picco app (see g_piccoFinger). Forced, not read: the X3
+  // app's zen pref ships ON and its row is not on this app's Settings page.
+  static bool s_piccoLogged = false;
+  if (!s_piccoLogged) {
+    s_piccoLogged = true;
+    SDL_Log("[picco] zen off; page touches go to the firmware's touch model");
+  }
+  if (g_zen) {
+    g_zen = false;
+    g_padLaidOut = false;
+  }
+  return;
+#endif
   static bool s_synced = false;
   static bool s_first = true;
   const bool first = s_first;
@@ -3900,6 +3966,23 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       const float fx = e->tfinger.x * outW, fy = e->tfinger.y * outH;
 
       g_windowId = e->tfinger.windowID;
+#if FREEINK_DEVICE_PICCO
+      // A finger on the PAGE is the firmware's (see g_piccoFinger). A pad
+      // capsule never overlaps the page, but the hit test goes first anyway so
+      // a control can never be shadowed by it. A second finger while one is
+      // down is dropped: the TMA525C reports one contact.
+      {
+        float nx = 0.0f, ny = 0.0f;
+        if (padHitTest(fx, fy) < 0 && piccoPagePoint(fx, fy, false, nx, ny)) {
+          if (!g_piccoFingerDown) {
+            g_piccoFingerDown = true;
+            g_piccoFinger = e->tfinger.fingerID;
+            gpio.injectTouchDown(nx, ny);
+          }
+          break;
+        }
+      }
+#endif
       // Fed in EVERY mode, acted on only in zen: a gesture in flight when the
       // three-finger toggle flips g_zen must not arrive at a half-seen
       // classifier.
@@ -3944,6 +4027,16 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     }
 
     case SDL_EVENT_FINGER_MOTION: {
+#if FREEINK_DEVICE_PICCO
+      if (g_piccoFingerDown && e->tfinger.fingerID == g_piccoFinger) {
+        float nx = 0.0f, ny = 0.0f;
+        if (windowPixelSize(e->tfinger.windowID, &outW, &outH) &&
+            piccoPagePoint(e->tfinger.x * outW, e->tfinger.y * outH, true, nx,
+                           ny))
+          gpio.injectTouchMove(nx, ny);
+        break;
+      }
+#endif
       if (windowPixelSize(e->tfinger.windowID, &outW, &outH))
         g_zenVerbs.fingerMove(e->tfinger.fingerID, e->tfinger.x * outW,
                               e->tfinger.y * outH);
@@ -3971,6 +4064,21 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     // it — a second, permanent way for POWER to stop working until force quit.
     case SDL_EVENT_FINGER_UP:
     case SDL_EVENT_FINGER_CANCELED: {
+#if FREEINK_DEVICE_PICCO
+      if (g_piccoFingerDown && e->tfinger.fingerID == g_piccoFinger) {
+        g_piccoFingerDown = false;
+        // iOS took the touch for itself (a call, Control Center): the contact
+        // ends with nothing fired, as a lost lift-off should not tap.
+        if (e->type == SDL_EVENT_FINGER_CANCELED) gpio.suppressTouchContact();
+        float nx = 0.0f, ny = 0.0f;
+        if (!(windowPixelSize(e->tfinger.windowID, &outW, &outH) &&
+              piccoPagePoint(e->tfinger.x * outW, e->tfinger.y * outH, true,
+                             nx, ny)))
+          gpio.suppressTouchContact();  // no geometry: end it, fire nothing
+        gpio.injectTouchUp(nx, ny);
+        break;
+      }
+#endif
       if (windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
         g_zenLastX = e->tfinger.x * outW;
         g_zenLastY = e->tfinger.y * outH;
@@ -4283,6 +4391,10 @@ extern "C" void CrossPointMixer_glowChanged(void) { g_glowDirty.store(true); }
 // Runs on the main thread (recognizer action), the same thread the SDL pump
 // and the overlay run on.
 extern "C" void CrossPointZen_toggleFromRecognizer(const char *source) {
+#if FREEINK_DEVICE_PICCO
+  (void)source;
+  return;  // no zen in the Picco app
+#endif
   g_zen = !g_zen;
   g_padLaidOut = false;  // the band changes, so the page must be refitted
   // ONE line per toggle, naming the DIRECTION and the gesture that did it.
@@ -4665,6 +4777,85 @@ void CrossPointHarness_perFrame() {
     }
     if (s_selectPresetCountdown > 0 && --s_selectPresetCountdown == 0)
       CrossPointPresetList_selectForTest(s_selectPreset);
+    // CROSSPOINT_SIM_PAGE_FINGER="<ms>:<x>,<y>[,<holdMs>];<ms>:<x1>,<y1>,<x2>,<y2>,<durMs>;..."
+    // Real SDL finger events ON THE PAGE, through the whole finger path --
+    // the event watch, padWatch, the page mapping -- where a script's TAP and
+    // SWIPE enter below the harness, straight into HalGPIO. x/y are 0..1
+    // across the presented portrait page. Two numbers make a tap (held
+    // holdMs, default 80), four make a swipe with a move every 16 ms. Written
+    // for the Picco app (2026-11-25), whose page touches are the firmware's
+    // and whose harness route could otherwise be proved only by a finger.
+    // simctl cannot inject touches. Wall clock, one-shot, like TAP_CHIP.
+    struct PageFinger {
+      Uint64 at;
+      Uint32 type;
+      float nx, ny;
+    };
+    static std::vector<PageFinger> s_pageFingers;
+    static bool s_pageFingersRead = false;
+    if (!s_pageFingersRead) {
+      s_pageFingersRead = true;
+      if (const char *e = std::getenv("CROSSPOINT_SIM_PAGE_FINGER")) {
+        std::string all(e);
+        size_t start = 0;
+        while (start <= all.size()) {
+          const size_t end = all.find(';', start);
+          const std::string item =
+              all.substr(start, end == std::string::npos ? std::string::npos
+                                                         : end - start);
+          unsigned long ms = 0;
+          float v[5] = {0, 0, 0, 0, 0};
+          const int n = std::sscanf(item.c_str(), "%lu:%f,%f,%f,%f,%f", &ms,
+                                    &v[0], &v[1], &v[2], &v[3], &v[4]);
+          if (n == 3 || n == 4) {  // tap / hold
+            const Uint64 hold = n == 4 ? static_cast<Uint64>(v[2]) : 80;
+            s_pageFingers.push_back({ms, SDL_EVENT_FINGER_DOWN, v[0], v[1]});
+            s_pageFingers.push_back({ms + hold, SDL_EVENT_FINGER_UP, v[0], v[1]});
+          } else if (n == 6) {  // swipe
+            const Uint64 dur = std::max<Uint64>(16, static_cast<Uint64>(v[4]));
+            s_pageFingers.push_back({ms, SDL_EVENT_FINGER_DOWN, v[0], v[1]});
+            for (Uint64 t = 16; t < dur; t += 16) {
+              const float f = static_cast<float>(t) / static_cast<float>(dur);
+              s_pageFingers.push_back({ms + t, SDL_EVENT_FINGER_MOTION,
+                                       v[0] + (v[2] - v[0]) * f,
+                                       v[1] + (v[3] - v[1]) * f});
+            }
+            s_pageFingers.push_back({ms + dur, SDL_EVENT_FINGER_UP, v[2], v[3]});
+          }
+          if (end == std::string::npos) break;
+          start = end + 1;
+        }
+        std::stable_sort(s_pageFingers.begin(), s_pageFingers.end(),
+                         [](const PageFinger &a, const PageFinger &b) {
+                           return a.at < b.at;
+                         });
+        SDL_Log("[pagefinger] %zu events scheduled", s_pageFingers.size());
+      }
+    }
+    while (!s_pageFingers.empty() && SDL_GetTicks() >= s_pageFingers.front().at) {
+      const PageFinger f = s_pageFingers.front();
+      s_pageFingers.erase(s_pageFingers.begin());
+      float outW = 0, outH = 0;
+      const float pw = static_cast<float>(SimulatorOverlay::panelWidthPx());
+      const float ph = static_cast<float>(SimulatorOverlay::panelHeightPx());
+      if (pw <= 0 || ph <= 0 || !windowPixelSize(g_windowId, &outW, &outH)) {
+        SDL_Log("[pagefinger] skipped: no page geometry yet");
+        continue;
+      }
+      const float px = static_cast<float>(SimulatorOverlay::panelLeftPx()) + f.nx * pw;
+      const float py = static_cast<float>(SimulatorOverlay::panelBottomPx()) - ph + f.ny * ph;
+      SDL_Event ev{};
+      ev.type = f.type;
+      ev.tfinger.touchID = 98;
+      ev.tfinger.fingerID = 98;
+      ev.tfinger.x = px / outW;
+      ev.tfinger.y = py / outH;
+      ev.tfinger.windowID = g_windowId;
+      SDL_PushEvent(&ev);
+      if (f.type != SDL_EVENT_FINGER_MOTION)
+        SDL_Log("[pagefinger] %s at page %.3f,%.3f",
+                f.type == SDL_EVENT_FINGER_DOWN ? "down" : "up", f.nx, f.ny);
+    }
     // CROSSPOINT_SIM_TAP_CHIP=<ms>: one synthetic finger tap at the KEYBOARD
     // chip's center, `ms` after launch, through the FULL finger path -- the SDL
     // event watch, g_tapCand, hitKeyboardChip and the toggle, exactly as a

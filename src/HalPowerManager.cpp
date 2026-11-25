@@ -9,7 +9,9 @@
 HalPowerManager powerManager;
 
 void HalPowerManager::begin() {}
-void HalPowerManager::startDeepSleep(HalGPIO &gpio) const { gpio.startDeepSleep(); }
+void HalPowerManager::startDeepSleep(HalGPIO &gpio, bool /*wakeOnHeldButton*/) const {
+  gpio.startDeepSleep();
+}
 void HalPowerManager::setPowerSaving(bool enable) {}
 // A flat 100% meant the low-battery paths -- the warning, the sleep-screen
 // battery art, anything gated on a threshold -- could not run (S-001).

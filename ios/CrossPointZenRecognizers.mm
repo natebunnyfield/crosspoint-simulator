@@ -864,6 +864,13 @@ void logBindings(void) {
 // boot), then flip the zen-only recognizers' .enabled with the zen flag. Main
 // queue: UIKit, and the callers sit on the SDL/firmware loop.
 extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
+#if FREEINK_DEVICE_PICCO
+  // The Picco app installs no recognizer: its page touches are the
+  // firmware's, and an installed UIKit recognizer would cancel them out from
+  // under SDL (cancelsTouchesInView) whenever it recognized.
+  (void)on;
+  return;
+#endif
   dispatch_async(dispatch_get_main_queue(), ^{
     if (!g_handler) {
       UIView *view = sdlView();

@@ -287,10 +287,23 @@ void drain() {
         // next press. Routed through the recognizers' own dispatch so it takes
         // the zen gate and the palette-sheet swallow with every other gesture,
         // rather than injecting a button behind them.
+#if FREEINK_DEVICE_PICCO
+        // The Picco's rocker IS its volume rocker (Power + Volume Up is its
+        // download-mode chord): up is the upper end, down the lower, and the
+        // firmware maps them to next/previous (PiccoInput.h rockerRoute).
+        {
+          const uint8_t btn = v == volumepage::Verdict::Next ? HalGPIO::BTN_UP
+                                                             : HalGPIO::BTN_DOWN;
+          gpio.queueButtonTap(btn, volumepage::kTapHoldMs);
+          SDL_Log("[VOLUME] %.4f -> %.4f: rocker %s", previous, level,
+                  btn == HalGPIO::BTN_UP ? "upper" : "lower");
+        }
+#else
         const gesturebind::Gesture row = volumepage::gestureFor(v);
         CrossPointZenRecognizers_fireGesture(static_cast<int>(row));
         SDL_Log("[VOLUME] %.4f -> %.4f: %s", previous, level,
                 gesturebind::gestureName(row));
+#endif
         restoreTo(g_resting);
         break;
       }
@@ -324,6 +337,9 @@ void CrossPointVolumeButtons_resetForReboot(void) {
 // consulted: a row bound only outside zen still needs the session held, or the
 // first press after leaving zen has nothing to report.
 static bool volumeRowsBound(void) {
+#if FREEINK_DEVICE_PICCO
+  return true;  // the Picco app: the volume buttons ARE the rocker, always
+#endif
   using gesturebind::Action;
   using gesturebind::Gesture;
   for (Gesture g : {Gesture::VolumeUp, Gesture::VolumeDown}) {

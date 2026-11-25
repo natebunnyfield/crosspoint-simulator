@@ -15,10 +15,23 @@
 // covered the X3/X4 Pro pair only, and noted the display-controller half was
 // N/A because BoardConfig had no SIMULATOR_DISPLAY_* profiles — upstream
 // 1a88857 + ef68da8 add both, so the wider guard applies here now.
-#if (defined(SIMULATOR_DEVICE_X3) && defined(SIMULATOR_DEVICE_X4_PRO)) || \
-    (defined(SIMULATOR_DEVICE_X3) && defined(SIMULATOR_DEVICE_STICKY)) ||  \
-    (defined(SIMULATOR_DEVICE_X4_PRO) && defined(SIMULATOR_DEVICE_STICKY))
+#if (defined(SIMULATOR_DEVICE_X3) + defined(SIMULATOR_DEVICE_X4_PRO) + \
+     defined(SIMULATOR_DEVICE_STICKY) + defined(SIMULATOR_DEVICE_PICCO)) > 1
 #error "Select at most one simulated device"
+#endif
+
+// FREEINK_DEVICE_PICCO must come from the COMMAND LINE with the device macro,
+// as it does on the device env. Firmware TUs test it before including this
+// header (notes/KeyboardPanel.cpp), and a TU that sees it undefined compiles
+// its Picco half out while its callers' half stays in.
+#if defined(SIMULATOR_DEVICE_PICCO) && \
+    !(defined(FREEINK_DEVICE_PICCO) && FREEINK_DEVICE_PICCO)
+#error "SIMULATOR_DEVICE_PICCO needs -DFREEINK_DEVICE_PICCO=1 beside it"
+#endif
+
+#if defined(SIMULATOR_DEVICE_PICCO) && \
+    (defined(SIMULATOR_DISPLAY_UC8179) || defined(SIMULATOR_DISPLAY_UC8279))
+#error "BOOX Picco uses SSD1677; do not select an Xteink controller override"
 #endif
 
 #if defined(SIMULATOR_DISPLAY_UC8179) && defined(SIMULATOR_DISPLAY_UC8279)
@@ -34,7 +47,21 @@
 #error "Seeed Sticky uses SSD1677; do not select an Xteink controller override"
 #endif
 
-#if defined(SIMULATOR_DEVICE_STICKY)
+// BOOX Picco (owner 2026-11-25: a second iOS app, "Full Picco as a second
+// app"). Same 800x480 SSD1677 geometry as Sticky; touch (TMA525C) and an I2C
+// warm/cool frontlight. FREEINK_DEVICE_PICCO turns on the firmware's own Picco
+// paths: keyboard-only touch, the iOS-norm gesture decoder, the rocker table,
+// the Brightness/Warmth/Slide Switch rows (crosspoint-reader
+// docs/picco-port-2026-11-05.md). Every other profile leaves it 0, which is
+// also the SDK's default.
+#if defined(SIMULATOR_DEVICE_PICCO)
+#define FREEINK_DEVICE_X4 0
+#define FREEINK_DEVICE_X3 0
+#define FREEINK_DEVICE_X4PRO 0
+#define FREEINK_DEVICE_STICKY 0
+#define FREEINK_CAP_TOUCH 1
+#define FREEINK_CAP_FRONTLIGHT 1
+#elif defined(SIMULATOR_DEVICE_STICKY)
 #define FREEINK_DEVICE_X4 0
 #define FREEINK_DEVICE_X3 0
 #define FREEINK_DEVICE_X4PRO 0
@@ -74,6 +101,7 @@ enum class Board {
   XteinkX3Uc8279,
   XteinkX4Pro,
   Sticky,
+  Picco,
 };
 
 enum class DisplayController {
@@ -132,8 +160,14 @@ inline constexpr BoardProfile XTEINK_X4_PRO = {
     X4_DISPLAY_CONTROLLER_VARIANT, {0, 7}};
 inline constexpr BoardProfile STICKY = {
     Board::Sticky, "sticky", DisplayController::SSD1677, 0, {5, 6}};
+// The Picco's rocker arrives on the up/down slots; the firmware's Picco
+// mapButton remap turns them into Right (upper) / Left (lower).
+inline constexpr BoardProfile PICCO = {
+    Board::Picco, "picco", DisplayController::SSD1677, 0, {4, 5}};
 
-#if defined(SIMULATOR_DEVICE_STICKY)
+#if defined(SIMULATOR_DEVICE_PICCO)
+inline BoardProfile ACTIVE = PICCO;
+#elif defined(SIMULATOR_DEVICE_STICKY)
 inline BoardProfile ACTIVE = STICKY;
 #elif defined(SIMULATOR_DEVICE_X4_PRO)
 inline BoardProfile ACTIVE = XTEINK_X4_PRO;
@@ -164,13 +198,17 @@ inline bool selectDevice(Board board) {
   case Board::Sticky:
     ACTIVE = STICKY;
     return true;
+  case Board::Picco:
+    ACTIVE = PICCO;
+    return true;
   }
   return false;
 }
 
 inline bool isX4Pro() { return ACTIVE.board == Board::XteinkX4Pro; }
 inline bool isSticky() { return ACTIVE.board == Board::Sticky; }
-inline bool hasTouch() { return isX4Pro() || isSticky(); }
+inline bool isPicco() { return ACTIVE.board == Board::Picco; }
+inline bool hasTouch() { return isX4Pro() || isSticky() || isPicco(); }
 inline bool hasHomeKey() { return isX4Pro(); }
 inline bool hasPwmFrontlight() { return isX4Pro(); }
 
