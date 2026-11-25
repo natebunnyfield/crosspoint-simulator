@@ -47,21 +47,56 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FIRMWARE_DIR="${CROSSPOINT_FIRMWARE_DIR:-$HOME/src/crosspoint-reader}"
 
-BUNDLE_ID="com.natebunnyfield.crosspoint.x3"
+# WHICH APP. X3 (default) or PICCO, the second app built from the same source
+# (docs/picco-touch-on-ios-2026-11-25.md). Each is its own bundle id, App Store
+# Connect app, build directory, desktop canary and tag namespace, so a Picco
+# deploy can never number, tag or overwrite anything of the X3's.
+#   CROSSPOINT_IOS_DEVICE=PICCO ios/testflight.sh
+DEVICE="${CROSSPOINT_IOS_DEVICE:-X3}"
+case "$DEVICE" in
+  X3)
+    BUNDLE_ID="com.natebunnyfield.crosspoint.x3"
+    APP_NAME="CrossPoint X3"
+    DEVICE_DEFINE="SIMULATOR_DEVICE_X3"
+    CANARY_ENV="simulator"
+    TAG_PREFIX=""            # build-N / version-X.Y.Z, as always
+    BUILD_SUBDIR="ios-dev"
+    ARCHIVE_NAME="CrossPointX3"
+    EXPORT_SUBDIR="export"
+    ;;
+  PICCO)
+    BUNDLE_ID="com.natebunnyfield.crosspoint.picco"
+    APP_NAME="CrossPoint Picco"
+    DEVICE_DEFINE="SIMULATOR_DEVICE_PICCO"
+    CANARY_ENV="simulator_picco"
+    TAG_PREFIX="picco-"      # picco-build-N / picco-version-X.Y.Z
+    BUILD_SUBDIR="ios-picco"
+    ARCHIVE_NAME="CrossPointPicco"
+    EXPORT_SUBDIR="export-picco"
+    ;;
+  *)
+    echo "ERROR: CROSSPOINT_IOS_DEVICE must be X3 or PICCO, not '$DEVICE'" >&2
+    exit 1
+    ;;
+esac
 TEAM_ID="887M8FR447"
 ASC_KEY_ID="92428LY4AJ"
 ASC_ISSUER="69a6de73-c01e-47e3-e053-5b8c7c11a4d1"
 ASC_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
 
-BUILD_DIR="$REPO/build/ios-dev"
-ARCHIVE="$REPO/build/CrossPointX3.xcarchive"
-EXPORT_DIR="$REPO/build/export"
+BUILD_DIR="$REPO/build/$BUILD_SUBDIR"
+ARCHIVE="$REPO/build/$ARCHIVE_NAME.xcarchive"
+EXPORT_DIR="$REPO/build/$EXPORT_SUBDIR"
 IPA="$EXPORT_DIR/CrossPointX3.ipa"
 
 UPLOAD=1
 ADHOC=0
 [[ "${1:-}" == "--no-upload" ]] && UPLOAD=0
 [[ "${1:-}" == "--adhoc" ]] && { UPLOAD=0; ADHOC=1; }
+if [[ $ADHOC -eq 1 && "$DEVICE" != "X3" ]]; then
+  echo "ERROR: --adhoc serves the X3 app only (build/ota, the /x3 URL)" >&2
+  exit 1
+fi
 # Where the phone fetches an ad hoc build from. The served directory is
 # build/ota/; something must serve it at this URL (see the doc above).
 OTA_DIR="$REPO/build/ota"
@@ -110,7 +145,7 @@ say "Desktop canary"
 # The desktop build is the canary: green desktop + red iOS means the harness is
 # wrong, both red means the HAL drifted. Catch it here rather than 140 TUs into
 # an archive.
-( cd "$FIRMWARE_DIR" && pio run -e simulator >/dev/null ) \
+( cd "$FIRMWARE_DIR" && pio run -e "$CANARY_ENV" >/dev/null ) \
   && echo "desktop OK" \
   || { echo "ERROR: desktop build is red — fix that before shipping."; exit 1; }
 
@@ -226,8 +261,8 @@ say "Version"
 # down, credentials rotated -- fall back to the tags and say so. A deploy must
 # not be blocked by a number it can usually guess correctly; the worst case is
 # the behaviour we had before this block existed.
-LAST_BUILD=$(git -C "$REPO" tag --list 'build-*' \
-             | sed 's/^build-//' | sort -n | tail -1)
+LAST_BUILD=$(git -C "$REPO" tag --list "${TAG_PREFIX}build-*" \
+             | sed "s/^${TAG_PREFIX}build-//" | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
 LAST_BUILD=${LAST_BUILD:-0}
 
 ASC_PY=""
@@ -280,7 +315,8 @@ fi
 # `|| true`: a machine that never staged an ad hoc build has no builds.log, awk
 # exits 2, and under `set -euo pipefail` the deploy died here without a word
 # (Food, 2026-11-19).
-OTA_LAST=$(awk '{print $4}' "$REPO/build/ota/builds.log" 2>/dev/null | sort -n | tail -1 || true)
+OTA_LAST=""
+[[ "$DEVICE" == "X3" ]] && OTA_LAST=$(awk '{print $4}' "$REPO/build/ota/builds.log" 2>/dev/null | sort -n | tail -1 || true)
 if [ -n "$OTA_LAST" ] && [ "$OTA_LAST" -gt "$LAST_BUILD" ] 2>/dev/null; then
   echo "last ad hoc build staged was $OTA_LAST -- numbering past it"
   LAST_BUILD=$OTA_LAST
@@ -300,7 +336,7 @@ BUILD_NUMBER=$(( LAST_BUILD + 1 ))
 # success, so the bump becomes the next run's default without anyone
 # remembering to pass it again.
 MV_FLOOR=$( { [ -f "$REPO/ios/MARKETING_VERSION" ] && tr -d '[:space:]' < "$REPO/ios/MARKETING_VERSION"; echo
-              git -C "$REPO" tag --list 'version-*' | sed 's/^version-//'; } \
+              git -C "$REPO" tag --list "${TAG_PREFIX}version-*" | sed "s/^${TAG_PREFIX}version-//"; } \
             | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
 MARKETING_VERSION="${CROSSPOINT_MARKETING_VERSION:-$MV_FLOOR}"
 # X.Y.Z only: a two-part 0.2 would pass the floor, ship, and then be dropped
@@ -464,6 +500,8 @@ cmake -S "$REPO" -B "$BUILD_DIR" -G Xcode \
   -DCROSSPOINT_FIRMWARE_DIR="$FIRMWARE_DIR" \
   -DCROSSPOINT_BUILD_FIRMWARE=ON \
   -DCROSSPOINT_IOS_TEAM_ID="$TEAM_ID" \
+  -DCROSSPOINT_IOS_DEVICE="$DEVICE" \
+  -DCROSSPOINT_IOS_BUNDLE_ID="$BUNDLE_ID" \
   -DCROSSPOINT_IOS_MARKETING_VERSION="$MARKETING_VERSION" \
   -DCROSSPOINT_IOS_BUILD_NUMBER="$BUILD_NUMBER" \
   -DCROSSPOINT_IOS_PRIVATE_FAMILIES="$PRIVATE_FAMILIES" \
@@ -510,14 +548,16 @@ if [[ -z "$EXPECTED_SCALE" ]]; then
 fi
 
 MISSING=""
-for d in SIMULATOR_DEVICE_X3 "CROSSPOINT_RENDER_SCALE=$EXPECTED_SCALE"; do
+DEVICE_DEFINES=("$DEVICE_DEFINE")
+[[ "$DEVICE" == "PICCO" ]] && DEVICE_DEFINES+=("FREEINK_DEVICE_PICCO=1")
+for d in "${DEVICE_DEFINES[@]}" "CROSSPOINT_RENDER_SCALE=$EXPECTED_SCALE"; do
   case "$CORE_DEFS" in
     *"$d"*) ;;
     *) MISSING="$MISSING $d" ;;
   esac
 done
 if [[ -z "$MISSING" ]]; then
-  echo "  crosspoint_core carries SIMULATOR_DEVICE_X3 and CROSSPOINT_RENDER_SCALE=$EXPECTED_SCALE"
+  echo "  crosspoint_core carries ${DEVICE_DEFINES[*]} and CROSSPOINT_RENDER_SCALE=$EXPECTED_SCALE"
 else
   echo "ERROR: crosspoint_core is missing:$MISSING"
   echo "  These are the defines the FIRMWARE compiles against, so the archive"
@@ -728,28 +768,30 @@ if [[ $RC -ne 0 ]]; then
     echo "      CROSSPOINT_MARKETING_VERSION=$(echo "$MARKETING_VERSION" |
             awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}') $0"
   fi
-  notify 4 warning "CrossPoint X3 upload FAILED (rc=$RC)" \
+  notify 4 warning "$APP_NAME upload FAILED (rc=$RC)" \
     "$(echo "$OUT" | grep -m2 -i 'error\|ITMS' || echo 'see terminal for details')"
   exit $RC
 fi
 
 # Tag the build so the next run's build number picks up from here, and push the
 # tag so remote observers (agents, other machines) can see the upload happened.
-git -C "$REPO" tag "build-$BUILD_NUMBER" 2>/dev/null \
-  && echo "tagged build-$BUILD_NUMBER"
-git -C "$REPO" push origin "build-$BUILD_NUMBER" 2>/dev/null \
-  && echo "pushed build-$BUILD_NUMBER" \
-  || echo "tag push failed (non-fatal) — push it later: git push origin build-$BUILD_NUMBER"
+BUILD_TAG="${TAG_PREFIX}build-$BUILD_NUMBER"
+git -C "$REPO" tag "$BUILD_TAG" 2>/dev/null \
+  && echo "tagged $BUILD_TAG"
+git -C "$REPO" push origin "$BUILD_TAG" 2>/dev/null \
+  && echo "pushed $BUILD_TAG" \
+  || echo "tag push failed (non-fatal) — push it later: git push origin $BUILD_TAG"
 # Record the marketing version as the new floor (S-043); a no-op when it exists.
-if ! git -C "$REPO" rev-parse -q --verify "refs/tags/version-$MARKETING_VERSION" >/dev/null; then
-  git -C "$REPO" tag "version-$MARKETING_VERSION" 2>/dev/null \
-    && git -C "$REPO" push origin "version-$MARKETING_VERSION" 2>/dev/null \
-    && echo "tagged and pushed version-$MARKETING_VERSION (the new floor)" \
-    || echo "version tag push failed (non-fatal) -- push it later: git push origin version-$MARKETING_VERSION"
+VERSION_TAG="${TAG_PREFIX}version-$MARKETING_VERSION"
+if ! git -C "$REPO" rev-parse -q --verify "refs/tags/$VERSION_TAG" >/dev/null; then
+  git -C "$REPO" tag "$VERSION_TAG" 2>/dev/null \
+    && git -C "$REPO" push origin "$VERSION_TAG" 2>/dev/null \
+    && echo "tagged and pushed $VERSION_TAG (the new floor)" \
+    || echo "version tag push failed (non-fatal) -- push it later: git push origin $VERSION_TAG"
 fi
 
 say "Uploaded"
-notify 4 rocket "CrossPoint X3 $MARKETING_VERSION ($BUILD_NUMBER) uploaded" \
+notify 4 rocket "$APP_NAME $MARKETING_VERSION ($BUILD_NUMBER) uploaded" \
   "Watching TestFlight processing; a second ping lands when it is installable."
 
 # MEASURE the processing wait instead of estimating it (owner 2026-08-21:
@@ -785,9 +827,9 @@ if [ -z "$WATCH_PY" ]; then
   false
 else
 echo "processing watch via $WATCH_PY"
-"$WATCH_PY" - "$BUILD_NUMBER" "$UPLOAD_END" <<'PYWATCH'
+"$WATCH_PY" - "$BUILD_NUMBER" "$UPLOAD_END" "$BUNDLE_ID" <<'PYWATCH'
 import jwt, time, json, sys, urllib.request
-build, t_up = sys.argv[1], int(sys.argv[2])
+build, t_up, bundle = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 KEY_ID, ISSUER = "92428LY4AJ", "69a6de73-c01e-47e3-e053-5b8c7c11a4d1"
 key = open(f"/Users/natebunnyfield/.appstoreconnect/private_keys/AuthKey_{KEY_ID}.p8").read()
 def get(path):
@@ -797,7 +839,7 @@ def get(path):
     req = urllib.request.Request("https://api.appstoreconnect.apple.com" + path,
                                  headers={"Authorization": f"Bearer {tok}"})
     return json.load(urllib.request.urlopen(req, timeout=30))
-app_id = get("/v1/apps?filter[bundleId]=com.natebunnyfield.crosspoint.x3")["data"][0]["id"]
+app_id = get(f"/v1/apps?filter[bundleId]={bundle}")["data"][0]["id"]
 while time.time() - t_up < 2400:  # 40 min ceiling, then give up loudly
     try:
         bs = get(f"/v1/builds?filter[app]={app_id}&filter[version]={build}"
@@ -822,9 +864,9 @@ WATCH_RC=$?
 set -e
 ELAPSED_MIN=$(( ($(date +%s) - UPLOAD_END) / 60 ))
 if [ "$WATCH_RC" -eq 0 ]; then
-  notify 4 white_check_mark "CrossPoint X3 build $BUILD_NUMBER installable" \
+  notify 4 white_check_mark "$APP_NAME build $BUILD_NUMBER installable" \
     "TestFlight processed it in ${ELAPSED_MIN} min."
 else
-  notify 4 warning "CrossPoint X3 build $BUILD_NUMBER: processing unconfirmed" \
+  notify 4 warning "$APP_NAME build $BUILD_NUMBER: processing unconfirmed" \
     "Not VALID after ${ELAPSED_MIN} min of polling -- check the TestFlight app."
 fi
