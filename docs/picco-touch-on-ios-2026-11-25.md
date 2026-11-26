@@ -369,3 +369,21 @@ half. Now divided by the 1x panel (`EInkDisplay::DISPLAY_WIDTH/HEIGHT`), as
 are the tap-slop and swipe distances. At 1x (every desktop build) nothing
 changes. `diag 0/0` on the device was the switch reading off, not a failure
 of the log.
+
+**Adversarial review of 519af2e9d (firmware) + dde9ce3d (simulator)**, three
+findings, none held on checking:
+- "Stale page areas leak on the split Home": the covers page records NO
+  area (its taps go through `wasTapInRect`, which records nothing), and the
+  menu page computes `showMenuPage` after the rocker handlers, so the areas
+  are always the page on screen. Left as LATENT: a rocker press and a tap in
+  the same ~10 ms frame would judge the tap against the menu and then turn
+  to the covers.
+- "Row areas are not orientation-aware": the decoder's point comes from
+  `GfxRenderer::tapToLogical`, which applies the orientation; the areas are
+  logical too. Not a bug.
+- "Hardcoded 800x480 in `logicalToPanelNormalized`":
+  `EInkDisplay::DISPLAY_WIDTH/HEIGHT` is per simulated board
+  (`src/EInkDisplay.h`: 792 on X3, 800 otherwise), and `activeWidth()` is that
+  times the render scale. Not a bug.
+Reviewer's clean list: the Picco gate on `wasScreenTapped`, the area dedupe,
+`claimScreenTaps` once per loop, `tapToLogical` unaffected.
