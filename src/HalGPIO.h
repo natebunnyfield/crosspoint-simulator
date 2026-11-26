@@ -435,7 +435,8 @@ public:
   unsigned long lastTouchReportMs() const;
 
   // Simulator-only, no firmware counterpart: the host's side of the slide
-  // switch. A phone has no switch, so the harness (or a script) sets it.
+  // switch. The first call also makes the switch present (hasToggleSwitch);
+  // the iOS pad's slide switch is the only caller.
   void setToggleSwitchForHost(bool on);
   // Simulator-only, no firmware counterpart: how many contacts the touch
   // model has begun, how many the firmware has READ (readTouchContact while

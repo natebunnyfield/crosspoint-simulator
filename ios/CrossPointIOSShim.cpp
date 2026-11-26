@@ -217,6 +217,17 @@ constexpr int kPadCount = 7;
 // tapping the page do the same thing; the chip exists to say so.
 SDL_FRect g_kbChip{};
 
+#if FREEINK_DEVICE_PICCO
+// THE PICCO'S SLIDE SWITCH (owner 2026-11-26: "add all hardware switches and
+// buttons on picco to ios app"). NOT a PadButton: the device reports it as a
+// LEVEL (InputManager::isToggleSwitchOn, GPIO6), not as a press, so it never
+// enters PadCore. A touch landing on it flips it; the position is stored, as a
+// physical switch keeps its position across power cycles. It takes the slot
+// Back left (the Picco has no Back key), half height like POWER, which reads
+// as the small control it is. Zero rect = not drawn, not hit.
+SDL_FRect g_slideSwitch{};
+#endif
+
 // THE PAGE-COLOR BUTTON IS GONE, 2026-08-24. Owner ruling: "remove the color
 // button from single finger (not zen) mode ui."
 //
@@ -972,10 +983,31 @@ static void layoutPadImpl(int outW, int outH);
 void layoutPad(int outW, int outH) {
   layoutPadImpl(outW, outH);
 #if FREEINK_DEVICE_PICCO
-  // The Picco has no Back, arrows or (confirmed) Confirm: those slots retire
-  // the way the side-rocker ruling retires a slot -- a zero rect draws nothing
-  // and hit-tests nothing, pairs included (paintPad's pair guard).
-  for (int i : {kPadBack, kPadConfirm, kPadLeft, kPadRight})
+  // The Picco's controls (BoardConfig.h PICCO): Power (GPIO2), the rocker
+  // (GPIO21 / GPIO9), a third key on GPIO5 that the board carries as Confirm,
+  // and the slide switch (GPIO6). All four are on the pad since 2026-11-26
+  // (owner: "add all hardware switches and buttons on picco to ios app").
+  // CONFIRM keeps its own slot. Its physical place on the device is not
+  // recorded anywhere (BoardConfig.h: "GPIO5's role is not" confirmed), so it
+  // stays where the pad already puts Confirm.
+  // THE SLIDE SWITCH takes the Back slot, which the Picco has no key for: half
+  // POWER's height, centered in the slot, and one 8 pt step short of Confirm
+  // so the two read as two controls rather than a fused pair.
+  {
+    const SDL_FRect back = g_pad[kPadBack].rect;
+    const SDL_FRect power = g_pad[kPadPower].rect;
+    const float gap = 8.0f * g_ptScale;
+    if (back.w > gap && back.h > 0.0f && power.h > 0.0f) {
+      const float h = SDL_min(power.h, back.h);
+      g_slideSwitch = {back.x, back.y + (back.h - h) / 2.0f, back.w - gap, h};
+    } else {
+      g_slideSwitch = SDL_FRect{0.0f, 0.0f, 0.0f, 0.0f};
+    }
+  }
+  // Back and the arrows retire the way the side-rocker ruling retires a slot
+  // -- a zero rect draws nothing and hit-tests nothing, pairs included
+  // (paintPad's pair guard, which draws the surviving Confirm on its own).
+  for (int i : {kPadBack, kPadLeft, kPadRight})
     g_pad[i].rect = SDL_FRect{0.0f, 0.0f, 0.0f, 0.0f};
   // The rocker capsule is a side-by-side pair, UP slot on the LEFT. On the X3
   // that reads right: BTN_UP is page BACK there. The Picco firmware maps
@@ -1900,6 +1932,17 @@ void applyTheme() {
   // Now the system SEEDS the setting -- at startup, and whenever the phone's
   // appearance actually changes -- and everything reads the setting from there,
   // so an in-app toggle moves the whole screen and survives.
+#if FREEINK_DEVICE_PICCO
+  // A slide switch bound to Dark Mode OWNS it (firmware src/util/SlideSwitch.h,
+  // main.cpp handleSlideSwitch): the system appearance must not seed it, or
+  // the knob says on over a light page and the Dark Mode row stays hidden as
+  // switch-owned (adversarial review 2026-11-26, finding 2).
+  if (g_seedDarkFromSystem && gpio.hasToggleSwitch() &&
+      SETTINGS.slideSwitchAction == CrossPointSettings::SLIDE_SWITCH_NIGHT_MODE) {
+    SDL_Log("[harness] dark mode belongs to the slide switch; system appearance not seeded");
+    g_seedDarkFromSystem = false;
+  }
+#endif
   if (g_seedDarkFromSystem) {
     const uint8_t wantSystem = systemIsDark() ? 1 : 0;
     if (SETTINGS.darkMode != wantSystem) {
@@ -3207,6 +3250,42 @@ void paintTopFillets(SDL_Renderer *r, const SDL_FRect &panel) {
 // apart. Recorded because it is the answer to "should the button get a glyph"
 // if it ever comes back: no, and it was asked and answered.
 
+#if FREEINK_DEVICE_PICCO
+// The slide switch: a capsule track in the pad's stroke-then-face build, and a
+// knob filling the half the switch is set to -- left off, right on -- in the
+// pressed tone. Wordless like every pad control; the knob's side is the state.
+void paintSlideSwitch(SDL_Renderer *r, const Palette &p, float radius,
+                      float hairline) {
+  const SDL_FRect &c = g_slideSwitch;
+  if (c.w <= 0.0f || c.h <= 0.0f) return;
+  const float rad = SDL_min(radius, c.h / 2.0f);
+  setRGB(r, p.hairline);
+  fillRoundRect(r, c, rad);
+  setRGB(r, p.face);
+  fillRoundRect(r, {c.x + hairline, c.y + hairline, c.w - 2 * hairline,
+                    c.h - 2 * hairline},
+                rad - hairline);
+  const bool on = gpio.isToggleSwitchOn();
+  const float inset = SDL_max(2.0f * hairline, c.h * 0.12f);
+  const float knobW = (c.w - 2.0f * inset) / 2.0f;
+  const SDL_FRect knob{on ? c.x + c.w - inset - knobW : c.x + inset, c.y + inset,
+                       knobW, c.h - 2.0f * inset};
+  const float knobR = SDL_max(0.0f, rad - inset);
+  setRGB(r, p.hairline);
+  fillRoundRect(r, knob, knobR);
+  setRGB(r, p.faceDown);
+  fillRoundRect(r, {knob.x + hairline, knob.y + hairline, knob.w - 2 * hairline,
+                    knob.h - 2 * hairline},
+                SDL_max(0.0f, knobR - hairline));
+}
+
+bool hitSlideSwitch(float x, float y) {
+  const SDL_FRect &c = g_slideSwitch;
+  return c.w > 0 && c.h > 0 && x >= c.x && x < c.x + c.w && y >= c.y &&
+         y < c.y + c.h;
+}
+#endif
+
 void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
                        float hairline) {
   if (!gpio.isTextEntryActive()) return;
@@ -3769,7 +3848,6 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   for (const auto &pr : pairs) {
     const SDL_FRect &a = g_pad[pr[0]].rect;
     const SDL_FRect &b = g_pad[pr[1]].rect;
-    inPair[pr[0]] = inPair[pr[1]] = true;
 
     // A RETIRED OR NOT-YET-LAID-OUT PAIR DRAWS NOTHING -- the same guard the
     // single-button loop below has always had, which this loop did not.
@@ -3789,6 +3867,11 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // terms, it is in the exact code that has already produced one phantom
     // capsule (see the pairs-table note above), and the guard costs a compare.
     if (a.w <= 0.0f || a.h <= 0.0f || b.w <= 0.0f || b.h <= 0.0f) continue;
+    // Marked only once the pair actually draws: a pair with ONE retired half
+    // (the Picco's Confirm, whose Back is gone) leaves the survivor to the
+    // single-button loop below. Marked before the guard, it was skipped by
+    // both loops and never drawn.
+    inPair[pr[0]] = inPair[pr[1]] = true;
 
     const SDL_FRect uni{a.x, a.y, (b.x + b.w) - a.x, a.h};
     setRGB(r, p.hairline);
@@ -3836,6 +3919,9 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     fillRoundRect(r, inner, radius - hairline);
   }
 
+#if FREEINK_DEVICE_PICCO
+  paintSlideSwitch(r, p, radius, hairline);
+#endif
   paintKeyboardChip(r, p, radius, hairline);
 }
 
@@ -4078,6 +4164,18 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         // Release). With the Diagnostics Log switch on, these lines say which
         // gate a finger died at, in diagnostics/firmware.log.
         --g_piccoDbg.gated;  // reached the Picco branch
+        // The slide switch flips on the touch, as a real one moves under the
+        // thumb. The finger then carries on as any off-page finger does (the
+        // classifiers must see its down to make sense of its lift), and lands
+        // on no pad slot and no page.
+        const bool onSwitch = !g_zen && hitSlideSwitch(fx, fy);
+        if (onSwitch) {
+          const bool on = !gpio.isToggleSwitchOn();
+          gpio.setToggleSwitchForHost(on);
+          CrossPointPrefs_setPiccoSlideSwitchOn(on ? 1 : 0);
+          SDL_Log("[picco] slide switch -> %s", on ? "on" : "off");
+          SimulatorOverlay::requestPresent();
+        }
         float nx = 0.0f, ny = 0.0f;
         const int padSlot = padHitTest(fx, fy);
         // THE LEFT MARGIN IS THE PAGE'S LEFT EDGE. On the Picco the glass ends
@@ -4094,8 +4192,13 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         const bool inLeftMargin =
             fx < static_cast<float>(SimulatorOverlay::panelLeftPx()) && fy >= pageTop &&
             fy < static_cast<float>(SimulatorOverlay::panelBottomPx());
-        if (padSlot < 0 && (piccoPagePoint(fx, fy, false, nx, ny) ||
-                            (inLeftMargin && piccoPagePoint(fx, fy, true, nx, ny)))) {
+        // Never a page finger when it flipped the switch: on the iPad and the
+        // turned landscape the switch sits in the left margin, level with the
+        // page, where the clamp above would also turn the page (adversarial
+        // review 2026-11-26, finding 1).
+        if (padSlot < 0 && !onSwitch &&
+            (piccoPagePoint(fx, fy, false, nx, ny) ||
+             (inLeftMargin && piccoPagePoint(fx, fy, true, nx, ny)))) {
           if (!g_piccoFingerDown) {
             ++g_piccoDbg.page;
             g_piccoFingerDown = true;
@@ -4502,6 +4605,9 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // band change also clear g_padLaidOut, but they do not move the output,
       // so their rects stay valid and their taps must keep working.
       for (auto &b : g_pad) b.rect = SDL_FRect{0, 0, 0, 0};
+#if FREEINK_DEVICE_PICCO
+      g_slideSwitch = SDL_FRect{0, 0, 0, 0};  // a control, like the slots
+#endif
       // PRE-WARMED, added 2026-08-31 (S-034 investigation) -- this was the
       // one geometry-invalidating site with no zenPreWarmLayout() call, out
       // of the four that clear g_padLaidOut (the others: the zen toggle,
@@ -4657,6 +4763,17 @@ extern "C" float CrossPointZen_pageLeftPx(void) { return zenPageLeftPx(); }
 // CrossPointHarness_prepareFilesystem lives in CrossPointFsPrep.cpp: it is
 // plain POSIX and is compiled and exercised on a desktop host, which the
 // SDL-facing code in this file cannot be.
+
+// Before setup(), so the boot's handleSlideSwitch() (firmware main.cpp) reads
+// the position the pad's switch was left in. Here and not in
+// prepareFilesystem, which is plain POSIX and has no prefs to read.
+void CrossPointHarness_seedSlideSwitch() {
+#if FREEINK_DEVICE_PICCO
+  const bool on = CrossPointPrefs_piccoSlideSwitchOn() != 0;
+  gpio.setToggleSwitchForHost(on);
+  SDL_Log("[picco] slide switch present, %s", on ? "on" : "off");
+#endif
+}
 
 // THE SLEEP TICK (SimulatorOverlay::setSleepTick). The firmware's terminal
 // sleep loop never returns to the main loop, so perFrame stops for the whole

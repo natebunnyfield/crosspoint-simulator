@@ -93,6 +93,12 @@ void CrossPointPrefs_setZenModeEnabled(int on);
 // Host-only bookkeeping, deliberately NOT a firmware setting: the device has
 // no system appearance to follow.
 int CrossPointPrefs_lastSeenSystemDark(void);
+
+// BOOX Picco builds: where the pad's slide switch was left, 1 = on. The
+// device's switch is physical, so its position survives a relaunch; this is
+// that. 0 when never set. Host-only, not a firmware setting.
+int CrossPointPrefs_piccoSlideSwitchOn(void);
+void CrossPointPrefs_setPiccoSlideSwitchOn(int on);
 void CrossPointPrefs_setLastSeenSystemDark(int dark);
 
 // Is read-aloud TTS enabled? 1 = read the open book aloud (see

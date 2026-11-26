@@ -240,6 +240,9 @@ unsigned piccoDbgGestures = 0;
 // contact is down "now" is its latest report (see readTouchContact).
 unsigned long piccoLastReportMs = 0;
 bool piccoToggleOn = false;
+// Set once a host control exists for the switch (the iOS pad's slide switch,
+// CrossPointHarness_seedSlideSwitch). Until then hasToggleSwitch() is false.
+bool piccoToggleHosted = false;
 // THE DECODER MUST SEE A CONTACT'S LAST STATE BEFORE IT LIFTS. The firmware's
 // gesture decoder (PiccoInput.h GestureDecoder) samples readTouchContact once
 // per frame. On the device the touch INT wakes the slice a contact starts in
@@ -2097,16 +2100,22 @@ bool HalGPIO::wasTouchActivity() const {
 void HalGPIO::setSharedConfirmPowerShortPressEmitsPower(bool /*enabled*/) {}
 
 #if FREEINK_DEVICE_PICCO
-// No switch on the host, and saying so is the honest answer: nothing can move
-// it (a phone has none, and no host control exists yet), and a present switch
-// stuck at "off" is not inert -- bound to Dark Mode it forces darkMode off at
-// every boot and hides the Dark Mode row as switch-owned (adversarial review
-// 2026-11-25, finding 5). With it absent the firmware offers its own toggles.
-bool HalGPIO::hasToggleSwitch() const { return false; }
+// The switch exists only where a host gives it a control. The iOS pad has one
+// since 2026-11-26 (owner: "add all hardware switches and buttons on picco to
+// ios app"), seeded from its stored position before setup() so the boot reads
+// the position the switch was left in, as on the device. The desktop has no
+// control, so there the switch stays absent: a present switch nothing can move
+// is not inert -- bound to Dark Mode it forces darkMode off at every boot and
+// hides the Dark Mode row as switch-owned (adversarial review 2026-11-25,
+// finding 5). With it absent the firmware offers its own toggles.
+bool HalGPIO::hasToggleSwitch() const { return piccoToggleHosted; }
 
 bool HalGPIO::isToggleSwitchOn() const { return piccoToggleOn; }
 
-void HalGPIO::setToggleSwitchForHost(const bool on) { piccoToggleOn = on; }
+void HalGPIO::setToggleSwitchForHost(const bool on) {
+  piccoToggleHosted = true;
+  piccoToggleOn = on;
+}
 
 // The device asks its charger for the input rail; the host's answer is the one
 // isUsbConnected() already gives (SimHostBattery: the phone's own charging

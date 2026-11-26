@@ -12,6 +12,11 @@ extern "C" {
 // ./fs_, which is meaningless against an iOS bundle. Call before setup().
 void CrossPointHarness_prepareFilesystem();
 
+// BOOX Picco builds: hand the HAL the slide switch's stored position, which
+// also makes the switch present. Call after prepareFilesystem and before
+// setup(), whose first handleSlideSwitch() applies it. A no-op elsewhere.
+void CrossPointHarness_seedSlideSwitch();
+
 // Install the on-screen button pad and its event watch. Requires SDL to be
 // initialized, so call after setup() (HalDisplay::begin does the SDL_Init).
 //

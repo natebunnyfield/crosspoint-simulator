@@ -41,6 +41,7 @@ static NSString *const kZenModeEnabled = @"zenModeEnabled";
 // be distinguishable from "recorded as light", and a registration domain value
 // would make -integerForKey: answer 0 for both.
 static NSString *const kLastSeenSystemDark = @"lastSeenSystemDark";
+static NSString *const kPiccoSlideSwitchOn = @"piccoSlideSwitchOn";
 
 // Read-aloud TTS. Here the missing-key failure mode is benign — NO means the
 // feature stays off, which is also the shipped default.
@@ -455,6 +456,16 @@ int CrossPointPrefs_lastSeenSystemDark(void) {
 void CrossPointPrefs_setLastSeenSystemDark(int dark) {
   [[NSUserDefaults standardUserDefaults] setObject:@(dark ? 1 : 0)
                                             forKey:kLastSeenSystemDark];
+}
+
+int CrossPointPrefs_piccoSlideSwitchOn(void) {
+  // Not in Root.plist (no Settings.app row: the switch is on the pad), so not
+  // checkKnown'd; an absent key is off.
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kPiccoSlideSwitchOn] ? 1 : 0;
+}
+
+void CrossPointPrefs_setPiccoSlideSwitchOn(int on) {
+  [[NSUserDefaults standardUserDefaults] setBool:(on != 0) forKey:kPiccoSlideSwitchOn];
 }
 
 int CrossPointPrefs_readAloudEnabled(void) {

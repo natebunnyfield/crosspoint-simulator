@@ -387,3 +387,77 @@ findings, none held on checking:
   times the render scale. Not a bug.
 Reviewer's clean list: the Picco gate on `wasScreenTapped`, the area dedupe,
 `claimScreenTaps` once per loop, `tapToLogical` unaffected.
+
+## 2026-11-26: every Picco control on the pad
+
+Owner: *"add all hardware switches and buttons on picco to ios app."*
+
+The Picco's controls, from the firmware SDK's board profile
+(`freeink-sdk/libs/hardware/BoardConfig/include/BoardConfig.h`, `PICCO`):
+
+| Control | Pin | Firmware role | On the iOS pad before | Now |
+|---|---|---|---|---|
+| Power | GPIO2 | Power (sleep/wake) | yes, bottom left | unchanged |
+| Rocker upper | GPIO21 (`BTN_UP`) | Right / next | yes, right half of the bottom-right capsule | unchanged |
+| Rocker lower | GPIO9 (`BTN_DOWN`) | Left / previous | yes, left half | unchanged |
+| Third key | GPIO5 (`BTN_CONFIRM`) | Confirm (`mapButton` shared path, `SETTINGS.frontButtonConfirm`) | no, its slot was zeroed | the Confirm capsule, its old slot |
+| Slide switch | GPIO6 | a level, bound to Frontlight or Dark Mode (`main.cpp handleSlideSwitch`) | no; the HAL answered `hasToggleSwitch() == false` | a two-position switch in the slot Back left |
+
+GPIO5's physical place on the device is recorded nowhere (the profile says its
+role is unconfirmed), so the capsule stays where the pad already put Confirm.
+
+**How the switch is modeled.** `HalGPIO::hasToggleSwitch()` (simulator) now
+answers whether a host has given the switch a control: the first
+`setToggleSwitchForHost()` makes it present. Only the iOS Picco build calls it,
+from `CrossPointHarness_seedSlideSwitch()` in `simulator_main.cpp`, after
+`prepareFilesystem` and before `setup()`, so the boot's `handleSlideSwitch()`
+reads the stored position as the device reads its physical one. The desktop
+never calls it, so on the desktop the switch is still absent, which keeps the
+2026-11-25 review's finding 5 closed there. The position persists in
+NSUserDefaults (`piccoSlideSwitchOn`, no Settings.app row). A touch landing on
+the switch flips it (`[picco] slide switch -> on|off` in the log); the finger
+then goes on as an off-page finger so the classifiers see its down and its lift.
+
+**A pad bug this found.** `paintPad`'s pair loop marked both halves of a pair
+as drawn BEFORE its zero-rect guard, so a pair with one retired half (Back gone,
+Confirm kept) was skipped by both the pair loop and the single loop: Confirm
+hit-tested but was never drawn. Marked after the guard now. X3 is unaffected:
+its pairs are whole, and a fully retired pair is still skipped by both loops.
+
+**What the switch does on a phone.** Its default binding is Frontlight, and the
+simulator's `HalFrontlight::present()` is false on the Picco profile (true on
+X4 Pro only), so with the default binding a flip changes nothing on screen,
+exactly as `handleSlideSwitch()` does on a Picco with no light. Bound to Dark
+Mode (Settings > Slide Switch) it drives dark mode, and the Dark Mode row hides
+as switch-owned, as on the device.
+
+**Verified on the iPhone Air simulator, Release, real UIKit taps** (scratch
+XCUITest `Tapper`), from a card with `slideSwitchAction=1`, `darkMode=0`:
+the switch tap logged `[picco] slide switch -> on` and the firmware's
+`[SWITCH] Slide switch on`, the page went dark and the knob moved right; a
+relaunch came back with the knob right and the page dark; a tap on the Confirm
+capsule on Home logged `CONFIRM down/up` and entered `EpubReader`. Desktop
+canaries `simulator_picco` and `simulator_x3` build. Device feel UNCONFIRMED.
+
+**Review of the controls (2026-11-26), and what was done.** A read-only
+adversarial pass found:
+1. iPad and the turned landscape put the switch in the left margin, level with
+   the page, where the left-margin clamp also made its finger a page finger:
+   one tap flipped the switch and turned the page. Fixed: a finger that flipped
+   the switch is never a page finger.
+2. Bound to Dark Mode, the system-appearance seed in `applyTheme` overwrote
+   `SETTINGS.darkMode` (at launch after `setup()`'s `handleSlideSwitch`, and on
+   any appearance change), so the knob said on over a light page. Fixed: the
+   seed is skipped while the switch owns Dark Mode.
+3. A window resize zeroed the pad's slots but not the switch (latent; the same
+   gap the keyboard chip has). Fixed for the switch.
+4. With the default binding (Frontlight) a flip changes nothing on screen
+   (no frontlight on the Picco host). Kept: that is the device's own behavior
+   without a light.
+Checked and found clean by the same pass: the link on both devices
+(`CrossPointHarness_seedSlideSwitch` defined unconditionally, C linkage,
+called only under `CROSSPOINT_SIM_IOS`); the in-process reboot (seed runs
+before the setjmp, state survives the longjmp); zen (the Picco forces it off,
+and zen zeroes the switch); the mixer/ink-picker gate; drags and second
+fingers; layout staleness on every `layoutPadImpl` path; the pair-loop change
+leaves X3 pixels unchanged.

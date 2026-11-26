@@ -336,6 +336,7 @@ int main(int argc, char **argv) {
   // HalStorage's ./fs_ prefix relies on the CWD, which on iOS is the read-only
   // bundle. Must happen before setup() touches storage.
   CrossPointHarness_prepareFilesystem();
+  CrossPointHarness_seedSlideSwitch();
 
   // The firmware's LOG_DBG lines are produced on this harness (LOG_LEVEL=2) and
   // then thrown away: on iOS they go to stderr, which a TestFlight build
