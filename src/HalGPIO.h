@@ -437,6 +437,13 @@ public:
   // Simulator-only, no firmware counterpart: the host's side of the slide
   // switch. A phone has no switch, so the harness (or a script) sets it.
   void setToggleSwitchForHost(bool on);
+  // Simulator-only, no firmware counterpart: how many contacts the touch
+  // model has begun, how many the firmware has READ (readTouchContact while
+  // down), and how many buttons its gesture decoder has fired. The iOS
+  // Picco app draws them on screen (TestFlight build 2: touch dead on the
+  // owner's iPhone, live on every simulator, and no log written).
+  void piccoTouchCounts(unsigned &contacts, unsigned &reads,
+                        unsigned &gestures) const;
 #endif
 
   // Setup wake up GPIO and enter deep sleep

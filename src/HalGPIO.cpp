@@ -231,6 +231,10 @@ uint8_t piccoSynthPressed = 0;
 uint8_t piccoSynthHeld = 0;
 uint8_t piccoSynthReleased = 0;
 unsigned long piccoSynthPressedAt = 0;
+// The on-screen counters (HalGPIO::piccoTouchCounts).
+unsigned piccoDbgContacts = 0;
+unsigned piccoDbgReads = 0;
+unsigned piccoDbgGestures = 0;
 // millis() of the latest contact report. A finger resting on glass keeps
 // reporting on the TMA525C; SDL sends no event for a still finger, so while a
 // contact is down "now" is its latest report (see readTouchContact).
@@ -558,6 +562,7 @@ void beginTouch(float logicalNx, float logicalNy) {
   touchState.pressedAt = SDL_GetTicks();
 #if FREEINK_DEVICE_PICCO
   piccoLastReportMs = millis();
+  ++piccoDbgContacts;
 #endif
 }
 
@@ -2111,6 +2116,8 @@ bool HalGPIO::readTouchContact(float &nx, float &ny, bool &live,
   // NOT gated: gestures are buttons on every screen (HalGPIO.cpp:358-370).
   if (!touchState.down)
     return false;
+  // Count the first read of each contact only.
+  if (!piccoReadSinceChange) ++piccoDbgReads;
   piccoReadSinceChange = true;
   live = !touchState.suppressed;
   if (live) {
@@ -2135,6 +2142,14 @@ void HalGPIO::injectButtonTap(const uint8_t index) {
   // The far end of a page touch's trail (ios/CrossPointIOSShim.cpp logs the
   // near end): the firmware's gesture decoder fired this button.
   SDL_Log("[picco] gesture -> button %u", static_cast<unsigned>(index));
+  ++piccoDbgGestures;
+}
+
+void HalGPIO::piccoTouchCounts(unsigned &contacts, unsigned &reads,
+                               unsigned &gestures) const {
+  contacts = piccoDbgContacts;
+  reads = piccoDbgReads;
+  gestures = piccoDbgGestures;
 }
 
 bool HalGPIO::isTouchContactDown() const { return touchState.down; }

@@ -282,6 +282,24 @@ bool g_zen = std::getenv("CROSSPOINT_SIM_ZEN") != nullptr;
 // docs/picco-touch-on-ios-2026-11-25.md.
 SDL_FingerID g_piccoFinger = 0;
 bool g_piccoFingerDown = false;
+// THE ON-SCREEN TOUCH COUNTERS (TestFlight build 2, owner: "not working and no
+// diagnostics were made when enabled"). Touch was dead on the owner's iPhone
+// Air through two builds while real UIKit taps worked on every simulator, and
+// the log that was meant to say why was never written. So the evidence is
+// drawn on the glass, where a screenshot carries it: every finger iOS handed
+// SDL, every fate the harness gave it, and the HAL's and decoder's side.
+struct PiccoTouchDbg {
+  unsigned sdlDown = 0;    // SDL_EVENT_FINGER_DOWN reaching padWatch at all
+  unsigned pointer = 0;    // SDL_EVENT_MOUSE_BUTTON_DOWN (pointer, not finger)
+  unsigned gated = 0;      // stopped before the Picco branch (asleep/sheet/geo)
+  unsigned page = 0;       // accepted as the page finger
+  unsigned pageUp = 0;     // its lift delivered
+  unsigned dropped = 0;    // a second finger while one was down
+  unsigned off = 0;        // not on the page
+  unsigned pad = 0;        // on a pad capsule
+  unsigned abandoned = 0;  // cancel / no geometry / app inactive
+};
+PiccoTouchDbg g_piccoDbg;
 float g_piccoLastNx = 0.0f, g_piccoLastNy = 0.0f;  // the finger's last page point
 
 // The page finger is gone without a lift we can trust (a cancel, no geometry,
@@ -291,6 +309,7 @@ float g_piccoLastNx = 0.0f, g_piccoLastNy = 0.0f;  // the finger's last page poi
 void piccoAbandonFinger() {
   if (!g_piccoFingerDown) return;
   g_piccoFingerDown = false;
+  ++g_piccoDbg.abandoned;
   gpio.suppressTouchContact();
   gpio.injectTouchUp(g_piccoLastNx, g_piccoLastNy);
   SDL_Log("[picco] page finger %lld abandoned (cancel, no geometry or app "
@@ -3339,12 +3358,56 @@ void relayoutBeforeFit(int outW, int outH) {
   }
 }
 
+#if FREEINK_DEVICE_PICCO
+// The counters above, drawn in the black band over the page (SDL's 8x8 debug
+// font, integer-scaled), so one screenshot carries the whole touch path.
+void paintPiccoTouchDbg(SDL_Renderer *r, int outW) {
+  unsigned contacts = 0, reads = 0, gestures = 0;
+  gpio.piccoTouchCounts(contacts, reads, gestures);
+  const PiccoTouchDbg &d = g_piccoDbg;
+  char l1[96], l2[96], l3[96];
+  std::snprintf(l1, sizeof l1, "ios %u ptr %u gated %u", d.sdlDown, d.pointer,
+                d.gated);
+  std::snprintf(l2, sizeof l2, "page %u/%u 2nd %u off %u pad %u ab %u", d.page,
+                d.pageUp, d.dropped, d.off, d.pad, d.abandoned);
+  std::snprintf(l3, sizeof l3, "fw %u read %u gest %u diag %d/%d", contacts,
+                reads, gestures, CrossPointPrefs_diagnosticsEnabled(),
+                firmwarelog::armed() ? 1 : 0);
+  const int pageTop =
+      SimulatorOverlay::panelBottomPx() - SimulatorOverlay::panelHeightPx();
+  const float sc = std::max(1.0f, std::floor(g_ptScale));
+  const float lineH = 10.0f * sc;
+  // Clear of the paper card, which reaches ~30 pt above the panel's text
+  // area (measured on an iPhone Air simulator, 2026-11-25).
+  float y = static_cast<float>(pageTop) - 3.0f * lineH - 40.0f * sc;
+  if (y < 0.0f) y = 0.0f;
+  const float x = 8.0f * sc;
+  (void)outW;
+  SDL_SetRenderDrawColor(r, 200, 200, 200, 255);
+  SDL_SetRenderScale(r, sc, sc);
+  for (const char *line : {l1, l2, l3}) {
+    SDL_RenderDebugText(r, x / sc, y / sc, line);
+    y += lineH;
+  }
+  SDL_SetRenderScale(r, 1.0f, 1.0f);
+}
+#endif
+
 void paintPad(SDL_Renderer *r, int outW, int outH) {
   // SimulatorOverlay holds a single draw callback, so the pad's painter is
   // also the dispatch point for the read-aloud word highlight. First, so the
   // pad never paints under it (their areas are disjoint anyway: highlight on
   // the panel, pad in the reserved band).
   CrossPointReadAloud_paintHighlight(r, outW, outH, g_dark ? 1 : 0);
+#if FREEINK_DEVICE_PICCO
+  // LAST, over everything this painter draws (the surround's black fill
+  // painted over a first-drawn version), whichever of its returns it takes.
+  struct DbgAtExit {
+    SDL_Renderer *r;
+    int w;
+    ~DbgAtExit() { paintPiccoTouchDbg(r, w); }
+  } dbgAtExit{r, outW};
+#endif
 
   // Normally already done by relayoutBeforeFit, before this present fitted
   // the page; this call is then a no-op. Kept for a present that reached here
@@ -3958,6 +4021,20 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
 
   traceInput(e);
 
+#if FREEINK_DEVICE_PICCO
+  if (e->type == SDL_EVENT_FINGER_DOWN) {
+    ++g_piccoDbg.sdlDown;
+    ++g_piccoDbg.gated;  // taken back below when the Picco branch is reached
+    SimulatorOverlay::requestPresent();
+  } else if (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+    ++g_piccoDbg.pointer;
+    SimulatorOverlay::requestPresent();
+  } else if (e->type == SDL_EVENT_FINGER_UP ||
+             e->type == SDL_EVENT_FINGER_CANCELED) {
+    SimulatorOverlay::requestPresent();
+  }
+#endif
+
   switch (e->type) {
     case SDL_EVENT_FINGER_DOWN: {
       // ASLEEP, IN ZEN: THIS FINGER IS THE POWER BUTTON (owner 2026-09-06,
@@ -4000,10 +4077,12 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         // swipes and holds all worked on the iOS Simulator, Debug and
         // Release). With the Diagnostics Log switch on, these lines say which
         // gate a finger died at, in diagnostics/firmware.log.
+        --g_piccoDbg.gated;  // reached the Picco branch
         float nx = 0.0f, ny = 0.0f;
         const int padSlot = padHitTest(fx, fy);
         if (padSlot < 0 && piccoPagePoint(fx, fy, false, nx, ny)) {
           if (!g_piccoFingerDown) {
+            ++g_piccoDbg.page;
             g_piccoFingerDown = true;
             g_piccoFinger = e->tfinger.fingerID;
             g_piccoLastNx = nx;
@@ -4012,6 +4091,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
             SDL_Log("[picco] page finger %lld down at page %.3f,%.3f",
                     static_cast<long long>(e->tfinger.fingerID), nx, ny);
           } else {
+            ++g_piccoDbg.dropped;
             SDL_Log("[picco] finger %lld DROPPED: finger %lld is still down "
                     "(single touch)",
                     static_cast<long long>(e->tfinger.fingerID),
@@ -4019,6 +4099,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           }
           break;
         }
+        if (padSlot >= 0) ++g_piccoDbg.pad; else ++g_piccoDbg.off;
         SDL_Log("[picco] finger %lld at %.0f,%.0f px: %s (page %d,%d %dx%d px)",
                 static_cast<long long>(e->tfinger.fingerID), fx, fy,
                 padSlot >= 0 ? g_pad[padSlot].name : "off the page",
@@ -4126,6 +4207,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           break;
         }
         g_piccoFingerDown = false;
+        ++g_piccoDbg.pageUp;
         gpio.injectTouchUp(nx, ny);
         SDL_Log("[picco] page finger %lld up at page %.3f,%.3f",
                 static_cast<long long>(e->tfinger.fingerID), nx, ny);
