@@ -1021,6 +1021,13 @@ void layoutPad(int outW, int outH) {
     g_pad[kPadUp].rect = g_pad[kPadLeft].rect;
     g_pad[kPadDown].rect = g_pad[kPadRight].rect;
   }
+  // SELECT (the third key, Confirm) moves left into the Back slot (owner
+  // 2026-11-26: "move select to over to the left obviously"): same size, now
+  // straight above POWER, so the left column reads Select over Power. The
+  // switch keeps its place right of POWER.
+  if (g_pad[kPadBack].rect.w > 0.0f && g_pad[kPadConfirm].rect.w > 0.0f) {
+    g_pad[kPadConfirm].rect = g_pad[kPadBack].rect;
+  }
   // Back and the arrows retire the way the side-rocker ruling retires a slot
   // -- a zero rect draws nothing and hit-tests nothing, pairs included
   // (paintPad's pair guard, which draws the surviving Confirm on its own).
