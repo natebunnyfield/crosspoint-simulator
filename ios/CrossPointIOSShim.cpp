@@ -990,16 +990,22 @@ void layoutPad(int outW, int outH) {
   // CONFIRM keeps its own slot. Its physical place on the device is not
   // recorded anywhere (BoardConfig.h: "GPIO5's role is not" confirmed), so it
   // stays where the pad already puts Confirm.
-  // THE SLIDE SWITCH takes the Back slot, which the Picco has no key for: half
-  // POWER's height, centered in the slot, and one 8 pt step short of Confirm
-  // so the two read as two controls rather than a fused pair.
+  // THE SLIDE SWITCH sits immediately right of POWER (owner 2026-11-26: "move
+  // picco switch to the immediate right of power and match vertical and
+  // horizontal layout optics without resizing"). Its size is unchanged: the
+  // Back slot's width less one 8 pt step, POWER's height. Vertically it
+  // shares POWER's row exactly (same top, same bottom). Horizontally it
+  // starts one 8 pt step after POWER, the gap it kept from Confirm before, so
+  // the two read as two controls rather than a fused pair; and because POWER
+  // and the Back slot are one column wide, its right edge lands on Confirm's
+  // right edge in the row above.
   {
     const SDL_FRect back = g_pad[kPadBack].rect;
     const SDL_FRect power = g_pad[kPadPower].rect;
     const float gap = 8.0f * g_ptScale;
-    if (back.w > gap && back.h > 0.0f && power.h > 0.0f) {
+    if (back.w > gap && back.h > 0.0f && power.w > 0.0f && power.h > 0.0f) {
       const float h = SDL_min(power.h, back.h);
-      g_slideSwitch = {back.x, back.y + (back.h - h) / 2.0f, back.w - gap, h};
+      g_slideSwitch = {power.x + power.w + gap, power.y + (power.h - h) / 2.0f, back.w - gap, h};
     } else {
       g_slideSwitch = SDL_FRect{0.0f, 0.0f, 0.0f, 0.0f};
     }
