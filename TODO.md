@@ -235,6 +235,28 @@ is removing capability, which is keep-and-ask.
 
 ## OPEN
 
+### [ST-013] iOS Picco pad and chrome — IN PROGRESS on `picco-layout`
+
+The app half of the firmware's T-033 (`docs/picco-layout-plan-2026-11-26.md`
+in the firmware repo). Being built on the local `picco-layout` branches, not
+pushed:
+- the touch counters drawn only with Settings > Diagnostics Log on;
+- the slide switch's knob hollow at rest ("controls are hollow");
+- the rocker moved up into the empty upper-right slot on the thumb row (owner
+  2026-11-26, "Rocker up a row").
+
+### [ST-014] Does iOS learn a key typed into a Secret field? — UNCONFIRMED
+
+A Secret firmware field (Settings > GitHub Token / Claude API Key) starts SDL
+text input with capitalization and autocorrect off, as SDL's visible-password
+type. That stops "Sk-ant" style corruption (proved on the iPhone Air
+simulator). Whether iOS still adds the typed text to its keyboard dictionary or
+suggestions is not known; the hidden-password type would stop it, but SDL then
+sends up to 64 backspaces on each update and could erase a half-typed key
+(firmware `docs/keys-and-paste-2026-11-26.md`, pass 3). Paste avoids the
+question entirely. To settle: check on a device whether a typed fake key later
+shows up as a suggestion.
+
 ### [ST-012] Picco: Warmth and Brightness drive the page, not a frontlight the phone lacks — FUTURE
 
 Owner 2026-11-26, verbatim: *"future todo: for warmth setting on picco to
