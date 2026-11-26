@@ -128,6 +128,10 @@ struct BoardProfile {
     int8_t down;
   } input;
   ViewableInsets viewableInsets = {};
+  // The SDK profile's UI scale multiplier (freeink-sdk BoardConfig.h
+  // BoardProfile::uiScale), same values per board. The firmware reads it on
+  // the Picco only, for its row heights (UITheme::getMetrics).
+  float uiScale = 1.0f;
 };
 
 #if defined(SIMULATOR_DISPLAY_UC8179)
@@ -157,13 +161,13 @@ inline constexpr BoardProfile XTEINK_X3_UC8279 = {
     {4, 5}};
 inline constexpr BoardProfile XTEINK_X4_PRO = {
     Board::XteinkX4Pro, "xteink_x4_pro", X4_DISPLAY_CONTROLLER,
-    X4_DISPLAY_CONTROLLER_VARIANT, {0, 7}};
+    X4_DISPLAY_CONTROLLER_VARIANT, {0, 7}, {}, 1.2f};
 inline constexpr BoardProfile STICKY = {
-    Board::Sticky, "sticky", DisplayController::SSD1677, 0, {5, 6}};
+    Board::Sticky, "sticky", DisplayController::SSD1677, 0, {5, 6}, {}, 1.2f};
 // The Picco's rocker arrives on the up/down slots; the firmware's Picco
 // mapButton remap turns them into Right (upper) / Left (lower).
 inline constexpr BoardProfile PICCO = {
-    Board::Picco, "picco", DisplayController::SSD1677, 0, {4, 5}};
+    Board::Picco, "picco", DisplayController::SSD1677, 0, {4, 5}, {}, 1.2f};
 
 #if defined(SIMULATOR_DEVICE_PICCO)
 inline BoardProfile ACTIVE = PICCO;
