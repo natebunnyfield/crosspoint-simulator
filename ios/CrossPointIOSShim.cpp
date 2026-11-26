@@ -1004,6 +1004,17 @@ void layoutPad(int outW, int outH) {
       g_slideSwitch = SDL_FRect{0.0f, 0.0f, 0.0f, 0.0f};
     }
   }
+  // THE ROCKER MOVES UP A ROW (owner 2026-11-26, B3 "Rocker up a row",
+  // firmware docs/picco-layout-plan-2026-11-26.md): it is the Picco's only
+  // next/previous, so it takes the arrows' empty slot on the thumb row, beside
+  // the switch and the third key. Every layout (phone portrait, tablet, the
+  // turned landscape) puts the arrows' pair straight above the rocker's, so
+  // this is the same move in all three; POWER and the keyboard chip stay
+  // where they are, and the row the rocker leaves holds only them.
+  if (g_pad[kPadLeft].rect.w > 0.0f && g_pad[kPadRight].rect.w > 0.0f) {
+    g_pad[kPadUp].rect = g_pad[kPadLeft].rect;
+    g_pad[kPadDown].rect = g_pad[kPadRight].rect;
+  }
   // Back and the arrows retire the way the side-rocker ruling retires a slot
   // -- a zero rect draws nothing and hit-tests nothing, pairs included
   // (paintPad's pair guard, which draws the surviving Confirm on its own).
