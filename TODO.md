@@ -235,6 +235,29 @@ is removing capability, which is keep-and-ask.
 
 ## OPEN
 
+### [ST-012] Picco: Warmth and Brightness drive the page, not a frontlight the phone lacks — FUTURE
+
+Owner 2026-11-26, verbatim: *"future todo: for warmth setting on picco to
+adjust paper warmth and crt warmth; brightness adjusts ink and crt specific
+physics"*.
+
+In the iOS Picco app (and the desktop `simulator_picco`), the firmware's
+Brightness and Warmth rows (Settings, `frontlightBrightness` /
+`frontlightWarmth`) stop being inert host-side and drive the simulated
+surface instead:
+
+- **Warmth** shifts the paper's warmth on a light page and the CRT's warmth
+  (phosphor tone) on a dark page.
+- **Brightness** adjusts the ink on a light page and the CRT-specific physics
+  on a dark page (beam brightness, glow, and the like; the exact set is to be
+  chosen against `docs/crt-phosphor-presets.md` and `docs/whole-glass-crt.md`).
+
+Today the rows exist on the Picco but do nothing visible host-side, because
+`HalFrontlight::present()` is true only on X4 Pro (`src/HalFrontlight.cpp:25`),
+and the page's palette is frozen (`src/FrozenPage.h`). Both the frozen-page
+ruling and the 7:1 contrast floor (`src/LightInkPalette.h`) bound what these
+may move; read them before designing. Not started.
+
 ## Carried over from the firmware's tracker
 
 `T-004` in the firmware's [TODO.md](../crosspoint-reader/TODO.md) — "make the
