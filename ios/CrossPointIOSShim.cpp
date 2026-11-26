@@ -4080,7 +4080,22 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         --g_piccoDbg.gated;  // reached the Picco branch
         float nx = 0.0f, ny = 0.0f;
         const int padSlot = padHitTest(fx, fy);
-        if (padSlot < 0 && piccoPagePoint(fx, fy, false, nx, ny)) {
+        // THE LEFT MARGIN IS THE PAGE'S LEFT EDGE. On the Picco the glass ends
+        // where the page does, so the left-edge Back swipe (owner 2026-11-06,
+        // components/EdgeSwipe.h) starts at the edge of the screen. Here the
+        // page sits inside a black margin, and a thumb swiping from the
+        // phone's edge lands in it -- which this branch dropped as "off the
+        // page", so Back never fired (owner 2026-11-25: "I spent a day with
+        // you getting the back button just right, what happened to that
+        // work?"). A finger beside the page, level with it, is clamped onto
+        // its left edge.
+        const float pageTop = static_cast<float>(SimulatorOverlay::panelBottomPx() -
+                                                 SimulatorOverlay::panelHeightPx());
+        const bool inLeftMargin =
+            fx < static_cast<float>(SimulatorOverlay::panelLeftPx()) && fy >= pageTop &&
+            fy < static_cast<float>(SimulatorOverlay::panelBottomPx());
+        if (padSlot < 0 && (piccoPagePoint(fx, fy, false, nx, ny) ||
+                            (inLeftMargin && piccoPagePoint(fx, fy, true, nx, ny)))) {
           if (!g_piccoFingerDown) {
             ++g_piccoDbg.page;
             g_piccoFingerDown = true;
