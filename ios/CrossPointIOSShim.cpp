@@ -3440,7 +3440,11 @@ void relayoutBeforeFit(int outW, int outH) {
 #if FREEINK_DEVICE_PICCO
 // The counters above, drawn in the black band over the page (SDL's 8x8 debug
 // font, integer-scaled), so one screenshot carries the whole touch path.
+// Only while Settings > Diagnostics Log is on: diagnostics are off by default
+// (ios/README.md, ruling 2026-08-09) and nothing on the page moves (2026-08-04),
+// so with the switch off the band above the page stays black.
 void paintPiccoTouchDbg(SDL_Renderer *r, int outW) {
+  if (!CrossPointPrefs_diagnosticsEnabled()) return;
   unsigned contacts = 0, reads = 0, gestures = 0;
   gpio.piccoTouchCounts(contacts, reads, gestures);
   const PiccoTouchDbg &d = g_piccoDbg;
