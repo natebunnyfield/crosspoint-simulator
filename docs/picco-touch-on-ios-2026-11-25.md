@@ -349,3 +349,23 @@ The Diagnostics switch, written as Settings.app writes it
 armed the log and created `diagnostics/firmware.log` on the simulator, so the
 missing log on the device is itself unexplained; `diag a/b` on the device
 answers which half failed.
+
+## TestFlight build 3 (2026-11-25): the counters answered it
+
+The owner's screenshot read `ios 49 ... page 28/28 ... fw 28 read 28 gest 27`:
+every touch reached the firmware and the decoder fired. Touch "not working"
+was the Picco's tap = Right on menus (the 2026-11-06 ruling kept the
+firmware's row taps gated), reported as *"touching a menu item does not select
+it"*. Ruled the same day: *"picco and ios tap should be select row"* --
+firmware side in `crosspoint-reader/docs/picco-port-2026-11-05.md`.
+
+Making that work found a simulator bug that had been there all along:
+`logicalToPanelNormalized` (`src/HalGPIO.cpp`) put a touch in 1x logical
+pixels and divided by the 2x FRAMEBUFFER (`HalDisplay::activeWidth/Height`),
+so on the iOS app every touch reached the firmware at half its position (a
+tap on Home's Settings row read 66,303 for 133,609). Tap = Right ignores
+position, which hid it; the left-edge Back zone was effectively the left
+half. Now divided by the 1x panel (`EInkDisplay::DISPLAY_WIDTH/HEIGHT`), as
+are the tap-slop and swipe distances. At 1x (every desktop build) nothing
+changes. `diag 0/0` on the device was the switch reading off, not a failure
+of the log.
