@@ -613,6 +613,12 @@ constexpr float kHomeInsetMin = 16.0f;  // floor for home-button devices (safe a
 // still has a corner radius, so a capsule placed at x=0 is clipped by it. 16 pt
 // on the same 8 pt grid the rest of this layout uses.
 constexpr float kPadEdgeMin = 16.0f;
+// The tablet pad's INNER clearance from the page. Owner 2026-11-26: "buttons
+// should obviously not touch anything". On iPad mini portrait the band was
+// exactly two cells wide, so the inner capsule's outline sat on the page's
+// edge (x 263 against paper at 264). One 8 pt grid step, the same step the
+// Picco's slide switch keeps from POWER.
+constexpr float kPadPageGap = 8.0f;
 // kPaletteHoldMs lived here until 2026-08-20: tap and hold both open the
 // mixer now, so there is no second gesture to time.
 
@@ -632,9 +638,10 @@ constexpr float kPadEdgeMin = 16.0f;
 // never over a control), no kTopReserve (the centered panel clears the status
 // bar by construction).
 //
-// Cell = min(60 pt, margin fit): a fused pair is two cells wide, so the cell
-// halves the margin when the margin is tighter than 2x60 — 60 pt everywhere
-// except iPad mini portrait, whose 108 pt margin gives 54 pt cells.
+// Cell = min(60 pt, margin fit): a fused pair is two cells wide and must
+// leave kPadEdgeMin to the screen edge and kPadPageGap to the page, so the
+// cell shrinks only where the margin is tighter than that -- iPad mini
+// portrait. The [pad] tablet log line prints the cell and both clearances.
 //
 // The panel is CENTERED by construction: this function replicates HalDisplay's
 // manual fit over the full safe height, then sets the top and bottom insets to
@@ -792,16 +799,22 @@ void layoutPadTablet(float W, float H, float S) {
   // Same shape as kHomeInsetMin does for the bottom edge.
   const float edge = SDL_max(SDL_max(safeLeft, safeRight), kPadEdgeMin);
   const float band = SDL_max(0.0f, margin - edge);
-  const float cell = SDL_min(kOptimalSquare, band / 2.0f);
+  // A pair may not reach the page: the cell is sized so one kPadPageGap
+  // always stays between the inner capsule and the paper.
+  const float cell = SDL_min(kOptimalSquare, SDL_max(0.0f, band - kPadPageGap) / 2.0f);
   // Snapped to the 8 pt grid, matching what the phone path already does for
   // kPowerH (owner ruling 2026-08-11). The tablet was simply never updated when
   // the phone was: 30 pt on a standard iPad, 27 on a mini. Now 32 and 24.
   const float half = SDL_roundf(cell / 2.0f / 8.0f) * 8.0f;
   // Centred inside each inset band, so the pair is symmetric about the band and
   // the outer capsule stops `edge` short of the screen rather than on it.
-  const float bandPad = (band - 2.0f * cell) / 2.0f;
+  // Where the slack is wide enough (every iPad but the mini) the pair stays
+  // centered, exactly where it was; where it is not, the pair keeps `edge` on
+  // its outer side and the page gap on its inner side.
+  const float slack = band - 2.0f * cell;
+  const float bandPad = slack / 2.0f >= kPadPageGap ? slack / 2.0f : SDL_max(0.0f, slack - kPadPageGap);
   const float leftX = edge + bandPad;
-  const float rightX = W - margin + bandPad;
+  const float rightX = W - margin + (slack - bandPad);
   const float midY = H - kThumbRowFromBottom - cell / 2.0f;
   // The bottom row -- POWER, the page rocker, the keyboard chip -- sits UNDER
   // the system keyboard while one is up, on the tablet exactly as on the
@@ -837,9 +850,9 @@ void layoutPadTablet(float W, float H, float S) {
   // be >= edge, and rightX + 2*cell must be <= W - edge. They were 0 and W
   // exactly until 2026-08-17.
   SDL_Log("[pad] tablet W=%.0f margin=%.1f edge=%.1f cell=%.1f leftX=%.1f "
-          "rightPairEnd=%.1f (clearance L=%.1f R=%.1f)",
+          "rightPairEnd=%.1f (clearance L=%.1f R=%.1f, page gap L=%.1f R=%.1f)",
           W, margin, edge, cell, leftX, rightX + 2.0f * cell, leftX,
-          W - (rightX + 2.0f * cell));
+          W - (rightX + 2.0f * cell), margin - (leftX + 2.0f * cell), rightX - (W - margin));
 
   place(kPadPower, leftX, rockerY, cell, half);
   // The page-color button used to take the column beside POWER here. Removed
