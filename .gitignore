@@ -33,6 +33,10 @@ settings.json
 # The reading-experiment ledger a desktop run appends to
 # (docs/reading-experiments.md). Per-machine measurement data.
 reading.jsonl
+# The desktop KEY STORE (src/SimHostSettings.h desktopKeyFilePath), written
+# beside the card like settings.json. GitHub tokens and Claude API keys in plain
+# text; this fork is PUBLIC. Firmware docs/keys-and-paste-2026-11-26.md.
+host-keys.txt
 # A per-machine list of PRIVATE font trees the TestFlight deploy merges into
 # the seed fonts (ios/testflight.sh, "Private font trees"). The trees are the
 # owner's own unpublished families, so neither their paths nor their names may

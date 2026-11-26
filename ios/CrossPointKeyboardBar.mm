@@ -203,6 +203,28 @@ UIColor *panelPaper(void) { return colorFromPanel(false); }
   // keyboard is back.
   gpio.setHostKeyboardVisible(false);
 }
+// PASTE (owner 2026-11-26: "make paste work in the iOS app"). The firmware's
+// field is SDL's hidden UITextField, so UIKit's edit menu has nothing to
+// attach to and the iPhone keyboard has no Paste key; proved on the iPhone
+// Air simulator with real UIKit input before this existed
+// (crosspoint-reader docs/keys-and-paste-2026-11-26.md). The clipboard's
+// text goes down the path typed text takes (HalGPIO::injectTypedText), so a
+// paste reaches consumeTypedText exactly as keys do. Surrounding whitespace
+// and line breaks are trimmed: a trailing newline in a single-line field
+// would otherwise be Return. Reading the clipboard shows iOS's own "Allow
+// Paste" prompt. The text is NEVER logged, only its length.
+- (void)paste {
+  NSString *raw = UIPasteboard.generalPasteboard.string;
+  NSString *text =
+      [raw stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+  if (text.length == 0) {
+    SDL_Log("[harness] paste: the clipboard holds no text");
+    return;
+  }
+  const char *utf8 = text.UTF8String;
+  SDL_Log("[harness] paste: %zu bytes", utf8 ? strlen(utf8) : (size_t)0);
+  if (utf8) gpio.injectTypedText(utf8);
+}
 @end
 
 // File scope, not block scope: the tint refresh below has to reach the button
@@ -210,6 +232,7 @@ UIColor *panelPaper(void) { return colorFromPanel(false); }
 static CPKeyboardBarTarget *g_target = nil;
 static UIView *g_bar = nil;
 static UIButton *g_hide = nil;
+static UIButton *g_paste = nil;
 
 // Re-apply the current palette to an already-built chip.
 //
@@ -220,10 +243,12 @@ static UIButton *g_hide = nil;
 // current colors anyway.
 void CrossPointKeyboardBar_refreshTint(void) {
   dispatch_block_t work = ^{
-    if (!g_hide) return;
-    g_hide.tintColor = chipStroke();
-    g_hide.backgroundColor = panelPaper();
-    g_hide.layer.borderColor = chipStroke().CGColor;
+    for (UIButton *b in @[ g_hide ?: (id)NSNull.null, g_paste ?: (id)NSNull.null ]) {
+      if (![b isKindOfClass:UIButton.class]) continue;
+      b.tintColor = chipStroke();
+      b.backgroundColor = panelPaper();
+      b.layer.borderColor = chipStroke().CGColor;
+    }
   };
   if (NSThread.isMainThread)
     work();
@@ -292,6 +317,27 @@ void CrossPointKeyboardBar_install(void) {
           forControlEvents:UIControlEventTouchUpInside];
       g_hide = hide;
       [bar addSubview:hide];
+
+      // Paste, left of Hide, the same chip. A system symbol, monochrome
+      // through the same tint.
+      UIButton *paste = [UIButton buttonWithType:UIButtonTypeCustom];
+      UIImageSymbolConfiguration *cfg =
+          [UIImageSymbolConfiguration configurationWithPointSize:kButton * 0.42];
+      [paste setImage:[[UIImage systemImageNamed:@"doc.on.clipboard" withConfiguration:cfg]
+                          imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+             forState:UIControlStateNormal];
+      paste.tintColor = chipStroke();
+      paste.backgroundColor = panelPaper();
+      paste.layer.cornerRadius = 8;
+      paste.layer.borderWidth = 1;
+      paste.layer.borderColor = chipStroke().CGColor;
+      paste.frame = CGRectMake(bar.bounds.size.width - kEdge - 2 * kButton - kGap, 0, kButton, kButton);
+      paste.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
+      paste.accessibilityLabel = @"Paste";
+      paste.accessibilityHint = @"Pastes the clipboard's text into the field.";
+      [paste addTarget:target action:@selector(paste) forControlEvents:UIControlEventTouchUpInside];
+      g_paste = paste;
+      [bar addSubview:paste];
     }
 
     field.inputAccessoryView = bar;

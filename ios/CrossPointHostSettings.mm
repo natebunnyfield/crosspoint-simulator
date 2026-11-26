@@ -79,6 +79,29 @@ size_t claudeApiKey(char *out, size_t cap) {
   return readTrimmed(kClaudeApiKey, out, cap);
 }
 
+namespace {
+// The same keys the Settings.app rows write: either surface sees the other's
+// value. Empty or null removes the key, which the Settings.app row then shows
+// as blank. Never logged.
+bool writeKey(NSString *key, const char *value) {
+  @autoreleasepool {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    if (!value || !value[0]) {
+      [d removeObjectForKey:key];
+      return true;
+    }
+    NSString *s = [NSString stringWithUTF8String:value];
+    if (!s) return false;  // not UTF-8
+    [d setObject:s forKey:key];
+    return true;
+  }
+}
+}  // namespace
+
+bool setGithubToken(const char *value) { return writeKey(kGithubToken, value); }
+
+bool setClaudeApiKey(const char *value) { return writeKey(kClaudeApiKey, value); }
+
 bool hasSettingsSurface() { return true; }
 
 }  // namespace sim_host_settings

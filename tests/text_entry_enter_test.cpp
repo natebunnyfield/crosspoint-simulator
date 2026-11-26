@@ -66,11 +66,24 @@ int main() {
   expectOwner(Lines::Multi, true, EnterOwner::Button,
               "Cmd/Ctrl+Return keeps the on-screen panel's pick reachable in a "
               "multi-line editor");
+  // A key or token field (firmware InputType::Secret) is a single-line field
+  // for Return, and the only kind that asks for a literal keyboard (no
+  // autocapitalization, no autocorrect: pass 3 of the keys doc).
+  expectOwner(Lines::SingleSecret, false, EnterOwner::Button,
+              "a Secret field routes Return like any single-line field");
+  expectOwner(Lines::SingleSecret, true, EnterOwner::Text,
+              "a Secret field keeps the modified commit chord");
+  if (!textentry::literalKeyboard(Lines::SingleSecret) ||
+      textentry::literalKeyboard(Lines::Single) ||
+      textentry::literalKeyboard(Lines::Multi)) {
+    std::printf("FAIL: only a Secret field asks for a literal keyboard\n");
+    failures++;
+  }
 
   if (failures != 0) {
     std::printf("%d failure(s)\n", failures);
     return 1;
   }
-  std::printf("PASS: Return routing matches the contract in all four states\n");
+  std::printf("PASS: Return routing matches the contract in all six states\n");
   return 0;
 }

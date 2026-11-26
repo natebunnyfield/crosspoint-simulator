@@ -34,7 +34,10 @@
 // reaches which one differs, and it differs the way the field itself does.
 namespace textentry {
 
-enum class Lines : uint8_t { Single, Multi };
+// SingleSecret: a single-line field holding a key or token (the firmware's
+// InputType::Secret). Return is routed exactly as for Single; the difference
+// is the host keyboard's traits (literalKeyboard below).
+enum class Lines : uint8_t { Single, Multi, SingleSecret };
 enum class EnterOwner : uint8_t {
   Button, // falls through to the scancode->button map as BTN_CONFIRM
   Text,   // swallowed and queued as HalGPIO::TYPED_COMMIT ('\n')
@@ -46,5 +49,13 @@ inline EnterOwner enterOwner(Lines lines, bool modifierHeld) {
   }
   return modifierHeld ? EnterOwner::Text : EnterOwner::Button;
 }
+
+// Does the open field need a literal keyboard: no autocapitalization, no
+// autocorrect, no spell check? A key or token does. SDL's defaults for a plain
+// text field (SDL_video.c SDL_GetTextInputCapitalization / _Autocorrect) are
+// sentence capitalization and autocorrect ON, which on an iPhone would turn a
+// typed "sk-..." into "Sk-..." unseen behind the mask (firmware
+// docs/keys-and-paste-2026-11-26.md, pass 3, finding 3).
+inline bool literalKeyboard(Lines lines) { return lines == Lines::SingleSecret; }
 
 } // namespace textentry

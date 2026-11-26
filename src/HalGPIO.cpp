@@ -1518,7 +1518,10 @@ void HalGPIO::setTextEntryActive(bool active, TextEntryLines lines) {
     typedTextBuffer.clear();
   }
   SDL_Log("[TEXT] text entry %s%s", active ? "active" : "inactive",
-          active && lines == TextEntryLines::Multi ? " (multi-line)" : "");
+          !active                                ? ""
+          : lines == TextEntryLines::Multi        ? " (multi-line)"
+          : lines == TextEntryLines::SingleSecret ? " (secret)"
+                                                  : "");
 }
 
 bool HalGPIO::isTextEntryActive() const { return textEntryActive.load(); }
@@ -1564,8 +1567,10 @@ void HalGPIO::injectTypedText(const char *utf8) {
     return;
   if (!textEntryActive.load()) {
     // Loud on purpose: a script that types before the field opens would
-    // otherwise look like a firmware bug rather than a timing bug.
-    SDL_Log("[TEXT] dropped injected text (no text field open): \"%s\"", utf8);
+    // otherwise look like a firmware bug rather than a timing bug. The LENGTH
+    // only, never the text: a paste can be a key or token, and SDL_Log is teed
+    // into diagnostics/firmware.log (owner 2026-11-26).
+    SDL_Log("[TEXT] dropped injected text (no text field open): %zu bytes", SDL_strlen(utf8));
     return;
   }
   queueTypedBytes(utf8, SDL_strlen(utf8));
@@ -1594,7 +1599,29 @@ void HalGPIO::pumpHostTextInput() {
     // On a phone this is what raises the software keyboard; a paired Bluetooth
     // keyboard suppresses that itself and types straight through. On desktop
     // it is what makes SDL emit SDL_EVENT_TEXT_INPUT at all.
-    SDL_StartTextInput(window);
+    if (textentry::literalKeyboard(textEntryLines.load())) {
+      // A key or token: no autocapitalization, no autocorrect. The PASSWORD
+      // VISIBLE type, not HIDDEN: HIDDEN sets UIKit's secureTextEntry, and a
+      // secure field clears itself on the first keystroke after it regains
+      // focus, which SDL's textFieldTextDidChange
+      // (SDL_uikitviewcontroller.m) reads as up to 64 backspaces -- after a
+      // keyboard re-raise that would erase the key being typed. The firmware
+      // masks the field itself.
+      const SDL_PropertiesID props = SDL_CreateProperties();
+      SDL_SetNumberProperty(props, SDL_PROP_TEXTINPUT_TYPE_NUMBER,
+                            SDL_TEXTINPUT_TYPE_TEXT_PASSWORD_VISIBLE);
+      SDL_SetNumberProperty(props, SDL_PROP_TEXTINPUT_CAPITALIZATION_NUMBER,
+                            SDL_CAPITALIZE_NONE);
+      SDL_SetBooleanProperty(props, SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN,
+                             false);
+      SDL_StartTextInputWithProperties(window, props);
+      SDL_DestroyProperties(props);
+      SDL_Log("[TEXT] host text input is literal (no capitalization, no "
+              "autocorrect)");
+    } else {
+      // Props 0: SDL's defaults, which also undoes a Secret field's traits.
+      SDL_StartTextInput(window);
+    }
     // Both flags are worth having in the log, because together they decide
     // which keyboard the owner actually gets -- and because SDL's own
     // software-keyboard backspace is conditional on the second one being

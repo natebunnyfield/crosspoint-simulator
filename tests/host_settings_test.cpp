@@ -43,6 +43,24 @@
 #include <sstream>
 #include <string>
 
+#if !CROSSPOINT_SIM_HOST_SETTINGS
+#include <sys/stat.h>
+#include <unistd.h>
+// The desktop key store sits BESIDE the simulated card (SimHostSettings.h
+// desktopKeyFilePath). HalStorage.cpp's card root, for this test: a fresh
+// temporary directory's fs_, so the store file lands in that directory.
+std::string simulatorStorageRootForHost() {
+  static const std::string root = [] {
+    char tmpl[] = "/tmp/host_settings_test.XXXXXX";
+    const char *dir = mkdtemp(tmpl);
+    std::string r = std::string(dir ? dir : "/tmp") + "/fs_";
+    mkdir(r.c_str(), 0700);
+    return r;
+  }();
+  return root;
+}
+#endif
+
 #if CROSSPOINT_SIM_HOST_SETTINGS
 
 // Stand-in backend. The real one reads NSUserDefaults; this is the same shape
@@ -476,6 +494,53 @@ void testPlistKeyMatchesTheBackendForClaudeKey(const std::string &iosDir) {
 // one in the firmware; a printf of it in any of them would put a credential in
 // a log the owner might paste into a bug report. Checked as text because there
 // is no compiler diagnostic for "this string happens to be a secret".
+// THE DESKTOP KEY STORE (owner 2026-11-26): the firmware's Settings rows and
+// the device web page write keys here. Set, read, clear, the env hatch still
+// winning, a value with a line break refused, the file beside the card with
+// owner-only permissions, and nothing of the value inside the card. Fake
+// values only.
+void testDesktopKeyStore() {
+  unsetenv(sim_host_settings::kGithubTokenEnvVar);
+  unsetenv(sim_host_settings::kClaudeApiKeyEnvVar);
+  const std::string fakeGh = "FAKE-DESKTOP-TOKEN-NOT-REAL-0000-WXYZ";
+  const std::string fakeCl = "FAKE-DESKTOP-KEY-NOT-REAL-1111-ABCD";
+  GuardedBuffer buf;
+  check(sim_host_settings::setGithubToken(fakeGh.c_str()), "the desktop store takes a token");
+  check(sim_host_settings::setClaudeApiKey(fakeCl.c_str()), "the desktop store takes a Claude key");
+  checkEq(static_cast<int>(sim_host_settings::githubToken(buf.data(), kFirmwareFieldSize)),
+          static_cast<int>(fakeGh.size()), "the stored token reads back at full length");
+  checkEq(buf.value(), fakeGh, "the stored token reads back exactly");
+  GuardedBuffer buf2;
+  sim_host_settings::claudeApiKey(buf2.data(), kFirmwareFieldSize);
+  checkEq(buf2.value(), fakeCl, "the stored Claude key reads back exactly");
+
+  setenv(sim_host_settings::kGithubTokenEnvVar, "fake-env-wins", 1);
+  GuardedBuffer buf3;
+  sim_host_settings::githubToken(buf3.data(), kFirmwareFieldSize);
+  checkEq(buf3.value(), "fake-env-wins", "the QA env hatch still wins over the file");
+  unsetenv(sim_host_settings::kGithubTokenEnvVar);
+
+  check(!sim_host_settings::setGithubToken("FAKE\nSECOND"), "a value with a line break is refused");
+  GuardedBuffer buf4;
+  sim_host_settings::githubToken(buf4.data(), kFirmwareFieldSize);
+  checkEq(buf4.value(), fakeGh, "a refused value leaves the stored one alone");
+
+  check(sim_host_settings::setGithubToken(nullptr), "clearing succeeds");
+  GuardedBuffer buf5;
+  checkEq(static_cast<int>(sim_host_settings::githubToken(buf5.data(), kFirmwareFieldSize)), 0,
+          "a cleared token reads as unset");
+  GuardedBuffer buf6;
+  sim_host_settings::claudeApiKey(buf6.data(), kFirmwareFieldSize);
+  checkEq(buf6.value(), fakeCl, "clearing one key keeps the other");
+
+  const std::string path = sim_host_settings::desktopKeyFilePath();
+  const std::string card = simulatorStorageRootForHost();
+  check(path.rfind(card, 0) != 0, "the key file is NOT inside the simulated card");
+  struct stat st{};
+  check(stat(path.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600, "the key file is owner-only");
+  sim_host_settings::setClaudeApiKey(nullptr);
+}
+
 void testNothingLogsTheToken(const std::string &iosDir) {
   const std::string backend = slurp(iosDir + "/CrossPointHostSettings.mm");
   if (backend.empty()) return;  // reported by the gate above
@@ -516,6 +581,7 @@ int main(int argc, char **argv) {
   testPlistKeyMatchesTheBackend(iosDir);
   testPlistKeyMatchesTheBackendForClaudeKey(iosDir);
   testNothingLogsTheToken(iosDir);
+  testDesktopKeyStore();
 #endif
 
   if (testcheck::g_failures != 0) {
