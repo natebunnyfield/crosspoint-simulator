@@ -252,3 +252,80 @@ ignored silently.
 - The `PAGE_FINGER` hatch is inert when unset.
 - Stub signatures match the firmware call sites.
 - 12 of 13 Python catalog tests passed at review time; all 13 pass after fix 1.
+
+## TestFlight build 1 on the owner's iPhone Air (2026-11-25)
+
+Build 1 (`picco-build-1`, simulator e38c9440, firmware c1891509a) drew three
+reports. Fixes are in simulator 441badf4.
+
+1. **"picco buttons seem backwards."** Mechanism found and fixed. The pad's
+   rocker is a side-by-side pair with the `UP` slot on the LEFT
+   (`layoutPadImpl`, `place(kPadUp, rightX, ...)`). On the X3 that is right:
+   `BTN_UP` is page back. The Picco firmware maps `BTN_UP` to Right, i.e. NEXT
+   (`MappedInputManager::mapButton`, `piccoinput::rockerRoute`), so the left
+   half went forward and the right half back. The Picco block in `layoutPad`
+   now swaps what the two halves press. Measured on an iPhone Air simulator,
+   Release, real UIKit taps: right half -> `Page turn fwd`, left half twice ->
+   `Page turn back` twice. The volume buttons were NOT changed: volume up is
+   the rocker's upper end, which is next, the same as the X3 app's default
+   (`VolumePageTurn.h`, `Verdict::Next` -> `VolumeUp`).
+2. **"albo does not load as a font on initial load."** Mechanism found and
+   fixed. The firmware's default reader family is `""`, the built-in face
+   (`CrossPointSettings::sdFontFamilyName`), so a fresh install opened its
+   first book in that, although the registry had found Albo
+   (`[SDREG] Found family: Albo`). `seedFirstRunReaderFamily()` in
+   `ios/CrossPointFsPrep.cpp` writes `{"sdFontFamilyName":"Albo"}` to a card
+   with no `settings.json`, before `setup()`, and only when Albo was seeded
+   onto the card. Applies to fresh installs of BOTH apps; an existing
+   settings file is never touched. Measured on a fresh iPhone Air simulator
+   install: `Loaded SD card font family: Albo`, 14 pt with the 2x companion,
+   and the firmware rewrote the full file itself.
+3. **"touchscreen does not work."** NOT reproduced; no mechanism found.
+   - Real UIKit touches (an XCUITest that taps the installed app by
+     coordinate; the Simulator GUI app is not installed on this Mac, so
+     `cliclick` had no window to click) reach `padWatch` as `direct-touch`
+     and do what the firmware decoder says, on an iPhone 17 and an iPhone
+     Air simulator, Debug and Release: 3/3 taps turned pages, 2/2 left
+     swipes turned pages, a 1.2 s hold opened chapter selection.
+   - The earlier verification pushed SDL events from inside the app
+     (`CROSSPOINT_SIM_PAGE_FINGER`), which skips UIKit. This round closes that
+     gap; the device itself still differs.
+   - Checked and found clean: no UIKit recognizer is installed on the Picco
+     (`CrossPointZenRecognizers_setEnabled` returns first); every overlay view
+     (`CPAccessibilityOverlay`, the page text input, the volume view, the
+     appearance probe) is `userInteractionEnabled = NO`; the shim's Picco
+     branch uses the same coordinates as the pad, which works on the device.
+   - Instrumented instead of guessed: every page-finger decision is now
+     logged (`[picco] page finger ... down/up`, `DROPPED: finger ... is still
+     down`, `at ... px: off the page / <pad slot>` with the page rect,
+     `abandoned`) and every button the decoder fires (`[picco] gesture ->
+     button N`). With Settings > CrossPoint Picco > Diagnostics Log on, they
+     land in `diagnostics/firmware.log`. Diagnostics stay off by default
+     (owner ruling 2026-08-09).
+   - One untested hypothesis: the Picco branch is single touch, so a contact
+     that never lifts (a resting thumb, a lift iOS never reports) would drop
+     every later page tap while the pad keeps working. The X3 app's one-finger
+     recognizers would fail the same way, which argues against it. The new log
+     line `DROPPED` would show it.
+
+Method, for a re-run: build `-DCROSSPOINT_IOS_DEVICE=PICCO` for
+`iphonesimulator`, install fresh with `xcrun simctl`, then a scratch XcodeGen
+project with a host app and a `bundle.ui-testing` target whose test does
+`XCUIApplication(bundleIdentifier: "com.natebunnyfield.crosspoint.picco")`,
+sets `CROSSPOINT_SIM_DIAGNOSTICS=1` in `launchEnvironment`, and taps
+`app.coordinate(withNormalizedOffset:)`; read
+`Documents/diagnostics/firmware.log` from `simctl get_app_container`.
+
+**Adversarial review of 441badf4** (read-only agent, 2026-11-25): no
+findings. Checked and found clean: every reader of `g_pad[...].button`
+(`applyActions` is the only consumer) and the swap's position after
+`layoutPadImpl`, so the phone, iPad and turned-landscape layouts all get it;
+the X3 app untouched (`#if FREEINK_DEVICE_PICCO`); `loadFromFile` key-by-key
+defaults for a partial file; the appearance seed reads `settings.json` in a
+static initializer, before `CrossPointHarness_prepareFilesystem`, so the new
+file cannot change it; the iOS reboot's `setjmp` sits after
+`prepareFilesystem`, so the seed runs once per process; the nine new
+`SDL_Log` format specifiers. One reviewer statement was wrong and is
+corrected here: the X3 bundle DOES carry Albo, so fresh X3 installs also
+start in Albo (intended, see 2 above). The X3 desktop canary
+(`simulator_x3`) builds clean with the change.
