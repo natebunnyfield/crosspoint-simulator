@@ -329,3 +329,23 @@ file cannot change it; the iOS reboot's `setjmp` sits after
 corrected here: the X3 bundle DOES carry Albo, so fresh X3 installs also
 start in Albo (intended, see 2 above). The X3 desktop canary
 (`simulator_x3`) builds clean with the change.
+
+## TestFlight build 2 (2026-11-25): "not working and no diagnostics were made when enabled"
+
+Second device failure, so build 3 is instrumentation-first, and the instrument
+cannot depend on the log the owner found missing. Three lines of counters are
+drawn in the black band above the page (SDL debug font, `paintPiccoTouchDbg`,
+run from a scope guard at the end of `paintPad` because the painter's
+surround fill covered a first-drawn version):
+
+    ios <SDL finger downs> ptr <pointer downs> gated <stopped before the Picco branch>
+    page <accepted>/<lifted> 2nd <dropped> off <off page> pad <pad> ab <abandoned>
+    fw <HAL contacts> read <first reads> gest <decoder buttons> diag <switch>/<armed>
+
+Measured on an iPhone Air simulator, Release, real UIKit taps: one page tap
+and one rocker tap read `ios 2 ... page 1/1 ... pad 1`, `fw 1 read 1 gest 1`.
+The Diagnostics switch, written as Settings.app writes it
+(`simctl spawn defaults write <bundle id> diagnosticsEnabled -bool YES`),
+armed the log and created `diagnostics/firmware.log` on the simulator, so the
+missing log on the device is itself unexplained; `diag a/b` on the device
+answers which half failed.
