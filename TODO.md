@@ -245,7 +245,7 @@ pushed:
 - the rocker moved up into the empty upper-right slot on the thumb row (owner
   2026-11-26, "Rocker up a row").
 
-### [ST-014] Does iOS learn a key typed into a Secret field? — UNCONFIRMED
+### [ST-014] Does iOS learn a key typed into a Secret field? — CLOSED 2026-11-26, moot
 
 A Secret firmware field (Settings > GitHub Token / Claude API Key) starts SDL
 text input with capitalization and autocorrect off, as SDL's visible-password
@@ -256,6 +256,9 @@ sends up to 64 backspaces on each update and could erase a half-typed key
 (firmware `docs/keys-and-paste-2026-11-26.md`, pass 3). Paste avoids the
 question entirely. To settle: check on a device whether a typed fake key later
 shows up as a suggestion.
+
+Owner, 2026-11-26: "Close it: paste keys". Keys are pasted, not typed on the
+iPhone keyboard, so the question is moot. Do not re-open.
 
 ### [ST-012] Picco: Warmth and Brightness drive the page, not a frontlight the phone lacks — FUTURE
 
