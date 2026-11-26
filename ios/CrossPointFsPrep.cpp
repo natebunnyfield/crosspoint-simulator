@@ -12,6 +12,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
@@ -451,6 +452,38 @@ void seedBundledBooks() {
   ::closedir(dir);
 }
 
+// ALBO ON THE FIRST LAUNCH (owner 2026-11-25, on the first Picco TestFlight
+// build: "albo does not load as a font on initial load"). The firmware's
+// default reader family is "" -- the built-in face -- so a fresh install
+// opened its first book in that and never in the bundled Albo, which the
+// registry had discovered all along. Before setup() reads the settings,
+// a card with NO settings.json gets one naming Albo, and only when the
+// bundle actually seeded Albo onto the card. A partial file is safe: every
+// key the firmware reads falls back to its own default when absent
+// (CrossPointSettings::loadFromFile), and it rewrites the full file itself.
+// An existing settings.json is never touched, so a reader's chosen family,
+// Albo or not, stands on every later launch.
+void seedFirstRunReaderFamily() {
+  const char *kSettings = ".crosspoint/settings.json";
+  const char *kFamily = "Albo";
+  struct stat st{};
+  if (::stat(kSettings, &st) == 0) return;  // not a first launch
+  if (!isDirectory((std::string("fonts/") + kFamily).c_str())) {
+    SDL_Log("[harness] first launch: %s not on the card; reader family left default",
+            kFamily);
+    return;
+  }
+  ::mkdir(".crosspoint", 0777);
+  FILE *f = std::fopen(kSettings, "wb");
+  if (!f) {
+    SDL_Log("[harness] first launch: could not write %s", kSettings);
+    return;
+  }
+  std::fprintf(f, "{\"sdFontFamilyName\":\"%s\"}\n", kFamily);
+  std::fclose(f);
+  SDL_Log("[harness] first launch: reader family -> %s", kFamily);
+}
+
 // The PHONE card's screenMargin is no longer pinned to 5 at boot (owner
 // 2026-10-08, "put the margin setting back"): the firmware's Screen Margin
 // picker is restored, and a boot-time pin would undo every change made in it.
@@ -516,4 +549,6 @@ void CrossPointHarness_prepareFilesystem() {
   // bundle-wins comparison sees the migrated copy rather than missing it.
   seedBundledFontFamilies();
   seedBundledBooks();
+  // After the fonts: it names a family only once that family is on the card.
+  seedFirstRunReaderFamily();
 }

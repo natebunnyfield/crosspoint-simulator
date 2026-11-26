@@ -293,6 +293,8 @@ void piccoAbandonFinger() {
   g_piccoFingerDown = false;
   gpio.suppressTouchContact();
   gpio.injectTouchUp(g_piccoLastNx, g_piccoLastNy);
+  SDL_Log("[picco] page finger %lld abandoned (cancel, no geometry or app "
+          "inactive)", static_cast<long long>(g_piccoFinger));
 }
 
 // Device pixels -> logical page coordinates (0..1 across the portrait page),
@@ -956,6 +958,14 @@ void layoutPad(int outW, int outH) {
   // and hit-tests nothing, pairs included (paintPad's pair guard).
   for (int i : {kPadBack, kPadConfirm, kPadLeft, kPadRight})
     g_pad[i].rect = SDL_FRect{0.0f, 0.0f, 0.0f, 0.0f};
+  // The rocker capsule is a side-by-side pair, UP slot on the LEFT. On the X3
+  // that reads right: BTN_UP is page BACK there. The Picco firmware maps
+  // BTN_UP to Right -- NEXT (PiccoInput.h rockerRoute) -- so the left half
+  // went forward and the right half back (owner 2026-11-25, TestFlight build
+  // 1: "picco buttons seem backwards"). Swap what the two halves press, so
+  // left is previous and right is next, as everywhere else on the screen.
+  g_pad[kPadUp].button = HalGPIO::BTN_DOWN;    // left half: previous (Left)
+  g_pad[kPadDown].button = HalGPIO::BTN_UP;    // right half: next (Right)
 #endif
 }
 static void layoutPadImpl(int outW, int outH) {
@@ -3985,17 +3995,38 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // a control can never be shadowed by it. A second finger while one is
       // down is dropped: the TMA525C reports one contact.
       {
+        // Every decision about a finger is logged (TestFlight build 1: "touch
+        // does not work" on the owner's iPhone Air, while real UIKit taps,
+        // swipes and holds all worked on the iOS Simulator, Debug and
+        // Release). With the Diagnostics Log switch on, these lines say which
+        // gate a finger died at, in diagnostics/firmware.log.
         float nx = 0.0f, ny = 0.0f;
-        if (padHitTest(fx, fy) < 0 && piccoPagePoint(fx, fy, false, nx, ny)) {
+        const int padSlot = padHitTest(fx, fy);
+        if (padSlot < 0 && piccoPagePoint(fx, fy, false, nx, ny)) {
           if (!g_piccoFingerDown) {
             g_piccoFingerDown = true;
             g_piccoFinger = e->tfinger.fingerID;
             g_piccoLastNx = nx;
             g_piccoLastNy = ny;
             gpio.injectTouchDown(nx, ny);
+            SDL_Log("[picco] page finger %lld down at page %.3f,%.3f",
+                    static_cast<long long>(e->tfinger.fingerID), nx, ny);
+          } else {
+            SDL_Log("[picco] finger %lld DROPPED: finger %lld is still down "
+                    "(single touch)",
+                    static_cast<long long>(e->tfinger.fingerID),
+                    static_cast<long long>(g_piccoFinger));
           }
           break;
         }
+        SDL_Log("[picco] finger %lld at %.0f,%.0f px: %s (page %d,%d %dx%d px)",
+                static_cast<long long>(e->tfinger.fingerID), fx, fy,
+                padSlot >= 0 ? g_pad[padSlot].name : "off the page",
+                SimulatorOverlay::panelLeftPx(),
+                SimulatorOverlay::panelBottomPx() -
+                    SimulatorOverlay::panelHeightPx(),
+                SimulatorOverlay::panelWidthPx(),
+                SimulatorOverlay::panelHeightPx());
       }
 #endif
       // Fed in EVERY mode, acted on only in zen: a gesture in flight when the
@@ -4096,6 +4127,8 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         }
         g_piccoFingerDown = false;
         gpio.injectTouchUp(nx, ny);
+        SDL_Log("[picco] page finger %lld up at page %.3f,%.3f",
+                static_cast<long long>(e->tfinger.fingerID), nx, ny);
         break;
       }
 #endif

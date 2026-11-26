@@ -2132,6 +2132,9 @@ void HalGPIO::injectButtonTap(const uint8_t index) {
   piccoSynthPressed |= bit;
   piccoSynthHeld |= bit;
   piccoSynthPressedAt = millis();
+  // The far end of a page touch's trail (ios/CrossPointIOSShim.cpp logs the
+  // near end): the firmware's gesture decoder fired this button.
+  SDL_Log("[picco] gesture -> button %u", static_cast<unsigned>(index));
 }
 
 bool HalGPIO::isTouchContactDown() const { return touchState.down; }
