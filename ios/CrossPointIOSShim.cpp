@@ -3252,8 +3252,11 @@ void paintTopFillets(SDL_Renderer *r, const SDL_FRect &panel) {
 
 #if FREEINK_DEVICE_PICCO
 // The slide switch: a capsule track in the pad's stroke-then-face build, and a
-// knob filling the half the switch is set to -- left off, right on -- in the
-// pressed tone. Wordless like every pad control; the knob's side is the state.
+// knob in the half the switch is set to -- left off, right on. The knob is an
+// OUTLINE like every control at rest (owner 2026-08-03, ios/README.md "The
+// controls are hollow": outline at rest, a wash only while pressed); the switch
+// flips on touch-down and has no pressed state, so it never takes the wash.
+// Wordless like every pad control; the knob's side is the state.
 void paintSlideSwitch(SDL_Renderer *r, const Palette &p, float radius,
                       float hairline) {
   const SDL_FRect &c = g_slideSwitch;
@@ -3273,7 +3276,7 @@ void paintSlideSwitch(SDL_Renderer *r, const Palette &p, float radius,
   const float knobR = SDL_max(0.0f, rad - inset);
   setRGB(r, p.hairline);
   fillRoundRect(r, knob, knobR);
-  setRGB(r, p.faceDown);
+  setRGB(r, p.face);
   fillRoundRect(r, {knob.x + hairline, knob.y + hairline, knob.w - 2 * hairline,
                     knob.h - 2 * hairline},
                 SDL_max(0.0f, knobR - hairline));
