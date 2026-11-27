@@ -901,6 +901,17 @@ run frozen_page \
 run frontlit_page \
   c++ -std=c++17 -Isrc -Iios -o "$OUT/frontlit_page" tests/frontlit_page_test.cpp
 
+# ...and that the light going OFF reaches the iOS page while the firmware
+# sleeps (review row R-15, 2026-11-27). The firmware draws the sleep screen,
+# then switches the light off, and the three polls that turn the light into a
+# page stop for the sleep, so the sleep screen kept the lit paper until the
+# wake. A SOURCE GATE on the sleep tick's wiring: the shim compiles only for
+# iOS, and the failure shows only on a Picco phone, asleep, with the light away
+# from 60/50. Proven to fail against the shim as it stood before the fix (pass
+# that file as the argument).
+run_direct frontlit_page_sleep \
+  python3 tests/frontlit_page_sleep_test.py
+
 # S-001's four remaining reversals. Every failure mode there is a stub quietly
 # answering the OPPOSITE of the hardware, which no compile and no screenshot can
 # see -- and the panic latch in particular has to be one-shot or the desktop

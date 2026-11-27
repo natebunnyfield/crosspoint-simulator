@@ -66,7 +66,8 @@ binding's rule as the only one. The page code was right; the doc was not.)
 - iOS: `ios/PanelPrefs.h` (both pairs), `ios/CrossPointIOSShim.cpp`
   `pollPanelGlow` (trail and tail, edge-triggered on the light's generation,
   overriding the mixer only when the light is not neutral) and `pollScanlines`
-  (bloom).
+  (bloom). `sleepTick` makes the same reads while the firmware sleeps (the
+  sleep section below).
 - Desktop: `src/HalDisplay.cpp` `applyFrontlitPage`, installed as the change
   hook by the `CROSSPOINT_SIM_AS_SHIPPED` block on a `SIMULATOR_DEVICE_PICCO`
   build only.
@@ -186,6 +187,13 @@ int main() {
   100 trail, so the light reaches the iOS polls. The glass itself was NOT
   captured: `simctl io screenshot` kept returning a stale home screen while the
   app ran. The page colors on iOS are UNCONFIRMED.
+  (Later the same day: the app's own `CROSSPOINT_SIM_SCREENSHOTS`, pointed into
+  its data container, does capture the glass on the iOS Simulator. At 100/100
+  the light page's most common tones are ink 2D0E0A on paper FDF1C2 (brightest
+  FFF3C4) and the dark page's are trace FFB9A7 on a card of 190D0A, against the
+  model's 2F0E0A on FFF1C2 and FFB9A7 on 190D0A; the page carries its texture
+  fields, so its tones sit a few code values around the pair. See the sleep
+  section below for the method. An iPhone is still UNCONFIRMED.)
 - The ink on the light page does not take the warmth (owner: warmth adjusts
   PAPER warmth). A real warm light would tint both.
 - Scanline intensity, grain and corner defocus are not driven by the beam.
@@ -216,3 +224,108 @@ the shipped 400 on both platforms; the field caches rebuild on a palette
 change; the pad and keyboard chip follow through `applyPanel`. Not measured:
 the feel of holding the rocker on Brightness, where each step rebuilds the
 light sheet (about 130 ms, per `CLAUDE.md`).
+
+## Sleep: the light goes off and the iOS page follows (review row R-15), 2026-11-27
+
+**The defect.** On the Picco the firmware draws the sleep screen and then
+switches the light off (firmware `src/main.cpp:790` `goToSleep`, `:812`
+`Frontlight.setOn(false)`), inside the `loop()` that ends in the sleep loop. On
+iOS the page learns of a light change only from three per-frame polls
+(`pollPanelPalette`, `pollPanelGlow`, `pollScanlines`), and
+`CrossPointHarness_perFrame` does not run while the firmware sleeps. So the
+sleep screen kept the lit tones until the wake, against the rule above that
+with the light off the page is the frozen page.
+
+**The fix**, in `ios/CrossPointIOSShim.cpp`: the host's sleep tick
+(`sleepTick`, run from the foot of `HalGPIO::startDeepSleep`'s loop) now makes
+the same three reads. The pair goes through `syncPanelPalette`, which is
+`pollPanelPalette` without its firmware render request: the tones are applied
+when the cached frame is converted, so the sleep screen needs no render, and
+the request is a flag only the firmware's `loop()` reads
+(firmware `src/activities/ActivityManager.cpp:99`). The reads are skipped while the power-off collapse
+holds the glass (`collapseOwnsGlass()`), which is dark until the wake.
+`tests/frontlit_page_sleep_test.py` is a source gate on that wiring.
+
+**The desktop as-shipped path did not have it.** Its change hook
+(`applyFrontlitPage`, `src/HalDisplay.cpp`) runs inside `setOn(false)`, before
+`HalDisplay::deepSleep()` flushes the sleep frame. Run, not only read: the log
+gives `frontlit page: light off` at 6097 ms, then `[power] sleep entry ...
+trailMs=1095` (the frozen trail), then the flush; the sleep frame's paper is
+FBF5EA at its brightest, against FFF2C3 awake.
+
+**Measured on the iOS Simulator** (iPhone Air, iOS 26.5, a new simulator
+device, a fresh install per arm, card at Brightness 100 / Warmth 100, light on,
+POWER at 16 s, in-app capture at 14 s and 22 s). Brightest paper pixel and the
+most common ink; the page carries its texture fields, so tones sit a few code
+values around the pair:
+
+| | awake | asleep, before | asleep, after |
+|---|---|---|---|
+| Light page: paper | FFF3C4 | FFF3C3 | FBF5EA |
+| Light page: ink | 2D0E0A | 2B0D09 | 532E27 |
+| Dark page: card around the page (most common tone) | 190D0A | 190D0A | 161A1A |
+
+The model's lit pair at 100/100 is 2F0E0A on FFF1C2 and its frozen pair 5C332B
+on F9F3E9. After the fix the first sleep tick logs
+`[harness] panel palette (light) -> frozen, ink 5C332B, paper F9F3E9` and
+`[glow] preset 0 -> 1095 ms trail`, one millisecond after
+`[power] deep sleep loop entered`. A wake 5 s later restores the light
+(`[SIM] Picco frontlight: on`, `[glow] ... 1296 ms trail`) and the page is back
+on FDF1C2. Before the fix neither line appears between sleep and wake.
+
+**On a dark page the sleep screen itself was never lit, and still is not
+India.** A drawn sleep screen is always normal polarity
+(`SleepActivity.cpp:535`), so it is painted from the LIGHT pair, and on iOS
+only the pair for the appearance in force is ever written
+(`applyPanel`, `setPanelPalette(g_dark, ...)`). In a dark-mode session the light
+slot still holds the simulator's default (2D2D2D on FBFBF9): the dark arm's
+sleep screen measured ink 292929, paper FDFDFA at its brightest, with the same
+pixel counts before and after. What the fix moves there is the card around the
+page, from the lit glass 190D0A to the frozen 171B1B. Two things follow and neither is
+changed here, because both are the look:
+
+- The dark-mode sleep screen on iOS is the default gray pair, not Sanguine on
+  India. The desktop as-shipped path writes both pairs and so sleeps on India.
+- By reading, not run: a session that was in light mode with the light on and
+  then switched to dark keeps that lit pair in the light slot, so its sleep
+  screen would be drawn on the lit paper whatever the light does later.
+  Writing the other appearance's pair whenever the lamp moves would close it,
+  and would also change the first item.
+
+Not measured: an iPhone; the collapse-on dark arm (the reads are skipped there
+by construction); a dark page asleep on Quick Resume, where the kept page is in
+dark polarity and the dark pair's sync is the same call the light arm proved.
+
+Method:
+
+```bash
+D=$(xcrun simctl create scratch com.apple.CoreSimulator.SimDeviceType.iPhone-Air \
+    com.apple.CoreSimulator.SimRuntime.iOS-26-5); xcrun simctl boot $D
+xcrun simctl install $D build/ios-sim-picco/ios/Release-iphonesimulator/CrossPointX3.app
+C=$(xcrun simctl get_app_container $D com.natebunnyfield.crosspoint.picco data)
+mkdir -p $C/Documents/.crosspoint
+# Light arm. slideSwitchAction 1 binds the switch to Dark Mode, so the light
+# follows the Frontlight row and no NSUserDefaults write is needed.
+echo '{"frontlightBrightness":100,"frontlightWarmth":100,"frontlightOn":1,
+  "frontlightRestoreOnWake":1,"slideSwitchAction":1,"darkMode":0}' \
+  > $C/Documents/.crosspoint/settings.json
+SIMCTL_CHILD_CROSSPOINT_SIM_LOG_POWER=1 SIMCTL_CHILD_CROSSPOINT_SIM_DARK=0 \
+SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT='16000:POWER' \
+SIMCTL_CHILD_CROSSPOINT_SIM_SCREENSHOTS="14000:$C/Documents/awake.bmp;22000:$C/Documents/asleep.bmp" \
+xcrun simctl launch --console-pty $D com.natebunnyfield.crosspoint.picco > console.txt &
+# ...27 s later: xcrun simctl terminate; read console.txt and the two BMPs.
+# Wake arm: INPUT_SCRIPT='16000:POWER;21000:POWER' and SCREENSHOTS_AFTER_WAKE.
+# Dark arm: slideSwitchAction 0, darkMode 1, and before the first launch a
+# binary plist {piccoSlideSwitchOn: true} at
+# $C/Library/Preferences/com.natebunnyfield.crosspoint.picco.plist (a fresh
+# install's container is read; `[picco] slide switch present, on` confirms it).
+# Desktop: a scratch directory with a '{}' settings.json and the same card
+# keys, CROSSPOINT_SIM_AS_SHIPPED=1 CROSSPOINT_SIM_DARK=0
+# CROSSPOINT_SIM_LOG_POWER=1 CROSSPOINT_SIM_LOG_PRESENTS=1
+# CROSSPOINT_SIM_INPUT_SCRIPT='6000:POWER;9000:QUIT'
+# CROSSPOINT_SIM_SCREENSHOTS='5000:awake.bmp;6180:asleep.bmp' (a capture due
+# after the light-off line and before the sleep flush is served by the flush).
+```
+
+The firmware log tee (`diagnostics/firmware.log`) loses its last lines when the
+app is terminated, which is the sleep entry; `--console-pty` has them.

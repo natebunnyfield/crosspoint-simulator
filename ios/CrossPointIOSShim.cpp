@@ -2804,11 +2804,29 @@ void pollEinkMode() {
   SimulatorOverlay::setEinkMode(on != 0);
 }
 
-void pollPanelPalette() {
+// The pair for the appearance in force, published if it moved; true when it
+// did. Apart from pollPanelPalette for the sleep tick, which needs the tones
+// and the present and must not ask the firmware to render (sleepTick below).
+bool syncPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
-  if (packPanel(panel) == g_appliedPanel) return;
+  if (packPanel(panel) == g_appliedPanel) return false;
   applyPanel(panel);
   SimulatorOverlay::requestPresent();
+
+  // THE STORED PRESET IS NO LONGER PART OF THE ANSWER, so it is no longer
+  // logged: since 2026-08-24 both pages are frozen (src/FrozenPage.h) and
+  // panelStoreFromPrefs consults NSUserDefaults for nothing. Printing the
+  // stored integer beside tones it did not decide is exactly the kind of log
+  // line that costs an investigation.
+  SDL_Log("[harness] panel palette (%s) -> frozen, ink %02X%02X%02X, "
+          "paper %02X%02X%02X",
+          g_dark ? "dark" : "light", panel.ink[0], panel.ink[1], panel.ink[2],
+          panel.paper[0], panel.paper[1], panel.paper[2]);
+  return true;
+}
+
+void pollPanelPalette() {
+  if (!syncPanelPalette()) return;
 
   // ...AND RE-RENDER, for the same reason applyTheme does it on an appearance
   // change: requestPresent only pushes the framebuffer that already exists.
@@ -2822,16 +2840,6 @@ void pollPanelPalette() {
   // end of its loop, so it is safe from this thread and safe before any
   // activity exists.
   crosspointRequestRender();
-
-  // THE STORED PRESET IS NO LONGER PART OF THE ANSWER, so it is no longer
-  // logged: since 2026-08-24 both pages are frozen (src/FrozenPage.h) and
-  // panelStoreFromPrefs consults NSUserDefaults for nothing. Printing the
-  // stored integer beside tones it did not decide is exactly the kind of log
-  // line that costs an investigation.
-  SDL_Log("[harness] panel palette (%s) -> frozen, ink %02X%02X%02X, "
-          "paper %02X%02X%02X",
-          g_dark ? "dark" : "light", panel.ink[0], panel.ink[1], panel.ink[2],
-          panel.paper[0], panel.paper[1], panel.paper[2]);
 }
 
 // THE FIRST FRAMES AFTER A FOREGROUND RETURN ARE THROWN AWAY, so keep asking.
@@ -4855,8 +4863,27 @@ void CrossPointHarness_seedSlideSwitch() {
 // the wake, and a window turned under it left the line and dot drawn off the
 // glass (second adversarial review, 2026-10-04). The glass ends dark either
 // way; the snap-back then happens on the wake, from perFrame.
+//
+// THE PICCO'S LIGHT, a third job (review row R-15, 2026-11-27). The firmware
+// draws the sleep screen and THEN switches the light off (main.cpp
+// enterDeepSleep), inside the loop() that never returns here, so the three
+// polls that turn the light into a page saw the off only at the wake and the
+// sleep screen sat on the lit paper for the whole sleep. With the light off
+// the page is the frozen page (src/FrontlitPage.h). The pair goes through
+// syncPanelPalette, not pollPanelPalette: the tones are applied when the cached
+// frame is converted, so the sleep screen needs no firmware render, and the
+// request is a flag only the firmware's loop() reads (ActivityManager.cpp),
+// which next runs in the waking boot. Not while the collapse holds the glass,
+// which is dark until the wake and whose every present is dropped. Each poll
+// returns on a compare when the light has not moved, which on every other
+// board is always.
 void sleepTick() {
-  if (!SimulatorOverlay::collapseOwnsGlass()) CrossPointOrientation_poll();
+  if (!SimulatorOverlay::collapseOwnsGlass()) {
+    CrossPointOrientation_poll();
+    syncPanelPalette();
+    pollPanelGlow();
+    pollScanlines();
+  }
   repaintAfterForeground();
   display.presentIfNeeded();
 }
