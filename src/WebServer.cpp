@@ -892,9 +892,27 @@ void WebServer::dispatchParkedRequest() {
     if (route.uri == impl_->currentUri &&
         (route.method == impl_->currentMethod || route.method == HTTP_ANY ||
          headMatchesGet)) {
-      if (route.uploadHandler &&
+      const bool isMultipart =
           impl_->currentContentType.find("multipart/form-data") !=
-              std::string::npos) {
+          std::string::npos;
+      if (isMultipart && !route.uploadHandler) {
+        // A form posted to a route with no upload callback still has fields,
+        // and the device reads them into the request's args whatever the
+        // route is (arduino-esp32 Parsing.cpp, _parseForm: a part with no
+        // filename becomes an arg; a file part is read and dropped when the
+        // route cannot take an upload). This shim parsed a form only for a
+        // route that had the callback, so the File Transfer page's New
+        // Folder, Rename and Move -- each a FormData POST, to /mkdir, /rename
+        // and /move -- answered "Missing ..." 400 here and on the iOS app,
+        // and worked on the device (review 2026-11-27).
+        for (const auto &part :
+             parseMultipart(impl_->currentContentType, impl_->currentBody)) {
+          if (part.filename.empty()) {
+            impl_->currentArgs.emplace_back(String(part.name),
+                                            String(std::string(part.data)));
+          }
+        }
+      } else if (isMultipart) {
         const auto parts =
             parseMultipart(impl_->currentContentType, impl_->currentBody);
         if (parts.empty()) {

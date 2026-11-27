@@ -23,6 +23,9 @@
 # And a file piped into curl -T (a chunked body, which the server cannot read)
 # is refused and writes nothing, where the device stored an empty file under
 # the name and said 201, or 204 with the book that was there gone.
+# And a form posted to a route that takes no file reaches the firmware with its
+# fields: New Folder, Rename and Move, which the File Transfer page posts as
+# forms, answered "Missing ..." 400 on this simulator and on the iOS app.
 #
 # It boots the desktop PICCO simulator on a scratch card it makes itself, walks
 # to File Transfer, and drives the server over loopback on a private port pair
@@ -459,7 +462,26 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -T "$SRC/multi-b.epub" "http://$H/
 check "$(both "$(is "$code" 201)" "$(same "$SRC/multi-b.epub" "$CARD/books/Piped New.epub")")" \
   "curl -T of that file by name straight after -> $code (want 201), $(card "$SRC/multi-b.epub" "$CARD/books/Piped New.epub")"
 
-# 15. The simulator is still running and still serving after all of that.
+# 15. A form posted to a route that takes no file: New Folder, Rename and
+#     Move, as the File Transfer page posts them (a FormData POST is
+#     multipart) and as `curl -F` does from Blink. The device reads a form's
+#     fields into the request whatever the route; this shim read them only for
+#     a route that takes an upload, so all three answered "Missing ..." 400
+#     here and on the iOS app. A form field is not URL-encoded, so the '+' and
+#     the '%25' in the folder's name are the name.
+FORM_DIR="$CARD/Form+Shelf 50%25"
+out=$(curl -s -m 20 -w ' [%{http_code}]' --form-string 'name=Form+Shelf 50%25' --form-string 'path=/' "http://$H/mkdir")
+check "$(both "$(is "$(code_of "$out")" 200)" "$([ -d "$FORM_DIR" ] && echo 1 || echo 0)")" \
+  "form POST /mkdir name='Form+Shelf 50%25' -> $out (want 200), folder $([ -d "$FORM_DIR" ] && echo "on the card under that name" || echo "NOT on the card under that name")"
+code=$(curl -s -o /dev/null -w '%{http_code}' -T "$SRC/query.epub" "http://$H/books/Form.epub")
+out=$(curl -s -m 20 -w ' [%{http_code}]' --form-string 'path=/books/Form.epub' --form-string 'name=Form Renamed.epub' "http://$H/rename")
+check "$(both "$(both "$(is "$(code_of "$out")" 200)" "$(same "$SRC/query.epub" "$CARD/books/Form Renamed.epub")")" "$(gone "$CARD/books/Form.epub")")" \
+  "form POST /rename of a book (put there first -> $code, want 201) -> $out (want 200), under the new name: $(card "$SRC/query.epub" "$CARD/books/Form Renamed.epub"), the old name: $(left "$CARD/books/Form.epub")"
+out=$(curl -s -m 20 -w ' [%{http_code}]' --form-string 'path=/books/Form Renamed.epub' --form-string 'dest=/Form+Shelf 50%25' "http://$H/move")
+check "$(both "$(both "$(is "$(code_of "$out")" 200)" "$(same "$SRC/query.epub" "$FORM_DIR/Form Renamed.epub")")" "$(gone "$CARD/books/Form Renamed.epub")")" \
+  "form POST /move into that folder -> $out (want 200), in the folder: $(card "$SRC/query.epub" "$FORM_DIR/Form Renamed.epub"), where it was: $(left "$CARD/books/Form Renamed.epub")"
+
+# 16. The simulator is still running and still serving after all of that.
 code=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://$H/api/status")
 alive=0; kill -0 "$SIM_PID" 2>/dev/null && alive=1
 check "$(both "$(is "$code" 200)" "$alive")" \
