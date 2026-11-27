@@ -29,6 +29,12 @@ int main() {
   const unsigned long long now = 9017;
   CHECK(!held(0, now, false));
   CHECK(held(now + 30, now + 1, false));
+  // Release at the end of a render pass: only an armed hold, and never the
+  // page-turn flash's own hold.
+  using presentheld::releaseAtPassEnd;
+  CHECK(releaseAtPassEnd(now + 30, false));   // a menu step: let it out now
+  CHECK(!releaseAtPassEnd(0, false));         // a gray pass already released it
+  CHECK(!releaseAtPassEnd(now + 30, true));   // the flash is wanted: keep it
   if (failures == 0) {
     std::printf("present_hold_test: all tests passed\n");
     return 0;

@@ -155,6 +155,11 @@ public:
                                 uint16_t yStart, uint16_t numRows);
   bool supportsStripGrayscale() const;
 
+  // Mirrors the firmware HAL (lib/hal/HalDisplay.h), where it is a no-op:
+  // called by ActivityManager's render task after every render(). Here it
+  // releases the present hold when no gray pass came (PresentHold.h).
+  void renderPassComplete();
+
   // Mirrors the firmware HAL (lib/hal/HalDisplay.h): does this panel have an
   // absolute 4-level grayscale bank behind displayGrayBuffer(..., true)?
   //
