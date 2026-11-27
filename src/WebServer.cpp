@@ -56,10 +56,11 @@ std::string trim(std::string value) {
 // device's: '+' is a space, '%' takes the next two characters whatever they
 // are and runs them through strtol (so "%zz" is a NUL byte and "%4z" is
 // 0x04), and a '%' with fewer than two characters after it stays a '%'.
-// The firmware calls this once on a WebDAV path (WebDAVHandler::
-// getRequestPath) and the device's parser calls it once on each query and
-// form argument; it must never be applied to the request path here as well
-// (see the request-line parse in begin()).
+// The device's parser calls this once on each query and form argument. It is
+// never applied to the request path that is handed on (see the request-line
+// parse in begin()): the firmware's WebDAV handler decodes that once itself,
+// with its own path rule, where '+' stays a '+' (firmware
+// src/network/DavPathDecode.h).
 std::string urlDecodeStd(const std::string &input) {
   std::string out;
   out.reserve(input.size());

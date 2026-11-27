@@ -238,6 +238,25 @@ check "$(both "$(is "$code" 201)" "$(same "$SRC/100%25 Proof.epub" "$CARD/books/
 code=$(curl -s -o "$WORK/back.bin" -w '%{http_code}' "http://$H/books/C%2B%2B%20Primer.epub")
 check "$(both "$(is "$code" 200)" "$(same "$SRC/C++ Primer.epub" "$WORK/back.bin")")" \
   "GET /books/C%2B%2B%20Primer.epub -> $code (want 200), $([ "$(same "$SRC/C++ Primer.epub" "$WORK/back.bin")" -eq 1 ] && echo "the bytes sent" || echo "NOT the bytes sent")"
+#    A '+' in a path is a '+'. The firmware's WebDAV handler used to decode
+#    its paths with the server's FORM decoder, where '+' means a space. Its
+#    own folder listing (PROPFIND) writes a '+' as it is, so the address it
+#    gave for 'C++ Primer.epub' fetched 'C   Primer.epub' and answered 404; a
+#    name typed into the address with a '+' was stored with a space and
+#    answered 201; and a MOVE's Destination lost its '+' the same way.
+href=$(curl -s -m 20 -X PROPFIND -H 'Depth: 1' "http://$H/books/" | python3 -c 'import re,sys
+hrefs=[h for h in re.findall(r"<D:href>([^<]*)</D:href>", sys.stdin.read()) if "Primer" in h]
+print(hrefs[0] if hrefs else "")')
+code=000
+[ -n "$href" ] && code=$(curl -s -g -m 20 -o "$WORK/listed.bin" -w '%{http_code}' "http://$H$href")
+check "$(both "$(is "$code" 200)" "$(same "$SRC/C++ Primer.epub" "$WORK/listed.bin")")" \
+  "PROPFIND /books/ lists 'C++ Primer.epub' as '${href:-(not listed)}'; GET of that address -> $code (want 200), $([ "$(same "$SRC/C++ Primer.epub" "$WORK/listed.bin")" -eq 1 ] && echo "the bytes sent" || echo "NOT the bytes sent")"
+code=$(curl -s -m 20 -o /dev/null -w '%{http_code}' -T "$SRC/query.epub" "http://$H/books/Raw+Plus.txt")
+check "$(both "$(is "$code" 201)" "$(same "$SRC/query.epub" "$CARD/books/Raw+Plus.txt")")" \
+  "curl -T to the typed address /books/Raw+Plus.txt -> $code (want 201), as 'Raw+Plus.txt': $(card "$SRC/query.epub" "$CARD/books/Raw+Plus.txt"); as 'Raw Plus.txt': $([ -e "$CARD/books/Raw Plus.txt" ] && echo "a file (the '+' was read as a space)" || echo "nothing")"
+code=$(curl -s -m 20 -o /dev/null -w '%{http_code}' -X MOVE -H "Destination: http://$H/books/Moved+Here.txt" "http://$H/books/Raw+Plus.txt")
+check "$(both "$(is "$code" 201)" "$(same "$SRC/query.epub" "$CARD/books/Moved+Here.txt")")" \
+  "MOVE /books/Raw+Plus.txt to Destination /books/Moved+Here.txt -> $code (want 201), as 'Moved+Here.txt': $(card "$SRC/query.epub" "$CARD/books/Moved+Here.txt"); /books/ holds: $(ls "$CARD/books" | tr '\n' '|')"
 
 # 8. A POST with no file in it is refused and writes nothing (R-02). These
 #    all follow good uploads (checks 4 and 5), and used to be answered 200
