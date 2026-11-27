@@ -47,30 +47,31 @@ std::string trim(std::string value) {
   return value;
 }
 
-int hexValue(char c) {
-  if (c >= '0' && c <= '9')
-    return c - '0';
-  if (c >= 'a' && c <= 'f')
-    return c - 'a' + 10;
-  if (c >= 'A' && c <= 'F')
-    return c - 'A' + 10;
-  return -1;
-}
-
+// A port of the device's own decoder, arduino-esp32 3.3.7
+// WebServer::urlDecode (libraries/WebServer/src/Parsing.cpp:591), kept the
+// same byte for byte so a name lands on the host card as it lands on the
+// device's: '+' is a space, '%' takes the next two characters whatever they
+// are and runs them through strtol (so "%zz" is a NUL byte and "%4z" is
+// 0x04), and a '%' with fewer than two characters after it stays a '%'.
+// The firmware calls this once on a WebDAV path (WebDAVHandler::
+// getRequestPath) and the device's parser calls it once on each query and
+// form argument; it must never be applied to the request path here as well
+// (see the request-line parse in begin()).
 std::string urlDecodeStd(const std::string &input) {
   std::string out;
   out.reserve(input.size());
-  for (size_t i = 0; i < input.size(); ++i) {
-    if (input[i] == '%' && i + 2 < input.size()) {
-      const int hi = hexValue(input[i + 1]);
-      const int lo = hexValue(input[i + 2]);
-      if (hi >= 0 && lo >= 0) {
-        out.push_back(static_cast<char>((hi << 4) | lo));
-        i += 2;
-        continue;
-      }
+  const size_t len = input.size();
+  size_t i = 0;
+  while (i < len) {
+    const char encoded = input[i++];
+    if (encoded == '%' && i + 1 < len) {
+      char hex[] = "0x00";
+      hex[2] = input[i++];
+      hex[3] = input[i++];
+      out.push_back(static_cast<char>(std::strtol(hex, nullptr, 16)));
+    } else {
+      out.push_back(encoded == '+' ? ' ' : encoded);
     }
-    out.push_back(input[i] == '+' ? ' ' : input[i]);
   }
   return out;
 }
@@ -647,12 +648,25 @@ void WebServer::begin() {
             static_cast<size_t>(std::strtoull(value.c_str(), nullptr, 10));
       }
 
+      // The path is kept as it came off the wire, percent-escapes and all,
+      // which is what the device's parser does (arduino-esp32 3.3.7
+      // Parsing.cpp:110, `_currentUri = url`). Routes are matched against
+      // that raw text and the firmware's WebDAV handler decodes it once
+      // itself. Decoding it here as well decoded every WebDAV path twice:
+      // curl -T "C++ Primer.epub" sends C%2B%2B%20Primer.epub, the first
+      // pass gave "C++ Primer.epub" and the second turned each '+' into a
+      // space, so the host card held "C   Primer.epub" where the device
+      // holds the real name. A file called "100%25.epub" (sent as
+      // 100%2525.epub) landed as "100%.epub" the same way.
       const size_t queryStart = target.find('?');
-      const std::string path = urlDecodeStd(target.substr(0, queryStart));
-      if (path.find('\0') != std::string::npos) {
+      const std::string path = target.substr(0, queryStart);
+      if (urlDecodeStd(path).find('\0') != std::string::npos) {
         // Everything downstream is a C string; a %00 silently truncated the
-        // path and the request ran on the shorter one.
-        sendSimpleResponse(client, 400, "NUL in path");
+        // path and the request ran on the shorter one. An escape that is not
+        // two hex digits ("%zz") decodes to NUL as well. The device does not
+        // refuse either (it runs on the truncated path); the host does.
+        sendSimpleResponse(client, 400,
+                           "NUL or a malformed %XX escape in the path");
         impl_->activeClient = -1;
         ::close(client);
         continue;
