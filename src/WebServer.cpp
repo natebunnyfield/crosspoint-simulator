@@ -28,6 +28,8 @@
 #include <vector>
 
 namespace {
+// The most a BUFFERED request body may be (a multipart POST, a JSON POST).
+// The 413 text below names this figure; change them together.
 constexpr size_t MAX_BODY_SIZE = 256UL * 1024UL * 1024UL;
 constexpr size_t UPLOAD_CHUNK_SIZE = 4096;
 
@@ -698,13 +700,20 @@ void WebServer::begin() {
 
       const auto rawHandlers = impl_->rawHandlers(*this);
       const bool hasRawHandlers = !rawHandlers.empty();
-      if (bodyLength > MAX_BODY_SIZE) {
+      // The cap is on what this server HOLDS. A raw body (WebDAV PUT,
+      // curl -T) is streamed to the card one socket buffer at a time, so its
+      // size costs no memory and it is not capped -- the device has no cap
+      // either. Before the stream existed a PUT was buffered and needed the
+      // cap; it then kept refusing a 300 MB curl -T with 413 for no reason
+      // (R-13). A buffered body (multipart POST, curl -F) is still held
+      // whole, so it keeps the limit, and says which command has none.
+      if (bodyLength > MAX_BODY_SIZE && !hasRawHandlers) {
         LOG_ERR("WEB", "[SIM] Request body too large: %zu bytes", bodyLength);
-        if (hasRawHandlers) {
-          impl_->emitRawEvent(*this, rawHandlers, RAW_START, nullptr, 0);
-          impl_->emitRawEvent(*this, rawHandlers, RAW_ABORTED, nullptr, 0);
-        }
-        sendSimpleResponse(client, 413, "Payload Too Large");
+        sendSimpleResponse(
+            client, 413,
+            "Too large for this kind of upload: the simulator and the app "
+            "hold a form upload (curl -F) in memory and stop at 256 MB. "
+            "curl -T NAME http://ADDRESS/FOLDER/ has no size limit");
         impl_->activeClient = -1;
         ::close(client);
         continue;
