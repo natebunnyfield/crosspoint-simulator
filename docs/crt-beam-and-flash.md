@@ -498,3 +498,20 @@ still uploads and presents, there is simply no new picture to sweep IN.
 Verified by reproduction through the RESUME trigger (S-033's path holds the
 split until the next present, which is what makes it capturable): present on a
 pre-fix binary, absent at HEAD, twice. A page turn still sweeps.
+
+## The beam does NOT sweep over an older picture — 2026-11-27
+
+Owner: *"fix the jumpy delay while navigating menus"* (the Picco app). The
+sweep paints the new frame down over the GLASS CAPTURE, which is retaken only
+when a frame is wholly on the glass. The coalescing hold blocks every present,
+the one that would finish a sweep included, so with menu steps under ~165 ms
+apart a sweep never finished, the glass was never retaken, and each new frame
+swept down over the capture from BEFORE the burst: the old selection came back
+below the beam on every press (9 of the 11 sweeps in the 150 and 100 ms bursts
+on the iOS Simulator). `glasscapture::shouldArmBeam` now also asks that the
+capture hold the frame the glass was showing; one that does not lands whole,
+with no sweep. And the present that completes a frame (landed whole, or its
+sweep reached the foot) reads the glass back on the NEXT present instead, so
+the readback (~35 ms) no longer holds that frame's last rows off the glass.
+Measured with the `[lat]` trace's `sweep-over` line and shown frame by frame in
+`crosspoint-reader docs/menu-nav-lag-2026-11-27.md`. A slow step still sweeps.

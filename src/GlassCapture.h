@@ -36,6 +36,10 @@ struct Inputs {
                         // present -- before the overlay draws, because the
                         // overlay's own layout may request the NEXT present,
                         // and that request must not be consumed by this one
+  bool deferToNext = false;  // this present completes a new frame on the
+                             // glass -- it landed whole, or its sweep reached
+                             // the foot -- so its readback waits for the next
+                             // present, which the caller requests
 };
 
 // True when this present should read the output back into the glass.
@@ -45,9 +49,17 @@ struct Inputs {
 // glass has changed shape). Rule 2: capture when there is no picture, when the
 // page moved, when the size moved, or when anything other than a self-driving
 // loop asked for this present.
+//
+// Rule 3 (2026-11-27): the present that COMPLETES a frame -- the one where it
+// lands whole, or where its sweep reaches the foot of the glass -- does not
+// read back; the next present does. The readback sits before the flip, so
+// taking it here held the frame's last rows off the glass for ~35 ms (iOS
+// Simulator, iPhone 17) on every menu step. The next present composes the same
+// glass from cache, so it reads back the same picture.
 inline bool shouldCapture(const Inputs &in) {
   if (in.beamSweeping && !in.sizeStale) return false;
   if (!in.hasPicture || in.sizeStale) return true;
+  if (in.deferToNext) return false;
   if (in.glassSeq != in.presentSeq) return true;
   return in.glassGen != in.presentGen;
 }
@@ -58,9 +70,21 @@ inline bool shouldCapture(const Inputs &in) {
 // until 2026-09-04 -- nothing that left the glass to deposit as afterglow.
 // A light->dark flip deposited the light page (captured at absolute
 // intensity) into the accumulator and the whole glass flashed and faded.
+//
+// `captureIsCurrent`: the capture holds the picture this present REPLACES
+// (its seq is the one the glass was showing). A sweep paints the new frame
+// down over the capture, so a stale capture puts an OLDER picture back on
+// the screen first. That happened on every fast menu step (2026-11-27,
+// docs/menu-nav-lag-2026-11-27.md): the coalescing hold blocks every present,
+// including the one that would finish a sweep and re-capture, so with presses
+// under ~165 ms apart on the iOS Simulator each new sweep started over the
+// glass from BEFORE the burst and the selection jumped back to where the
+// burst began: 9 of the 11 sweeps. Such a frame lands whole instead (and is read
+// back on the next present, rule 3 above).
 inline bool shouldArmBeam(const bool contentChanged, const bool hasPicture,
-                          const bool reconvertOnly) {
-  return contentChanged && hasPicture && !reconvertOnly;
+                          const bool reconvertOnly,
+                          const bool captureIsCurrent) {
+  return contentChanged && hasPicture && !reconvertOnly && captureIsCurrent;
 }
 
 struct DepositInputs {

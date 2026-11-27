@@ -3624,6 +3624,11 @@ void HalDisplay::presentIfNeeded() {
   // flashed bright and faded over the trail. Measured on the desktop: every
   // pixel lifted 23 levels on the flip frame. No new picture came IN, so none
   // left the glass either.
+  // A new frame drawn whole over a stale capture (see captureIsCurrent
+  // below): read back on the next present, which this one then asks for.
+  // Declared above reconvertOnly: tests/font_resize_wiring_test.py anchors
+  // on `bool reconvertOnly = false;` directly before the pixel-lock block.
+  bool landedWhole = false;
   bool reconvertOnly = false;
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
@@ -3652,6 +3657,9 @@ void HalDisplay::presentIfNeeded() {
     const size_t live = static_cast<size_t>(activeWidth()) * activeHeight();
     if (wantPrevFrame) {
       contentChanged = pixelBufSeq != presentedSeq;
+      // The frame the glass was showing until this present. The capture must
+      // hold it for a sweep to start from what the eye last saw.
+      const bool captureIsCurrent = glassSeq == presentedSeq;
       presentedSeq = pixelBufSeq;
       // A sweep can only start from a picture there is something to sweep OVER
       // -- and it must be a NEW picture; sweeping a reconvert paints the new
@@ -3661,8 +3669,15 @@ void HalDisplay::presentIfNeeded() {
       // remaining frames ARE that split-palette picture.
       reconvertOnly = reconvertSeq != 0 && pixelBufSeq == reconvertSeq;
       beamShouldArm = glasscapture::shouldArmBeam(contentChanged, glassHasPicture,
-                                                  reconvertOnly);
+                                                  reconvertOnly, captureIsCurrent);
       if (reconvertOnly) beamStartedAt = 0;
+      // A new frame over a stale capture: the sweep before it never reached
+      // its finishing present (the hold held it), so the capture is older
+      // than the glass. Drop that sweep too, so nothing below a beam shows
+      // the older picture; this frame lands whole (read back next present).
+      if (contentChanged && !captureIsCurrent) beamStartedAt = 0;
+      landedWhole = contentChanged && !captureIsCurrent && glassHasPicture &&
+                    !reconvertOnly;
     } else if (glassPrevTexture) {
       // Both effects turned off: drop the capture rather than keep paying for
       // it, and stop any sweep in flight.
@@ -4107,7 +4122,9 @@ void HalDisplay::presentIfNeeded() {
   float beamProgress = 1.0f;
   const bool beamActive = beamMs > 0.0f && beamStartedAt != 0 &&
                           glassPrevTexture && glassHasPicture;
-  // [lat] only: the sweep reached the foot of the glass on this present.
+  // The sweep reached the foot of the glass on this present: the frame is
+  // complete, and its readback waits for the next present (GlassCapture.h
+  // rule 3). Also the [lat] "swept" line.
   bool beamFinishedHere = false;
   if (beamActive) {
     beamProgress =
@@ -4618,7 +4635,8 @@ void HalDisplay::presentIfNeeded() {
       const bool glassSizeStale = glassW != gw || glassH != gh;
       if (glasscapture::shouldCapture({beamSweeping, glassSizeStale,
                                        glassHasPicture, glassSeq, presentedSeq,
-                                       glassGen, dirtyGenAtStart})) {
+                                       glassGen, dirtyGenAtStart,
+                                       landedWhole || beamFinishedHere})) {
         const uint64_t capT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
         if (glassSizeStale) beamStartedAt = 0;
         if (captureGlass(gw, gh)) {
@@ -5148,6 +5166,10 @@ void HalDisplay::presentIfNeeded() {
   const uint64_t flipT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
   SDL_RenderPresent(sdl_renderer);
   sim_update_trace::presented(uploadedSeq);
+  // This present completed a frame, and its readback was deferred
+  // (GlassCapture.h rule 3): the next pass takes it. Plain, not dirty --
+  // nothing the capture should see has changed.
+  if (landedWhole || beamFinishedHere) requestPlainPresent();
   if (simlat::enabled()) {
     // FIRST flip that carries a firmware frame ("glass", with its seq from
     // the "written" line), and the flip on which the beam finished drawing it

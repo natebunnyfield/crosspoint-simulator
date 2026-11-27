@@ -43,7 +43,15 @@ int main() {
   // gen still differs from the captured one, and the next present captures.
   CHECK(shouldCapture({false, false, true, 2, 2, 1, 2}));
 
-  std::printf("glass_capture_test: all checks passed\n");
+  // RULE 3 (2026-11-27). The present that completes a frame (it lands whole,
+  // or its sweep reaches the foot) held its flip ~35 ms for the readback. It
+  // is read back on the NEXT present (same picture, served from cache).
+  CHECK(!shouldCapture({false, false, true, 5, 7, 1, 1, true}));
+  CHECK(shouldCapture({false, false, true, 5, 7, 1, 1, false}));
+  // ...but never at the cost of the two captures that cannot wait: no picture
+  // yet, and a glass that changed size.
+  CHECK(shouldCapture({false, false, false, 0, 7, 1, 1, true}));
+  CHECK(shouldCapture({false, true, true, 5, 7, 1, 1, true}));
 
   // THE DEPOSIT GATE (2026-09-04). A page turn deposits the previous glass as
   // afterglow; a polarity flip must not -- it bumps the sequence, so every
@@ -60,10 +68,31 @@ int main() {
   // deposit rides into the next dark flip (review 2026-09-04, second pass).
   CHECK(!shouldDeposit({true, true, true, true, false, false}));
   // And the beam agrees with it, so a reconvert neither sweeps nor glows.
-  CHECK(glasscapture::shouldArmBeam(true, true, false));
-  CHECK(!glasscapture::shouldArmBeam(true, true, true));
-  CHECK(!glasscapture::shouldArmBeam(false, true, false));
-  CHECK(!glasscapture::shouldArmBeam(true, false, false));
+  CHECK(glasscapture::shouldArmBeam(true, true, false, true));
+  CHECK(!glasscapture::shouldArmBeam(true, true, true, true));
+  CHECK(!glasscapture::shouldArmBeam(false, true, false, true));
+  CHECK(!glasscapture::shouldArmBeam(true, false, false, true));
 
+  // THE STALE SWEEP (2026-11-27, docs/menu-nav-lag-2026-11-27.md). A fast
+  // menu step arrives before the previous frame's sweep reached its finishing
+  // present, so the capture still holds the picture from before that frame.
+  // Sweeping over it would put the older picture back on the glass, so the
+  // new frame lands whole. Fails against the three-input gate, which armed.
+  CHECK(!glasscapture::shouldArmBeam(true, true, false, false));
+  // ...and once that frame has landed whole and been captured, the next one
+  // sweeps again.
+  CHECK(glasscapture::shouldArmBeam(true, true, false, true));
+  // A stale capture changes nothing for a present with no new picture.
+  CHECK(!glasscapture::shouldArmBeam(false, true, false, false));
+
+  // The exit code is the gate (run_all.sh reads nothing else). This used to
+  // print "all checks passed" mid-file and return 0 whatever CHECK counted,
+  // so a broken rule failed loudly and passed the suite (adversarial review,
+  // 2026-11-27).
+  if (testcheck::g_failures != 0) {
+    std::printf("glass_capture_test: %d check(s) FAILED\n", testcheck::g_failures);
+    return 1;
+  }
+  std::printf("glass_capture_test: all checks passed\n");
   return 0;
 }
