@@ -1292,7 +1292,12 @@ Grown in one day; each is documented at its definition, this is the map:
   exposes a refresh that repaints an identical frame -- a whole waveform for
   nothing. Latched like LOG_TIMING. `src/SimLatencyTrace.h`; summarizer and
   findings in the firmware's `tools/latency/` and
-  `docs/lag-reduction-plan-2026-11-07.md`.
+  `docs/lag-reduction-plan-2026-11-07.md`. Since 2026-11-27 it also follows
+  each frame to the GLASS (`written` / `glass` / `swept` / `sweep-over`), which
+  is where a host's press latency actually lives: held, composed and swept
+  after the panel call. The firmware's `tools/latency/glass.py` prints press to
+  first flip and to complete frame, frames that never reached the glass, and
+  sweeps that started over a stale picture (`docs/menu-nav-lag-2026-11-27.md`).
 - **`CROSSPOINT_SIM_IMPORT_FILE=<path>`**: drives the book-import path (copy
   to card, then open) exactly as an incoming Files/share-sheet epub does.
 - **Zen zones fire only for deliberate taps**: single finger, ≤28 px travel,

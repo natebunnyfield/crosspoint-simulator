@@ -2558,9 +2558,14 @@ void HalDisplay::refreshDisplay(RefreshMode mode, bool /*turnOffScreen*/) {
   snapshotBwBase(fb);
   // The mode is only READ by e-ink mode (src/EinkPanel.h); with it off the
   // argument is ignored exactly as it always was.
-  renderBwPixels(fb, mode == FULL_REFRESH   ? eink::Refresh::Full
-                     : mode == HALF_REFRESH ? eink::Refresh::Half
-                                            : eink::Refresh::Fast);
+  const uint64_t seq =
+      renderBwPixels(fb, mode == FULL_REFRESH   ? eink::Refresh::Full
+                         : mode == HALF_REFRESH ? eink::Refresh::Half
+                                                : eink::Refresh::Fast);
+  // The frame this panel call produced, so the trace can follow it to the
+  // glass (the "glass" / "swept" lines in presentIfNeeded) or see it never
+  // arrive.
+  simlat::note("written", static_cast<int>(seq));
 }
 
 // Called from the main thread (simulator_main.cpp) to push pixels to SDL.
@@ -4074,7 +4079,13 @@ void HalDisplay::presentIfNeeded() {
   // than one that took up to ~265ms longer to build. One write site, one read
   // site (beamProgress, immediately below) -- no second sample to desync the
   // clip's set/clear pairing the way the reverted first attempt did.
-  if (beamShouldArm) beamStartedAt = SDL_GetTicks();
+  if (beamShouldArm) {
+    // [lat]: the picture this sweep paints over (the glass capture's seq).
+    // Anything older than the frame the glass last showed is a sweep that
+    // starts by putting an old picture back on the screen.
+    simlat::note("sweep-over", static_cast<int>(glassSeq));
+    beamStartedAt = SDL_GetTicks();
+  }
 
   // THE BEAM. How far down the GLASS the sweep has got, 0..1.
   //
@@ -4096,12 +4107,15 @@ void HalDisplay::presentIfNeeded() {
   float beamProgress = 1.0f;
   const bool beamActive = beamMs > 0.0f && beamStartedAt != 0 &&
                           glassPrevTexture && glassHasPicture;
+  // [lat] only: the sweep reached the foot of the glass on this present.
+  bool beamFinishedHere = false;
   if (beamActive) {
     beamProgress =
         static_cast<float>(SDL_GetTicks() - beamStartedAt) / beamMs;
     if (beamProgress >= 1.0f) {
       beamProgress = 1.0f;
       beamStartedAt = 0;
+      beamFinishedHere = true;
     }
   }
   const bool beamSweeping = beamActive && beamProgress < 1.0f;
@@ -5134,6 +5148,18 @@ void HalDisplay::presentIfNeeded() {
   const uint64_t flipT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
   SDL_RenderPresent(sdl_renderer);
   sim_update_trace::presented(uploadedSeq);
+  if (simlat::enabled()) {
+    // FIRST flip that carries a firmware frame ("glass", with its seq from
+    // the "written" line), and the flip on which the beam finished drawing it
+    // ("swept"; with no beam the first flip is already the whole frame). A
+    // written seq that never appears here never reached the screen.
+    static uint64_t latGlassSeq = 0;
+    if (uploadedSeq != latGlassSeq) {
+      latGlassSeq = uploadedSeq;
+      simlat::note("glass", static_cast<int>(uploadedSeq));
+    }
+    if (beamFinishedHere) simlat::note("swept", static_cast<int>(uploadedSeq));
+  }
   if (timingLogWanted()) {
     const uint64_t end = SDL_GetTicksNS();
     timingFrame.flipMs = static_cast<double>(end - flipT0) / 1.0e6;

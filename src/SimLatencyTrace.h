@@ -10,6 +10,17 @@
 // (~500 ms FAST, ~1650 ms HALF/FULL, measured on the X4) is the part it does
 // not. The host cannot price SD I/O, so the counts travel with each line --
 // call counts are what transfer to the device, wall time on the host does not.
+//
+// FOLLOWING A FRAME TO THE GLASS (2026-11-27). The panel call is not the end
+// of a press on a host: the present that puts the frame on screen is held,
+// composed and swept after it. So four more lines, all from HalDisplay.cpp:
+// `written <seq>` (the frame a panel call produced), `glass <seq>` (the first
+// flip carrying it), `swept <seq>` (the flip on which the beam finished it)
+// and `sweep-over <seq>` (the captured picture a new sweep paints over; older
+// than the frame the glass was showing means the old picture came back). A
+// written seq with no glass line was coalesced away. Summarizer: the
+// firmware's tools/latency/glass.py; findings in its
+// docs/menu-nav-lag-2026-11-27.md.
 
 #include <atomic>
 #include <cstdint>
