@@ -18,8 +18,9 @@ constexpr bool held(uint64_t holdUntilMs, uint64_t nowMs, bool screenshotDue) {
 }
 
 // RELEASE AT THE END OF A RENDER PASS (owner ruling 2026-11-27, "Hold only
-// before gray"; firmware docs/menu-nav-lag-2026-11-27.md O2). Every gray pass
-// runs inside the firmware's render(), so a hold still armed when render()
+// before gray"; firmware docs/menu-nav-lag-2026-11-27.md O2). A firmware
+// render() that follows its 1-bit frame with a gray pass runs it before it
+// returns, so a hold that pass armed and that is still armed when render()
 // returns is waiting for a compose that is not coming: a menu step, a 1-bit
 // screen. Let the frame out then rather than at the 30 ms deadline. Not while
 // the page-turn flash is on (CROSSPOINT_SIM_PRESENT_FLASH): that hold IS the
