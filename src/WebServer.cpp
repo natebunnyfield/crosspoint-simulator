@@ -337,8 +337,17 @@ struct WebServer::Impl {
 
   // Handler dispatch is HANDED OFF to handleClient(), which the firmware calls
   // from its own loop. The accept worker parses, parks the request here, and
-  // waits; nothing in a route handler runs on the worker thread. See the note
-  // above handleClient().
+  // waits; no route handler, upload handler or RequestHandler::handle() runs
+  // on the worker thread. See the note above handleClient().
+  //
+  // ONE EXCEPTION, and it is not how the device works: RequestHandler::raw()
+  // (the WebDAV PUT body, curl -T). The worker calls it itself as the bytes
+  // arrive -- RAW_START, every RAW_WRITE, RAW_END or RAW_ABORTED -- so the
+  // firmware opens, writes, closes and renames the file on the worker thread
+  // whether or not the main loop is polling. Only the PUT's status reply
+  // waits for handleClient(). On the device all of it runs inside
+  // handleClient() on the loop task (R-06, 2026-11-27: with the main loop
+  // stalled, a 1 MB PUT here landed whole on the card and got no reply).
   std::mutex dispatchMutex;
   std::condition_variable dispatchCv;
   bool dispatchPending = false;
