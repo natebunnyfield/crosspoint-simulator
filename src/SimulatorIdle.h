@@ -2,7 +2,8 @@
 // THE MAIN THREAD'S SLEEPS PUMP PRESENTS (2026-10-03).
 //
 // The firmware's loop() sleeps between input polls -- delayWallClock(10) at
-// 100 Hz, and HalPowerManager::lightSleep's delay(50) once idle -- and in
+// 100 Hz, and HalPowerManager::lightSleep's 20 ms slice once idle (50 ms
+// until 2026-11-27, menu lag O3) -- and in
 // the simulator those sleeps are on the MAIN THREAD, the only thread SDL may
 // present from. So nothing could reach the glass while the firmware slept:
 // the present loop in simulator_main runs once per loop() pass, and a pass

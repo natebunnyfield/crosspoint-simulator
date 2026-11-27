@@ -32,9 +32,11 @@ int main() {
   // Release at the end of a render pass: only an armed hold, and never the
   // page-turn flash's own hold.
   using presentheld::releaseAtPassEnd;
-  CHECK(releaseAtPassEnd(now + 30, false));   // a menu step: let it out now
-  CHECK(!releaseAtPassEnd(0, false));         // a gray pass already released it
-  CHECK(!releaseAtPassEnd(now + 30, true));   // the flash is wanted: keep it
+  CHECK(releaseAtPassEnd(now + 30, now + 30, false));  // this pass's menu step: out now
+  CHECK(!releaseAtPassEnd(0, now + 30, false));        // a gray pass already released it
+  CHECK(!releaseAtPassEnd(now + 30, now + 30, true));  // the flash is wanted: keep it
+  CHECK(!releaseAtPassEnd(now + 30, 0, false));        // armed by another thread (a sleep cover)
+  CHECK(!releaseAtPassEnd(now + 45, now + 30, false)); // re-armed since this pass: not ours
   if (failures == 0) {
     std::printf("present_hold_test: all tests passed\n");
     return 0;

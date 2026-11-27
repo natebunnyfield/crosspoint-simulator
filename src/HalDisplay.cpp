@@ -885,6 +885,13 @@ std::atomic<bool> panelEmissive{false};
 // unconditional.
 std::atomic<uint64_t> presentHoldUntil{0};
 
+// The deadline the CURRENT thread last armed, for releaseHoldAtPassEnd: a
+// render pass may release only its own hold (PresentHold.h).
+inline uint64_t &holdArmedThisThread() {
+  thread_local uint64_t armed = 0;
+  return armed;
+}
+
 // Which producer wrote the pixels currently in pixelBuf: 'B' the 1-bit pass,
 // 'G' the composed grayscale one. Diagnostic only, read by the present log --
 // but it is the diagnostic that distinguishes "the flash is gone" from "the
@@ -1108,18 +1115,23 @@ uint64_t renderBwPixels(const uint8_t *fb,
     presentFlashUntil.store(SDL_GetTicks() + kPresentFlashMs);
     presentHoldUntil.store(0);
   } else {
-    presentHoldUntil.store(SDL_GetTicks() + kPresentHoldMs);
+    const uint64_t armed = SDL_GetTicks() + kPresentHoldMs;
+    presentHoldUntil.store(armed);
+    holdArmedThisThread() = armed;
   }
   requestDirtyPresent();
   return seq;
 }
 
-// See presentheld::releaseAtPassEnd. Called on the render task, which is also
-// the only thread that arms the hold; the main thread only clears it.
+// See presentheld::releaseAtPassEnd. Called on the render task at the end of
+// each render(). Releases only the hold this thread armed during the pass,
+// and only if nothing has re-armed or cleared it since (compare-and-swap).
 void releaseHoldAtPassEnd() {
-  if (!presentheld::releaseAtPassEnd(presentHoldUntil.load(), presentFlashWanted())) return;
-  presentHoldUntil.store(0);
-  requestDirtyPresent();
+  const uint64_t mine = holdArmedThisThread();
+  holdArmedThisThread() = 0;
+  uint64_t expected = mine;
+  if (!presentheld::releaseAtPassEnd(presentHoldUntil.load(), mine, presentFlashWanted())) return;
+  if (presentHoldUntil.compare_exchange_strong(expected, 0)) requestDirtyPresent();
 }
 
 void clearGrayscalePlanes() {

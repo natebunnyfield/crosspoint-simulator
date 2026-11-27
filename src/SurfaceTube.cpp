@@ -282,9 +282,12 @@ static void destroyScanTexture() {
   scanTexPitchKey = -1;
   scanTexBloom = -1;
   scanTexDefocus = -1;
-  scanBucket.clear();
-  scanFieldPx.clear();
-  scanRowT.clear();
+  // Free, not just empty: clear() keeps the capacity, which on a phone is
+  // ~16 MB that would outlive the texture after a switch to the light page
+  // (adversarial review 2026-11-27, finding 5).
+  std::vector<uint8_t>().swap(scanBucket);
+  std::vector<uint32_t>().swap(scanFieldPx);
+  std::vector<float>().swap(scanRowT);
 }
 
 static bool ensureScanlinesTexture(int w, int h, float pitchPx) {

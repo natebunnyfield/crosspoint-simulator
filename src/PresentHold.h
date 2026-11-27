@@ -24,8 +24,17 @@ constexpr bool held(uint64_t holdUntilMs, uint64_t nowMs, bool screenshotDue) {
 // screen. Let the frame out then rather than at the 30 ms deadline. Not while
 // the page-turn flash is on (CROSSPOINT_SIM_PRESENT_FLASH): that hold IS the
 // flash, held on purpose.
-constexpr bool releaseAtPassEnd(uint64_t holdUntilMs, bool flashWanted) {
-  return holdUntilMs != 0 && !flashWanted;
+//
+// Only the hold THIS pass armed, and only while it is still that hold
+// (adversarial review 2026-11-27, finding 4): the 1-bit pass can arm on any
+// thread -- SleepActivity draws its gray covers on the main thread, outside
+// the render lock -- so a render pass ending in between must not let that
+// cover's 1-bit base out, nor clear a hold armed after this pass's.
+// `armedThisPass` is the deadline this thread stored (0 = none); the caller
+// clears it with a compare-and-swap on that same value.
+constexpr bool releaseAtPassEnd(uint64_t holdUntilMs, uint64_t armedThisPass,
+                                bool flashWanted) {
+  return armedThisPass != 0 && holdUntilMs == armedThisPass && !flashWanted;
 }
 
 }  // namespace presentheld
