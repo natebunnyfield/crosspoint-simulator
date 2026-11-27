@@ -14,6 +14,7 @@
 #include "FieldSelection.h"
 #include "LaidStructure.h"
 #include "Letterpress.h"
+#include "LetterpressDirty.h"
 #include "LightInkPalette.h"
 #include "PaperDefects.h"
 #include "PhosphorGrain.h"
@@ -448,6 +449,23 @@ static bool ensureLetterpressTexture() {
     }
   }
 
+  // SAME PAGE PARAMETERS, NEW PIXELS: rebuild only where the ink moved
+  // (src/LetterpressDirty.h -- bit-identical to the whole rebuild). The
+  // texture already holds the field for sheetInkness, the inkness it was last
+  // built from, whenever the keys below match; every path that leaves them
+  // matching rebuilt from that inkness. Not on the raking light, whose edge
+  // field is per pixel and rebuilt whole.
+  const bool partial =
+      rakePacked == 0 && letterpressTexture && letterTexW == w &&
+      letterTexH == h && letterTexRaking == 0 && letterTexStrength == strength &&
+      letterTexKey == palKey && letterTexRing == ringPct &&
+      letterTexDeboss == debossPct && letterTexPress == pressPct &&
+      sheetInknessW == w && sheetInknessH == h &&
+      sheetInkness.size() == inkness.size();
+  const letterdirty::Rect dirty =
+      partial ? letterdirty::changedRect(sheetInkness.data(), inkness.data(), w, h)
+              : letterdirty::Rect{0, 0, w, h};
+
   // Hand the snapshot to the sheet pass before anything can fail below: the
   // defect mask wants the CURRENT glyphs even on a frame where the texture
   // upload goes wrong.
@@ -493,6 +511,7 @@ static bool ensureLetterpressTexture() {
   params.pressScale = static_cast<float>(pressPct) / 100.0f;
   const uint64_t letterT0 = SDL_GetTicksNS();
   std::vector<uint32_t> field;
+  SDL_Rect uploadRect = {0, 0, w, h};
   auto tAt = [&](int x, int y) {
     if (x < 0) x = 0;
     if (y < 0) y = 0;
@@ -520,25 +539,20 @@ static bool ensureLetterpressTexture() {
       rakeField = rakinglight::EdgeField{};
       rakeFieldValid = false;
     }
-    field.resize(static_cast<size_t>(w) * h);
-    for (int y = 0; y < h; ++y) {
-      uint32_t *row = field.data() + static_cast<size_t>(y) * w;
-      for (int x = 0; x < w; ++x) {
-        float win[3][3];
-        for (int dy = -1; dy <= 1; ++dy)
-          for (int dx = -1; dx <= 1; ++dx)
-            win[dy + 1][dx + 1] = tAt(x + dx, y + dy);
-        const uint32_t m = letterpress::multiplierAt(params, win, x, y, w, h);
-        // Achromatic, like the grain: pressed ink is MORE of its own pigment
-        // and a deboss shadow is LESS of the paper's light, not a different
-        // colour.
-        row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
-      }
+    // The whole field, or (partial) only the box whose 3x3 windows saw the
+    // ink change -- empty for a repaint of the same pixels, which then
+    // uploads nothing at all.
+    if (!dirty.empty()) {
+      field.resize(static_cast<size_t>(dirty.w) * dirty.h);
+      letterdirty::fillField(params, inkness.data(), w, h, dirty, field.data(),
+                             dirty.w);
+      upload = field.data();
+      uploadRect = {dirty.x, dirty.y, dirty.w, dirty.h};
     }
-    upload = field.data();
   }
-  if (!SDL_UpdateTexture(letterpressTexture, nullptr, upload,
-                         static_cast<int>(w * sizeof(uint32_t)))) {
+  if (upload &&
+      !SDL_UpdateTexture(letterpressTexture, &uploadRect, upload,
+                         static_cast<int>(uploadRect.w * sizeof(uint32_t)))) {
     LOG_ERR("DISP", "letterpress: could not upload the field (%s)",
             SDL_GetError());
     destroyLetterpressTexture();
@@ -563,10 +577,12 @@ static bool ensureLetterpressTexture() {
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[letterpress] field %dx%d strength %d seed %u budget %.3f "
-              "in %.1f ms",
+              "in %.1f ms (%s %dx%d)",
               w, h, strength, seed,
               static_cast<double>(params.paperDarkenBudget),
-              static_cast<double>(SDL_GetTicksNS() - letterT0) / 1.0e6);
+              static_cast<double>(SDL_GetTicksNS() - letterT0) / 1.0e6,
+              partial ? "rebuilt the changed box" : "rebuilt whole",
+              upload ? uploadRect.w : 0, upload ? uploadRect.h : 0);
   return true;
 }
 

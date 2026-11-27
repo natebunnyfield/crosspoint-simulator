@@ -658,6 +658,16 @@ run md5 \
 run letterpress \
   c++ -std=c++17 -Isrc -o "$OUT/letterpress" tests/letterpress_test.cpp
 
+# The letterpress field is rebuilt only inside the box where the ink changed
+# (src/LetterpressDirty.h), because the whole 1600x960 rebuild cost ~54 ms of
+# main thread on every menu step on the phone. The box must be grown by one
+# pixel for the 3x3 window, or the stroke's neighbors keep a stale rim; this
+# compares the partial rebuild against the whole one, pixel for pixel, over
+# 300 chained random edits, and shows the ungrown box fails.
+# crosspoint-reader docs/menu-nav-lag-2026-11-27.md.
+run letterpress_dirty \
+  c++ -std=c++17 -O2 -Isrc -Itests -o "$OUT/letterpress_dirty" tests/letterpress_dirty_test.cpp
+
 # Raking light (2026-09-25 spike, reworked 2026-09-26, src/RakingLight.h): the
 # letterpress deboss and the sheet itself lit from a direction the phone's tilt
 # sets, under four 0..200 dials. Pins that splitting letterpress::multiplierAt
