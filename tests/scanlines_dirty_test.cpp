@@ -102,7 +102,7 @@ void run(int defocusPercent) {
     CHECK(r.empty());
   }
 
-  // One pixel: exactly that pixel, no neighbour -- a pixel reads only its own
+  // One pixel: exactly that pixel, no neighbor -- a pixel reads only its own
   // bucket.
   {
     auto next = base;

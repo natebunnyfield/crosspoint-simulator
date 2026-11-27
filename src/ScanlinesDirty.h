@@ -13,7 +13,7 @@
 // where bucket is that ONE pixel's beam-current level (16 buckets of the
 // composed frame read back at build time), T is the per-(row, level, anchor)
 // transmission table, and defocus is a per-pixel map of the output size and the
-// dial. Nothing reads a neighbour's bucket: rowTransmission sums the nearby
+// dial. Nothing reads a neighbor's bucket: rowTransmission sums the nearby
 // LINES at the pixel's own level, not the levels of nearby pixels. So with the
 // parameters, the size and the dial unchanged, a pixel can only change where
 // its own bucket did, and recomputing exactly those pixels into the previous
