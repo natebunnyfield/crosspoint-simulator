@@ -22,6 +22,7 @@
 #include <cstring>
 #include <map>
 #include <sstream>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -229,7 +230,12 @@ void setSocketTimeouts(int client, int seconds) {
 struct MultipartPart {
   std::string name;
   std::string filename;
-  std::string data;
+  // A view INTO the request body, not a copy of it: the body is the whole
+  // upload, and a second copy per part was one of the three that made a
+  // curl -F upload peak at about 4.4 times its size in RAM (R-13). Valid
+  // for as long as the body string it was parsed from is alive and
+  // unchanged, which is the length of one dispatch.
+  std::string_view data;
 };
 
 std::string headerParam(const std::string &header, const char *key) {
@@ -290,7 +296,8 @@ std::vector<MultipartPart> parseMultipart(const std::string &contentType,
     MultipartPart part;
     part.name = headerParam(headers, "name");
     part.filename = headerParam(headers, "filename");
-    part.data = body.substr(dataStart, dataEnd - dataStart);
+    part.data =
+        std::string_view(body).substr(dataStart, dataEnd - dataStart);
     if (!part.name.empty())
       parts.push_back(std::move(part));
     partStart = next;
@@ -440,6 +447,11 @@ struct WebServer::Impl {
     responseContentLengthUnknown = false;
     headersSent = false;
     currentUpload = HTTPUpload{};
+    // Give the body back between requests. It was kept until the next
+    // request that carried one, so the app sat on a whole upload's worth
+    // of memory after the upload had finished (R-13).
+    std::string().swap(currentBody);
+    currentContentType.clear();
   }
 
   void emitHeaders(int code, const char *contentType, size_t bodyLen) {
@@ -699,6 +711,11 @@ void WebServer::begin() {
       }
       if (body.size() > bodyLength)
         body.resize(bodyLength);
+      // A buffered body is read into ONE allocation of its final size.
+      // Growing it by doubling kept the old and the new block alive together
+      // at every step (R-13). bodyLength is at most MAX_BODY_SIZE here.
+      if (!hasRawHandlers)
+        body.reserve(bodyLength);
       // A raw handler (WebDAV PUT) is STREAMED: each recv goes straight to
       // RAW_WRITE and is not kept, so an upload costs one socket buffer rather
       // than the whole body (S-036, the last of its three copies). Everyone
@@ -777,7 +794,8 @@ void WebServer::begin() {
         }
         // The dispatch runs on another thread, so what it needs from this parse
         // travels with the request (a multipart POST's parser reads this).
-        impl_->currentBody = body;
+        // Moved, not copied: nothing below reads `body` again (R-13).
+        impl_->currentBody = std::move(body);
       }
 
       LOG_DBG("WEB", "[SIM] %s %s", methodText.c_str(), target.c_str());
@@ -831,7 +849,7 @@ void WebServer::dispatchParkedRequest() {
         for (const auto &part : parts) {
           if (part.filename.empty()) {
             impl_->currentArgs.emplace_back(String(part.name),
-                                            String(part.data));
+                                            String(std::string(part.data)));
           }
         }
         for (const auto &part : parts) {
