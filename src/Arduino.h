@@ -31,8 +31,9 @@ inline unsigned long millis() { return simclock::millisSinceEpoch(); }
 inline unsigned long micros() { return simclock::microsSinceEpoch(); }
 
 // On the main thread this PUMPS PRESENTS while it waits (src/SimulatorIdle.h,
-// 2026-10-03): the firmware sleeps 50 ms per idle pass on the thread SDL
-// presents from, which capped every animation at ~13 fps. Same return time.
+// 2026-10-03): the firmware slept 50 ms per idle pass on the thread SDL
+// presents from (20 ms since 2026-11-27, HalPowerManager.h kHostIdleSliceMs),
+// which capped every animation at ~13 fps. Same return time.
 inline void delay(unsigned long ms) { simidle::sleepMs(ms); }
 inline void yield() { std::this_thread::yield(); }
 

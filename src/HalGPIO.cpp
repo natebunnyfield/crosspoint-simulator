@@ -248,12 +248,14 @@ bool piccoToggleHosted = false;
 // per frame. On the device the touch INT wakes the slice a contact starts in
 // and the controller keeps reporting, so every contact is sampled live at
 // least once. Here a whole tap -- down and up -- can arrive inside one event
-// pump (a 50 ms idle slice is a plain delay that pumps nothing), and a cancel
-// arrives as suppress-then-up in one callback; either way the next sample
-// would find no contact, the tap would vanish and the cancel would fire as a
-// release (adversarial review 2026-11-25, findings 3 and 4). So a lift waits,
-// down, until readTouchContact has reported the contact since its last change
-// (its start, or its suppression), and lands on the next update().
+// pump: an idle slice (20 ms, HalPowerManager.h kHostIdleSliceMs; 50 ms until
+// 2026-11-27) is a delay that pumps presents and never events, because only
+// update() polls SDL. A cancel arrives as suppress-then-up in one callback.
+// Either way the next sample would find no contact, the tap would vanish and
+// the cancel would fire as a release (adversarial review 2026-11-25, findings
+// 3 and 4). So a lift waits, down, until readTouchContact has reported the
+// contact since its last change (its start, or its suppression), and lands on
+// the next update().
 bool piccoReadSinceChange = false;
 bool piccoPendingUp = false;
 float piccoPendingNx = 0.0f, piccoPendingNy = 0.0f;

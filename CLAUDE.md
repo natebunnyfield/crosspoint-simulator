@@ -348,7 +348,9 @@ It runs the other way too, and that direction costs a firmware change: a capabil
 - **FreeRTOS shim.** [src/freertos/](src/freertos/) maps `xTaskCreate` to `std::thread`, task notifies to a condvar + counter, and `SemaphoreHandle_t` to `std::recursive_mutex`. A `thread_local SimTaskHandle*` lets each task thread find its own handle.
 - **The main thread's sleeps PUMP PRESENTS** (`src/SimulatorIdle.h`, 2026-10-03).
   The firmware's `loop()` sleeps between input polls -- 10 ms at 100 Hz, a
-  50 ms `lightSleep` slice once idle -- and in the simulator those sleeps are
+  20 ms `lightSleep` slice once idle (`HalPowerManager::kHostIdleSliceMs`,
+  `src/HalPowerManager.h:48`; it was 50 ms until 2026-11-27, and the 13 fps
+  and 77 ms below were measured at 50) -- and in the simulator those sleeps are
   on the main thread, the only one SDL presents from, so every self-driving
   animation (trail, beam, the zen goal's breath) was capped at ~13 fps
   whatever cadence it asked for; measured by the `[timing]` line's `pass`
