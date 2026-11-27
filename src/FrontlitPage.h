@@ -167,8 +167,16 @@ inline double rampFor(const Light &l, double floor, double max) {
   return floor + (1.0 - floor) * b / static_cast<double>(kDefaultBrightness);
 }
 
-inline panelpalette::Palette lightPair(const Light &l) {
-  if (isNeutral(l)) return frozenpage::lightPair();
+// The iOS harness asks for both pages several times per frame (the palette,
+// glow and scanline polls), always at the same light, so each page keeps the
+// last answer per thread. thread_local because the desktop also asks from the
+// firmware loop's thread, through its change hook.
+inline bool sameLight(const Light &a, const Light &b) {
+  return a.on == b.on && clampPct(a.brightness) == clampPct(b.brightness) &&
+         clampPct(a.warmth) == clampPct(b.warmth);
+}
+
+inline panelpalette::Palette computeLightPair(const Light &l) {
   panelpalette::Palette out{};
   tintedPaper(l, out.paper);
   double d = rampFor(l, floorInkDepth(out.paper), kInkDepthMax);
@@ -181,6 +189,19 @@ inline panelpalette::Palette lightPair(const Light &l) {
     inkAtDepth(d, out.ink);
   }
   return out;
+}
+
+inline panelpalette::Palette lightPair(const Light &l) {
+  if (isNeutral(l)) return frozenpage::lightPair();
+  thread_local bool have = false;
+  thread_local Light last;
+  thread_local panelpalette::Palette cached;
+  if (!have || !sameLight(l, last)) {
+    cached = computeLightPair(l);
+    last = l;
+    have = true;
+  }
+  return cached;
 }
 
 // --- DARK PAGE -----------------------------------------------------------------
@@ -215,12 +236,8 @@ struct Dark {
   double beam = 1.0;        // the emission multiple actually applied
 };
 
-inline Dark darkPage(const Light &l) {
+inline Dark computeDarkPage(const Light &l) {
   Dark d;
-  if (isNeutral(l)) {
-    d.mix = frozenpage::darkMix();
-    return d;
-  }
   d.mix = reweightedMix(l);
   const panelpalette::Palette base = d.mix.dark;
   // The dimmest beam whose trace clears 7:1 against this glass. Monotone in
@@ -248,6 +265,23 @@ inline Dark darkPage(const Light &l) {
   if (d.mix.hasTail) scaleEmission(d.mix.tail, k, d.mix.tail);
   d.mix.trailMs *= static_cast<float>(std::pow(k, kTrailExponent));
   return d;
+}
+
+inline Dark darkPage(const Light &l) {
+  if (isNeutral(l)) {
+    Dark d;
+    d.mix = frozenpage::darkMix();
+    return d;
+  }
+  thread_local bool have = false;
+  thread_local Light last;
+  thread_local Dark cached;
+  if (!have || !sameLight(l, last)) {
+    cached = computeDarkPage(l);
+    last = l;
+    have = true;
+  }
+  return cached;
 }
 
 inline panelpalette::Palette darkPair(const Light &l) { return darkPage(l).mix.dark; }
