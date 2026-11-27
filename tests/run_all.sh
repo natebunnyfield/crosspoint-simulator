@@ -1130,8 +1130,11 @@ run_shell_skip test_web_server_hardening tests/test_web_server_hardening.sh "$FW
 # POST with no file is refused and writes nothing (R-02); 250-character names
 # upload and 256 is refused by name (R-11); a refused curl -T says why (R-12);
 # and a page upload gone silent stops holding its name against curl (R-01,
-# with a 5 s stall window through CROSSPOINT_SIM_WS_STALL_MS). Each of those
-# was run against a binary from before its fix and FAILED there.
+# with a 5 s stall window through CROSSPOINT_SIM_WS_STALL_MS); and a card that
+# stops taking writes partway through a curl -F leaves no partial file, so the
+# retry is not refused as "File already exists" (the simulator runs under a
+# 6 MiB file-size limit for this). Each of those was run against a binary from
+# before its fix and FAILED there.
 # It SKIPs only for what is missing BEFORE launch (no binary, no curl or
 # python3, the port already answering). A simulator that was launched and
 # never served is a FAIL: that used to SKIP and leave this suite green with

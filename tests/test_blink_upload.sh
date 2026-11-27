@@ -16,7 +16,9 @@
 # and does not read an upload that is not there (a reboot on the device),
 # names of 249 to 255 characters upload and 256 is refused by name (R-11), a
 # refused curl -T says why (R-12), and a page upload that has gone silent stops
-# holding its file name against curl (R-01).
+# holding its file name against curl (R-01). And a card that stops taking
+# writes partway through a curl -F leaves no partial file behind, so the retry
+# is not refused as "File already exists".
 #
 # It boots the desktop PICCO simulator on a scratch card it makes itself, walks
 # to File Transfer, and drives the server over loopback on a private port pair
@@ -80,11 +82,23 @@ STALL_MS=5000
 # upper end (UP) is next-item, so UP x3 is File Transfer; CONFIRM opens it,
 # CONFIRM takes Join Network, CONFIRM joins the one scripted network.
 SCRIPT="200:QTAP:BACK:2500;4000:UP;4900:UP;5800:UP;6800:CONFIRM;8000:CONFIRM;10000:CONFIRM;85000:QUIT"
-# `exec`, so $! is the simulator itself and cleanup kills it, not a subshell.
+# A full card, for check 12: no file this simulator writes may pass FULL_AT
+# bytes. python3 sets the limit because it takes bytes; a shell's `ulimit -f`
+# counts 512-byte blocks in one shell and 1024-byte blocks in the next (zsh
+# and bash 3.2 on this Mac). SIGXFSZ is ignored, and stays ignored across the
+# exec, so a write past the limit comes back short the way a full card's does
+# and does not kill the process. Every other upload here is 5 MiB or less.
+FULL_AT=6291456
+# `exec` twice, so $! is the simulator itself and cleanup kills it, not a
+# subshell or the python that set the limit.
 ( cd "$WORK" && exec env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
     CROSSPOINT_SIM_HTTP_PORT="$HTTP" CROSSPOINT_SIM_WS_STALL_MS="$STALL_MS" \
     CROSSPOINT_SIM_WIFI_NETWORKS='Alpha:-40:open' \
-    CROSSPOINT_SIM_INPUT_SCRIPT="$SCRIPT" "$BIN" > "$WORK/sim.log" 2>&1 ) &
+    CROSSPOINT_SIM_INPUT_SCRIPT="$SCRIPT" python3 -c 'import os, resource, signal, sys
+hard = resource.getrlimit(resource.RLIMIT_FSIZE)[1]
+resource.setrlimit(resource.RLIMIT_FSIZE, (int(sys.argv[1]), hard))
+signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+os.execv(sys.argv[2], [sys.argv[2]])' "$FULL_AT" "$BIN" > "$WORK/sim.log" 2>&1 ) &
 SIM_PID=$!
 
 # From here on the simulator HAS been launched: nothing below may SKIP.
@@ -355,7 +369,37 @@ check "$(both "$(both "$(is "$code" 201)" "$(same "$SRC/Stuck Book.epub" "$CARD/
   "curl -T of that name after $((STALL_MS / 1000)) s of silence from the page -> $code (want 201), $(card "$SRC/Stuck Book.epub" "$CARD/books/Stuck Book.epub"), the page's socket $([ "$open_still" -eq 1 ] && echo "still open" || echo "NOT open any more"); the page was told: $(grep "^SERVER" "$WORK/ws.out" | head -1 || true)"
 kill "$WS_PID" 2>/dev/null; wait "$WS_PID" 2>/dev/null; WS_PID=""
 
-# 12. The simulator is still running and still serving after all of that.
+# 12. The card stops taking writes partway through an upload (a full card).
+#     Nothing may be left under the file's name: a truncated book in the
+#     library, and a retry refused as "File already exists". curl -T always
+#     discarded its temporary file; curl -F and the plain form closed the
+#     partial file and left it. The simulator cannot write a file past FULL_AT
+#     bytes (set at launch), and the curl -T line doubles as the proof that
+#     the limit is in force: if it answers 201, these checks tested nothing.
+head -c $((FULL_AT + 700000)) /dev/urandom > "$SRC/Too Big.epub"
+head -c $((FULL_AT + 100)) /dev/urandom > "$SRC/Just Over.epub"
+gone() { [ -e "$1" ] && echo 0 || echo 1; }
+left() { [ -e "$1" ] && echo "a $(wc -c < "$1" | tr -d ' ')-byte file LEFT on the card" || echo "nothing left on the card"; }
+out=$(curl -s -g -w ' [%{http_code}]' -T "$SRC/Too Big.epub" "http://$H/books/Too%20Big%20Put.epub")
+check "$(both "$(both "$(is "$(code_of "$out")" 500)" "$(has "$out" "discarded")")" "$(gone "$CARD/books/Too Big Put.epub")")" \
+  "curl -T of a file the card has no room for -> $out (want 500 '... discarded'; a 201 means the test's size limit is not in force), $(left "$CARD/books/Too Big Put.epub")"
+left_tmp="$(find "$CARD" -name '*.davtmp' | wc -l | tr -d ' ')"
+check "$(is "$left_tmp" 0)" "temporary .davtmp files left by that: $left_tmp (want 0)"
+#     The write that fails is a full buffer in the middle of the body.
+out=$(curl -s -w ' [%{http_code}]' -F "path=/books" -F "file=@$SRC/Too Big.epub" "http://$H/upload")
+check "$(both "$(both "$(is "$(code_of "$out")" 500)" "$(has "$out" "discarded")")" "$(gone "$CARD/books/Too Big.epub")")" \
+  "curl -F of a file the card has no room for -> $out (want 500 '... discarded'), $(left "$CARD/books/Too Big.epub")"
+#     The retry once there is room: a file that fits, under the same name.
+out=$(curl -s -w ' [%{http_code}]' -F "path=/books" -F "file=@$SRC/small.epub;filename=Too Big.epub" "http://$H/upload")
+check "$(both "$(is "$(code_of "$out")" 200)" "$(same "$SRC/small.epub" "$CARD/books/Too Big.epub")")" \
+  "curl -F under the same name once it fits -> $out (want 200), $(card "$SRC/small.epub" "$CARD/books/Too Big.epub")"
+#     The write that fails is the last one: FULL_AT is a whole number of the
+#     server's 4096-byte buffers, so the 100 bytes over go out when the body ends.
+out=$(curl -s -w ' [%{http_code}]' -F "path=/books" -F "file=@$SRC/Just Over.epub" "http://$H/upload")
+check "$(both "$(both "$(is "$(code_of "$out")" 500)" "$(has "$out" "discarded")")" "$(gone "$CARD/books/Just Over.epub")")" \
+  "curl -F of a file 100 bytes over what the card has room for -> $out (want 500 '... discarded'), $(left "$CARD/books/Just Over.epub")"
+
+# 13. The simulator is still running and still serving after all of that.
 code=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://$H/api/status")
 alive=0; kill -0 "$SIM_PID" 2>/dev/null && alive=1
 check "$(both "$(is "$code" 200)" "$alive")" \
