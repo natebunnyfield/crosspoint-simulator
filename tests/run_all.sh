@@ -10,10 +10,11 @@
 #   tests/run_all.sh          # build and run everything
 #   tests/run_all.sh -k wifi  # only tests whose name matches
 #
-# The nine shell tests (test_sleep_wake.sh, test_foreground_wake.sh,
+# The ten shell tests (test_sleep_wake.sh, test_foreground_wake.sh,
 # test_queued_tap_wake.sh, test_text_entry.sh, test_read_aloud_capture.sh,
 # test_speed_read_live.sh, test_note_editor_repaint.sh,
-# test_manage_files_and_wifi_nav.sh, test_web_server_hardening.sh) run at the end via
+# test_manage_files_and_wifi_nav.sh, test_web_server_hardening.sh,
+# test_blink_upload.sh) run at the end via
 # run_shell_skip, against CROSSPOINT_FIRMWARE_DIR (default ~/src/
 # crosspoint-reader, the same default tools/fw_include_flags.py uses). Each
 # needs a desktop binary built from that checkout and a seeded fs_/.crosspoint/
@@ -1063,7 +1064,7 @@ else
   skipped=$((skipped + 3))
 fi
 
-# The nine end-to-end shell tests. Each needs a firmware CHECKOUT (not just
+# The ten end-to-end shell tests. Each needs a firmware CHECKOUT (not just
 # the include set the block above wants) with a desktop binary already built
 # and, for three of them, a card that has been run once so
 # fs_/.crosspoint/settings.json exists -- see each script's own header for
@@ -1103,6 +1104,16 @@ run_shell_skip test_note_editor_repaint tests/test_note_editor_repaint.sh "$FW_C
 # launches, ~1 min; the F6 arm was measured to FAIL on the pre-fix tree.
 run_shell_skip test_manage_files_and_wifi_nav tests/test_manage_files_and_wifi_nav.sh "$FW_CHECKOUT"
 run_shell_skip test_web_server_hardening tests/test_web_server_hardening.sh "$FW_CHECKOUT"
+# Uploading with no web page (owner 2026-11-27, "make it possible for blink to
+# upload a file no matter what bugs happen in file transfer screen"): the File
+# Manager's script did not parse for months (firmware B-080) and every upload
+# through the page was silently dead. Pins `curl -T` (WebDAV PUT, into a folder,
+# into a MKCOL'd one, over an existing file) and `curl -F` (POST /upload, folder
+# as a form field and in the query), md5-checked on the card, plus the
+# no-script form at GET /upload. The Picco binary, its own scratch card, port
+# CROSSPOINT_BLINK_TEST_PORT (default 18480/18481); ~15 s. The commands are the
+# firmware's docs/upload-from-blink.md with only the host and port changed.
+run_shell_skip test_blink_upload tests/test_blink_upload.sh "$FW_CHECKOUT"
 
 echo
 if [[ $fail -eq 0 ]]; then
