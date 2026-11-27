@@ -20,6 +20,9 @@
 # writes partway through a curl -F leaves no partial file behind, so the retry
 # is not refused as "File already exists". And a curl -F that sends two files
 # in one request is answered for both of them, not for the last one alone.
+# And a file piped into curl -T (a chunked body, which the server cannot read)
+# is refused and writes nothing, where the device stored an empty file under
+# the name and said 201, or 204 with the book that was there gone.
 #
 # It boots the desktop PICCO simulator on a scratch card it makes itself, walks
 # to File Transfer, and drives the server over loopback on a private port pair
@@ -433,7 +436,30 @@ out=$(curl -s -w ' [%{http_code}]' --form-string "path=/New Shelf" -F "file=@$SR
 check "$(is "$out" "File already exists: multi-e.epub [400]")" \
   "one file that exists straight after -> $out (want exactly 'File already exists: multi-e.epub [400]')"
 
-# 14. The simulator is still running and still serving after all of that.
+# 14. A file piped into curl -T. curl cannot know the length, so it sends the
+#     body chunked, and the server cannot read chunks: its parser takes the
+#     body as zero bytes long. That used to end as an empty file under the
+#     name and 201, or 204 with an existing book replaced by 0 bytes. It did
+#     so on the device alone: this shim refused the request itself (501) and
+#     the firmware never saw it. Now the shim hands it over as the device's
+#     parser does, and the firmware refuses it and leaves the card alone.
+code=$(curl -s -o /dev/null -w '%{http_code}' -T "$SRC/small.epub" "http://$H/books/Piped.epub")
+before="$(listing)"
+out=$(cat "$SRC/multi-b.epub" | curl -s -g -m 20 -w ' [%{http_code}]' -T - "http://$H/books/Piped.epub")
+check "$(both "$(both "$(is "$(code_of "$out")" 411)" "$(has "$out" "by name")")" "$(both "$(is "$code" 201)" "$(same "$SRC/small.epub" "$CARD/books/Piped.epub")")")" \
+  "cat FILE | curl -T - over a book that is there (put there first -> $code, want 201) -> $out (want 411 '... Give curl the file by name ...'), the book that was there: $(card "$SRC/small.epub" "$CARD/books/Piped.epub")"
+out=$(cat "$SRC/multi-b.epub" | curl -s -g -m 20 -w ' [%{http_code}]' -T - "http://$H/books/Piped%20New.epub")
+after="$(listing)"
+check "$(both "$(both "$(is "$(code_of "$out")" 411)" "$(gone "$CARD/books/Piped New.epub")")" "$(is "$before" "$after")")" \
+  "cat FILE | curl -T - to a new name -> $out (want 411), $(left "$CARD/books/Piped New.epub"), the card $([ "$before" = "$after" ] && echo "unchanged" || echo "CHANGED")"
+left_tmp="$(find "$CARD" -name '*.davtmp' | wc -l | tr -d ' ')"
+check "$(is "$left_tmp" 0)" "temporary .davtmp files left by the two piped uploads: $left_tmp (want 0)"
+#     The same file given by name, straight after, lands.
+code=$(curl -s -o /dev/null -w '%{http_code}' -T "$SRC/multi-b.epub" "http://$H/books/Piped%20New.epub")
+check "$(both "$(is "$code" 201)" "$(same "$SRC/multi-b.epub" "$CARD/books/Piped New.epub")")" \
+  "curl -T of that file by name straight after -> $code (want 201), $(card "$SRC/multi-b.epub" "$CARD/books/Piped New.epub")"
+
+# 15. The simulator is still running and still serving after all of that.
 code=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://$H/api/status")
 alive=0; kill -0 "$SIM_PID" 2>/dev/null && alive=1
 check "$(both "$(is "$code" 200)" "$alive")" \

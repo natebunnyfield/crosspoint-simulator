@@ -96,6 +96,13 @@ public:
     size_t last = s.find_last_not_of(" \t\n\r");
     s = s.substr(first, (last - first + 1));
   }
+  // ASCII only, as on the device.
+  void toLowerCase() {
+    for (char &c : s) {
+      if (c >= 'A' && c <= 'Z')
+        c = static_cast<char>(c - 'A' + 'a');
+    }
+  }
   void replace(char find, char replaceWith) {
     for (char &c : s) {
       if (c == find)

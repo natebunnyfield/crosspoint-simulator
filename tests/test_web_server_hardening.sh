@@ -96,9 +96,13 @@ def http(method, path, headers=None, body=b'', timeout=8):
     s.close()
     return out.split(b'\r\n',1)[0].decode('latin1','replace')
 
-# 1. chunked PUT -> refused, no file
+# 1. chunked PUT -> refused, no file. The firmware refuses it (411) since
+#    2026-11-27: the shim hands a chunked PUT to it as the device's parser
+#    does. A chunked request with no raw handler is still the shim's 501.
 st=http('PUT','/books/chunk.txt',{'Transfer-Encoding':'chunked'},b'5\r\nhello\r\n0\r\n\r\n')
-check('501' in st and not os.path.exists(os.path.join(BOOKS,'chunk.txt')), f"chunked PUT refused ({st}), no file")
+check('411' in st and not os.path.exists(os.path.join(BOOKS,'chunk.txt')), f"chunked PUT refused ({st}, want 411), no file")
+st=http('POST','/upload',{'Transfer-Encoding':'chunked'},b'5\r\nhello\r\n0\r\n\r\n')
+check('501' in st, f"chunked POST refused ({st}, want 501)")
 
 # 2. non-numeric Content-Length -> 400, no file
 st=http('PUT','/books/bad.txt',{'Content-Length':'0x10'},b'hello')

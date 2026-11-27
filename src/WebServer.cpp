@@ -99,6 +99,8 @@ const char *reasonForStatus(int status) {
     return "Method Not Allowed";
   case 409:
     return "Conflict";
+  case 411:
+    return "Length Required";
   case 412:
     return "Precondition Failed";
   case 413:
@@ -395,8 +397,25 @@ struct WebServer::Impl {
     return false;
   }
 
+  // Only a header the firmware asked for with collectHeaders() can be read by
+  // name, plus the two the device always keeps (WebServer::collectAllHeaders:
+  // Authorization and If-None-Match). The device drops every other header of
+  // a request, so firmware that reads one it never collected gets "" there;
+  // answering it here would let that pass every host test.
+  bool headerIsCollected(const std::string &wanted) const {
+    if (wanted == "authorization" || wanted == "if-none-match")
+      return true;
+    for (const auto &collected : collectedHeaders) {
+      if (lower(collected.s) == wanted)
+        return true;
+    }
+    return false;
+  }
+
   String headerByName(const char *name) const {
     const std::string wanted = lower(name ? name : "");
+    if (!headerIsCollected(wanted))
+      return String("");
     for (const auto &header : currentHeaders) {
       if (lower(header.first.s) == wanted)
         return header.second;
@@ -406,6 +425,8 @@ struct WebServer::Impl {
 
   bool hasHeaderName(const char *name) const {
     const std::string wanted = lower(name ? name : "");
+    if (!headerIsCollected(wanted))
+      return false;
     for (const auto &header : currentHeaders) {
       if (lower(header.first.s) == wanted)
         return true;
@@ -654,16 +675,13 @@ void WebServer::begin() {
 
       // A body this server cannot frame is refused, not silently emptied: a
       // chunked PUT or one with a non-numeric Content-Length used to create
-      // a 0-byte file and answer 201 (network hunt 2026-09-04).
+      // a 0-byte file and answer 201 (network hunt 2026-09-04). The chunked
+      // refusal is below, once the request's handler is known: a chunked body
+      // for a raw handler (a WebDAV PUT) is the firmware's to refuse.
       auto teIt = headers.find("transfer-encoding");
-      if (teIt != headers.end() &&
-          lower(teIt->second).find("chunked") != std::string::npos) {
-        sendSimpleResponse(client, 501,
-                           "Chunked transfer encoding not supported");
-        impl_->activeClient = -1;
-        ::close(client);
-        continue;
-      }
+      const bool chunkedBody =
+          teIt != headers.end() &&
+          lower(teIt->second).find("chunked") != std::string::npos;
       size_t bodyLength = 0;
       auto lengthIt = headers.find("content-length");
       if (lengthIt != headers.end()) {
@@ -717,6 +735,22 @@ void WebServer::begin() {
 
       const auto rawHandlers = impl_->rawHandlers(*this);
       const bool hasRawHandlers = !rawHandlers.empty();
+      // A chunked body. The device's parser has no chunk support: it reads
+      // Content-Length bytes, none when the header is absent (arduino-esp32
+      // Parsing.cpp, `_clientContentLength = 0`), and leaves the chunks
+      // unread. For a raw handler the same happens here, so the firmware's
+      // own answer is what a test sees: it used to store an empty file and
+      // answer 201, or 204 over an existing book, on the device alone, while
+      // this shim answered 501 for it and hid that (review 2026-11-27). The
+      // firmware refuses it now (411, WebDAVHandler::raw). Any other chunked
+      // request is still refused here.
+      if (chunkedBody && !hasRawHandlers) {
+        sendSimpleResponse(client, 501,
+                           "Chunked transfer encoding not supported");
+        impl_->activeClient = -1;
+        ::close(client);
+        continue;
+      }
       // The cap is on what this server HOLDS. A raw body (WebDAV PUT,
       // curl -T) is streamed to the card one socket buffer at a time, so its
       // size costs no memory and it is not capped -- the device has no cap
