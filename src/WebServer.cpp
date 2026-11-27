@@ -359,6 +359,14 @@ struct WebServer::Impl {
   // these were locals of the accept worker's parse.
   std::string currentContentType;
   std::string currentBody;
+  // Set while a route's upload callback runs for a body that is NOT multipart
+  // (see the raw calls in dispatchParkedRequest()). The device has no upload
+  // object then; `missingUpload` is what upload() hands back here instead of
+  // the null reference, and `missingUploadRead` keeps the report to one line
+  // a request.
+  bool uploadMissing = false;
+  bool missingUploadRead = false;
+  HTTPUpload missingUpload{};
   HTTPMethod currentMethod = HTTP_GET;
   String currentUri = "/";
   std::vector<std::pair<String, String>> currentArgs;
@@ -894,6 +902,39 @@ void WebServer::dispatchParkedRequest() {
           impl_->currentUpload.buf = nullptr;
           route.uploadHandler();
         }
+      } else if (route.uploadHandler && route.method != HTTP_GET &&
+                 (impl_->currentMethod == HTTP_POST ||
+                  impl_->currentMethod == HTTP_PUT ||
+                  impl_->currentMethod == HTTP_PATCH ||
+                  impl_->currentMethod == HTTP_DELETE) &&
+                 impl_->currentContentType.rfind("multipart/", 0) != 0) {
+        // The device calls a route's upload callback for a body that is NOT
+        // multipart too: arduino-esp32 treats any route that has one as a raw
+        // handler (Parsing.cpp "Parse raw"; FunctionRequestHandler::canRaw is
+        // true unless the route is a GET, and raw() calls the same callback)
+        // -- once to start, once per buffer of the body, once to end. No
+        // upload object exists then, and WebServer::upload() there is a null
+        // dereference: a reboot. This shim used to skip those calls, so
+        // `curl --data-binary @book.epub .../upload` and a bare
+        // `curl -X POST .../upload` answered 400 here and panicked a Picco
+        // (review 2026-11-27). The calls are made now, and upload() reports a
+        // callback that reads it during them; tests/test_blink_upload.sh
+        // fails on that report.
+        // Cleared by a guard: a callback that threw past a plain assignment
+        // would leave every later upload reading the empty one.
+        struct NoUpload {
+          Impl *impl;
+          explicit NoUpload(Impl *i) : impl(i) {
+            impl->uploadMissing = true;
+            impl->missingUploadRead = false;
+          }
+          ~NoUpload() { impl->uploadMissing = false; }
+        } noUpload{impl_.get()};
+        route.uploadHandler();
+        for (size_t offset = 0; offset < impl_->currentBody.size();
+             offset += UPLOAD_CHUNK_SIZE)
+          route.uploadHandler();
+        route.uploadHandler();
       }
       route.handler();
       handled = true;
@@ -1117,4 +1158,21 @@ NetworkClient WebServer::client() {
 long WebServer::clientContentLength() {
   return static_cast<long>(impl_->requestContentLength);
 }
-HTTPUpload &WebServer::upload() { return impl_->currentUpload; }
+HTTPUpload &WebServer::upload() {
+  if (!impl_->uploadMissing)
+    return impl_->currentUpload;
+  // On the device this returns *nullptr and the first read of it is a load
+  // fault. The simulator and the app say so and carry on: what goes back is
+  // an empty write, which every upload callback treats as nothing to do.
+  if (!impl_->missingUploadRead) {
+    impl_->missingUploadRead = true;
+    LOG_ERR("WEB",
+            "[SIM] upload() read with no upload in progress, by the upload "
+            "callback of %s for a body that is not multipart: a null "
+            "dereference and a reboot on the device",
+            impl_->currentUri.c_str());
+  }
+  impl_->missingUpload = HTTPUpload{};
+  impl_->missingUpload.status = UPLOAD_FILE_WRITE;
+  return impl_->missingUpload;
+}

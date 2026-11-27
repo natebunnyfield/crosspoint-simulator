@@ -12,7 +12,8 @@
 #
 # It also pins what the 2026-11-27 review passes found and fixed (firmware
 # docs/review-passes-2026-11-27.md): a name with '+' or '%' lands under its own
-# name (R-03), a POST with no file in it is refused and writes nothing (R-02),
+# name (R-03), a POST with no file in it is refused and writes nothing (R-02)
+# and does not read an upload that is not there (a reboot on the device),
 # names of 249 to 255 characters upload and 256 is refused by name (R-11), a
 # refused curl -T says why (R-12), and a page upload that has gone silent stops
 # holding its file name against curl (R-01).
@@ -230,9 +231,22 @@ check "$(both "$(is "$(code_of "$out")" 400)" "$(has "$out" "Nothing was uploade
 out=$(curl -s -w ' [%{http_code}]' -X POST "http://$H/upload")
 check "$(both "$(is "$(code_of "$out")" 400)" "$(has "$out" "Nothing was uploaded")")" \
   "a bare POST /upload -> $out (want 400 'Nothing was uploaded')"
+#    A body with no form around it is the same refusal. On the device the
+#    server hands such a body to the upload callback with no upload to read,
+#    and a callback that reads one anyway is a null dereference and a reboot;
+#    the simulator makes the same calls and logs that read instead.
+out=$(curl -s -w ' [%{http_code}]' --data-binary "@$SRC/small.epub" "http://$H/upload?path=/books")
+check "$(both "$(is "$(code_of "$out")" 400)" "$(has "$out" "Nothing was uploaded")")" \
+  "curl --data-binary @small.epub (the file as the body, no form) -> $out (want 400 'Nothing was uploaded')"
+out=$(curl -s -w ' [%{http_code}]' -d x "http://$H/upload")
+check "$(both "$(is "$(code_of "$out")" 400)" "$(has "$out" "Nothing was uploaded")")" \
+  "curl -d x -> $out (want 400 'Nothing was uploaded')"
 after="$(listing)"
 check "$(is "$before" "$after")" \
-  "the card after those three refusals: $([ "$before" = "$after" ] && echo "unchanged" || echo "CHANGED")"
+  "the card after those five refusals: $([ "$before" = "$after" ] && echo "unchanged" || echo "CHANGED")"
+nulls="$(grep -c "upload() read with no upload in progress" "$WORK/sim.log")"
+check "$(is "$nulls" 0)" \
+  "requests whose upload callback read an upload that was not there: $nulls (want 0; each one reboots the device)"
 out=$(curl -s -w ' [%{http_code}]' -F "path=/New Shelf" -F "file=@$SRC/small.epub" "http://$H/upload")
 check "$(both "$(is "$(code_of "$out")" 200)" "$(same "$SRC/small.epub" "$CARD/New Shelf/small.epub")")" \
   "a real curl -F straight after the refusals -> $out (want 200), $(card "$SRC/small.epub" "$CARD/New Shelf/small.epub")"
