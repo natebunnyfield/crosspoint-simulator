@@ -869,6 +869,16 @@ run dial_table \
 run frozen_page \
   c++ -std=c++17 -Isrc -Iios -o "$OUT/frozen_page" tests/frozen_page_test.cpp
 
+# THE PICCO'S LIGHT ON THAT PAGE (TODO.md ST-012, src/FrontlitPage.h). Warmth
+# tints the paper and re-weights the tube's guns; Brightness deepens the ink and
+# drives the beam. Pins the origin (off, and on at the firmware's 60/50, are the
+# frozen pair byte for byte), the 7:1 floor over the whole grid recomputed from
+# the bytes, the direction of every row, and that Warmth does not move the
+# sheet's luminance. Proved able to fail 2026-11-27 against three broken
+# models: reversed gun ratio, no luminance renormalization, no neutral exit.
+run frontlit_page \
+  c++ -std=c++17 -Isrc -Iios -o "$OUT/frontlit_page" tests/frontlit_page_test.cpp
+
 # S-001's four remaining reversals. Every failure mode there is a stub quietly
 # answering the OPPOSITE of the hardware, which no compile and no screenshot can
 # see -- and the panic latch in particular has to be one-shot or the desktop

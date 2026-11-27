@@ -260,7 +260,13 @@ shows up as a suggestion.
 Owner, 2026-11-26: "Close it: paste keys". Keys are pasted, not typed on the
 iPhone keyboard, so the question is moot. Do not re-open.
 
-### [ST-012] Picco: Warmth and Brightness drive the page, not a frontlight the phone lacks — FUTURE
+### [ST-012] Picco: Warmth and Brightness drive the page, not a frontlight the phone lacks — BUILT 2026-11-27, look awaiting the owner
+
+Built on the owner's "connect brightness and warmth as described in the earlier
+todo". Design, tones, renders and the test:
+[docs/frontlit-page-2026-11-27.md](docs/frontlit-page-2026-11-27.md). Model
+`src/FrontlitPage.h`; test `frontlit_page`. With the light off, or at 60/50, the
+page is the frozen page byte for byte. The original entry follows.
 
 Owner 2026-11-26, verbatim: *"future todo: for warmth setting on picco to
 adjust paper warmth and crt warmth; brightness adjusts ink and crt specific

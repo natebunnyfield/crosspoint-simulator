@@ -27,6 +27,7 @@
 #include "SurfaceTube.h"
 #include "Scanlines.h"
 #include "FrozenPage.h"
+#include "FrontlitPage.h"
 #include "ShowThrough.h"
 #include "ReadingArm.h"
 #include "ReadingLog.h"
@@ -2203,6 +2204,27 @@ static float measureTrailFadeRoundBias(SDL_Renderer *renderer) {
 // that somehow reaches a fade before begin() has run is unchanged.
 static float trailFadeRoundBias = 0.5f;
 
+// THE PICCO'S LIGHT ON THE DESKTOP (TODO.md ST-012). Re-seeds both pages, the
+// tube's decay and the scanline bloom from src/FrontlitPage.h. Installed by the
+// as-shipped block below as simfrontlight's change hook, so it runs on the
+// thread that moved the light; every call it makes is an atomic store plus a
+// present request. Off, or at the firmware's defaults, it answers the frozen
+// page the as-shipped block has just seeded, so the stores are no-ops.
+[[maybe_unused]] static void applyFrontlitPage() {
+  const frontlitpage::Light l = simfrontlight::current();
+  const panelpalette::Palette light = frontlitpage::lightPair(l);
+  const frontlitpage::Dark dark = frontlitpage::darkPage(l);
+  SimulatorOverlay::setPanelPalette(true, dark.mix.dark.ink, dark.mix.dark.paper);
+  SimulatorOverlay::setPanelPalette(false, light.ink, light.paper);
+  SimulatorOverlay::setPanelGlow(dark.mix.trailMs);
+  if (dark.mix.hasTail)
+    SimulatorOverlay::setPanelGlowTail(dark.mix.tail, dark.mix.tailOnsetMs);
+  SimulatorOverlay::setScanlineBloom(frontlitpage::bloomPercent(
+      l, simdials::shippedValues()[simdials::ScanlineBloomPercent]));
+  LOG_INF("DISP", "frontlit page: light %s, brightness %d, warmth %d",
+          l.on ? "on" : "off", l.brightness, l.warmth);
+}
+
 void HalDisplay::begin() {
   // THE WARM-UP'S ARMING, and it is ABOVE the idempotent return below on
   // purpose: iOS wakes by re-entering setup() with the window already built, so
@@ -2395,6 +2417,15 @@ void HalDisplay::begin() {
     // single atomic), so the polarity this selects is the one those numbers
     // describe.
     SimulatorOverlay::setPanelDark(true);
+    // The Picco's light drives the page from here on (ST-012). The firmware
+    // has not run Frontlight.begin() yet, so this first call answers the
+    // frozen page; the hook carries every change after it.
+    // Keyed on the BUILD FLAG: BoardConfig.h is not included in this file
+    // (see supportsAbsoluteGrayscale below for what that once cost).
+#if defined(SIMULATOR_DEVICE_PICCO)
+    simfrontlight::setChangedHook(&applyFrontlitPage);
+    applyFrontlitPage();
+#endif
   }
 
 }

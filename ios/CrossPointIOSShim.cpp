@@ -2487,8 +2487,15 @@ void pollPanelGlow() {
   // app's own [glow] line). crosspoint::glowPresetForPrefs answers Custom only
   // when the MIXER owns the decay, which is the branch below.
   const int preset = crosspoint::glowPresetForPrefs();
-  if (preset == s_appliedPreset && !g_glowDirty.exchange(false)) return;
+  // The Picco's light re-weights the guns and drives the beam (TODO.md ST-012),
+  // which moves the trail and its tail, so a light change re-asks too.
+  static unsigned s_appliedLight = ~0u;
+  const unsigned lightGen = simfrontlight::generation();
+  if (preset == s_appliedPreset && lightGen == s_appliedLight &&
+      !g_glowDirty.exchange(false))
+    return;
   s_appliedPreset = preset;
+  s_appliedLight = lightGen;
 
   // NO SWITCH. Owner ruling 2026-08-17: "remove setting always have it on for
   // crts." A CRT palette is a claim that the page is a tube, and a tube glows --
@@ -2514,6 +2521,16 @@ void pollPanelGlow() {
     float mixOnset = 0.0f;
     if (CrossPointMixer_glowForCustom(&mixTrail, s_mixTail, &hasTail,
                                       &mixOnset)) {
+      // The mixer answers for the FROZEN guns; the Picco's light moves them.
+      // Off, or at the firmware's defaults, the mixer's own answer stands.
+      const frontlitpage::Light lamp = simfrontlight::current();
+      if (!frontlitpage::isNeutral(lamp)) {
+        const frontlitpage::Dark lit = frontlitpage::darkPage(lamp);
+        mixTrail = lit.mix.trailMs;
+        hasTail = lit.mix.hasTail;
+        mixOnset = lit.mix.tailOnsetMs;
+        for (int c = 0; c < 3; c++) s_mixTail[c] = lit.mix.tail[c];
+      }
       trail = mixTrail;
       if (hasTail) {
         tail = s_mixTail;
@@ -2697,7 +2714,10 @@ void pollScanlines() {
   static int s_appliedBloom = -1;
   const int pct = CrossPointPrefs_scanlinesPercent();
   const int size = CrossPointPrefs_scanlineSizePercent();
-  const int bloom = CrossPointPrefs_scanlineBloomPercent();
+  // The beam's bloom follows the Picco's Brightness (TODO.md ST-012); off, or
+  // at the firmware's default, it is the frozen value unchanged.
+  const int bloom = frontlitpage::bloomPercent(
+      simfrontlight::current(), CrossPointPrefs_scanlineBloomPercent());
   if (pct == s_applied && size == s_appliedSize && bloom == s_appliedBloom)
     return;
   s_applied = pct;

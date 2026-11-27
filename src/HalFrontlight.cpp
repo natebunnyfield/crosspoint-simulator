@@ -3,7 +3,46 @@
 #include <BoardConfig.h>
 
 #include <algorithm>
+#include <atomic>
 #include <iostream>
+
+#include "FrontlitLight.h"
+
+// THE PICCO'S LIGHT REACHES THE PAGE (TODO.md ST-012, 2026-11-27). The X4 Pro
+// and the Picco both carry a frontlight, so present() answers true for both,
+// as the hardware does. Only the Picco's state is PUBLISHED to the hosts,
+// which turn it into the page's paper, ink and tube (src/FrontlitPage.h); on
+// every other board simfrontlight::current() stays off and nothing moves.
+namespace {
+std::atomic<int> g_brightness{frontlitpage::kDefaultBrightness};
+std::atomic<int> g_warmth{frontlitpage::kDefaultWarmth};
+std::atomic<bool> g_on{false};
+std::atomic<unsigned> g_generation{0};
+std::atomic<simfrontlight::ChangedHook> g_hook{nullptr};
+
+void publish(uint8_t brightness, uint8_t warmth, bool on) {
+  if (!BoardConfig::isPicco()) return;
+  // All three exchanges run, whichever changed.
+  bool changed = g_brightness.exchange(brightness) != brightness;
+  if (g_warmth.exchange(warmth) != warmth) changed = true;
+  if (g_on.exchange(on) != on) changed = true;
+  if (!changed) return;
+  g_generation.fetch_add(1);
+  if (simfrontlight::ChangedHook hook = g_hook.load()) hook();
+}
+}  // namespace
+
+namespace simfrontlight {
+frontlitpage::Light current() {
+  frontlitpage::Light l;
+  l.brightness = g_brightness.load();
+  l.warmth = g_warmth.load();
+  l.on = g_on.load();
+  return l;
+}
+unsigned generation() { return g_generation.load(); }
+void setChangedHook(ChangedHook hook) { g_hook.store(hook); }
+}  // namespace simfrontlight
 
 HalFrontlight &HalFrontlight::getInstance() {
   static HalFrontlight instance;
@@ -16,27 +55,34 @@ void HalFrontlight::begin(uint8_t brightness, uint8_t warmth, bool on) {
   lastBrightness = std::min<uint8_t>(brightness, 100);
   lastWarmth = std::min<uint8_t>(warmth, 100);
   lit = on;
-  std::cerr << "[SIM] X4 Pro frontlight: " << (lit ? "on" : "off")
+  std::cerr << "[SIM] " << (BoardConfig::isPicco() ? "Picco" : "X4 Pro")
+            << " frontlight: " << (lit ? "on" : "off")
             << ", brightness=" << static_cast<unsigned>(lastBrightness)
             << "%, warmth=" << static_cast<unsigned>(lastWarmth) << "%"
             << std::endl;
+  publish(lastBrightness, lastWarmth, lit);
 }
 
-bool HalFrontlight::present() const { return BoardConfig::isX4Pro(); }
-
-bool HalFrontlight::hasColorTemperature() const {
-  return BoardConfig::isX4Pro();
+bool HalFrontlight::present() const {
+  return BoardConfig::isX4Pro() || BoardConfig::isPicco();
 }
+
+bool HalFrontlight::hasColorTemperature() const { return present(); }
 
 void HalFrontlight::setBrightness(uint8_t percent) {
   lastBrightness = std::min<uint8_t>(percent, 100);
+  publish(lastBrightness, lastWarmth, lit);
 }
 
 void HalFrontlight::setWarmth(uint8_t warmPercent) {
   lastWarmth = std::min<uint8_t>(warmPercent, 100);
+  publish(lastBrightness, lastWarmth, lit);
 }
 
-void HalFrontlight::setOn(bool on) { lit = present() && on; }
+void HalFrontlight::setOn(bool on) {
+  lit = present() && on;
+  publish(lastBrightness, lastWarmth, lit);
+}
 
 uint8_t HalFrontlight::brightness() const { return lastBrightness; }
 

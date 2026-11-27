@@ -17,6 +17,7 @@
 // neither build needs a new translation unit.
 
 #include "CrossPointPrefs.h"
+#include "FrontlitPage.h"
 #include "FrozenPage.h"
 #include "PadPalette.h"
 #include "PanelPalette.h"
@@ -48,8 +49,14 @@ namespace crosspoint {
 inline panelsource::Store panelStoreFromPrefs() {
   panelsource::Store s{};
   s.preset = panelpalette::kPresetCustom;
-  const panelpalette::Palette light = frozenpage::lightPair();
-  const panelpalette::Palette dark = frozenpage::darkPair();
+  // THE PICCO'S LIGHT MOVES THE FROZEN PAGE (TODO.md ST-012, 2026-11-27):
+  // Warmth tints the paper and the tube, Brightness the ink and the beam
+  // (src/FrontlitPage.h). simfrontlight::current() is off on every other
+  // board, and off or at the firmware's defaults the answer IS the frozen
+  // pair, so every non-Picco build and an untouched Picco are unchanged.
+  const frontlitpage::Light lamp = simfrontlight::current();
+  const panelpalette::Palette light = frontlitpage::lightPair(lamp);
+  const panelpalette::Palette dark = frontlitpage::darkPair(lamp);
   s.customInk[0] = static_cast<int>(panelpalette::pack(light.ink));
   s.customPaper[0] = static_cast<int>(panelpalette::pack(light.paper));
   s.customInk[1] = static_cast<int>(panelpalette::pack(dark.ink));
