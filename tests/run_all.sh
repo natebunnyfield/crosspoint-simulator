@@ -1112,8 +1112,19 @@ run_shell_skip test_web_server_hardening tests/test_web_server_hardening.sh "$FW
 # into a MKCOL'd one, over an existing file) and `curl -F` (POST /upload, folder
 # as a form field and in the query), md5-checked on the card, plus the
 # no-script form at GET /upload. The Picco binary, its own scratch card, port
-# CROSSPOINT_BLINK_TEST_PORT (default 18480/18481); ~15 s. The commands are the
+# CROSSPOINT_BLINK_TEST_PORT (default 18480/18481); ~20 s. The commands are the
 # firmware's docs/upload-from-blink.md with only the host and port changed.
+# Since the 2026-11-27 review passes it also pins: a name with '+' or '%' lands
+# under its own name (R-03, this repo's HTTP shim decoded the path twice); a
+# POST with no file is refused and writes nothing (R-02); 250-character names
+# upload and 256 is refused by name (R-11); a refused curl -T says why (R-12);
+# and a page upload gone silent stops holding its name against curl (R-01,
+# with a 5 s stall window through CROSSPOINT_SIM_WS_STALL_MS). Each of those
+# was run against a binary from before its fix and FAILED there.
+# It SKIPs only for what is missing BEFORE launch (no binary, no curl or
+# python3, the port already answering). A simulator that was launched and
+# never served is a FAIL: that used to SKIP and leave this suite green with
+# every upload path dead (R-09).
 run_shell_skip test_blink_upload tests/test_blink_upload.sh "$FW_CHECKOUT"
 
 echo
