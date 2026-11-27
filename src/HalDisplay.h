@@ -160,6 +160,12 @@ public:
   // releases the present hold when no gray pass came (PresentHold.h).
   void renderPassComplete();
 
+  // Mirror the firmware HAL's Picco idle panel power-off (lib/hal/HalDisplay.h,
+  // owner ruling 2026-11-27 "Stay powered"). A host has no panel rails, so
+  // nothing is ever due.
+  bool panelIdlePowerOffDue(uint32_t) const { return false; }
+  void powerOffIdlePanel() {}
+
   // Mirrors the firmware HAL (lib/hal/HalDisplay.h): does this panel have an
   // absolute 4-level grayscale bank behind displayGrayBuffer(..., true)?
   //
