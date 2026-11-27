@@ -15,6 +15,7 @@
 #include "FieldSelection.h"
 #include "PhosphorGrain.h"
 #include "Scanlines.h"
+#include "ScanlinesDirty.h"
 #include "SimulatorOverlay.h"
 
 #include <atomic>
@@ -195,6 +196,16 @@ static uint32_t scanTexKey = 0;
 static int scanTexPitchKey = -1;
 static int scanTexBloom = -1;
 static int scanTexDefocus = -1;
+// What the texture was built from, kept so the next build of the same field
+// recomputes only the pixels whose beam-current bucket moved
+// (src/ScanlinesDirty.h): the bucket map, the field itself, and the
+// content-free (row, level, anchor) table. All three live and die with the
+// texture. The field and the map were allocated per build before; now they
+// stay resident (output-sized: ~1.5 MB at the desktop's 1x, ~16 MB at the
+// phone's 1206x2622).
+static std::vector<uint8_t> scanBucket;
+static std::vector<uint32_t> scanFieldPx;
+static std::vector<float> scanRowT;
 
 // --- CORNER DEFOCUS --------------------------------------------------------
 //
@@ -271,6 +282,9 @@ static void destroyScanTexture() {
   scanTexPitchKey = -1;
   scanTexBloom = -1;
   scanTexDefocus = -1;
+  scanBucket.clear();
+  scanFieldPx.clear();
+  scanRowT.clear();
 }
 
 static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
@@ -301,6 +315,17 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
     if (timingLogWanted()) timingFrame.scanlines.served = true;
     return true;
   }
+  // SAME FIELD, NEW PICTURE: only the frame's seq moved, so only the pixels
+  // whose beam-current bucket moved can differ (src/ScanlinesDirty.h). Every
+  // other key matching is what makes the kept table, map and field the ones a
+  // whole rebuild would make.
+  const size_t fieldPx = static_cast<size_t>(w) * h;
+  const bool partial =
+      scanTexture && scanTexW == w && scanTexH == h &&
+      scanTexIntensity == intensity && scanTexKey == palKey &&
+      scanTexPitchKey == pitchKey && scanTexBloom == bloom &&
+      scanTexDefocus == cd.strengthPercent && scanBucket.size() == fieldPx &&
+      scanFieldPx.size() == fieldPx && !scanRowT.empty();
   const uint64_t scanT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
 
   scanlines::Params params;
@@ -363,62 +388,45 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
                   : 0.0f;
 
   // Per-(row, level bucket [, defocus anchor]) transmission: the erf work,
-  // done once per row rather than once per pixel.
+  // done once per row rather than once per pixel -- and, being content-free,
+  // kept from the last whole build when only the picture moved.
   const int anchors = defocusLive ? kDefocusAnchors : 1;
-  std::vector<float> rowT(static_cast<size_t>(h) * 16 * anchors);
-  for (int y = 0; y < h; ++y)
-    for (int b = 0; b < 16; ++b) {
-      const float level = (static_cast<float>(b) + 0.5f) / 16.0f;
-      float *cell = rowT.data() + (static_cast<size_t>(y) * 16 + b) * anchors;
-      for (int d = 0; d < anchors; ++d)
-        cell[d] = scanlines::rowTransmission(
-            params, static_cast<float>(y), level,
-            1.0f + defocusStep * static_cast<float>(d));
-    }
-
-  destroyScanTexture();
-  scanTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
-                                  SDL_TEXTUREACCESS_STATIC, w, h);
-  if (!scanTexture) {
-    LOG_ERR("DISP", "scanlines: no field texture (%s)", SDL_GetError());
-    return false;
-  }
-  std::vector<uint32_t> field(static_cast<size_t>(w) * h);
-  for (int y = 0; y < h; ++y) {
-    uint32_t *row = field.data() + static_cast<size_t>(y) * w;
-    const float *tRow = rowT.data() + static_cast<size_t>(y) * 16 * anchors;
-    const uint8_t *bRow = bucket.data() + static_cast<size_t>(y) * w;
-    const uint8_t *dRow =
-        defocusLive ? defocusMap.data() + static_cast<size_t>(y) * w : nullptr;
-    for (int x = 0; x < w; ++x) {
-      float t;
-      if (dRow) {
-        // Interpolated between the two bracketing anchors: an anchor edge on a
-        // field this smooth would otherwise draw a contour across the screen.
-        const float fa =
-            (defocusSpan * (static_cast<float>(dRow[x]) / 255.0f)) /
-            (defocusStep > 0.0f ? defocusStep : 1.0f);
-        int a0 = static_cast<int>(fa);
-        if (a0 < 0) a0 = 0;
-        if (a0 > anchors - 1) a0 = anchors - 1;
-        const int a1 = a0 + 1 < anchors ? a0 + 1 : a0;
-        const float fr = fa - static_cast<float>(a0);
-        const float *cell = tRow + static_cast<size_t>(bRow[x]) * anchors;
-        t = cell[a0] + (cell[a1] - cell[a0]) * fr;
-      } else {
-        t = tRow[bRow[x]];
-      }
-      const uint32_t m = scanlines::combine(params, t, x, y, w, h);
-      row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
-    }
-  }
-  if (!SDL_UpdateTexture(scanTexture, nullptr, field.data(),
-                         static_cast<int>(w * sizeof(uint32_t)))) {
-    LOG_ERR("DISP", "scanlines: could not upload the field (%s)",
-            SDL_GetError());
+  const scandirty::Defocus df{defocusLive ? defocusMap.data() : nullptr,
+                              defocusSpan, defocusStep};
+  scandirty::Rect dirty{0, 0, w, h};
+  if (partial) {
+    dirty = scandirty::refill(params, scanRowT.data(), anchors, bucket.data(),
+                              scanBucket.data(), df, w, h, scanFieldPx.data());
+  } else {
     destroyScanTexture();
-    return false;
+    scandirty::buildRowTable(params, h, anchors, defocusStep, scanRowT);
+    scanTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                                    SDL_TEXTUREACCESS_STATIC, w, h);
+    if (!scanTexture) {
+      LOG_ERR("DISP", "scanlines: no field texture (%s)", SDL_GetError());
+      scanRowT.clear();
+      return false;
+    }
+    scanFieldPx.assign(fieldPx, 0);
+    scandirty::refill(params, scanRowT.data(), anchors, bucket.data(), nullptr,
+                      df, w, h, scanFieldPx.data());
   }
+  // The box of recomputed pixels, uploaded out of the kept field (pitch: the
+  // field's own row); empty -- a repaint whose light did not move a bucket --
+  // uploads nothing.
+  if (!dirty.empty()) {
+    const SDL_Rect r = {dirty.x, dirty.y, dirty.w, dirty.h};
+    const uint32_t *src = scanFieldPx.data() +
+                          static_cast<size_t>(dirty.y) * w + dirty.x;
+    if (!SDL_UpdateTexture(scanTexture, &r, src,
+                           static_cast<int>(w * sizeof(uint32_t)))) {
+      LOG_ERR("DISP", "scanlines: could not upload the field (%s)",
+              SDL_GetError());
+      destroyScanTexture();
+      return false;
+    }
+  }
+  scanBucket.swap(bucket);
   SDL_SetTextureBlendMode(scanTexture, SDL_BLENDMODE_MOD);
   // Drawn 1:1; pinned to NEAREST so a half-pixel rect can never smear the
   // raster into a gray wash.
@@ -440,13 +448,15 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
     if (e[0] == '1')
       SDL_Log("[scanlines] field %dx%d intensity %d pitch %.3f px/line "
               "mottle %.2f bloom %d%% defocus %d%% (corner spot %.3fx, "
-              "astigmatism %.3f) seed %u budget %.3f",
+              "astigmatism %.3f) seed %u budget %.3f (%s %dx%d)",
               w, h, intensity, static_cast<double>(pitchPx),
               static_cast<double>(params.mottleDepth), bloom,
               cd.strengthPercent,
               static_cast<double>(cornerdefocus::maxSigmaScale(cd)),
               static_cast<double>(cornerdefocus::astigmatismRatio(cd)), seed,
-              static_cast<double>(params.budgetMeanDarkening));
+              static_cast<double>(params.budgetMeanDarkening),
+              partial ? "rebuilt the changed pixels" : "rebuilt whole",
+              dirty.empty() ? 0 : dirty.w, dirty.empty() ? 0 : dirty.h);
   return true;
 }
 

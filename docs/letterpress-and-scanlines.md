@@ -406,6 +406,16 @@ no per-frame path:
 - The bloom level map is read from the composed backbuffer **at regeneration
   time**, so a fading page keeps the raster the fresh page had. The structure
   does not fade with it.
+- **A regeneration recomputes only the pixels whose bloom bucket moved**
+  (2026-11-27, `src/ScanlinesDirty.h`). A field pixel reads only its OWN
+  bucket, its position and the dials, so when only `pixelBufSeq` moved the
+  kept field is refilled where the read-back map differs from the last one,
+  and the box of those pixels is uploaded; the (row, level, anchor) table is
+  content-free and kept too. Byte-identical to the whole rebuild
+  (`tests/scanlines_dirty_test.cpp`, and md5-matched dark captures). The
+  readback itself still runs every regeneration -- it IS the bloom map -- and
+  is now most of what is left: ~20 of ~22 ms per dark menu step on the iOS
+  Simulator at 1206x2622. crosspoint-reader `docs/menu-nav-lag-2026-11-27.md`.
 - The field is drawn last, over everything, with `SDL_BLENDMODE_MOD`. So the
   decaying ghost *is* re-scanlined every frame by the *same* static texture:
   static structure, moving light behind it, which is exactly the ruling.

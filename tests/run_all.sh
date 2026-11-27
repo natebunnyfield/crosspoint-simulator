@@ -668,6 +668,16 @@ run letterpress \
 run letterpress_dirty \
   c++ -std=c++17 -O2 -Isrc -Itests -o "$OUT/letterpress_dirty" tests/letterpress_dirty_test.cpp
 
+# The dark page's scanline field is likewise refilled only where a pixel's
+# beam-current bucket moved (src/ScanlinesDirty.h), because the whole rebuild
+# cost ~26 ms of main thread per dark menu step on the desktop at 1x. A field
+# pixel reads only its OWN bucket, so no growth: compares the refill against a
+# whole rebuild, pixel for pixel, over 300 chained random edits with the corner
+# defocus off and 300 with it on, and shows a stale pixel is caught.
+# crosspoint-reader docs/menu-nav-lag-2026-11-27.md (O6).
+run scanlines_dirty \
+  c++ -std=c++17 -O2 -Isrc -Itests -o "$OUT/scanlines_dirty" tests/scanlines_dirty_test.cpp
+
 # Raking light (2026-09-25 spike, reworked 2026-09-26, src/RakingLight.h): the
 # letterpress deboss and the sheet itself lit from a direction the phone's tilt
 # sets, under four 0..200 dials. Pins that splitting letterpress::multiplierAt
