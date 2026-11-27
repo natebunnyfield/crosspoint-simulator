@@ -50,7 +50,11 @@
 // contrast above it (src/FieldSelection.h, src/Scanlines.h): the light sheet's
 // tooth and formation have nothing left, and the dark page's scanlines fall to
 // about 6% of their depth at 0 and about 80% at 5, full from 10 (measured by
-// the 2026-11-27 adversarial review).
+// the 2026-11-27 adversarial review). THOSE THREE FIGURES ARE WARMTH 50 ONLY:
+// Warmth moves the trace and the glass, so the headroom that caps the depth
+// moves too. At Warmth 100 the scanlines are 0% at 0, 35% at 5, 67% at 10, 95%
+// at 15 and full from 20; at Warmth 0 they are 10% at 0 and full from 5. The
+// table for every step is in docs/frontlit-page-2026-11-27.md.
 
 #include <algorithm>
 #include <cmath>

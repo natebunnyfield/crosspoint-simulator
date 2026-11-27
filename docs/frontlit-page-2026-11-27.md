@@ -31,10 +31,30 @@ one floor-clamped value. The anchored ramp is what makes every step move.
 recomputation. So an untouched Picco, and every other board, do not move.
 `simfrontlight::current()` reports off on every board but the Picco.
 
-**The light switch matters.** On iOS the light follows the pad's slide switch
-(stored, `CrossPointPrefs_piccoSlideSwitchOn`), as on the device. **With the
-switch off, the page is the frozen page whatever the rows say.** That was a
-choice, not forced: the alternative is to ignore the switch.
+**The light switch matters, and what it does depends on its binding.** The
+page follows the HAL's light, whichever control turned it on or off
+(`src/HalFrontlight.cpp`, `publish`). Which control that is comes from the
+firmware's Slide Switch row (`slideSwitchAction`, default Frontlight, firmware
+`src/CrossPointSettings.h:258-261`):
+
+- **Bound to Frontlight, the default.** On iOS the light follows the pad's
+  slide switch (stored, `CrossPointPrefs_piccoSlideSwitchOn`), as on the device
+  (firmware `src/main.cpp:717-723`, the default case of `handleSlideSwitch`).
+  **With the switch off, the page is the frozen page whatever the rows say.**
+  That was a choice, not forced: the alternative is to ignore the switch.
+- **Bound to Dark Mode.** The switch flips Dark Mode and does not touch the
+  light (`src/main.cpp:710-716`). The light then follows the Settings rows that
+  this binding reveals: Frontlight (`SettingsActivity.cpp:424`,
+  `Frontlight.setOn`) and, at wake, Restore Light on Wake
+  (`src/main.cpp:1074-1076`). So with the switch OFF the page is the LIGHT
+  page, and it is LIT whenever the Frontlight row is On and Brightness or
+  Warmth is away from 60/50. The switch does not freeze the page here.
+
+The desktop simulator has no slide switch (`hasToggleSwitch()` is false), so
+there the light follows the two rows whatever the binding says.
+
+(Corrected 2026-11-27, review row R-25: this paragraph first gave the default
+binding's rule as the only one. The page code was right; the doc was not.)
 
 ## Where it lives
 
@@ -88,9 +108,32 @@ contrast above the floor, so both pages go flat there. Light: the sheet's
 tooth, formation and letterpress have nothing to spend (`src/FieldSelection.h`);
 the modal ground is the bare paper tone F9F3E9 at Brightness 0 against EFE9DF
 at 60. Dark: the scanlines' depth is capped by the same headroom
-(`src/SurfaceTube.cpp:310-313`, `src/Scanlines.h:298-302`), so they fall to
-about 6% of their shipped depth at Brightness 0, about 80% at 5, and are full
-from 10 (adversarial review, 2026-11-27, probe). The device rows step by 5.
+(`params.budgetMeanDarkening` at `src/SurfaceTube.cpp:340-343`,
+`scanlines::effectiveDepth` at `src/Scanlines.h:298-303`; the first citation
+read `:310-313` until the partial refill of b59b6455 moved the block down). **At
+Warmth 50** they fall to about 6% of their shipped depth at Brightness 0, about
+80% at 5, and are full from 10 (adversarial review, 2026-11-27, probe).
+
+**That is the mid-Warmth figure only.** Warmth moves the trace and the glass,
+so the headroom that caps the depth moves with it, and warm settings stay
+thinned further up the Brightness row. Re-run 2026-11-27 over the device's own
+steps of 5 (percent of the frozen page's depth, shipped intensity 50; the probe
+is in Method below):
+
+| Warmth | b=0 | b=5 | b=10 | b=15 | b=20 | full from |
+|---|---|---|---|---|---|---|
+| 0 | 10% | 100% | 100% | 100% | 100% | 5 |
+| 25 | 1% | 92% | 100% | 100% | 100% | 10 |
+| 50 | 6% | 80% | 100% | 100% | 100% | 10 |
+| 75 | 14% | 62% | 100% | 100% | 100% | 10 |
+| 80 | 5% | 50% | 87% | 100% | 100% | 15 |
+| 90 | 2% | 46% | 79% | 100% | 100% | 15 |
+| 100 | 0% | 35% | 67% | 95% | 100% | 20 |
+
+Over all 21 Warmth steps: full from Brightness 5 at Warmth 0, 5 and 20; from 10
+at the other steps up to 75; from 15 at 80 to 95; from 20 at 100. Once full it
+stays full to Brightness 100 at every Warmth. The Brightness 0 column does not
+rise or fall steadily with Warmth; why was not traced.
 
 ## Method
 
@@ -103,6 +146,36 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5500:QUIT' CROSSPOINT_SIM_SCREENSHOTS='5000:<out>.b
 SDL_VIDEODRIVER=dummy <firmware>/.pio/build/simulator_picco/program
 # with fs_/.crosspoint/settings.json = {frontlightBrightness, frontlightWarmth,
 # frontlightOn, frontlightRestoreOnWake: 1, darkMode}
+```
+
+The scanline depth table (pure model, no render), from the repo root:
+
+```cpp
+// depth.cpp -- c++ -std=c++17 -Isrc -o depth depth.cpp && ./depth
+#include <cstdio>
+#include "FrontlitPage.h"
+#include "FieldSelection.h"
+#include "PhosphorGrain.h"
+#include "Srgb.h"
+int main() {
+  using namespace frontlitpage;
+  // The chain SurfaceTube.cpp runs for params.budgetMeanDarkening, then
+  // Scanlines.h effectiveDepth, at the shipped intensity.
+  auto depth = [](const panelpalette::Palette &p) {
+    scanlines::Params sp;
+    sp.intensityPercent = 50;
+    sp.budgetMeanDarkening =
+        fieldselect::kRasterBudgetShare *
+        phosphorgrain::darkeningBudget(srgb::relativeLuminance(p.ink),
+                                       srgb::relativeLuminance(p.paper));
+    return scanlines::effectiveDepth(sp);
+  };
+  const double base = depth(frozenpage::darkPair());  // 0.2000
+  for (int w = 0; w <= 100; w += 5)
+    for (int b = 0; b <= 100; b += 5)
+      std::printf("w=%d b=%d %.0f%%\n", w, b,
+                  100 * depth(darkPair(Light{b, w, true})) / base);
+}
 ```
 
 ## Not done
