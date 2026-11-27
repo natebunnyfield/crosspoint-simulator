@@ -18,7 +18,8 @@
 # refused curl -T says why (R-12), and a page upload that has gone silent stops
 # holding its file name against curl (R-01). And a card that stops taking
 # writes partway through a curl -F leaves no partial file behind, so the retry
-# is not refused as "File already exists".
+# is not refused as "File already exists". And a curl -F that sends two files
+# in one request is answered for both of them, not for the last one alone.
 #
 # It boots the desktop PICCO simulator on a scratch card it makes itself, walks
 # to File Transfer, and drives the server over loopback on a private port pair
@@ -399,7 +400,40 @@ out=$(curl -s -w ' [%{http_code}]' -F "path=/books" -F "file=@$SRC/Just Over.epu
 check "$(both "$(both "$(is "$(code_of "$out")" 500)" "$(has "$out" "discarded")")" "$(gone "$CARD/books/Just Over.epub")")" \
   "curl -F of a file 100 bytes over what the card has room for -> $out (want 500 '... discarded'), $(left "$CARD/books/Just Over.epub")"
 
-# 13. The simulator is still running and still serving after all of that.
+# 13. Two files in one curl -F are answered for both. The reply used to speak
+#     for the last file alone: a refused first file read as "200 File uploaded
+#     successfully: <the second>", and a stored first file as a bare 400 for
+#     the second. /New Shelf/small.epub is on the card since check 8, so
+#     sending it again is the refusal ("File already exists").
+for n in b c d e; do head -c 3000 /dev/urandom > "$SRC/multi-$n.epub"; done
+kept="$(md5of "$CARD/New Shelf/small.epub")"
+out=$(curl -s -w ' [%{http_code}]' --form-string "path=/New Shelf" -F "file=@$SRC/small.epub" -F "file=@$SRC/multi-b.epub" "http://$H/upload")
+said=$(both "$(both "$(has "$out" "1 of 2 files stored")" "$(has "$out" "small.epub (File already exists")")" "$(has "$out" "Stored: multi-b.epub")")
+check "$(both "$(both "$(is "$(code_of "$out")" 400)" "$said")" "$(same "$SRC/multi-b.epub" "$CARD/New Shelf/multi-b.epub")")" \
+  "curl -F of a file that exists, then a new one -> $out (want 400 '1 of 2 files stored. Not stored: small.epub (File already exists ...). Stored: multi-b.epub'), the new one: $(card "$SRC/multi-b.epub" "$CARD/New Shelf/multi-b.epub")"
+out=$(curl -s -w ' [%{http_code}]' --form-string "path=/New Shelf" -F "file=@$SRC/multi-c.epub" -F "file=@$SRC/small.epub" "http://$H/upload")
+said=$(both "$(both "$(has "$out" "1 of 2 files stored")" "$(has "$out" "small.epub (File already exists")")" "$(has "$out" "Stored: multi-c.epub")")
+check "$(both "$(both "$(is "$(code_of "$out")" 400)" "$said")" "$(same "$SRC/multi-c.epub" "$CARD/New Shelf/multi-c.epub")")" \
+  "curl -F of a new file, then one that exists -> $out (want 400 '1 of 2 files stored. Not stored: small.epub (File already exists ...). Stored: multi-c.epub'), the new one: $(card "$SRC/multi-c.epub" "$CARD/New Shelf/multi-c.epub")"
+check "$(is "$kept" "$(md5of "$CARD/New Shelf/small.epub")")" \
+  "the file that was already there after those two: $([ "$kept" = "$(md5of "$CARD/New Shelf/small.epub")" ] && echo "unchanged" || echo "CHANGED")"
+out=$(curl -s -w ' [%{http_code}]' --form-string "path=/New Shelf" -F "file=@$SRC/multi-d.epub" -F "file=@$SRC/multi-e.epub" "http://$H/upload")
+check "$(both "$(both "$(is "$(code_of "$out")" 200)" "$(has "$out" "2 files uploaded successfully: multi-d.epub, multi-e.epub")")" "$(both "$(same "$SRC/multi-d.epub" "$CARD/New Shelf/multi-d.epub")" "$(same "$SRC/multi-e.epub" "$CARD/New Shelf/multi-e.epub")")")" \
+  "curl -F of two new files -> $out (want 200 '2 files uploaded successfully: multi-d.epub, multi-e.epub'), the first: $(card "$SRC/multi-d.epub" "$CARD/New Shelf/multi-d.epub"), the second: $(card "$SRC/multi-e.epub" "$CARD/New Shelf/multi-e.epub")"
+before="$(listing)"
+out=$(curl -s -w ' [%{http_code}]' --form-string "path=/New Shelf" -F "file=@$SRC/multi-d.epub" -F "file=@$SRC/multi-e.epub" "http://$H/upload")
+after="$(listing)"
+check "$(both "$(both "$(is "$(code_of "$out")" 400)" "$(has "$out" "0 of 2 files stored. Not stored: multi-d.epub (File already exists: multi-d.epub) and 1 more")")" "$(is "$before" "$after")")" \
+  "the same two again -> $out (want 400 '0 of 2 files stored. Not stored: multi-d.epub (File already exists: multi-d.epub) and 1 more'), the card $([ "$before" = "$after" ] && echo "unchanged" || echo "CHANGED")"
+#     One file per request is answered as it always was, straight after.
+out=$(curl -s -w ' [%{http_code}]' --form-string "path=/New Shelf" -F "file=@$SRC/multi-e.epub;filename=multi-f.epub" "http://$H/upload")
+check "$(both "$(is "$out" "File uploaded successfully: multi-f.epub [200]")" "$(same "$SRC/multi-e.epub" "$CARD/New Shelf/multi-f.epub")")" \
+  "one new file straight after -> $out (want exactly 'File uploaded successfully: multi-f.epub [200]'), $(card "$SRC/multi-e.epub" "$CARD/New Shelf/multi-f.epub")"
+out=$(curl -s -w ' [%{http_code}]' --form-string "path=/New Shelf" -F "file=@$SRC/multi-e.epub" "http://$H/upload")
+check "$(is "$out" "File already exists: multi-e.epub [400]")" \
+  "one file that exists straight after -> $out (want exactly 'File already exists: multi-e.epub [400]')"
+
+# 14. The simulator is still running and still serving after all of that.
 code=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://$H/api/status")
 alive=0; kill -0 "$SIM_PID" 2>/dev/null && alive=1
 check "$(both "$(is "$code" 200)" "$alive")" \
