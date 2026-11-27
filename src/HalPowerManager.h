@@ -40,8 +40,14 @@ public:
   // Control CPU frequency for power saving
   void setPowerSaving(bool enabled);
 
+  // The host has no rocker edge to wake it, so a press waits out the rest of
+  // the slice. 20 ms, not the device's 50: owner ruling 2026-11-27 ("20 ms",
+  // firmware docs/menu-nav-lag-2026-11-27.md O3) trades 2.5x the idle wakes
+  // for a first press after a rest that is read at most 20 ms late. Battery
+  // cost not measured.
+  static constexpr unsigned long kHostIdleSliceMs = 20;
   bool lightSleep(const HalGPIO &) const {
-    delay(50);
+    delay(kHostIdleSliceMs);
     return true;
   }
   bool onEinkBusyWaitSlice(int8_t, uint8_t) { return false; }
