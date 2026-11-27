@@ -9,7 +9,7 @@
 //      pages are the frozen pair byte for byte, with the frozen decay. An
 //      untouched Picco, and every other board, must not move.
 //   2. THE FLOOR. Every setting on the whole grid clears 7:1: the light ink
-//      against its sheet's darkest drifted leaf, the dark trace against its
+//      against its sheet through the renderer's drift clamp, the dark trace against its
 //      glass. Recomputed from the bytes, not trusted from the walk that chose
 //      them.
 //   3. THE DIRECTIONS. Warmth warms (paper and tube both lean red against

@@ -3,9 +3,10 @@
 Owner 2026-11-26, verbatim: *"future todo: for warmth setting on picco to
 adjust paper warmth and crt warmth; brightness adjusts ink and crt specific
 physics"*. Built 2026-11-27 on *"connect brightness and warmth as described in
-the earlier todo"*. Status: **built, rendered, and waiting on the owner's
-judgment of the look**. Every number below is a tuning that the renders are
-meant to settle. Device feel UNCONFIRMED.
+the earlier todo"*. Status: **shipped in TestFlight build 14 at the owner's
+go ("Menu fix + light rows", 2026-11-27); the look is still his to judge**.
+Every number below is a tuning that the renders are meant to settle. Device
+feel UNCONFIRMED.
 
 ## What moves
 
@@ -81,11 +82,15 @@ every arm, `CROSSPOINT_SIM_GRAIN_SEED=7`, a `{}` `settings.json` beside the
 binary): the dark renders' ground and trace match the table exactly. **Light
 off at 100/100 is byte-identical to 60/50 in both polarities** (BMP md5).
 
-One visible consequence worth knowing: on the light page at Brightness 0 the
-ink sits at the 7:1 floor, so the sheet's texture fields (tooth, formation,
-letterpress), which spend only the contrast above the floor
-(`src/FieldSelection.h`), have nothing to spend. The page reads flat there. The
-modal ground is the bare paper tone F9F3E9 at Brightness 0 and EFE9DF at 60.
+One visible consequence worth knowing: at Brightness 0 the ink (light) or the
+trace (dark) sits on the 7:1 floor, and every texture field spends only the
+contrast above the floor, so both pages go flat there. Light: the sheet's
+tooth, formation and letterpress have nothing to spend (`src/FieldSelection.h`);
+the modal ground is the bare paper tone F9F3E9 at Brightness 0 against EFE9DF
+at 60. Dark: the scanlines' depth is capped by the same headroom
+(`src/SurfaceTube.cpp:310-313`, `src/Scanlines.h:298-302`), so they fall to
+about 6% of their shipped depth at Brightness 0, about 80% at 5, and are full
+from 10 (adversarial review, 2026-11-27, probe). The device rows step by 5.
 
 ## Method
 
@@ -110,5 +115,31 @@ SDL_VIDEODRIVER=dummy <firmware>/.pio/build/simulator_picco/program
   app ran. The page colors on iOS are UNCONFIRMED.
 - The ink on the light page does not take the warmth (owner: warmth adjusts
   PAPER warmth). A real warm light would tint both.
-- Scanline intensity, grain and corner defocus do not follow the beam. Only
-  emission, bloom and afterglow do.
+- Scanline intensity, grain and corner defocus are not driven by the beam.
+  Only emission, bloom and afterglow are. The scanlines still thin out at the
+  very bottom of Brightness, through the contrast cap above.
+- DESKTOP ONLY, latent: with `CROSSPOINT_SIM_AS_SHIPPED=1` and a
+  `settings.json` that names `darkMode` or `panelPalettePreset`, the settings
+  watcher (`src/SimulatorSettingsWatch.cpp:169-189`) and the light hook each
+  repaint the page over the other: the next light change puts the frozen or
+  lit page back, the next save of the file flips it again. Run as-shipped
+  renders with a `{}` settings file, as above. The app has no watcher.
+- Tube warmth checked at single steps has 68 one-code-value reversals (the
+  test checks every 5, which is the device row's step).
+
+## Adversarial review, 2026-11-27
+
+Read-only, over d9c66408 and f096e97b; nothing blocking. Found: the dark
+page's scanline loss at Brightness 0 (now documented above), the desktop
+watcher fight (latent, above), four wrong comments (fixed). Checked and clean:
+`present()` true on the Picco (the slide switch saves once per change, the
+iOS switch is seeded before `Frontlight.begin()`, the rows it reveals match
+the device rule); threading (the firmware loop and the polls share the main
+thread; a torn read self-corrects); the per-thread cache (0 mismatches over
+300 alternating settings); neutral identity (60/50 computed the long way gives
+the frozen bytes); the 7:1 floor at every one of 10,201 settings (worst
+7.0001 light, 7.0004 dark); the tail at every setting; bloom 208..400 fed
+the shipped 400 on both platforms; the field caches rebuild on a palette
+change; the pad and keyboard chip follow through `applyPanel`. Not measured:
+the feel of holding the rocker on Brightness, where each step rebuilds the
+light sheet (about 130 ms, per `CLAUDE.md`).

@@ -41,9 +41,16 @@
 //              glass, 60 the frozen trace, 100 an overdriven one.
 //
 // THE 7:1 FLOOR HOLDS AT EVERY SETTING (lightink::kContrastFloor): a light-page
-// ink is never thinner than the floor against its tinted sheet, at the darkest
-// leaf the frozen drift can produce, and a dark-page beam is never dimmer than
-// the floor against its glass.
+// ink is never thinner than the floor against its tinted sheet (after the drift
+// budget the renderer applies, which lightink shrinks to fit the floor), and a
+// dark-page beam is never dimmer than the floor against its glass.
+//
+// AT THE BOTTOM OF BRIGHTNESS BOTH PAGES GO FLAT, by construction. Brightness 0
+// puts the ink or trace ON the floor, and every texture field spends only the
+// contrast above it (src/FieldSelection.h, src/Scanlines.h): the light sheet's
+// tooth and formation have nothing left, and the dark page's scanlines fall to
+// about 6% of their depth at 0 and about 80% at 5, full from 10 (measured by
+// the 2026-11-27 adversarial review).
 
 #include <algorithm>
 #include <cmath>
@@ -115,8 +122,9 @@ inline void tintedPaper(const Light &l, unsigned char out[3]) {
   const double a = std::fabs(t);
   double p[3];
   for (int c = 0; c < 3; c++) p[c] = lin(frozen.paper[c]) * std::pow(end[c], a);
-  // Renormalize to the frozen sheet's luminance, then clip; a clipped channel
-  // loses a hair of luminance, which only ever lightens the floor problem.
+  // Renormalize to the frozen sheet's luminance, then clip. A clipped channel
+  // loses a hair of luminance and so a little contrast; harmless, because the
+  // ink's floor is searched against this tinted sheet afterwards.
   double base[3];
   for (int c = 0; c < 3; c++) base[c] = lin(frozen.paper[c]);
   const double k = luminanceLin(base) / luminanceLin(p);
@@ -138,8 +146,10 @@ inline void inkAtDepth(double d, unsigned char out[3]) {
   }
 }
 
-// The contrast the floor is held against: the ink on the DARKEST leaf the
-// frozen drift can produce from this paper, as FrozenPage's own clamps do.
+// The contrast the floor is held against, through the same drift clamp the
+// renderer uses (lightink::paperWorstDriftForPair shrinks the drift to fit
+// the floor, so at the floor this is plain ink-on-paper contrast and the
+// drift is off).
 inline double lightContrast(const unsigned char ink[3],
                             const unsigned char paper[3]) {
   unsigned char worst[3];
@@ -147,7 +157,7 @@ inline double lightContrast(const unsigned char ink[3],
   return lightink::contrastRatio(ink, worst);
 }
 
-// The thinnest depth whose wash clears 7:1 against this sheet's darkest leaf.
+// The thinnest depth whose wash clears 7:1 on this sheet (lightContrast).
 // Monotone in depth, so the first passing step is the floor.
 inline double floorInkDepth(const unsigned char paper[3]) {
   unsigned char ink[3];
@@ -169,8 +179,9 @@ inline double rampFor(const Light &l, double floor, double max) {
 
 // The iOS harness asks for both pages several times per frame (the palette,
 // glow and scanline polls), always at the same light, so each page keeps the
-// last answer per thread. thread_local because the desktop also asks from the
-// firmware loop's thread, through its change hook.
+// last answer per thread. Today every caller is on the main thread (the
+// firmware loop, the iOS polls and the desktop's change hook share it);
+// thread_local keeps the answer consistent if that ever changes.
 inline bool sameLight(const Light &a, const Light &b) {
   return a.on == b.on && clampPct(a.brightness) == clampPct(b.brightness) &&
          clampPct(a.warmth) == clampPct(b.warmth);

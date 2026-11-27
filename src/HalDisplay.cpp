@@ -2417,9 +2417,9 @@ void HalDisplay::begin() {
     // single atomic), so the polarity this selects is the one those numbers
     // describe.
     SimulatorOverlay::setPanelDark(true);
-    // The Picco's light drives the page from here on (ST-012). The firmware
-    // has not run Frontlight.begin() yet, so this first call answers the
-    // frozen page; the hook carries every change after it.
+    // The Picco's light drives the page from here on (ST-012). This first
+    // call applies the light as it stands (main.cpp setup has already run
+    // Frontlight.begin()); the hook carries every change after it.
     // Keyed on the BUILD FLAG: BoardConfig.h is not included in this file
     // (see supportsAbsoluteGrayscale below for what that once cost).
 #if defined(SIMULATOR_DEVICE_PICCO)
