@@ -873,9 +873,18 @@ changed. `Activity::onEnter()` publishes a screen identity now
 `tests/sheet_identity_test.cpp`); readers are skipped there and keep publishing
 their finer page identity from their render. Cost, measured on Metal with the
 as-shipped dials: one sheet rebuild per screen ENTRY, **126–133 ms**, which is
-what a page turn has always cost; navigation WITHIN a screen is unchanged
-(51–53 ms of panel field per keypress, sheet served from cache) because the seed
-does not move when the selection does. If that entry cost ever has to go, the
+what a page turn has always cost; navigation WITHIN a screen does not rebuild
+the sheet (it is served from cache, because the seed does not move when the
+selection does). What a keypress does pay for is the letterpress panel field,
+and since 2026-11-27 (`95c2e568`) that is rebuilt only inside the box of changed
+ink (`src/LetterpressDirty.h`; `partial` / `changedRect` in
+`src/SurfaceSheet.cpp`). Measured on the iOS Simulator, Picco app, Settings,
+light: **5.5 ms** per step for a 194x866 box (9.7 ms with the inkness pass),
+against **54 ms** for the whole 1600x960 field before the change (firmware
+`docs/menu-nav-lag-2026-11-27.md`, the "Measured" table, "letterpress field per
+step"). The 51–53 ms this sentence gave until then was that whole-field rebuild.
+Dark pages have no letterpress; their per-step field is the scanline one, in the
+same doc under O6. If that entry cost ever has to go, the
 dial to drop is **formation** — 72 of those 130 ms — and not show-through (10 ms)
 or the tooth (0).
 
