@@ -2238,8 +2238,11 @@ static float trailFadeRoundBias = 0.5f;
   SimulatorOverlay::setPanelPalette(true, dark.mix.dark.ink, dark.mix.dark.paper);
   SimulatorOverlay::setPanelPalette(false, light.ink, light.paper);
   SimulatorOverlay::setPanelGlow(dark.mix.trailMs);
-  if (dark.mix.hasTail)
-    SimulatorOverlay::setPanelGlowTail(dark.mix.tail, dark.mix.tailOnsetMs);
+  // A single-phosphor tube dims in its own color: clear the tail, or the Mixed
+  // tube's amber would stay on its afterglow (the iOS glow poll pushes null).
+  SimulatorOverlay::setPanelGlowTail(dark.mix.hasTail ? dark.mix.tail : nullptr,
+                                     dark.mix.hasTail ? dark.mix.tailOnsetMs
+                                                      : 0.0f);
   SimulatorOverlay::setScanlineBloom(frontlitpage::bloomPercent(
       l, simdials::shippedValues()[simdials::ScanlineBloomPercent]));
   LOG_INF("DISP", "frontlit page: light %s, brightness %d, warmth %d",
