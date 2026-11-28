@@ -9,9 +9,9 @@
 //      pages are the frozen pair byte for byte, with the frozen decay. An
 //      untouched Picco, and every other board, must not move.
 //   2. THE FLOOR. Every setting on the whole grid clears 7:1: the light ink
-//      against its sheet through the renderer's drift clamp, the dark trace against its
-//      glass. Recomputed from the bytes, not trusted from the walk that chose
-//      them.
+//      against its sheet through the renderer's drift clamp, the dark trace
+//      against its glass. Recomputed from the bytes, not trusted from the walk
+//      that chose them.
 //   3. THE DIRECTIONS. Warmth warms (paper and tube both lean red against
 //      blue as it rises) and Brightness deepens the light ink and brightens the
 //      dark trace, monotonically, and every step of Brightness moves both
@@ -19,8 +19,14 @@
 //      row on one value).
 //   4. WARMTH IS NOT BRIGHTNESS. The tinted sheet keeps the frozen sheet's
 //      luminance within a few percent across the whole Warmth row.
+//   5. THE TUBE (owner 2026-11-27, docs/crt-gamut-plan-2026-11-27.md). Each
+//      tube at 60/50 IS its JEDEC phosphor's page and decay; light off is the
+//      Mixed tube whatever the row says; every tube clears 7:1 over the whole
+//      grid; the light page does not follow the tube; Warmth tilts each tube
+//      toward the warm guns, whose P38 brings its 1095 ms afterglow.
 //
-//   c++ -std=c++17 -Isrc -Iios tests/frontlit_page_test.cpp -o /tmp/frontlit_page_test
+//   c++ -std=c++17 -Isrc -Iios tests/frontlit_page_test.cpp -o
+//   /tmp/frontlit_page_test
 //   && /tmp/frontlit_page_test
 
 #include <cmath>
@@ -144,13 +150,78 @@ int main() {
   }
   check(worstDrift < 0.03, "the tinted sheet keeps the frozen luminance");
 
+  // 5. THE TUBE.
+  const int kTubePhosphor[kTubeCount] = {
+      -1,
+      panelpalette::kPresetBlueCrt,    // Blue: P11
+      panelpalette::kPresetBlueTvCrt,  // Pale Blue: P22B
+      panelpalette::kPresetP22GCrt,    // Green: P22G
+      panelpalette::kPresetP28Crt,     // Yellow: P28
+      panelpalette::kPresetAmberCrt,   // Amber: P3
+      panelpalette::kPresetRedCrt,     // Red: P22R
+      panelpalette::kPresetRedProjCrt, // Pale Red: P56
+  };
+  double worstTube = 99.0;
+  for (int t = 1; t < kTubeCount; t++) {
+    const std::string name = " (tube " + std::to_string(t) + ")";
+    const panelpalette::Palette jedec = panelpalette::resolve(
+        kTubePhosphor[t], true, panelpalette::kInvalidColor,
+        panelpalette::kInvalidColor);
+    const Light home{60, 50, true, t};
+    check(!isNeutral(home), "a tube is not the frozen page" + name);
+    const Dark d = darkPage(home);
+    check(same(d.mix.dark.ink, jedec.ink) &&
+              same(d.mix.dark.paper, jedec.paper),
+          "at 60/50 the tube is its phosphor's page" + name);
+    check(d.mix.trailMs == panelpalette::trailMsForPreset(kTubePhosphor[t]) &&
+              !d.mix.hasTail,
+          "at 60/50 the tube decays as its phosphor" + name);
+    for (const Light off : {Light{60, 50, false, t}, Light{0, 100, false, t},
+                            Light{100, 0, false, t}}) {
+      const Dark o = darkPage(off);
+      check(isNeutral(off) && same(o.mix.dark.ink, frozenDark.ink) &&
+                same(o.mix.dark.paper, frozenDark.paper) &&
+                o.mix.trailMs == frozenMix.trailMs,
+            "light off is the Mixed tube" + name +
+                at(off.brightness, off.warmth));
+    }
+    const Dark warm = darkPage(Light{60, 100, true, t});
+    check(warm.mix.trailMs ==
+              panelpalette::trailMsForPreset(panelpalette::kPresetP38Crt),
+          "the warm tilt brings P38's afterglow" + name);
+    for (int b = 0; b <= kMax; b += 2) {
+      for (int w = 0; w <= kMax; w += 2) {
+        const Light l{b, w, true, t};
+        const panelpalette::Palette dp = darkPair(l);
+        const double cd = lightink::contrastRatio(dp.ink, dp.paper);
+        worstTube = std::min(worstTube, cd);
+        if (cd < lightink::kContrastFloor)
+          check(false, "tube under 7:1" + name + at(b, w));
+        const panelpalette::Palette lp = lightPair(l);
+        const panelpalette::Palette lp0 = lightPair(Light{b, w, true});
+        if (!same(lp.ink, lp0.ink) || !same(lp.paper, lp0.paper))
+          check(false,
+                "the light page does not follow the tube" + name + at(b, w));
+      }
+    }
+  }
+  // Mixed is today's page everywhere, not only at the origin.
+  for (int b = 0; b <= kMax; b += 10)
+    for (int w = 0; w <= kMax; w += 10) {
+      const Dark m = darkPage(Light{b, w, true, kTubeMixed});
+      const Dark ref = computeDarkPage(Light{b, w, true});
+      if (!same(m.mix.dark.ink, ref.mix.dark.ink) ||
+          !same(m.mix.dark.paper, ref.mix.dark.paper))
+        check(false, "Mixed is the four-gun tube" + at(b, w));
+    }
+
   if (testcheck::g_failures) {
     std::printf("%d failure(s)\n", testcheck::g_failures);
     return 1;
   }
   std::printf(
       "frontlit page: frozen at 60/50 and off; worst %.2f:1 light, %.2f:1 "
-      "dark; sheet luminance within %.1f%%\n",
-      worstLight, worstDark, worstDrift * 100.0);
+      "dark, %.2f:1 over the seven tubes; sheet luminance within %.1f%%\n",
+      worstLight, worstDark, worstTube, worstDrift * 100.0);
   return 0;
 }

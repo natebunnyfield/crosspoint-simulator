@@ -39,6 +39,10 @@
 //              the scanline bloom, and how long the afterglow stays visible.
 //              Same three points: 0 the dimmest trace that clears 7:1 on this
 //              glass, 60 the frozen trace, 100 an overdriven one.
+//   Tube       (app and simulator builds only) names the phosphor: Mixed is
+//              the four-gun blend above; the other seven are single JEDEC
+//              phosphors that Warmth tilts toward the same warm or cool guns.
+//              Light off is the Mixed tube. See kTubePhosphor below.
 //
 // THE 7:1 FLOOR HOLDS AT EVERY SETTING (lightink::kContrastFloor): a light-page
 // ink is never thinner than the floor against its tinted sheet (after the drift
@@ -70,11 +74,22 @@
 namespace frontlitpage {
 
 inline int clampPct(int v) { return v < 0 ? 0 : (v > kMax ? kMax : v); }
+inline int clampTube(int t) {
+  return t < 0 || t >= kTubeCount ? kTubeMixed : t;
+}
 
-// Off, or on at the defaults: the frozen page, untouched.
-inline bool isNeutral(const Light &l) {
+// The LAMP at rest: off, or on at the defaults. The light page is the frozen
+// sheet then, whatever the tube, because the tube is the dark page's alone.
+inline bool lampAtRest(const Light &l) {
   return !l.on || (clampPct(l.brightness) == kDefaultBrightness &&
                    clampPct(l.warmth) == kDefaultWarmth);
+}
+
+// Off, or on at the defaults on the Mixed tube: the frozen page, untouched.
+// Light off is the Mixed tube whatever the row says (owner 2026-11-27, "Off =
+// Mixed").
+inline bool isNeutral(const Light &l) {
+  return !l.on || (lampAtRest(l) && clampTube(l.tube) == kTubeMixed);
 }
 
 // -1 (coolest) .. 0 (frozen) .. +1 (warmest).
@@ -188,7 +203,8 @@ inline double rampFor(const Light &l, double floor, double max) {
 // thread_local keeps the answer consistent if that ever changes.
 inline bool sameLight(const Light &a, const Light &b) {
   return a.on == b.on && clampPct(a.brightness) == clampPct(b.brightness) &&
-         clampPct(a.warmth) == clampPct(b.warmth);
+         clampPct(a.warmth) == clampPct(b.warmth) &&
+         clampTube(a.tube) == clampTube(b.tube);
 }
 
 inline panelpalette::Palette computeLightPair(const Light &l) {
@@ -207,7 +223,8 @@ inline panelpalette::Palette computeLightPair(const Light &l) {
 }
 
 inline panelpalette::Palette lightPair(const Light &l) {
-  if (isNeutral(l)) return frozenpage::lightPair();
+  if (lampAtRest(l))
+    return frozenpage::lightPair();
   thread_local bool have = false;
   thread_local Light last;
   thread_local panelpalette::Palette cached;
@@ -251,9 +268,65 @@ struct Dark {
   double beam = 1.0;        // the emission multiple actually applied
 };
 
-inline Dark computeDarkPage(const Light &l) {
+// THE TUBE (owner 2026-11-27, docs/crt-gamut-plan-2026-11-27.md, option B and
+// its "Owner rulings"). The firmware's Tube row names the phosphor the dark
+// page is; this table is that row's order, so the index is the stored value.
+// Every entry is a JEDEC row of src/PanelPalette.h, never a typed color: at
+// Warmth 50 a tube is a one-component blend, which is resolve() of its preset
+// byte for byte, and it decays at its own phosphor's speed.
+inline constexpr int kTubePhosphor[kTubeCount] = {
+    -1,                              // Mixed: the four-gun tube above
+    panelpalette::kPresetBlueCrt,    // Blue: P11, ZnS:Ag
+    panelpalette::kPresetBlueTvCrt,  // Pale Blue: P22B
+    panelpalette::kPresetP22GCrt,    // Green: P22G, the shortlist's green
+    panelpalette::kPresetP28Crt,     // Yellow: P28
+    panelpalette::kPresetAmberCrt,   // Amber: P3
+    panelpalette::kPresetRedCrt,     // Red: P22R, Y2O2S:Eu
+    panelpalette::kPresetRedProjCrt, // Pale Red: P56, Y2O3:Eu
+};
+// Warmth TILTS a tube toward the same guns it moves on the Mixed tube (ruled
+// "P38 + P22R"; cool stays P45 + P20), each pair at its frozen ratio, by the
+// same f law: the pair joins at kTubeTilt x (f - 1) of the tube's own weight
+// above Warmth 50, kTubeTilt x (1/f - 1) below it, so a third of the light at
+// either end. Measured over every tube and the whole grid before it was built
+// (docs/crt-gamut-plan-2026-11-27.md, section 3).
+inline constexpr double kTubeTilt = 0.25;
+// The tube's own weight. Large, so a tilt gun's share keeps its resolution
+// through mixBlend's integer weights (the smallest, P38 at Warmth 55, is 100).
+inline constexpr int kTubeWeight = 10000;
+
+inline phosphormix::Result tubeMix(const Light &l) {
+  const double f = std::pow(kGunWarmthRatio, warmthAxis(l));
+  phosphormix::Component comps[3];
+  int n = 0;
+  comps[n].preset = kTubePhosphor[clampTube(l.tube)];
+  comps[n].weight = kTubeWeight;
+  n++;
+  const bool warm = f > 1.0;
+  const double k = kTubeTilt * (warm ? f - 1.0 : 1.0 / f - 1.0);
+  if (k > 0.0) {
+    int pairTotal = 0;
+    for (int g = 0; g < gunmix::kGunCount; g++)
+      if (isWarmGun(g) == warm)
+        pairTotal += frozenpage::kGunWeight[g];
+    for (int g = 0; g < gunmix::kGunCount; g++) {
+      if (isWarmGun(g) != warm)
+        continue;
+      comps[n].preset = frozenpage::kGunPreset[g];
+      comps[n].weight = std::max(
+          1, static_cast<int>(std::lround(
+                 kTubeWeight * k * frozenpage::kGunWeight[g] / pairTotal)));
+      n++;
+    }
+  }
+  return phosphormix::mixBlend(comps, n);
+}
+
+// The beam over a tube's guns: the dimmest trace that clears 7:1 on its glass
+// at Brightness 0, the guns' own emission at 60, an overdriven one at 100.
+inline Dark beamOver(const phosphormix::Result &mix, const Light &l) {
   Dark d;
-  d.mix = reweightedMix(l);
+  d.mix = mix;
   const panelpalette::Palette base = d.mix.dark;
   // The dimmest beam whose trace clears 7:1 against this glass. Monotone in
   // the beam, so the first passing step is the floor.
@@ -280,6 +353,11 @@ inline Dark computeDarkPage(const Light &l) {
   if (d.mix.hasTail) scaleEmission(d.mix.tail, k, d.mix.tail);
   d.mix.trailMs *= static_cast<float>(std::pow(k, kTrailExponent));
   return d;
+}
+
+inline Dark computeDarkPage(const Light &l) {
+  return beamOver(
+      clampTube(l.tube) == kTubeMixed ? reweightedMix(l) : tubeMix(l), l);
 }
 
 inline Dark darkPage(const Light &l) {

@@ -12,10 +12,18 @@ inline constexpr int kDefaultBrightness = 60;
 inline constexpr int kDefaultWarmth = 50;
 inline constexpr int kMax = 100;
 
+// THE TUBE (owner 2026-11-27, docs/crt-gamut-plan-2026-11-27.md "Owner
+// rulings"): which phosphor the dark page is. The firmware's Tube row, a Picco
+// row compiled into the app and simulator builds only, in its order: the index
+// IS the stored value. 0 is Mixed, today's four-gun tube.
+inline constexpr int kTubeMixed = 0;
+inline constexpr int kTubeCount = 8;
+
 struct Light {
   int brightness = kDefaultBrightness;
   int warmth = kDefaultWarmth;
   bool on = false;
+  int tube = kTubeMixed;
 };
 
 }  // namespace frontlitpage

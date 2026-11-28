@@ -910,6 +910,11 @@ run frozen_page \
 # the bytes, the direction of every row, and that Warmth does not move the
 # sheet's luminance. Proved able to fail 2026-11-27 against three broken
 # models: reversed gun ratio, no luminance renormalization, no neutral exit.
+# Since 2026-11-27 also THE TUBE (docs/crt-gamut-plan-2026-11-27.md): each of
+# the seven phosphor tubes is its JEDEC page and decay at 60/50, light off is the
+# Mixed tube, every tube clears 7:1 over the grid, and the light page ignores
+# the tube. Shown failing (21 failures) with the field in place and the model
+# not yet following it.
 run frontlit_page \
   c++ -std=c++17 -Isrc -Iios -o "$OUT/frontlit_page" tests/frontlit_page_test.cpp
 
