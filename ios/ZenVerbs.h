@@ -89,6 +89,12 @@ class Classifier {
   Verb fingerUp(int64_t id, float x, float y, uint64_t tMs,
                 bool cancelled = false) {
     Finger *f = find(id);
+    // A finger this classifier never saw go down (the Picco shim abandons a
+    // page finger to the firmware and never feeds it here) must not count a
+    // tracked finger's lift away: that answered a tracked finger C's verb
+    // while C was still on the glass (2026-11-27 review). Past kMaxFingers a
+    // finger is counted but not tracked, so it still decrements.
+    if (!f && !overflow_) return Verb::None;
     if (f) {
       fingerMove(id, x, y);
       f->up = true;

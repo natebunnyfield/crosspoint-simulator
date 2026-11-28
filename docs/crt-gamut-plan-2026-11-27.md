@@ -536,8 +536,10 @@ python3 $S/probe/arms.py; python3 $S/probe/compose.py; python3 $S/probe/plot.py
 
 Two traps found doing it. On the Picco the page turns on **physical UP** (the
 rocker's upper end, mapped to logical Right, firmware
-`MappedInputManager.cpp:65-77`); scripted `RIGHT` and `QTAP:RIGHT` press
-nothing the reader reads. And at window scale 1 the shipped scanlines are one
+`MappedInputManager.cpp:65-77`); scripted `RIGHT` and `QTAP:RIGHT` pressed
+nothing the reader read when this was written, and since 4b019d933 press the
+app's X3 side Down key, which steps the FONT SIZE in a book: do not use them
+between arms. And at window scale 1 the shipped scanlines are one
 device pixel per source row and do not show at all in a capture (four tones
 only); scale 2 shows them.
 

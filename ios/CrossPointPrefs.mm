@@ -1,3 +1,4 @@
+#include "GestureDevice.h"
 #include "CrossPointPrefs.h"
 #include "InkDefaultsMigration.h"
 
@@ -333,7 +334,9 @@ static void ensureDefaults(void) {
         // ON by default (owner 2026-08-22: "default to zen mode on app
         // launch"). Registered defaults only fill ABSENCE: an install whose
         // owner stored zenModeEnabled=false keeps that choice.
-        kZenModeEnabled : @YES,
+        // The Picco app ships zen OFF (its Settings page says so too), so a
+        // plist that failed to load must not open it in zen.
+        kZenModeEnabled : (gesturebind::kThisDevice == gesturebind::Device::Picco ? @NO : @YES),
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
         kInkRoundingPercent : @(27),

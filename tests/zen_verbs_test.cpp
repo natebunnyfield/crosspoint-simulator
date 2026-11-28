@@ -165,6 +165,18 @@ int main() {
     checkVerb(oneFinger(d, 0, 0, 100), Verb::Down, "clean tap after the toggle");
   }
 
+  // A lift of a finger the classifier never saw (the Picco shim abandons a
+  // page finger to the firmware and never feeds it) must not end a tracked
+  // finger's gesture while that finger is still down (2026-11-27 review).
+  {
+    Classifier d;
+    d.fingerDown(7, 500, 500, 1000);
+    checkVerb(d.fingerUp(99, 200, 200, 1100), Verb::None,
+              "an untracked lift answers nothing");
+    checkVerb(d.fingerUp(7, 500, 500, 1150), Verb::Down,
+              "the tracked finger still taps on its own lift");
+  }
+
   if (failures == 0) {
     std::printf("zen_verbs_test: all checks passed\n");
     return 0;
