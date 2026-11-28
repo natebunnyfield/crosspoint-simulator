@@ -29,6 +29,10 @@ public:
   void setBrightness(uint8_t percent);
   void setWarmth(uint8_t warmPercent);
   void setOn(bool on);
+  // SIMULATOR ONLY, no firmware HAL counterpart: the firmware calls it only
+  // under SIMULATOR. The Tube row (the dark page's phosphor, src/FrontlitPage.h
+  // kTubePhosphor), published with the light so every host follows it.
+  void setTube(uint8_t tube);
 
   uint8_t brightness() const;
   uint8_t warmth() const;
@@ -38,6 +42,7 @@ private:
   uint8_t lastBrightness = 60;
   uint8_t lastWarmth = 50;
   bool lit = false;
+  uint8_t lastTube = 0;
 };
 
 #define Frontlight HalFrontlight::getInstance()
