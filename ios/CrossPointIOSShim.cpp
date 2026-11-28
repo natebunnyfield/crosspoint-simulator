@@ -51,7 +51,7 @@
 // timestamp together, so a hold expressed by a finger survives all the way down.
 
 #include "CrossPointHarness.h"
-#include "GestureBindings.h"
+#include "GestureDevice.h"  // GestureBindings.h + kThisDevice
 #include "PadTopBand.h"
 #include "SleepTouch.h"
 #include "TapCandidate.h"
@@ -142,6 +142,8 @@ extern "C" void CrossPointZenRecognizers_reassertShake(void);
 // since 2026-09-02: it kept its own smaller switch and missed two appended
 // actions (audit 2026-09-02, finding 1).
 extern "C" void CrossPointZenRecognizers_performAction(int action, const char *what);
+// Fire a gesture ROW by its live binding (CROSSPOINT_SIM_FIRE_GESTURE).
+extern "C" void CrossPointZenRecognizers_fireGesture(int gesture);
 // Defined at the foot of this file; declared here because the SDL finger path
 // above it can now reach the zen toggle too -- a deliberate tap may be bound to
 // it (T-025).
@@ -284,8 +286,16 @@ bool g_zen = std::getenv("CROSSPOINT_SIM_ZEN") != nullptr;
 //     firmware's own decoder makes the gestures (PiccoInput.h: tap = next,
 //     swipes, hold = Confirm, left-edge swipe = Back; keys type in keyboards).
 //     Nothing on this side classifies it. Single touch, like the TMA525C.
-//   * No zen and no gesture recognizers: that layer turns gestures into X3
-//     buttons, which is exactly what the Picco firmware does for itself.
+//   * ZEN AND THE X3'S GESTURES, AROUND THE PAGE (2026-11-27, owner: "add
+//     ios app settings for volume and all other possible gestures from
+//     crosspoint x3; put zen mode in"). Zen works as on the X3 -- pad hidden,
+//     page placed in the sheet -- and the recognizers are installed, but a
+//     one-finger touch that LANDS ON THE PAGE stays the firmware's, in and
+//     out of zen: the one-finger handlers step aside for it
+//     (g_piccoTouchIsFirmwares), the SDL deliberate tap never sees it (this
+//     branch breaks before the classifier), and in zen a second finger ends
+//     its contact with nothing fired, so a two-finger gesture is UIKit's
+//     alone. Until 2026-11-27 zen was forced off and no recognizer installed.
 //   * The pad shows the Picco's buttons only: the rocker (UP/DOWN slots,
 //     which the firmware maps to next/previous) and Power. No Back, Left,
 //     Right or Confirm capsules -- the Picco has no Back or arrows, and its
@@ -293,6 +303,12 @@ bool g_zen = std::getenv("CROSSPOINT_SIM_ZEN") != nullptr;
 // docs/picco-touch-on-ios-2026-11-25.md.
 SDL_FingerID g_piccoFinger = 0;
 bool g_piccoFingerDown = false;
+// Did the FIRST finger of the touch in flight go to the firmware? Set when a
+// gesture's first finger lands (on the page or not) and held until the next
+// gesture's first finger, so a recognizer that fires on the lift still reads
+// the right answer whichever of UIKit and SDL saw the lift first. Read by the
+// recognizers through CrossPointZen_piccoTouchIsFirmwares().
+bool g_piccoTouchIsFirmwares = false;
 // THE ON-SCREEN TOUCH COUNTERS (TestFlight build 2, owner: "not working and no
 // diagnostics were made when enabled"). Touch was dead on the owner's iPhone
 // Air through two builds while real UIKit taps worked on every simulator, and
@@ -314,7 +330,8 @@ PiccoTouchDbg g_piccoDbg;
 float g_piccoLastNx = 0.0f, g_piccoLastNy = 0.0f;  // the finger's last page point
 
 // The page finger is gone without a lift we can trust (a cancel, no geometry,
-// the app resigning active): end the contact with nothing fired. Suppressed
+// the app resigning active; since 2026-11-27 also a second finger in zen and a
+// zen toggle): end the contact with nothing fired. Suppressed
 // first, so the firmware's decoder sees it end not-live; the HAL holds the
 // lift until it has (HalGPIO.cpp piccoReadSinceChange).
 void piccoAbandonFinger() {
@@ -323,8 +340,9 @@ void piccoAbandonFinger() {
   ++g_piccoDbg.abandoned;
   gpio.suppressTouchContact();
   gpio.injectTouchUp(g_piccoLastNx, g_piccoLastNy);
-  SDL_Log("[picco] page finger %lld abandoned (cancel, no geometry or app "
-          "inactive)", static_cast<long long>(g_piccoFinger));
+  SDL_Log("[picco] page finger %lld abandoned (cancel, a second finger or a "
+          "zen toggle, no geometry, or app inactive)",
+          static_cast<long long>(g_piccoFinger));
 }
 
 // Device pixels -> logical page coordinates (0..1 across the portrait page),
@@ -2349,18 +2367,15 @@ void pollReaderInsets() {
 // already made.
 void pollZenMode() {
 #if FREEINK_DEVICE_PICCO
-  // No zen in the Picco app (see g_piccoFinger). Forced, not read: the X3
-  // app's zen pref ships ON and its row is not on this app's Settings page.
+  // The Picco app reads the pref like the X3 (2026-11-27). Its Settings page
+  // ships the switch OFF (tools/gen_picco_settings_plist.py), so it opens on
+  // the pad as it always has; page touches are the firmware's either way.
   static bool s_piccoLogged = false;
   if (!s_piccoLogged) {
     s_piccoLogged = true;
-    SDL_Log("[picco] zen off; page touches go to the firmware's touch model");
+    SDL_Log("[picco] zen follows its setting; page touches go to the "
+            "firmware's touch model in and out of zen");
   }
-  if (g_zen) {
-    g_zen = false;
-    g_padLaidOut = false;
-  }
-  return;
 #endif
   static bool s_synced = false;
   static bool s_first = true;
@@ -4249,7 +4264,13 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           SimulatorOverlay::requestPresent();
         }
         float nx = 0.0f, ny = 0.0f;
-        const int padSlot = padHitTest(fx, fy);
+        // In zen there is no pad: its rects are laid out but not drawn, and
+        // nothing may be hit where nothing is shown.
+        const int padSlot = g_zen ? -1 : padHitTest(fx, fy);
+        // The first finger of a new touch: nothing on the page and nothing
+        // tracked off it (zenVerbs counts every finger this branch passes on).
+        const bool firstFinger =
+            !g_piccoFingerDown && g_zenVerbs.activeFingers() == 0;
         // THE LEFT MARGIN IS THE PAGE'S LEFT EDGE. On the Picco the glass ends
         // where the page does, so the left-edge Back swipe (owner 2026-11-06,
         // components/EdgeSwipe.h) starts at the edge of the screen. Here the
@@ -4268,9 +4289,37 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         // turned landscape the switch sits in the left margin, level with the
         // page, where the clamp above would also turn the page (adversarial
         // review 2026-11-26, finding 1).
-        if (padSlot < 0 && !onSwitch &&
+        const bool onPage =
+            padSlot < 0 && !onSwitch &&
             (piccoPagePoint(fx, fy, false, nx, ny) ||
-             (inLeftMargin && piccoPagePoint(fx, fy, true, nx, ny)))) {
+             (inLeftMargin && piccoPagePoint(fx, fy, true, nx, ny)));
+        if (firstFinger) g_piccoTouchIsFirmwares = onPage;
+        // IN ZEN, A SECOND FINGER MAKES IT A TWO-FINGER GESTURE, and those
+        // are UIKit's (the recognizers): the firmware's contact ends with
+        // nothing fired -- the cancel path -- and this finger is fed to
+        // nothing, so the SDL tap classifier cannot read the pair's survivor
+        // as a one-finger tap. The X3 spoils its tap at the same moment
+        // (concurrent > 1 below). Out of zen the two-finger recognizers are
+        // off, and the TMA525C's single-touch rule stands: the second finger
+        // is dropped and the first carries on.
+        if (g_zen && g_piccoFingerDown) {
+          SDL_Log("[picco] finger %lld joins page finger %lld in zen: "
+                  "two-finger gesture, the firmware's contact ends",
+                  static_cast<long long>(e->tfinger.fingerID),
+                  static_cast<long long>(g_piccoFinger));
+          piccoAbandonFinger();
+          break;
+        }
+        // ...and a finger that lands on the page while one is already down
+        // off it is half of a two-finger gesture, not a page touch: it goes on
+        // to the classifier with its partner, which spoils any tap.
+        const bool pageFinger =
+            onPage && !(g_zen && g_zenVerbs.activeFingers() > 0);
+        if (onPage && !pageFinger)
+          SDL_Log("[picco] finger %lld lands on the page beside an off-page "
+                  "finger in zen: two-finger gesture, not the firmware's",
+                  static_cast<long long>(e->tfinger.fingerID));
+        if (pageFinger) {
           if (!g_piccoFingerDown) {
             ++g_piccoDbg.page;
             g_piccoFingerDown = true;
@@ -4490,7 +4539,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
               CrossPointPrefs_gestureBinding(static_cast<int>(globalRow));
           const gesturebind::Action action = gesturebind::oneFingerAction(
               gesturebind::OneFinger::Tap, zone, /*zenOn=*/true, zoneStored,
-              globalStored);
+              globalStored, gesturebind::kThisDevice);
           SDL_Log("[zen] verb -> %s, tap landed %s (x=%.0f y=%.0f) -> %s",
                   zenverbs::verbName(verb), gesturebind::zoneName(zone),
                   g_zenTapDownX, g_zenTapDownY,
@@ -4724,10 +4773,6 @@ extern "C" void CrossPointMixer_glowChanged(void) { g_glowDirty.store(true); }
 // Runs on the main thread (recognizer action), the same thread the SDL pump
 // and the overlay run on.
 extern "C" void CrossPointZen_toggleFromRecognizer(const char *source) {
-#if FREEINK_DEVICE_PICCO
-  (void)source;
-  return;  // no zen in the Picco app
-#endif
   g_zen = !g_zen;
   g_padLaidOut = false;  // the band changes, so the page must be refitted
   // ONE line per toggle, naming the DIRECTION and the gesture that did it.
@@ -4738,6 +4783,13 @@ extern "C" void CrossPointZen_toggleFromRecognizer(const char *source) {
           source ? source : "unknown");
   g_tapCand.spoil();
   g_zenVerbs = zenverbs::Classifier{};
+#if FREEINK_DEVICE_PICCO
+  // The page moves when zen flips (it is placed in the sheet), so a page
+  // finger down across the toggle would land its lift at a different page
+  // point than it went down at. End it with nothing fired, as the X3 spoils
+  // its tap candidate on the line above.
+  piccoAbandonFinger();
+#endif
   // Audit #2's honest hammer: release anything PadCore still holds, so no
   // capsule press a straddling finger fired stays held into zen, where the
   // pad does not exist. reset() releases held slots and fires nothing else.
@@ -4829,6 +4881,19 @@ extern "C" float CrossPointZen_paperBottomPx(void) {
 // margin" -- the same conservative direction the other two take, and the same
 // rule: an unmeasured geometry must not invent a zone out of a zero.
 extern "C" float CrossPointZen_pageLeftPx(void) { return zenPageLeftPx(); }
+
+// THE PICCO APP'S PAGE TOUCH, for the recognizers (CrossPointZenRecognizers.mm
+// oneFinger / hold): true while the touch in flight -- or the last one, until
+// the next lands -- began with its first finger on the page, which makes any
+// one-finger gesture it becomes the firmware's. Main thread, like every
+// recognizer action and the event watch that sets it. False on the X3.
+extern "C" bool CrossPointZen_piccoTouchIsFirmwares(void) {
+#if FREEINK_DEVICE_PICCO
+  return g_piccoTouchIsFirmwares;
+#else
+  return false;
+#endif
+}
 
 // --- Public entry points ---------------------------------------------------
 //
@@ -5218,6 +5283,59 @@ void CrossPointHarness_perFrame() {
       if (f.type != SDL_EVENT_FINGER_MOTION)
         SDL_Log("[pagefinger] %s at page %.3f,%.3f",
                 f.type == SDL_EVENT_FINGER_DOWN ? "down" : "up", f.nx, f.ny);
+    }
+    // CROSSPOINT_SIM_FIRE_GESTURE="<ms>:<key>;<ms>:<key>;..." fires a gesture
+    // ROW by its Settings key (gesturePinch, gestureVolumeUp, gestureShake...)
+    // `ms` after launch, through CrossPointZenRecognizers_fireGesture -- the
+    // exact call the volume adapter and the tilts make, so the live binding,
+    // the zen gate, the sleep rule and the button this build presses are the
+    // shipped ones. What it skips is only the sensing: the KVO, CoreMotion or
+    // UIKit recognition, none of which simctl can drive. Added 2026-11-27 for
+    // the Picco app's gesture rows. Wall clock, one-shot, like TAP_CHIP.
+    struct FireGesture {
+      Uint64 at;
+      int row;
+    };
+    static std::vector<FireGesture> s_fireGestures;
+    static bool s_fireGesturesRead = false;
+    if (!s_fireGesturesRead) {
+      s_fireGesturesRead = true;
+      if (const char *e = std::getenv("CROSSPOINT_SIM_FIRE_GESTURE")) {
+        std::string all(e);
+        size_t start = 0;
+        while (start < all.size()) {
+          const size_t end = all.find(';', start);
+          const std::string item = all.substr(
+              start, end == std::string::npos ? std::string::npos : end - start);
+          const size_t colon = item.find(':');
+          if (colon != std::string::npos) {
+            const unsigned long ms = std::strtoul(item.c_str(), nullptr, 10);
+            const std::string key = item.substr(colon + 1);
+            int row = -1;
+            for (int i = 0; i < gesturebind::kGestureCount; ++i)
+              if (key == gesturebind::key(static_cast<gesturebind::Gesture>(i)))
+                row = i;
+            if (row >= 0)
+              s_fireGestures.push_back({ms, row});
+            else
+              SDL_Log("[firegesture] no gesture row keyed '%s'", key.c_str());
+          }
+          if (end == std::string::npos) break;
+          start = end + 1;
+        }
+        std::stable_sort(s_fireGestures.begin(), s_fireGestures.end(),
+                         [](const FireGesture &a, const FireGesture &b) {
+                           return a.at < b.at;
+                         });
+        SDL_Log("[firegesture] %zu scheduled", s_fireGestures.size());
+      }
+    }
+    while (!s_fireGestures.empty() && SDL_GetTicks() >= s_fireGestures.front().at) {
+      const int row = s_fireGestures.front().row;
+      s_fireGestures.erase(s_fireGestures.begin());
+      SDL_Log("[firegesture] %s",
+              gesturebind::key(static_cast<gesturebind::Gesture>(row)));
+      CrossPointZenRecognizers_fireGesture(row);
     }
     // CROSSPOINT_SIM_TAP_CHIP=<ms>: one synthetic finger tap at the KEYBOARD
     // chip's center, `ms` after launch, through the FULL finger path -- the SDL

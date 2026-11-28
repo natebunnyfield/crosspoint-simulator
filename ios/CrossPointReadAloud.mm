@@ -319,7 +319,10 @@ void applyActions(const std::vector<ReadAloudCore::Action> &actions) {
         // (or the side PageForward, which the owner can disable entirely).
         // Known limitation: the firmware's nav-swap setting turns RIGHT into
         // page-back; accepted for v1 and noted in the plan.
-        gpio.queueButtonTap(HalGPIO::BTN_RIGHT, kTurnHoldMs);
+        // BTN_HOST_NEXT is that button's index on this build: BTN_RIGHT on
+        // the X3, the rocker's upper end (BTN_UP) on the Picco, where slot 3
+        // carries the X3's side Down key instead (HalGPIO.h).
+        gpio.queueButtonTap(HalGPIO::BTN_HOST_NEXT, kTurnHoldMs);
         g_awaitTicks = kAwaitTimeoutTicks;
         SDL_Log("[READALOUD] page turn queued");
         break;

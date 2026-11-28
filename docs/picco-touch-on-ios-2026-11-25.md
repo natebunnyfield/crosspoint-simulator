@@ -461,3 +461,197 @@ before the setjmp, state survives the longjmp); zen (the Picco forces it off,
 and zen zeroes the switch); the mixer/ink-picker gate; drags and second
 fingers; layout staleness on every `layoutPadImpl` path; the pair-loop change
 leaves X3 pixels unchanged.
+
+## 2026-11-27: zen, the X3's gestures, and Up/Down in the Picco app
+
+Owner, verbatim: *"add ios app settings for volume and all other possible
+gestures from crosspoint x3; put zen mode in"* and *"add the option for up and
+down buttons to be in there (for font size and selection)"*. Simulator
+`key-paste` worktree (base afb15923), firmware `key-paste` worktree (base
+66b5f0ebc, firmware commit 4b019d933).
+
+### What changed
+
+**Zen.** No longer forced off. `pollZenMode` reads the pref exactly as the X3
+does; the Picco page ships the switch OFF (`gen_picco_settings_plist.py`), so the
+app still opens on the pad. In zen the pad, the rocker, Confirm and the slide
+switch are hidden as on the X3 (`padSlot` is -1 in zen, the switch already
+required `!g_zen`), the page is placed in the sheet, and the S-039 rule (a
+finger on the sleeping glass is POWER in zen) applies unchanged because it sits
+above the Picco branch in `padWatch`.
+
+**The page touch stays the firmware's, in and out of zen.** Three rules in
+`ios/CrossPointIOSShim.cpp` (Picco finger branch) and one in the recognizers:
+- A one-finger touch that lands on the page (or level with it in the left
+  margin, the edge-Back clamp) goes to `injectTouch*` and breaks before the SDL
+  tap classifier, so the deliberate-tap path never sees it.
+- `g_piccoTouchIsFirmwares` latches whether the FIRST finger of the current
+  touch went to the firmware; it is held until the next touch's first finger,
+  so a recognizer that fires on the lift reads the right answer whichever of
+  UIKit and SDL saw the lift first. The one-finger swipe and hold handlers
+  (`CrossPointZenRecognizers.mm` `oneFinger:at:`, `hold:`) step aside for it
+  through `CrossPointZen_piccoTouchIsFirmwares()` and log `began on the page ->
+  the firmware's`.
+- In zen, a second finger while the page finger is down ends the firmware's
+  contact with nothing fired (`piccoAbandonFinger`, the existing cancel path)
+  and is fed to nothing; a finger landing on the page while an off-page finger
+  is down is not a page finger. Out of zen the two-finger recognizers are off
+  and the single-touch rule stands (second finger dropped).
+- A zen toggle abandons a page finger too (the page moves under it).
+
+**Recognizer coexistence, checked rather than assumed.** The Picco app now
+installs the same 12 recognizers as the X3. The old reason for installing none
+("an installed recognizer would cancel SDL's touches when it recognized") does
+not hold: `tameRecognizer()` sets `cancelsTouchesInView`, `delaysTouchesBegan`
+and `delaysTouchesEnded` to NO on every object, so SDL's view gets every touch
+undelayed and uncancelled. The simultaneity delegate only arbitrates recognizer
+against recognizer (`shipsInert`); it has no say over the view's touches. What
+keeps the page touch the firmware's is ownership (above), not UIKit.
+
+**The gesture rows.** One table (`ios/GestureBindings.h`) with a `Device`
+parameter; `ios/GestureDevice.h` answers `kThisDevice` from `BoardConfig.h` so
+the table stays pure. Three differences, all pinned in
+`tests/gesture_bindings_test.cpp` `testPicco`:
+- **Keys.** `buttonFor(a, Device::Picco)`: Right -> `BTN_UP` (rocker upper,
+  next), Left -> `BTN_DOWN` (rocker lower, previous), Up -> slot 2, Down ->
+  slot 3 (the X3 side pair, below), Back/Confirm/Power unchanged. Physical slots
+  2 and 3 did nothing on the Picco before this, so any Right/Left binding on the
+  Picco would have been dead.
+- **Offered.** Everything except the six one-finger GLOBAL rows. On the Picco
+  that layer is fixed at its defaults, which are exactly what the firmware's own
+  decoder fires for a page touch (tap and swipe left Right, swipe right Left,
+  swipe up Back, swipe down Confirm, hold Confirm). A zone row left on Inherit
+  therefore does what a touch on the page would, and its label reads "Same as
+  on the page".
+- **Out of zen.** The X3's two (hold above the paper, shake) plus the two
+  volume rows, which were the Picco's rocker in every mode and must stay so.
+
+**Volume.** `CrossPointVolumeButtons.mm` no longer hard-wires the rocker; it
+fires `gestureVolumeUp` / `gestureVolumeDown` like the X3. Their defaults
+(Right / Left) press the rocker's upper / lower end on the Picco, in and out of
+zen, so nothing changes until the owner rebinds them; both Nothing releases the
+audio session as on the X3.
+
+**Up and Down as the X3's side pair.** Firmware: in the Picco APP build only
+(`FREEINK_DEVICE_PICCO` + `SIMULATOR`), `MappedInputManager::mapButton` sends
+Up, Down, ScreenUp/Down and the four page buttons to the X3's side pair instead
+of nowhere (`piccoinput::rockerRoute(button, hostSidePair)` -> `HostSidePair`,
+then the pure `hostSideKey()` restating the X3 table with `sideButtonLayout`).
+The device passes `kHostSidePair = false` and the case body is compiled only
+under `SIMULATOR`, so `pio run -e picco` still routes them to None. Simulator:
+`HalGPIO::BTN_HOST_SIDE_UP` / `_DOWN` are slots 2 and 3 (the front Left/Right
+slots, which the Picco has no keys for and its firmware never reads), so the
+hold timer, the activity-swap swallow and every `0..BTN_POWER` loop cover them
+with no firmware change; a ninth and tenth slot would not fit the firmware's
+`uint8_t` button masks. Consequences, all intended:
+- Host page turns that pressed `BTN_RIGHT`/`BTN_LEFT` (read-aloud, speed read,
+  the accessibility scroll, the page text input) now press
+  `BTN_HOST_NEXT`/`_PREV`: the front pair on the X3 (unchanged), the rocker on
+  the Picco. On the Picco those four were DEAD before this (slot 3 was read by
+  nothing); now they turn pages.
+- Desktop arrow keys Left/Right and the script's `LEFT`/`RIGHT` press the side
+  pair on a Picco build (`QTAP:LEFT` = X3 side Up).
+- Reachability on the Picco: `longPressButtonBehavior` is the constexpr
+  `FONT_SIZE_STEP`, `sideButtonLayout` the constexpr `PREV_NEXT`, and no Picco
+  guard skips the reader's side-button block (`EpubReaderActivity.cpp` ~660-700),
+  so a side tap steps size and a 700 ms hold steps family as on the X3.
+
+**New QA hatch.** `CROSSPOINT_SIM_FIRE_GESTURE="<ms>:<key>;..."` fires a gesture
+row by its Settings key through `CrossPointZenRecognizers_fireGesture`, the call
+the volume adapter and tilts make (live binding, zen gate, sleep rule, this
+build's keys). It skips only the sensing (KVO, CoreMotion, UIKit recognition).
+
+### The Picco gesture page (26 groups, 58 rows; X3 27 / 64)
+
+| Row | Default | Picco key / effect |
+|---|---|---|
+| Zen Mode | Off | (X3 ships On) |
+| 2-finger Tap | Confirm | `BTN_CONFIRM` (zen) |
+| 2-finger Swipe Left / Right | Down / Up | side pair: bigger / smaller text (zen) |
+| 2-finger Swipe Up / Down | Back / Confirm | (zen) |
+| 2-finger Hold | Next Reading Font | host font-family channel (zen) |
+| Pinch / Spread | Up / Down | side pair: smaller / bigger text (zen) |
+| Shake | Toggle Zen | either mode |
+| Volume Up / Down | Right / Left | rocker upper / lower, either mode |
+| Tilt Left / Right / Forward / Back | Nothing | (zen) |
+| Above the Paper: Tap, Swipe L/R/Up | Same as on the page | (zen) |
+| Above the Paper: Hold | Power | either mode |
+| Below the Paper: all six | Same as on the page | (zen) |
+| The Left Margin: all six | Same as on the page | (zen); see below |
+
+No X3 default does nothing on the Picco, so none ships as Nothing in its place.
+**The Left Margin rows are nearly unreachable on the Picco**: beside the page
+the margin is clamped onto the page's edge for the firmware's left-edge Back
+swipe (2026-11-25), so a touch there is the firmware's. The rows answer only
+where the margin runs above or below the page's own height. Kept, as asked, and
+said so in the group's footer.
+
+### Measured (2026-11-27)
+
+- Host tests: `gesture_bindings` (incl. `testPicco`), `gesture_plist`,
+  `picco_settings_plist` (new), `freeink_macro_include`, `volume_page_turn`,
+  `tilt_gestures`, `speed_read`, `speedrun`, `test_speed_read_live`,
+  `zen_verbs`, `zen_hold`, `zen_pref_sync`, `zen_keyboard_chip`,
+  `sleep_touch`, `dial_table`, `frozen_page`: all PASS. Firmware
+  `PiccoInputTest` 40/40 (three new tests written first, failed to compile,
+  then passed). The X3 `Root.plist` is byte-identical (`git diff` empty).
+- Builds: `pio run -e picco`, `simulator_picco`, `simulator_x3` from the
+  firmware worktree; the iOS Picco app (Debug, iphonesimulator).
+- Desktop `simulator_picco`, reader: `QTAP:LEFT` twice, `QTAP:RIGHT` once,
+  then `QTAP:LEFT:1200`: three repaginations, `fontSizeSlot` saved 2 (3 -> 2 ->
+  1 -> 2), and the hold loaded the next family (`Loaded SD font family:
+  Almendra`, ~730 ms after the press).
+- iOS Simulator, iPhone Air, iOS 26.5, scratch device, out of zen
+  (`CROSSPOINT_SIM_PAGE_FINGER`, `CROSSPOINT_SIM_FIRE_GESTURE`):
+  `recognizers attached: 12 objects`; page taps `page finger 98 down/up` ->
+  `gesture -> button 4` -> pages 0/8 -> 1/8; `volume up -> right (button 4)`
+  twice (pages 1 -> 2 -> 3), `volume down -> left (button 5)` (3 -> 2);
+  `pinch -> nothing` (zen-only).
+- Same, in zen through the pref (`-zenModeEnabled YES` launch argument):
+  `[zen] seed: pref=1 env=unset -> on`, `verb recognizers enabled`; page tap
+  still the firmware's (2 -> 3); `pinch -> up (button 2)` twice and
+  `spread -> down (button 3)`, each a repagination, `fontSizeSlot` 3 -> 2 -> 1
+  -> 2 (saved 2); screenshots show the pad gone and the title set smaller;
+  `volume up -> right` in zen (page 3); a tap below the paper `-> right`
+  (page 4).
+- Real UIKit touches (scratch XCUITest, `xcodebuild test`): out of zen, two
+  page taps turned pages through the firmware with all 12 recognizers
+  installed; a 1.2 s page hold logged `hold began on the page -> the
+  firmware's` and the firmware's own `gesture -> button 1` opened chapter
+  selection (one action, not two). In zen: `2-finger tap -> confirm`, `pinch ->
+  up` (fingers off the page: two fingers to the classifier, no tap fired); a
+  spread that started on the page logged `joins page finger ... the firmware's
+  contact ends` and only `spread -> down` fired; a later one-finger page tap
+  was the firmware's (`gesture -> button 4`).
+- Observed, not explained: in the XCUITest's second launch nothing was
+  appended to `diagnostics/firmware.log` although `a11y.log` was written; the
+  unified log (`simctl spawn log show`) carried every line. Not investigated.
+
+### Unconfirmed
+
+Device feel, all of it: real fingers on an iPhone, the volume rocker (KVO is not
+driven by the hatch), shake, tilts, the 2-finger hold, and whether a thumb
+resting off the page during a page swipe is common enough to matter (in zen
+it now makes that swipe a two-finger gesture). Zen Reading Goal was kept and
+not exercised on the Picco. The turned-page landscape and iPad layouts were not
+run.
+
+### Checked and found clean
+
+- X3: every Device argument defaults to X3; `buttonFor(a, X3) == buttonFor(a)`
+  for all actions (test); `BTN_HOST_NEXT/PREV` are `BTN_RIGHT/LEFT`;
+  `CrossPointZen_piccoTouchIsFirmwares()` is false; the Picco shim blocks are
+  under `FREEINK_DEVICE_PICCO`; the X3 Root.plist is unchanged.
+- Device firmware: `kHostSidePair` false, the HostSidePair body compiled only
+  under `SIMULATOR`; `rockerRoute(b, false)` is the old table (test).
+- `tameRecognizer` covers every installed object (`install()` is the only
+  attach path); the shake catcher and tilt/volume adapters dispatch through
+  `performGestureAction`, which now uses the Picco keys.
+- Slots 2 and 3 on the Picco: no firmware reader (`grep BTN_LEFT|BTN_RIGHT`:
+  only the shared mapping for logical Left/Right, which the Picco never reaches,
+  `mapFrontLabels`, and `getPressedFrontButton`, which has no caller); every
+  simulator page-turn writer of `BTN_RIGHT`/`BTN_LEFT` moved to
+  `BTN_HOST_NEXT/PREV`. Still on slots 2/3, deliberately: the desktop
+  scancode map and the text-entry arrow keys (`src/HalGPIO.cpp` ~727), so a
+  hardware keyboard's Left/Right arrows are the side pair on a Picco build, and
+  the `TAP_PAD` / script names `LEFT`/`RIGHT`.

@@ -281,6 +281,48 @@ constexpr int buttonFor(Action a) {
   }
 }
 
+// THE PICCO APP (owner 2026-11-27: "add ios app settings for volume and all
+// other possible gestures from crosspoint x3; put zen mode in"). One table
+// serves both apps; what differs is said here and nowhere else.
+//
+//   * WHICH KEY AN ACTION PRESSES. The Picco firmware sends logical Right and
+//     Left from the rocker (BTN_UP upper, BTN_DOWN lower; PiccoInput.h
+//     rockerRoute) and reads nothing from slots 2 and 3, so Right and Left
+//     press the rocker, and Up and Down press the X3's side pair on the two
+//     host-only slots the app's firmware reads for them (HalGPIO.h
+//     BTN_HOST_SIDE_UP / _DOWN) -- font size in a book, a screenful in a list,
+//     as on the X3. Back, Confirm and Power are the same indices.
+//   * WHICH ROWS ARE OFFERED. Not the six one-finger GLOBAL rows: a one-finger
+//     touch on the page is the firmware's own (its decoder fires the same
+//     table those rows default to: tap and swipe left Right, swipe right Left,
+//     swipe up Back, swipe down Confirm, hold Confirm). So on the Picco that
+//     layer is fixed at its defaults, and a zone row left on Inherit does what
+//     a touch on the page would.
+//   * WHICH ROWS FIRE OUT OF ZEN. The X3's two, plus the volume rocker, which
+//     has been the Picco app's rocker in every mode since 2026-11-25 and must
+//     stay so until the owner rebinds it (its defaults, Right and Left, press
+//     the rocker's upper and lower ends).
+//
+// Which app is being built is NOT decided here, so this header stays pure:
+// ios/GestureDevice.h answers it from BoardConfig.h (gesturebind::kThisDevice).
+enum class Device { X3, Picco };
+
+// The Picco app's side-pair slots, mirrored from HalGPIO::BTN_HOST_SIDE_UP /
+// _DOWN (static_asserted in CrossPointZenRecognizers.mm, Picco build).
+constexpr int kPiccoBtnSideUp = 2;
+constexpr int kPiccoBtnSideDown = 3;
+
+constexpr int buttonFor(Action a, Device d) {
+  if (d == Device::X3) return buttonFor(a);
+  switch (a) {
+    case Action::Right: return kBtnUp;    // the rocker's upper end: next
+    case Action::Left: return kBtnDown;   // the rocker's lower end: previous
+    case Action::Up: return kPiccoBtnSideUp;
+    case Action::Down: return kPiccoBtnSideDown;
+    default: return buttonFor(a);         // Back, Confirm, Power; or none
+  }
+}
+
 constexpr const char* actionName(Action a) {
   switch (a) {
     case Action::Unset: return "unset";
@@ -922,14 +964,30 @@ constexpr bool firesOutsideZen(Gesture g) {
   return g == Gesture::HoldAbove || g == Gesture::Shake;
 }
 
+// The Picco app adds the volume rocker (see Device above).
+constexpr bool firesOutsideZen(Gesture g, Device d) {
+  return firesOutsideZen(g) ||
+         (d == Device::Picco &&
+          (g == Gesture::VolumeUp || g == Gesture::VolumeDown));
+}
+
 constexpr bool firesOutsideZen(OneFinger k, Zone z) {
   const Gesture zg = zoneGesture(k, z);
   return zg != Gesture::Count && firesOutsideZen(zg);
 }
 
+// IS THIS ROW ON THIS APP'S SETTINGS PAGE? Everything on the X3; everything
+// but the six one-finger global rows on the Picco (see Device above).
+constexpr bool offeredOn(Gesture g, Device d) {
+  if (g == Gesture::Count) return false;
+  if (d == Device::X3) return true;
+  return isZoneRow(g) || row(g).kind == OneFinger::Count;
+}
+
 // A MULTI-FINGER GESTURE. One layer, no zone, one stored integer.
-constexpr Action actionFor(Gesture g, bool zenOn, int stored) {
-  if (!zenOn && !firesOutsideZen(g)) return Action::Nothing;
+constexpr Action actionFor(Gesture g, bool zenOn, int stored,
+                           Device d = Device::X3) {
+  if (!zenOn && !firesOutsideZen(g, d)) return Action::Nothing;
   const Action a = resolve(g, stored);
   // Inherit can only reach here from a hand-edited plist against a global row,
   // and resolve() has already rejected that -- but a zone row passed to this
@@ -947,15 +1005,21 @@ constexpr Action actionFor(Gesture g, bool zenOn, int stored) {
 // there is no such row; `globalStored` is the value read for globalGesture(k).
 // Both are fetched by the caller because only the caller can touch
 // NSUserDefaults -- this file decides, it does not read.
+//
+// On the Picco the global layer is not offered (offeredOn), so `globalStored`
+// is ignored there and the row's default answers: the table the firmware's
+// own decoder fires for a touch on the page.
 constexpr Action oneFingerAction(OneFinger k, Zone z, bool zenOn,
-                                 int zoneStored, int globalStored) {
+                                 int zoneStored, int globalStored,
+                                 Device d = Device::X3) {
   if (!zenOn && !firesOutsideZen(k, z)) return Action::Nothing;
   const Gesture zg = zoneGesture(k, z);
   if (zg != Gesture::Count) {
     const Action za = resolve(zg, zoneStored);
     if (za != Action::Inherit) return za;
   }
-  const Action ga = resolve(globalGesture(k), globalStored);
+  const Action ga = resolve(globalGesture(k),
+                            d == Device::Picco ? 0 : globalStored);
   // The global layer can never itself say Inherit (isOffered rejects it for a
   // global row), so this is belt and braces against a future edit that makes it
   // possible: an Inherit escaping into the recognizers would be dispatched as

@@ -409,14 +409,14 @@ void note(const char *what) {
       direction == UIAccessibilityScrollDirectionRight) {
     CrossPointDiag_log("TEXTINPUT scroll next -> page turn");
     CrossPointAccessibility_notePageTurnRequested();
-    gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60);
+    gpio.queueButtonTap(HalGPIO::BTN_HOST_NEXT, 60);
     return YES;
   }
   if (direction == UIAccessibilityScrollDirectionPrevious ||
       direction == UIAccessibilityScrollDirectionLeft) {
     CrossPointDiag_log("TEXTINPUT scroll prev -> page back");
     CrossPointAccessibility_notePageTurnRequested();
-    gpio.queueButtonTap(HalGPIO::BTN_LEFT, 60);
+    gpio.queueButtonTap(HalGPIO::BTN_HOST_PREV, 60);
     return YES;
   }
   return NO;

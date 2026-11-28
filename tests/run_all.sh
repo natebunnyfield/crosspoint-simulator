@@ -267,6 +267,16 @@ run gesture_bindings \
 run_direct gesture_plist \
   python3 tools/gen_gesture_plist.py --check
 
+# ...and the PICCO app's page, which tools/gen_picco_settings_plist.py derives
+# from the X3 one at configure time, so nothing else ever opens it. Since
+# 2026-11-27 it carries zen and every gesture row except the six one-finger
+# globals (a one-finger touch on the Picco's page is the firmware's); this pins
+# that set against GestureBindings.h, that Zen ships OFF there, and that every
+# other row is the X3's byte for byte. It replaced the generator's own
+# "no gesture/zen row survived" check, which is no longer the truth.
+run_direct picco_settings_plist \
+  python3 tests/picco_settings_plist_test.py
+
 # VolumePageTurn.h -- the hardware volume rocker as the firmware's page rocker
 # (owner 2026-09-05, Settings.app toggle, OFF by default). The phone half is
 # AVAudioSession.outputVolume by KVO with the level written back through a

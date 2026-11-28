@@ -111,7 +111,7 @@
 #include <SDL3/SDL.h>
 
 #include "CrossPointPrefs.h"
-#include "GestureBindings.h"
+#include "GestureDevice.h"  // GestureBindings.h + kThisDevice
 #include "ShakeFirstResponder.h"
 #include "HalGPIO.h"
 #include "BoardConfig.h"  // FREEINK_DEVICE_PICCO, read by name below
@@ -144,6 +144,11 @@ extern "C" float CrossPointZen_paperBottomPx(void);
 // built from. The PAGE's rather than the paper's -- on the phone the sheet
 // bleeds to the glass and has no left edge at all; see ios/GestureBindings.h.
 extern "C" float CrossPointZen_pageLeftPx(void);
+// THE PICCO APP: did the first finger of the touch in flight (or of the last
+// one, until the next lands) go to the firmware's touch model? A one-finger
+// gesture that started on the page is the firmware's, and nothing here may
+// also act on it. Always false on the X3.
+extern "C" bool CrossPointZen_piccoTouchIsFirmwares(void);
 
 namespace {
 // Tracks the flag CrossPointZenRecognizers_setEnabled was last given, so the
@@ -167,6 +172,12 @@ static_assert(gesturebind::kBtnRight == HalGPIO::BTN_RIGHT, "BTN_RIGHT");
 static_assert(gesturebind::kBtnUp == HalGPIO::BTN_UP, "BTN_UP");
 static_assert(gesturebind::kBtnDown == HalGPIO::BTN_DOWN, "BTN_DOWN");
 static_assert(gesturebind::kBtnPower == HalGPIO::BTN_POWER, "BTN_POWER");
+#if FREEINK_DEVICE_PICCO
+static_assert(gesturebind::kPiccoBtnSideUp == HalGPIO::BTN_HOST_SIDE_UP,
+              "BTN_HOST_SIDE_UP");
+static_assert(gesturebind::kPiccoBtnSideDown == HalGPIO::BTN_HOST_SIDE_DOWN,
+              "BTN_HOST_SIDE_DOWN");
+#endif
 
 // THE INSTALLED SET. Two parallel arrays rather than a map: the only two
 // questions asked of it are "which row did this object come from" (once per
@@ -186,7 +197,8 @@ NSMutableSet<UIGestureRecognizer *> *g_holdFired = nil;
 // here -- see ios/GestureBindings.h, which owns the whole rule.
 gesturebind::Action liveAction(gesturebind::Gesture g) {
   return gesturebind::actionFor(
-      g, g_zenOn, CrossPointPrefs_gestureBinding(static_cast<int>(g)));
+      g, g_zenOn, CrossPointPrefs_gestureBinding(static_cast<int>(g)),
+      gesturebind::kThisDevice);
 }
 
 // MUST THIS RECOGNIZER STAY ENABLED WHILE ZEN IS OFF? Derived from the rule
@@ -194,7 +206,7 @@ gesturebind::Action liveAction(gesturebind::Gesture g) {
 // one-finger hold says so through its ABOVE-the-paper row, which is the row
 // that toggles zen today.
 bool rowIsAlwaysOn(gesturebind::Gesture g) {
-  return gesturebind::firesOutsideZen(g) ||
+  return gesturebind::firesOutsideZen(g, gesturebind::kThisDevice) ||
          gesturebind::firesOutsideZen(
              gesturebind::zoneRowFor(g, gesturebind::Zone::AbovePaper)) ||
          gesturebind::firesOutsideZen(
@@ -278,7 +290,8 @@ void performGestureAction(gesturebind::Action a, const char *what) {
   // paper and the shake.
   if (!sleeptouch::actionAllowedWhileAsleep(
           SimulatorOverlay::firmwareAsleep(),
-          gesturebind::buttonFor(a) != gesturebind::kNoButton)) {
+          gesturebind::buttonFor(a, gesturebind::kThisDevice) !=
+              gesturebind::kNoButton)) {
     SDL_Log("[zen] %s -> %s swallowed (firmware asleep; only a press wakes it)",
             what, gesturebind::actionName(a));
     return;
@@ -331,7 +344,10 @@ void performGestureAction(gesturebind::Action a, const char *what) {
     return;
   }
 
-  const int btn = gesturebind::buttonFor(a);
+  // The key this build's firmware reads for the action: on the Picco, Right
+  // and Left are the rocker and Up and Down the X3's side pair
+  // (GestureBindings.h, Device).
+  const int btn = gesturebind::buttonFor(a, gesturebind::kThisDevice);
   if (btn == gesturebind::kNoButton) {
     // Unset and Inherit never resolve to here. Anything else that lands here
     // is an Action appended without a case above -- say so, or it looks like
@@ -369,6 +385,15 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
 // explicit Nothing in a zone is an override that means "not here", not a blank.
 // This method only fetches and reports.
 - (void)oneFinger:(gesturebind::OneFinger)kind at:(UIGestureRecognizer *)g {
+  // THE PICCO APP: a one-finger gesture that began on the page is the
+  // firmware's, which has already acted on it (its decoder turned the page,
+  // or will on the lift). Logged, so "the swipe did one thing" can be told
+  // from "the swipe did nothing" on a device.
+  if (CrossPointZen_piccoTouchIsFirmwares()) {
+    SDL_Log("[zen] %s began on the page -> the firmware's",
+            gesturebind::oneFingerName(kind));
+    return;
+  }
   float xPx = 0.0f, yPx = 0.0f;
   const gesturebind::Zone z = zoneOf(g, &xPx, &yPx);
   const gesturebind::Gesture zoneRow = gesturebind::zoneGesture(kind, z);
@@ -385,7 +410,8 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
   const int globalStored =
       CrossPointPrefs_gestureBinding(static_cast<int>(globalRow));
   const gesturebind::Action a =
-      gesturebind::oneFingerAction(kind, z, g_zenOn, zoneStored, globalStored);
+      gesturebind::oneFingerAction(kind, z, g_zenOn, zoneStored, globalStored,
+                                   gesturebind::kThisDevice);
   // The log says which LAYER answered, because "the override did not take" and
   // "the phone did not deliver the gesture" look identical on a device and this
   // is the only line that can tell them apart.
@@ -491,6 +517,14 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
       g_hold.begin();
       g_hold.noteTouches(static_cast<int>(g.numberOfTouches));
       CrossPointZen_spoilTapCandidate();
+      // THE PICCO APP: a hold on the page is the firmware's (its decoder
+      // fires Confirm at the same 0.75 s); this recognizer must not fire a
+      // second action off the same finger.
+      if (CrossPointZen_piccoTouchIsFirmwares()) {
+        SDL_Log("[zen] hold began on the page -> the firmware's");
+        g_hold.cancel();
+        break;
+      }
       if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
         SDL_Log("[zen] hold swallowed (palette sheet presented)");
         g_hold.cancel();
@@ -522,7 +556,8 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
           g_hold.poisoned()
               ? gesturebind::Action::Nothing
               : gesturebind::oneFingerAction(gesturebind::OneFinger::Hold, z,
-                                             g_zenOn, zoneStored, globalStored);
+                                             g_zenOn, zoneStored, globalStored,
+                                             gesturebind::kThisDevice);
       SDL_Log("[zen] hold at x=%.0f y=%.0f px (page left %.0f, paper "
               "%.0f..%.0f) %s, zen %s -> %s",
               xPx, yPx, CrossPointZen_pageLeftPx(), CrossPointZen_cardTopPx(),
@@ -855,7 +890,9 @@ void logBindings(void) {
             CrossPointPrefs_gestureBindingIsExplicit(static_cast<int>(which))
                 ? "set"
                 : "default",
-            gesturebind::firesOutsideZen(which) ? ", always on" : "");
+            gesturebind::firesOutsideZen(which, gesturebind::kThisDevice)
+                ? ", always on"
+                : "");
   }
 }
 
@@ -865,13 +902,17 @@ void logBindings(void) {
 // boot), then flip the zen-only recognizers' .enabled with the zen flag. Main
 // queue: UIKit, and the callers sit on the SDL/firmware loop.
 extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
-#if FREEINK_DEVICE_PICCO
-  // The Picco app installs no recognizer: its page touches are the
-  // firmware's, and an installed UIKit recognizer would cancel them out from
-  // under SDL (cancelsTouchesInView) whenever it recognized.
-  (void)on;
-  return;
-#endif
+  // THE PICCO APP INSTALLS THE SAME SET since 2026-11-27 (owner: "add ios app
+  // settings for volume and all other possible gestures from crosspoint x3;
+  // put zen mode in"). It installed none until then, on the belief that a
+  // recognizer would cancel SDL's touches when it recognized. It cannot:
+  // tameRecognizer() sets cancelsTouchesInView, delaysTouchesBegan and
+  // delaysTouchesEnded to NO on every object, so SDL's view receives every
+  // touch undelayed and uncancelled whatever a recognizer decides. What keeps
+  // the firmware's page touch the firmware's is ownership, not UIKit: the
+  // one-finger handlers above step aside for a touch that began on the page
+  // (CrossPointZen_piccoTouchIsFirmwares), and the shim ends the firmware's
+  // contact when a second finger lands in zen, as the X3 spoils its tap.
   dispatch_async(dispatch_get_main_queue(), ^{
     if (!g_handler) {
       UIView *view = sdlView();

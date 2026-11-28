@@ -215,7 +215,7 @@ inline bool step(uint64_t now, bool onReaderPage, uint64_t lastPixelWriteMs) {
         SDL_Log("[speedread] end of page -> read-aloud turns the page");
       } else {
         SDL_Log("[speedread] end of page -> page forward");
-        gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60);
+        gpio.queueButtonTap(HalGPIO::BTN_HOST_NEXT, 60);
       }
     }
   }

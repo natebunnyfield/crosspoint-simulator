@@ -1322,6 +1322,120 @@ static void testRootPlist(const char* path) {
         "the Zen toggle still comes first");
 }
 
+
+// THE PICCO APP (2026-11-27, owner: "add ios app settings for volume and all
+// other possible gestures from crosspoint x3; put zen mode in" and "add the
+// option for up and down buttons to be in there (for font size and
+// selection)"). One table, three Device-keyed differences, each pinned here:
+// the keys an action presses, the rows offered, and the volume rocker firing
+// out of zen. Plus the property the defaults were chosen by: every default
+// still does on the Picco what it does on the X3.
+static void testPicco() {
+  using gesturebind::Device;
+  using gesturebind::buttonFor;
+  // The X3 overload is the old function, action by action.
+  for (int i = 0; i <= static_cast<int>(Action::FullRefresh); ++i) {
+    const auto a = static_cast<Action>(i);
+    check(buttonFor(a, Device::X3) == buttonFor(a), "X3 buttonFor unchanged");
+  }
+  // Right/Left are the Picco's rocker (logical Right/Left come from BTN_UP /
+  // BTN_DOWN there), Up/Down the X3's side pair on the host-only slots.
+  check(buttonFor(Action::Right, Device::Picco) == gesturebind::kBtnUp, "Picco Right -> rocker upper");
+  check(buttonFor(Action::Left, Device::Picco) == gesturebind::kBtnDown, "Picco Left -> rocker lower");
+  check(buttonFor(Action::Up, Device::Picco) == gesturebind::kPiccoBtnSideUp, "Picco Up -> side up slot");
+  check(buttonFor(Action::Down, Device::Picco) == gesturebind::kPiccoBtnSideDown, "Picco Down -> side down slot");
+  check(gesturebind::kPiccoBtnSideUp == 2 && gesturebind::kPiccoBtnSideDown == 3,
+        "the side pair rides on slots 2 and 3 (HalGPIO::BTN_HOST_SIDE_UP/_DOWN)");
+  check(buttonFor(Action::Back, Device::Picco) == gesturebind::kBtnBack, "Picco Back");
+  check(buttonFor(Action::Confirm, Device::Picco) == gesturebind::kBtnConfirm, "Picco Confirm");
+  check(buttonFor(Action::Power, Device::Picco) == gesturebind::kBtnPower, "Picco Power");
+  check(buttonFor(Action::ToggleZen, Device::Picco) == gesturebind::kNoButton, "Picco ToggleZen presses nothing");
+  // No action presses the same key as a different action on the Picco.
+  std::set<int> keys;
+  for (const Action a : {Action::Back, Action::Confirm, Action::Left, Action::Right, Action::Up,
+                         Action::Down, Action::Power})
+    keys.insert(buttonFor(a, Device::Picco));
+  check(keys.size() == 7, "seven button actions, seven distinct Picco keys");
+
+  // Offered: everything on the X3; everything but the six one-finger global
+  // rows on the Picco, by name.
+  const std::set<Gesture> notOnPicco = {Gesture::TapGlobal,     Gesture::SwipeLeftGlobal,
+                                        Gesture::SwipeRightGlobal, Gesture::SwipeUpGlobal,
+                                        Gesture::SwipeDownGlobal, Gesture::HoldGlobal};
+  int offered = 0;
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const auto g = static_cast<Gesture>(i);
+    check(gesturebind::offeredOn(g, Device::X3), "every row is offered on the X3");
+    const bool on = gesturebind::offeredOn(g, Device::Picco);
+    check(on == (notOnPicco.count(g) == 0), gesturebind::gestureName(g));
+    if (on) ++offered;
+  }
+  check(offered == gesturebind::kGestureCount - 6, "the Picco offers all but six");
+  check(!gesturebind::offeredOn(Gesture::Count, Device::Picco), "Count is never offered");
+
+  // The volume rocker: its defaults press the rocker's ends on the Picco
+  // (upper = next, lower = previous: what it hard-wired before 2026-11-27),
+  // and it fires out of zen there; on the X3 it is still zen-only.
+  checkAction(gesturebind::actionFor(Gesture::VolumeUp, false, 0, Device::Picco), Action::Right,
+              "Picco volume up fires out of zen at its default");
+  checkAction(gesturebind::actionFor(Gesture::VolumeDown, false, 0, Device::Picco), Action::Left,
+              "Picco volume down fires out of zen at its default");
+  check(buttonFor(gesturebind::defaultAction(Gesture::VolumeUp), Device::Picco) == gesturebind::kBtnUp,
+        "Picco volume up default = rocker upper end");
+  check(buttonFor(gesturebind::defaultAction(Gesture::VolumeDown), Device::Picco) == gesturebind::kBtnDown,
+        "Picco volume down default = rocker lower end");
+  checkAction(gesturebind::actionFor(Gesture::VolumeUp, false, 0), Action::Nothing,
+              "X3 volume stays zen-only");
+  check(!gesturebind::firesOutsideZen(Gesture::VolumeUp, Device::X3), "X3 gate unchanged");
+  checkAction(gesturebind::actionFor(Gesture::VolumeUp, false, static_cast<int>(Action::Nothing),
+                                     Device::Picco),
+              Action::Nothing, "Picco volume can still be unbound");
+  // Nothing else gained an out-of-zen gate on the Picco.
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const auto g = static_cast<Gesture>(i);
+    if (g == Gesture::VolumeUp || g == Gesture::VolumeDown) continue;
+    check(gesturebind::firesOutsideZen(g, Device::Picco) == gesturebind::firesOutsideZen(g),
+          "only the volume rows change gate on the Picco");
+  }
+
+  // Every OFFERED row's default that presses a key on the X3 presses one on
+  // the Picco too: no X3 default ships doing nothing there.
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const auto g = static_cast<Gesture>(i);
+    if (!gesturebind::offeredOn(g, Device::Picco)) continue;
+    const Action d = gesturebind::defaultAction(g);
+    if (buttonFor(d) == gesturebind::kNoButton) continue;
+    check(buttonFor(d, Device::Picco) != gesturebind::kNoButton, gesturebind::gestureName(g));
+  }
+  // The font-size pair: pinch (Up) and spread (Down) reach the side pair.
+  check(buttonFor(gesturebind::defaultAction(Gesture::Pinch), Device::Picco) == gesturebind::kPiccoBtnSideUp,
+        "Picco pinch default = X3 side Up");
+  check(buttonFor(gesturebind::defaultAction(Gesture::Spread), Device::Picco) == gesturebind::kPiccoBtnSideDown,
+        "Picco spread default = X3 side Down");
+
+  // The one-finger global layer is fixed at its defaults on the Picco: a blank
+  // zone row inherits the DEFAULT, whatever a stray stored value says.
+  const int nothing = static_cast<int>(Action::Nothing);
+  const int inherit = static_cast<int>(Action::Inherit);
+  checkAction(gesturebind::oneFingerAction(OneFinger::Tap, Zone::BelowPaper, true, inherit, nothing,
+                                           Device::Picco),
+              Action::Right, "Picco: blank zone inherits the page's tap (Right)");
+  checkAction(gesturebind::oneFingerAction(OneFinger::Tap, Zone::BelowPaper, true, inherit, nothing),
+              Action::Nothing, "X3: blank zone inherits the stored global");
+  checkAction(gesturebind::oneFingerAction(OneFinger::SwipeUp, Zone::Neither, true, 0, nothing,
+                                           Device::Picco),
+              Action::Back, "Picco: no zone -> the page's swipe up (Back)");
+  checkAction(gesturebind::oneFingerAction(OneFinger::Tap, Zone::BelowPaper, true,
+                                           static_cast<int>(Action::Up), 0, Device::Picco),
+              Action::Up, "Picco: a set zone row still wins");
+  checkAction(gesturebind::oneFingerAction(OneFinger::Hold, Zone::AbovePaper, false, 0, 0,
+                                           Device::Picco),
+              Action::Power, "Picco: hold above the paper is Power out of zen, as on the X3");
+  checkAction(gesturebind::oneFingerAction(OneFinger::Tap, Zone::BelowPaper, false, inherit, 0,
+                                           Device::Picco),
+              Action::Nothing, "Picco: zone taps are zen-only, as on the X3");
+}
+
 int main(int argc, char** argv) {
   testDefaultsMatchToday();
   testLayering();
@@ -1332,6 +1446,7 @@ int main(int argc, char** argv) {
   testLeftMargin();
   testZenScope();
   testStoredIntegers();
+  testPicco();
   testRootPlist(argc > 1 ? argv[1] : "ios/Settings.bundle/Root.plist");
 
   if (failures) {

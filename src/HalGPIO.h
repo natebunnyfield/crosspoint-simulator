@@ -477,6 +477,39 @@ public:
   static constexpr uint8_t BTN_UP = 4;
   static constexpr uint8_t BTN_DOWN = 5;
   static constexpr uint8_t BTN_POWER = 6;
+
+  // --- Host-only button slots (simulator-only; no firmware counterpart) -----
+  //
+  // BTN_HOST_NEXT / BTN_HOST_PREV: the physical index that presses the
+  // firmware's logical Right (next) and Left (previous), for host features
+  // that turn a page by pressing a button (read-aloud, speed read, the
+  // accessibility scroll, the page text input). The front pair on the X3;
+  // the rocker on the Picco, whose firmware sends logical Right/Left from
+  // BTN_UP/BTN_DOWN (PiccoInput.h rockerRoute) and reads nothing from slots
+  // 2 and 3.
+#if FREEINK_DEVICE_PICCO
+  static constexpr uint8_t BTN_HOST_NEXT = BTN_UP;
+  static constexpr uint8_t BTN_HOST_PREV = BTN_DOWN;
+  // THE X3'S SIDE PAIR, IN THE PICCO APP (owner 2026-11-27: "add the option
+  // for up and down buttons to be in there (for font size and selection)").
+  // The Picco's rocker is logical Right/Left, so the gesture actions Up and
+  // Down need keys of their own: these two. The firmware's mapButton reads
+  // them for Up, Down and the four page buttons under SIMULATOR only
+  // (MappedInputManager.cpp kHostSidePair; the device still routes those to
+  // nothing). They ride on the front Left/Right slots because the Picco has
+  // no front keys and its firmware never reads those slots, so the hold
+  // timer, the activity-swap swallow and every 0..BTN_POWER loop cover them
+  // with no firmware change; a ninth and tenth slot would not fit the
+  // firmware's uint8_t button masks. Desktop arrow keys Left/Right and the
+  // script's LEFT/RIGHT press them on a Picco build.
+  static constexpr uint8_t BTN_HOST_SIDE_UP = 2;
+  static constexpr uint8_t BTN_HOST_SIDE_DOWN = 3;
+  static_assert(BTN_HOST_SIDE_UP == BTN_LEFT && BTN_HOST_SIDE_DOWN == BTN_RIGHT,
+                "the side pair rides on the front Left/Right slots");
+#else
+  static constexpr uint8_t BTN_HOST_NEXT = BTN_RIGHT;
+  static constexpr uint8_t BTN_HOST_PREV = BTN_LEFT;
+#endif
 };
 
 extern HalGPIO gpio; // Singleton
