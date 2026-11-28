@@ -4703,8 +4703,13 @@ void HalDisplay::presentIfNeeded() {
                       accumPeakBound > trailInvisibleAtOrBelow() &&
                       static_cast<float>(now - accumLastAddMs) < trailMs * 2.4f;
           // A dead trail's light can move no pixel: the next deposit starts
-          // both layers' spans afresh.
-          if (!accumLive) traillayers::applyTrailDead(trailLayers);
+          // both layers' spans afresh. Dead, not just undrawn: a light ground
+          // keeps the spans for a flip back to dark (TrailLayers.h trailDead).
+          if (traillayers::trailDead(
+                  accumLastAddMs != 0,
+                  static_cast<float>(now - accumLastAddMs), trailMs,
+                  accumPeakBound <= trailInvisibleAtOrBelow()))
+            traillayers::applyTrailDead(trailLayers);
           if (timingLogWanted()) {
             timingFrame.accum.built = canDeposit;
             timingFrame.accum.served = !canDeposit;

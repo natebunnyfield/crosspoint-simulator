@@ -184,4 +184,17 @@ inline void applyDropYoung(State &s) { s.youngLive = false; }
 // starts both spans afresh.
 inline void applyTrailDead(State &s) { s = State{}; }
 
+// WHEN THE TRAIL IS DEAD, as opposed to merely not drawn. A light ground draws
+// no trail and stops asking for frames, but the light is still in the
+// accumulator: flip back to dark within the trail and it is shown again by a
+// reconvert, with no deposit to re-seed the spans. Resetting the spans on the
+// light present drew that returning light at the full tail color (the age read
+// from a zeroed timestamp), brighter than its own ramp on the cascade presets
+// (review of 3e8c8c82, 2026-11-27). So only age, the bound, or no deposit
+// at all ends the spans; the ground does not.
+inline bool trailDead(const bool everDeposited, const float ageMs,
+                      const float trailMs, const bool boundInvisible) {
+  return !everDeposited || ageMs >= trailMs * 2.4f || boundInvisible;
+}
+
 } // namespace traillayers

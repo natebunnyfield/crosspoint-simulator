@@ -307,6 +307,15 @@ int main() {
     CHECK(planDeposit(s, 3000, r) == Deposit::SettledOnly);
   }
 
+  // A light ground is not a dead trail: the spans survive a dark -> light ->
+  // dark flip inside the trail, so the returning light keeps its own age.
+  {
+    CHECK(!trailDead(true, 1000.0f, 2828.0f, false));
+    CHECK(trailDead(true, 2828.0f * 2.4f, 2828.0f, false));
+    CHECK(trailDead(true, 10.0f, 2828.0f, true));
+    CHECK(trailDead(false, 0.0f, 2828.0f, false));
+  }
+
   if (testcheck::g_failures != 0) {
     std::printf("trail_layers_test: %d check(s) FAILED\n",
                 testcheck::g_failures);
