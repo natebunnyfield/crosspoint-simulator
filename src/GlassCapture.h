@@ -87,6 +87,33 @@ inline bool shouldArmBeam(const bool contentChanged, const bool hasPicture,
   return contentChanged && hasPicture && !reconvertOnly && captureIsCurrent;
 }
 
+// WHERE THE TRAIL IS DRAWN WHILE THE BEAM SWEEPS (2026-11-27, owner report
+// with a screen recording from the Picco app: "fading out is not smooth as it
+// should be").
+//
+// Below the beam the glass shows glassPrevTexture, the capture of the frame
+// being replaced. That capture is taken BEFORE the accumulator is drawn (it
+// has to be, or the trail would deposit itself), so it carries no afterglow.
+// Clipping the trail to the swept band therefore took every afterglow still
+// alive off the un-swept glass on the sweep's first present: a press that came
+// while the previous step was still fading cut that fade to nothing in one
+// frame, and it came back only as the beam passed. The recording shows it at
+// frames 375, 456, 466, 474 and 499 (the old page's ghost gone at 456-457, back
+// at 458 under the beam).
+//
+// Under MAXIMUM the trail belongs on the un-swept glass too. The present that
+// arms the sweep has just deposited that same old frame, and a deposit is the
+// frame's excitation scaled to the ink (captureGlass), never brighter than the
+// frame itself in any channel, so max(old frame, trail) is the old frame with
+// the afterglow it was showing a present ago. Only the ADD fallback (SDL's
+// software renderer: the desktop and the Mac apps) keeps the clip: ADD would
+// light the old frame a second time with its own fresh deposit, measured as
+// every level of the un-swept band scaled by 1.175.
+inline bool clipTrailToSweptBand(const bool beamSweeping,
+                                 const bool trailComposedMaximum) {
+  return beamSweeping && !trailComposedMaximum;
+}
+
 struct DepositInputs {
   bool contentChanged;  // the panel sequence moved since the last present
   bool hasPicture;      // a glass capture exists

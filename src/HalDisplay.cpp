@@ -4687,6 +4687,9 @@ void HalDisplay::presentIfNeeded() {
                 (int)contentChanged, (unsigned long long)accumLastAddMs);
       if (accumLive && accumTexture) {
         const bool darkGround = panelIsDarkGround();
+        // Which blend the composite below took: MAXIMUM on Metal, the ADD
+        // fallback on SDL's software renderer. The sweep's clip depends on it.
+        bool trailComposedMaximum = false;
 
         // A PHOSPHOR ADDS LIGHT, and the accumulator is a buffer OF LIGHT:
         // black wherever nothing has been emitted. That composites one way and
@@ -4741,6 +4744,7 @@ void HalDisplay::presentIfNeeded() {
           } else {
             SDL_SetTextureAlphaMod(accumTexture, 255);
           }
+          trailComposedMaximum = gotMax;
           static bool saidComposite = false;
           if (!saidComposite) {
             saidComposite = true;
@@ -4803,22 +4807,25 @@ void HalDisplay::presentIfNeeded() {
         if (accumLive) {
           const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(gw),
                                   static_cast<float>(gh)};
-          // CLIPPED TO THE SWEPT BAND WHILE THE BEAM RUNS, and this is not a
-          // detail. Below the beam line the glass still holds the PREVIOUS
-          // frame -- the raster has not repainted it yet -- and that frame
-          // already showed whatever trail it showed at the time. Compositing
-          // this present's accumulator over it would light the old picture a
-          // second time, and on a renderer without MAXIMUM (the desktop, see
-          // the blend report above) the ADD fallback then BRIGHTENS the whole
-          // un-swept region by up to 18% for the length of the sweep.
-          // Measured: the un-swept band came back as the previous page's exact
-          // pixel histogram with every level scaled by 1.175.
+          // OVER THE WHOLE GLASS WHILE THE BEAM RUNS, under MAXIMUM. Below
+          // the beam line the glass holds the PREVIOUS frame's capture, which
+          // was read back before any trail was drawn, so it carries none: the
+          // trail has to go over it too, or every afterglow still alive when
+          // a new frame arrives is cut to nothing on the sweep's first present
+          // (owner report 2026-11-27, "fading out is not smooth as it should
+          // be"). The ADD fallback (the desktop, see the blend report above)
+          // still clips to the swept band: ADD lights the old picture a second
+          // time with its own fresh deposit, measured as the un-swept band
+          // coming back as the previous page's exact pixel histogram with
+          // every level scaled by 1.175. GlassCapture.h has the argument.
+          const bool clipToBand = glasscapture::clipTrailToSweptBand(
+              beamSweeping, trailComposedMaximum);
           SDL_Rect band = {0, 0, gw,
                            static_cast<int>(static_cast<float>(gh) *
                                             beamProgress)};
-          if (beamSweeping) SDL_SetRenderClipRect(sdl_renderer, &band);
+          if (clipToBand) SDL_SetRenderClipRect(sdl_renderer, &band);
           SDL_RenderTexture(sdl_renderer, accumTexture, nullptr, &full);
-          if (beamSweeping) SDL_SetRenderClipRect(sdl_renderer, nullptr);
+          if (clipToBand) SDL_SetRenderClipRect(sdl_renderer, nullptr);
           // A fade only animates if something presents while it fades, and the
           // firmware will not: an e-ink reader draws a page and stops. So the
           // trail asks for its own next frame, and stops asking the moment it

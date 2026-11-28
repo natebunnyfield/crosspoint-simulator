@@ -85,6 +85,23 @@ int main() {
   // A stale capture changes nothing for a present with no new picture.
   CHECK(!glasscapture::shouldArmBeam(false, true, false, false));
 
+  // THE FADE CUT (2026-11-27, owner report with a recording from the Picco
+  // app: "fading out is not smooth as it should be"). A press lands while the
+  // previous step's afterglow is still fading, so the new frame arms a sweep.
+  // Below the beam the glass is the old frame's capture, which holds no trail;
+  // a trail clipped to the swept band took the live afterglow off everything
+  // the beam had not reached, in one frame (recording frames 456-457: the old
+  // page's ghost gone, back at 458 under the beam). Under MAXIMUM -- Metal,
+  // the phone -- the trail is drawn over the whole glass during the sweep.
+  using glasscapture::clipTrailToSweptBand;
+  CHECK(!clipTrailToSweptBand(true, true));
+  // The ADD fallback (the desktop's software renderer) keeps the clip: there
+  // the fresh deposit would light the old frame a second time (x1.175).
+  CHECK(clipTrailToSweptBand(true, false));
+  // No sweep, no clip, on either blend.
+  CHECK(!clipTrailToSweptBand(false, true));
+  CHECK(!clipTrailToSweptBand(false, false));
+
   // The exit code is the gate (run_all.sh reads nothing else). This used to
   // print "all checks passed" mid-file and return 0 whatever CHECK counted,
   // so a broken rule failed loudly and passed the suite (adversarial review,
