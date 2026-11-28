@@ -2454,7 +2454,16 @@ void pollPiccoUpDown() {
   g_piccoUpDown = want != 0;
   SDL_Log("[picco] up/down buttons %s (%s)", want ? "on" : "off",
           first ? "seed" : "setting");
-  if (first) return;
+  if (first) {
+    // A layout pass can beat this first poll at launch (as pollZenMode
+    // notes), and with the setting on it would stand without the pair until
+    // the next resize. Lay out again; nothing can be held yet.
+    if (want) {
+      g_padLaidOut = false;
+      SimulatorOverlay::requestPresent();
+    }
+    return;
+  }
   applyActions(g_core.reset());
   g_padLaidOut = false;
   SimulatorOverlay::requestPresent();

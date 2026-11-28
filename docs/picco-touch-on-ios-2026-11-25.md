@@ -654,7 +654,8 @@ run.
   `BTN_HOST_NEXT/PREV`. Still on slots 2/3, deliberately: the desktop
   scancode map and the text-entry arrow keys (`src/HalGPIO.cpp` ~727), so a
   hardware keyboard's Left/Right arrows are the side pair on a Picco build, and
-  the `TAP_PAD` / script names `LEFT`/`RIGHT`.
+  the script names `LEFT`/`RIGHT` (the iOS Picco build's `TAP_PAD` names for
+  slots 2/3 are `SIDE_UP`/`SIDE_DOWN` since 3f58875b).
 
 ### 2026-11-28: the X3's Up/Down buttons on the Picco pad (setting, off by default)
 
@@ -764,3 +765,22 @@ The pad's first row starts at y 2171 (zen off), 48 px below the paper.
   the presented page is 1600 px tall: factor 1.000, fb 8/26 -> device 8.0/26.0.
   The transient 3.8/12.2 lines are passes with a 760 px presented height
   (760/1600 = 0.475), consistent with the same mapping. Nothing to fix.
+
+**Review of the Up/Down pair (2026-11-28, read-only, 3f58875b).** Found and fixed:
+a cold launch with the setting on could lay the pad out before the first poll
+seeded the setting, leaving the pair absent until a resize (`pollPiccoUpDown`
+now relays out on a seed that is on; the same race `pollZenMode` guards).
+Found and NOT fixed: on a 320 pt wide window (Display Zoom on an iPhone SE or
+mini) the X3's Up/Down place overlaps the slide switch on the 5-column grid,
+so `piccopad::sidePair` refuses the pair on every pass and the setting does
+nothing there (a log line only). Not the owner's phone (an iPhone Air is 420
+pt); fixing it means moving another control, which this change was told not
+to do. The 960x1600 pass seen at every relayout is a 320 pt layout (960 / 3),
+which is why it refuses; its refused/placed log lines alternate each relayout
+(cosmetic). Checked and found clean: the X3 app (every edit inside
+`#if FREEINK_DEVICE_PICCO`, X3 `Root.plist` untouched); off is today's pad;
+zen hit-testing and painting; turned landscape and iPad placement; toggling
+with a held press; the chip collision at every common width but 320; the
+per-frame pref read; the reboot longjmp; the plist generator and its gate;
+font-size direction (Up smaller, Down bigger). Neither app gives pad slots
+VoiceOver labels, so none were lost.
