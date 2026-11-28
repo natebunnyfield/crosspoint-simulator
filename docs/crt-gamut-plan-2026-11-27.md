@@ -30,6 +30,109 @@ by *f* (`src/FrontlitPage.h:100`, `:229` `reweightedMix`, gun weights
 - **2026-11-27, blue and red: "Both, as four tubes".** He saw q-blue-red.png first. Blue (P11), Pale Blue (P22B), Red (P22R) and Pale Red (P56), so the row has eight tubes: Mixed, Blue, Pale Blue, Green, Yellow, Amber, Red, Pale Red.
 - **2026-11-27, warm tilt: "P38 + P22R".** He saw q-warm-tilt.png first. Warmth tilts every tube toward today's warm guns, including the faint 1095 ms amber afterglow. Cool stays P45 + P20.
 
+## Built, 2026-11-27 (owner: "Build and ship")
+
+**Status: BUILT, NOT PUSHED, not on TestFlight.** Device feel and the iOS app
+at runtime are UNCONFIRMED (see the end of this section).
+
+### Commits
+
+Firmware (`crosspoint-reader`, branch `picco-layout`):
+
+- `701d1a837` i18n: Tube row strings, English and Spanish
+- `bcfbec473` feat(settings): Tube row for the Picco app and simulator only
+
+Simulator (this repo, branch `picco-layout`):
+
+- `e52527a4` feat(frontlit): the Tube picks the dark page's phosphor
+- `5f479ea5` feat(hal): the Picco's frontlight publishes the Tube
+- `f662b5ba` fix(display): a tube without a tail clears the desktop's tail
+- `897eaf11` test: the Tube's plumbing reaches every host
+- the commit that adds this section
+
+### What it does
+
+- **The row.** `crtTube` (Mixed, Blue, Pale Blue, Green, Yellow, Amber, Red,
+  Pale Red; the index is the stored value) is a plain `CrossPointSettings`
+  field like the frontlight's, and its `SettingInfo::Enum` row sits in the Picco
+  block of `src/SettingsList.h` under `#ifdef SIMULATOR`. So the iOS Picco app
+  and `simulator_picco` list it after Slide Switch, and the device's image,
+  settings.json and web settings never see the row or the key.
+  `isPiccoDeviceRow` admits it; a pick goes live through
+  `Frontlight.setTube` (simulator HAL only), and `main.cpp` applies the stored
+  tube at boot. A change made from the web settings page lands at the next boot,
+  as Brightness and Warmth already do.
+- **The model** (`src/FrontlitPage.h`): `kTubePhosphor` maps the row to JEDEC
+  presets P11, P22B, P22G, P28, P3, P22R and P56. A tube is a one-component
+  `mixBlend` at Warmth 50, which is its preset's page and decay byte for byte.
+  Warmth tilts every tube toward P38 + P22R (warm) or P45 + P20 (cool), each
+  pair at its frozen ratio, at 0.25 x (f - 1) or 0.25 x (1/f - 1) of the tube's
+  weight. Brightness keeps the beam ramp (`beamOver`, factored out of
+  `computeDarkPage`). Light off is the Mixed tube (`isNeutral`). The light page
+  ignores the tube (`lampAtRest`).
+- **The hosts.** `simfrontlight::current()` carries the tube and a change bumps
+  the generation, so `applyFrontlitPage` (desktop) and `PanelPrefs`,
+  `pollPanelGlow`, `pollScanlines` and `sleepTick` (iOS) follow it with no code
+  of their own. One real fix was needed: the desktop pushed the afterglow tint
+  only when there was one, so a single-phosphor tube kept the Mixed tube's
+  amber. It now pushes null, as iOS already did.
+
+### Tests, red then green
+
+- `frontlit_page` (extended). Against the model before the change (the field
+  added, the model ignoring it): **21 failures**, 7 x "a tube is not the frozen
+  page", 7 x "at 60/50 the tube is its phosphor's page", 7 x "at 60/50 the tube
+  decays as its phosphor". After: PASS, `worst 7.00:1 light, 7.00:1 dark, 7.00:1
+  over the seven tubes`. It also pins that light off gives Mixed (three
+  settings per tube), that Mixed equals the four-gun model at every 10 x 10
+  step, that the light page does not follow the tube, and that the warm tilt
+  brings P38's trail.
+- `crt_tube_wiring` (new source gate). Against the four files before the Tube:
+  **6 failures**. After: PASS.
+
+### Gate
+
+| gate | result |
+|---|---|
+| firmware `ctest --test-dir build/test -j8` | **100% of 976 passed**; 9 disabled and 2 skipped, as before |
+| `pio run -e picco -t upload_plan` (the PSRAM link check) | SUCCESS; `esp_psram_init` and the octal driver linked; "OK, one image" at 0xe0000; RAM 22.1%, Flash 33.7% |
+| `pio run -e default` | **NOT RUN TO THE END.** It reinstalls the 3.3.7 framework libs first (a 1.8 GB extraction into `~/.platformio/.cache/tmp`), and with about 2 GB free the disk fell to 479 MB. It was stopped and the temp dir removed. The installed package dirs are the same 3.3.7 core and libs as before. The C3 build carries only the plain `crtTube` field and the new strings; the row, the admission and both `setTube` calls are inside `FREEINK_DEVICE_PICCO` blocks. Needs a machine with room |
+| `pio run -e simulator_picco -e simulator_x3` | SUCCESS, both. The one warning is the old `%u` / `Uint64` in `HalDisplay.cpp`'s present log |
+| simulator `tests/run_all.sh`, whole suite | **108 passed, 7 skipped.** The skips are the shell tests that need a card (`fs_/.crosspoint/settings.json`) in the firmware checkout, which this worktree's card lacks: `test_sleep_wake`, `test_foreground_wake`, `test_queued_tap_wake`, `test_text_entry`, `test_note_editor_repaint`, `test_manage_files_and_wifi_nav`, `test_web_server_hardening` |
+| iOS Simulator Release (`build/ios-sim-picco`, xcodebuild, scheme CrossPointX3) | BUILD SUCCEEDED, no warning in a changed file |
+| clang-format 21 on the changed lines (`git-clang-format`) | applied. Firmware: its `.clang-format`. Simulator: `--style=llvm`, because this repo has no `.clang-format` and inside the firmware worktree clang-format would otherwise pick up the firmware checkout's style |
+
+**The device image does not carry the key.** `.pio/build/picco/firmware.bin`:
+0 occurrences of `crtTube` (`grep -c -a -F crtTube`). The ELF has one, and
+`xtensa-esp-elf-readelf -p` puts it in `.debug_str` only (the field's name in
+the debug info; the field is plain, like the frontlight's). `simulator_picco`'s
+binary has the key and `simulator_x3`'s has none. The row's labels ("Tube",
+"Pale Blue", ...) are in the device's string table, as every `tr()` string is,
+because the i18n generator builds one table for every board. No row uses them
+there.
+
+### Proof (desktop `simulator_picco`, as built)
+
+- Settings: the Tube row after Slide Switch, reading "Green" on a card with
+  `crtTube: 3`, the whole screen in the P22G tube; Confirm opens the
+  eight-tube picker; picking Yellow repaints the screen in P28 at once
+  (`frontlit page:` logged at the pick) and saves `crtTube: 4` to the card.
+- `built-tubes.png` (scratchpad): the reader page in each tube at 60/50, with
+  the afterglow 150 ms and 600 ms after a page turn. The captured trace and
+  glass, read off each capture: Mixed CFD4CC on 161A1A, Blue 8B92FF on 000519,
+  Pale Blue AFB0FF on 000025, Green 00FF97 on 001809, Yellow FFC600 on 181000,
+  Amber FFB000 on 190F00, Red FF6F6C on 190200, Pale Red FFA5A4 on 250000.
+  Every trace is its phosphor's own byte for byte; every glass is one code value
+  under the model's (the scanline gaps).
+
+### Unconfirmed
+
+- The iOS app at runtime. It built, and `crt_tube_wiring` pins the plumbing,
+  but no iOS Simulator run picked a tube.
+- `pio run -e default` (above).
+- The 7 skipped shell tests.
+- Device feel: nothing reaches the real Picco, by design.
+
 ## 1. Today's gamut, measured
 
 Every one of the 441 settings (Warmth and Brightness 0..100 by 5, light on)
