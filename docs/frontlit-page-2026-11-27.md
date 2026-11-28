@@ -353,10 +353,20 @@ Simulator: `FrontlitLight.h brightnessFromStored`, decoded in
 - 0..100: unchanged. Measured: all 3,528 (tube x brightness x warmth, by 5)
   pages, both pairs, tail, trail and bloom, byte-identical against the header
   before the change (a dump built twice, `cmp`).
-- Above 100: the 60..100 slope continues (`rampFor`). At 300 the beam is 3.4x
-  the frozen trace (channels clip, the overdriven whitening), the ink depth
-  4.6, the afterglow sqrt(3.4) = 1.84x as long. Bloom stays capped at
-  `scanlines::kBloomMax`. Still over 7:1 everywhere (tested).
+- Above 100: the mark's color goes from its 100 color to a white trace and a
+  black ink at 300, linear in ENCODED values (`overdrive()`, `mixEncoded`); the
+  beam's multiple keeps the 60..100 slope (`rampFor(..., pastMax)`, 3.4x at
+  300) for the afterglow (sqrt(3.4) = 1.84x as long at 300) and the bloom
+  (capped at `scanlines::kBloomMax`). Still over 7:1 everywhere (tested).
+  **First built as the multiple alone, and the review found it flat:** the
+  drawn trace clipped to FFFFFF from 130 on the default tube, the ink reached
+  000000 at 270, and 42% of light-page steps past 100 drew the same ink as
+  the step before; the test had checked the multiple, not the bytes. A
+  linear-light mix to black was tried next and still tied many neighbors near
+  black. Now every 5-step deepens the drawn ink; the dark trace is F0F6ED at
+  100 on the default tube, so its last ~15 codes spread over 200 steps and
+  neighbors can draw alike, where the afterglow still lengthens (tested
+  per step, every tube and warmth).
 - Below 0: the only settings that break the 7:1 floor, because the owner asked
   for less than the floor's 0. The mark fades toward the page in linear light
   (`fadeToContrast`, bisected) so that contrast falls log-evenly from 7:1 at 0
@@ -377,3 +387,18 @@ holds, bloom capped). Desktop `simulator_picco` captures at -100, -50, 0, 60,
 `frontlightBrightness` = the stored step, `CROSSPOINT_SIM_AS_SHIPPED=1`,
 screenshot at 3600 ms). Not captured: the Settings row's text reading "-100"
 (the one `valueText` line), and the app on the phone, UNCONFIRMED.
+
+**Review (2026-11-27, read-only, after d47a4cd8b / f6e982b9).** Found: the
+flat top above (fixed); the simulator HAL's pre-`begin()` brightness byte was
+the old percent 60, which now decodes as 200 (latent: every early publish is a
+light-off one; fixed, 32 on a Picco build); the web field dropped an off-grid
+value such as 62 (now rounds to the nearest step); two stale "0..100"
+comments (fixed). Checked and found clean: every reader of the byte in both
+repos; row text and the adjust state through `shown()`; SIMULATOR and
+FREEINK_DEVICE_PICCO reach both iOS targets; the SettingInfo layout; nothing
+under `ios/` reads the key; web GET units and negative POSTs; the load clamp;
+the HAL's X4 Pro and Picco clamps and decode; below 100, `sameLight`,
+`lampAtRest`, `isNeutral`; short afterglows (13 ms) against every trail
+divisor; the beam past 1.4 reaching only the clamped bloom; and every
+downstream contrast budget below the floor falling to zero without pushing the
+ink back to 7:1.

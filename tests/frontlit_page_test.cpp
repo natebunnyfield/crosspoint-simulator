@@ -256,15 +256,27 @@ int main() {
             "-100 is 1.5:1 on both pages, faint but not gone (Settings is on this page too)" + name +
                 at(-100, w));
       check(db.beam > 0.0 && db.beam < 1.0, "-100 dims the beam" + name);
-      // Above 100: the beam and ink keep rising; nothing falls below the floor.
+      // Above 100: every step moves the DRAWN mark (bytes, not the beam's
+      // multiple: the 2026-11-27 review found the multiple rising over a trace
+      // clipped flat from 130), the trace brightening and the ink deepening;
+      // 300 is pure white trace and pure black ink; nothing falls below 7:1.
       double prevBeam = darkPage(Light{100, w, true, tube}).beam;
       double prevLum = lum(lightPair(Light{100, w, true, tube}).ink);
+      double prevDark = lum(darkPage(Light{100, w, true, tube}).mix.dark.ink);
+      float prevTrail = darkPage(Light{100, w, true, tube}).mix.trailMs;
       for (int b = 105; b <= kMaxBrightness; b += 5) {
         const Light l{b, w, true, tube};
         const Dark d = darkPage(l);
         const panelpalette::Palette lp = lightPair(l);
         if (!(d.beam > prevBeam)) check(false, "above 100 the beam rises" + name + at(b, w));
-        if (!(lum(lp.ink) <= prevLum)) check(false, "above 100 the ink deepens" + name + at(b, w));
+        if (!(lum(lp.ink) < prevLum)) check(false, "above 100 every step deepens the drawn ink" + name + at(b, w));
+        // The trace never dims; where two neighbors draw the same bytes (the
+        // trace is near white by 100) the afterglow must still lengthen.
+        if (!(lum(d.mix.dark.ink) >= prevDark) ||
+            (lum(d.mix.dark.ink) == prevDark && !(d.mix.trailMs > prevTrail)))
+          check(false, "above 100 every step brightens the trace or lengthens its afterglow" + name + at(b, w));
+        prevDark = lum(d.mix.dark.ink);
+        prevTrail = d.mix.trailMs;
         if (lightink::contrastRatio(d.mix.dark.ink, d.mix.dark.paper) < lightink::kContrastFloor ||
             lightContrast(lp.ink, lp.paper) < lightink::kContrastFloor)
           check(false, "above 100 still clears 7:1" + name + at(b, w));
@@ -272,6 +284,12 @@ int main() {
           check(false, "bloom stays capped" + name + at(b, w));
         prevBeam = d.beam;
         prevLum = lum(lp.ink);
+      }
+      {
+        const Light top{kMaxBrightness, w, true, tube};
+        const unsigned char white[3] = {255, 255, 255}, black[3] = {0, 0, 0};
+        check(same(darkPage(top).mix.dark.ink, white) && same(lightPair(top).ink, black),
+              "300 is a white trace and a black ink" + name + at(300, w));
       }
     }
 

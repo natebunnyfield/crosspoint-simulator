@@ -8,7 +8,8 @@
 // the earlier todo".
 //
 // The phone has no frontlight, so the firmware's Brightness and Warmth rows
-// (CrossPointSettings::frontlightBrightness / frontlightWarmth, 0..100, 0 the
+// (CrossPointSettings::frontlightBrightness / frontlightWarmth; Brightness
+// -100..300 in the app, see FrontlitLight.h, Warmth 0..100, 0 the
 // coolest) drive the simulated page instead. PURE: no SDL, no atomics, no
 // SimulatorOverlay; the host test compiles it directly.
 //
@@ -192,17 +193,38 @@ inline double floorInkDepth(const unsigned char paper[3]) {
   return 1.0;
 }
 
-// Three points, linear between: 0 -> floor, 60 -> 1 (frozen), 100 -> max, and
-// on past 100 at the same slope (300 -> 1 + 6 x (max - 1)). Below 0 the ramp
-// stays at the floor: what goes under it is underFloor()'s, a fade toward the
-// page itself rather than a smaller multiple.
-inline double rampFor(const Light &l, double floor, double max) {
-  const int b = clampBrightness(l.brightness);
+// Three points, linear between: 0 -> floor, 60 -> 1 (frozen), 100 -> max.
+// `pastMax` continues past 100 at the same slope (300 -> 1 + 6 x (max - 1)):
+// the BEAM's multiple uses that, for the afterglow's length and the bloom. The
+// MARK's own color stops at 100's and overdrive() takes it on from there,
+// because a multiple past 100 clips the drawn color flat by about 130 (the
+// 2026-11-27 review measured the default tube's trace FFFFFF from 130 to 300).
+// Below 0 the ramp stays at the floor: what goes under it is
+// underFloorContrast()'s, a fade toward the page rather than a smaller multiple.
+inline double rampFor(const Light &l, double floor, double max,
+                      bool pastMax = false) {
+  int b = clampBrightness(l.brightness);
+  if (!pastMax && b > kMax) b = kMax;
   if (b >= kDefaultBrightness)
     return 1.0 + (max - 1.0) * (b - kDefaultBrightness) /
                      static_cast<double>(kMax - kDefaultBrightness);
   if (b <= 0) return floor;
   return floor + (1.0 - floor) * b / static_cast<double>(kDefaultBrightness);
+}
+
+// ABOVE 100 (the app's 105..300): how far the mark has gone from its 100 color
+// toward full overdrive, 0 at 100 and 1 at 300, linear: the dark trace toward
+// white (a phosphor driven past its color), the light ink toward black (a
+// charge past full). Mixed in ENCODED (sRGB) values, not linear light: near
+// black a linear step is a fraction of a code, so 40 steps of the ink moved
+// about one code apiece and many 5-steps drew the same bytes. 300 is the end
+// of each. The dark page has little room: the default tube's trace is already
+// F0F6ED at 100, so its last 15 or so codes are spread over 200 steps and
+// several neighbors draw alike; every step still lengthens the afterglow.
+inline double overdrive(const Light &l) {
+  const int b = clampBrightness(l.brightness);
+  return b <= kMax ? 0.0
+                   : static_cast<double>(b - kMax) / (kMaxBrightness - kMax);
 }
 
 // BELOW 0 (the app's -100..-5): the mark fades toward the page, the ink into
@@ -219,6 +241,14 @@ inline double underFloorContrast(const Light &l) {
   const double s = static_cast<double>(b) / kMinBrightness;  // 0..1
   return std::exp(std::log(lightink::kContrastFloor) * (1.0 - s) +
                   std::log(kUnderFloorContrast) * s);
+}
+
+// b toward a by t in encoded values (overdrive's mix; see overdrive()).
+inline void mixEncoded(const unsigned char a[3], const unsigned char b[3],
+                       double t, unsigned char out[3]) {
+  for (int c = 0; c < 3; c++)
+    out[c] = static_cast<unsigned char>(
+        std::lround(b[c] + (static_cast<double>(a[c]) - b[c]) * t));
 }
 
 // a toward b by t in linear light (t = 1 is a, t = 0 is b).
@@ -269,6 +299,11 @@ inline panelpalette::Palette computeLightPair(const Light &l) {
   if (const double c = underFloorContrast(l); c > 0.0) {
     const unsigned char atFloor[3] = {out.ink[0], out.ink[1], out.ink[2]};
     fadeToContrast(atFloor, out.paper, c, out.ink);
+  }
+  if (const double o = overdrive(l); o > 0.0) {
+    static constexpr unsigned char kBlack[3] = {0, 0, 0};
+    const unsigned char at100[3] = {out.ink[0], out.ink[1], out.ink[2]};
+    mixEncoded(kBlack, at100, o, out.ink);
   }
   return out;
 }
@@ -405,10 +440,27 @@ inline Dark beamOver(const phosphormix::Result &mix, const Light &l) {
                                       d.mix.dark.ink[2]};
     k *= fadeToContrast(atFloor, base.paper, c, d.mix.dark.ink);
   }
+  // Past 100 the trace whitens step by step (overdrive()), and the beam's
+  // multiple goes on rising for the afterglow and the bloom.
+  const double o = overdrive(l);
+  static constexpr unsigned char kWhite[3] = {255, 255, 255};
+  if (o > 0.0) {
+    const unsigned char at100[3] = {d.mix.dark.ink[0], d.mix.dark.ink[1],
+                                    d.mix.dark.ink[2]};
+    mixEncoded(kWhite, at100, o, d.mix.dark.ink);
+    k = rampFor(l, floor, kBeamMax, true);
+  }
   d.beam = k;
   // The afterglow is the same emission dying: its tint dims and brightens with
   // the beam, and it stays visible longer when the deposit was brighter.
-  if (d.mix.hasTail) scaleEmission(d.mix.tail, k, d.mix.tail);
+  if (d.mix.hasTail) {
+    scaleEmission(d.mix.tail, o > 0.0 ? kBeamMax : k, d.mix.tail);
+    if (o > 0.0) {
+      const unsigned char at100[3] = {d.mix.tail[0], d.mix.tail[1],
+                                      d.mix.tail[2]};
+      mixEncoded(kWhite, at100, o, d.mix.tail);
+    }
+  }
   d.mix.trailMs *= static_cast<float>(std::pow(k, kTrailExponent));
   return d;
 }

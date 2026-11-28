@@ -39,7 +39,13 @@ public:
   bool isOn() const;
 
 private:
+  // The Picco app's byte is the Brightness STEP (FrontlitLight.h), so its
+  // power-on 60 is step 32; the X4 Pro's is a percent.
+#if defined(SIMULATOR_DEVICE_PICCO)
+  uint8_t lastBrightness = 32;
+#else
   uint8_t lastBrightness = 60;
+#endif
   uint8_t lastWarmth = 50;
   bool lit = false;
   uint8_t lastTube = 0;
