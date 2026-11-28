@@ -329,3 +329,51 @@ xcrun simctl launch --console-pty $D com.natebunnyfield.crosspoint.picco > conso
 
 The firmware log tee (`diagnostics/firmware.log`) loses its last lines when the
 app is terminated, which is the sleep entry; `--console-pty` has them.
+
+## Brightness -100..300 in the app (2026-11-27)
+
+Owner, verbatim: *"let brightness go from -100 to 300, keeping current 0 to 100
+as is"*.
+
+**Scope.** The Picco APP and simulator only. The device's Brightness row stays
+0..100: it is a PWM duty on a real lamp, which has nothing past either end.
+
+**Storage.** A settings byte cannot hold -100..300, so the app build stores the
+step: shown = -100 + 5 x stored, 0..80, default 32 (= 60). Firmware:
+`CrossPointSettings.h` (the default, `#if FREEINK_DEVICE_PICCO &&
+defined(SIMULATOR)`), `SettingsList.h` (`{0, 80, 1}` + `withShown(-100, 5)`
+under `#ifdef SIMULATOR`), `SettingInfo::shown()` (simulator builds carry the
+two fields; the device gets a constexpr identity, so its SettingInfo copies do
+not grow), used by the row text (`SettingRowUi.h valueText`) and the web
+settings API (GET in shown units; POST accepts only a value the row can show).
+Simulator: `FrontlitLight.h brightnessFromStored`, decoded in
+`HalFrontlight.cpp publish()`; the X4 Pro byte is still a percent.
+
+**The page.**
+- 0..100: unchanged. Measured: all 3,528 (tube x brightness x warmth, by 5)
+  pages, both pairs, tail, trail and bloom, byte-identical against the header
+  before the change (a dump built twice, `cmp`).
+- Above 100: the 60..100 slope continues (`rampFor`). At 300 the beam is 3.4x
+  the frozen trace (channels clip, the overdriven whitening), the ink depth
+  4.6, the afterglow sqrt(3.4) = 1.84x as long. Bloom stays capped at
+  `scanlines::kBloomMax`. Still over 7:1 everywhere (tested).
+- Below 0: the only settings that break the 7:1 floor, because the owner asked
+  for less than the floor's 0. The mark fades toward the page in linear light
+  (`fadeToContrast`, bisected) so that contrast falls log-evenly from 7:1 at 0
+  to **1.5:1 at -100**, the same ratio on both pages at every step; beam,
+  bloom and afterglow fade with the trace.
+- **Rejected: fading to nothing at -100.** Built first and captured: the page
+  went blank, and Settings is drawn on the same page, so the row that brings
+  the text back would be unreadable. Also rejected: a linear-light fraction
+  (1 at 0 to 0.1 at -100), which left the light page at 1.09:1 against the
+  dark page's 1.6:1 at -100, because a small linear difference on a bright
+  sheet is little contrast.
+
+**Proof.** `tests/frontlit_page_test.cpp` section 6 (decode; every step below 0
+dims both pages and moves only the mark; -100 is 1.5 +/- 0.05:1 on both pages
+for every tube and warmth; above 100 the beam rises, the ink deepens, 7:1
+holds, bloom capped). Desktop `simulator_picco` captures at -100, -50, 0, 60,
+100, 200, 300, dark and light, Warmth 50 (card settings.json
+`frontlightBrightness` = the stored step, `CROSSPOINT_SIM_AS_SHIPPED=1`,
+screenshot at 3600 ms). Not captured: the Settings row's text reading "-100"
+(the one `valueText` line), and the app on the phone, UNCONFIRMED.

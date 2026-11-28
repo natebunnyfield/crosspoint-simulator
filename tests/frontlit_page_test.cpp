@@ -24,6 +24,9 @@
 //      Mixed tube whatever the row says; every tube clears 7:1 over the whole
 //      grid; the light page does not follow the tube; Warmth tilts each tube
 //      toward the warm guns, whose P38 brings its 1095 ms afterglow.
+//   6. THE APP'S -100..300 (owner 2026-11-27). 0..100 is untouched (the
+//      checks above); below 0 each step dims both pages, to 1.5:1 at -100;
+//      above 100 the beam keeps rising and the ink deepening, still over 7:1.
 //
 //   c++ -std=c++17 -Isrc -Iios tests/frontlit_page_test.cpp -o
 //   /tmp/frontlit_page_test
@@ -215,6 +218,64 @@ int main() {
         check(false, "Mixed is the four-gun tube" + at(b, w));
     }
 
+  // 6. THE APP'S WIDER BRIGHTNESS (owner 2026-11-27: "let brightness go from
+  //    -100 to 300, keeping current 0 to 100 as is"). The byte the firmware
+  //    stores is the step: 0 -> -100, 32 -> 60 (its default), 80 -> 300
+  //    (crosspoint-reader src/SettingsList.h withShown(-100, 5), {0, 80, 1}).
+  check(brightnessFromStored(0) == -100 && brightnessFromStored(32) == 60 &&
+            brightnessFromStored(80) == 300 && brightnessFromStored(200) == 300 &&
+            brightnessFromStored(-3) == -100 && kMaxStoredBrightness == 80,
+        "stored step decodes as the firmware's row shows it");
+  double worstAt100Down = 0.0;
+  for (int tube = 0; tube < kTubeCount; tube++)
+    for (int w = 0; w <= kMax; w += 25) {
+      const std::string name = " tube " + std::to_string(tube);
+      // Below 0: contrast falls every step, from the floor toward 1:1.
+      double prevL = 1e9, prevD = 1e9;
+      for (int b = 0; b >= kMinBrightness; b -= 5) {
+        const Light l{b, w, true, tube};
+        const panelpalette::Palette lp = lightPair(l);
+        const Dark d = darkPage(l);
+        const double cl = lightink::contrastRatio(lp.ink, lp.paper);
+        const double cd = lightink::contrastRatio(d.mix.dark.ink, d.mix.dark.paper);
+        if (b < 0 && !(cl < prevL && cd < prevD))
+          check(false, "below 0 every step dims both pages" + name + at(b, w));
+        if (!same(lp.paper, lightPair(Light{0, w, true, tube}).paper) ||
+            !same(d.mix.dark.paper, darkPage(Light{0, w, true, tube}).mix.dark.paper))
+          check(false, "below 0 only the mark moves, not the sheet or glass" +
+                           name + at(b, w));
+        prevL = cl;
+        prevD = cd;
+      }
+      const Light bottom{kMinBrightness, w, true, tube};
+      const double cl = lightink::contrastRatio(lightPair(bottom).ink, lightPair(bottom).paper);
+      const Dark db = darkPage(bottom);
+      const double cd = lightink::contrastRatio(db.mix.dark.ink, db.mix.dark.paper);
+      worstAt100Down = std::max(worstAt100Down, std::max(cl, cd));
+      check(std::fabs(cl - kUnderFloorContrast) < 0.05 && std::fabs(cd - kUnderFloorContrast) < 0.05,
+            "-100 is 1.5:1 on both pages, faint but not gone (Settings is on this page too)" + name +
+                at(-100, w));
+      check(db.beam > 0.0 && db.beam < 1.0, "-100 dims the beam" + name);
+      // Above 100: the beam and ink keep rising; nothing falls below the floor.
+      double prevBeam = darkPage(Light{100, w, true, tube}).beam;
+      double prevLum = lum(lightPair(Light{100, w, true, tube}).ink);
+      for (int b = 105; b <= kMaxBrightness; b += 5) {
+        const Light l{b, w, true, tube};
+        const Dark d = darkPage(l);
+        const panelpalette::Palette lp = lightPair(l);
+        if (!(d.beam > prevBeam)) check(false, "above 100 the beam rises" + name + at(b, w));
+        if (!(lum(lp.ink) <= prevLum)) check(false, "above 100 the ink deepens" + name + at(b, w));
+        if (lightink::contrastRatio(d.mix.dark.ink, d.mix.dark.paper) < lightink::kContrastFloor ||
+            lightContrast(lp.ink, lp.paper) < lightink::kContrastFloor)
+          check(false, "above 100 still clears 7:1" + name + at(b, w));
+        if (bloomPercent(l, 400) > scanlines::kBloomMax)
+          check(false, "bloom stays capped" + name + at(b, w));
+        prevBeam = d.beam;
+        prevLum = lum(lp.ink);
+      }
+    }
+
+  std::printf("at -100 the clearest page is %.2f:1\n", worstAt100Down);
   if (testcheck::g_failures) {
     std::printf("%d failure(s)\n", testcheck::g_failures);
     return 1;

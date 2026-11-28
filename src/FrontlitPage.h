@@ -74,6 +74,11 @@
 namespace frontlitpage {
 
 inline int clampPct(int v) { return v < 0 ? 0 : (v > kMax ? kMax : v); }
+// Brightness has its own range, -100..300 (FrontlitLight.h); Warmth keeps 0..100.
+inline int clampBrightness(int v) {
+  return v < kMinBrightness ? kMinBrightness
+                            : (v > kMaxBrightness ? kMaxBrightness : v);
+}
 inline int clampTube(int t) {
   return t < 0 || t >= kTubeCount ? kTubeMixed : t;
 }
@@ -81,7 +86,7 @@ inline int clampTube(int t) {
 // The LAMP at rest: off, or on at the defaults. The light page is the frozen
 // sheet then, whatever the tube, because the tube is the dark page's alone.
 inline bool lampAtRest(const Light &l) {
-  return !l.on || (clampPct(l.brightness) == kDefaultBrightness &&
+  return !l.on || (clampBrightness(l.brightness) == kDefaultBrightness &&
                    clampPct(l.warmth) == kDefaultWarmth);
 }
 
@@ -187,13 +192,54 @@ inline double floorInkDepth(const unsigned char paper[3]) {
   return 1.0;
 }
 
-// Three points, linear between: 0 -> floor, 60 -> 1 (frozen), 100 -> max.
+// Three points, linear between: 0 -> floor, 60 -> 1 (frozen), 100 -> max, and
+// on past 100 at the same slope (300 -> 1 + 6 x (max - 1)). Below 0 the ramp
+// stays at the floor: what goes under it is underFloor()'s, a fade toward the
+// page itself rather than a smaller multiple.
 inline double rampFor(const Light &l, double floor, double max) {
-  const int b = clampPct(l.brightness);
+  const int b = clampBrightness(l.brightness);
   if (b >= kDefaultBrightness)
     return 1.0 + (max - 1.0) * (b - kDefaultBrightness) /
                      static_cast<double>(kMax - kDefaultBrightness);
+  if (b <= 0) return floor;
   return floor + (1.0 - floor) * b / static_cast<double>(kDefaultBrightness);
+}
+
+// BELOW 0 (the app's -100..-5): the mark fades toward the page, the ink into
+// the sheet and the trace into the glass, so that contrast falls evenly on a
+// log scale from the 7:1 floor at 0 to kUnderFloorContrast at -100, the same
+// ratio on both pages at every step. The only settings that break the 7:1
+// floor, and only because the owner asked for a Brightness below the floor's
+// 0. Not to nothing: Settings is drawn on this same page, so a -100 that
+// erased the text would leave the row that brings it back unreadable.
+inline constexpr double kUnderFloorContrast = 1.5;
+inline double underFloorContrast(const Light &l) {
+  const int b = clampBrightness(l.brightness);
+  if (b >= 0) return 0.0;  // not under the floor
+  const double s = static_cast<double>(b) / kMinBrightness;  // 0..1
+  return std::exp(std::log(lightink::kContrastFloor) * (1.0 - s) +
+                  std::log(kUnderFloorContrast) * s);
+}
+
+// a toward b by t in linear light (t = 1 is a, t = 0 is b).
+inline void mixToward(const unsigned char a[3], const unsigned char b[3],
+                      double t, unsigned char out[3]) {
+  for (int c = 0; c < 3; c++) out[c] = enc(lin(b[c]) + (lin(a[c]) - lin(b[c])) * t);
+}
+
+// How much of `mark` (mixed toward `page` in linear light) leaves contrast
+// `target`; writes that mix. Contrast only rises with the share, so bisect.
+inline double fadeToContrast(const unsigned char mark[3],
+                             const unsigned char page[3], double target,
+                             unsigned char out[3]) {
+  double lo = 0.0, hi = 1.0;
+  for (int i = 0; i < 30; i++) {
+    const double mid = 0.5 * (lo + hi);
+    mixToward(mark, page, mid, out);
+    (lightink::contrastRatio(out, page) < target ? lo : hi) = mid;
+  }
+  mixToward(mark, page, hi, out);
+  return hi;
 }
 
 // The iOS harness asks for both pages several times per frame (the palette,
@@ -202,7 +248,8 @@ inline double rampFor(const Light &l, double floor, double max) {
 // firmware loop, the iOS polls and the desktop's change hook share it);
 // thread_local keeps the answer consistent if that ever changes.
 inline bool sameLight(const Light &a, const Light &b) {
-  return a.on == b.on && clampPct(a.brightness) == clampPct(b.brightness) &&
+  return a.on == b.on &&
+         clampBrightness(a.brightness) == clampBrightness(b.brightness) &&
          clampPct(a.warmth) == clampPct(b.warmth) &&
          clampTube(a.tube) == clampTube(b.tube);
 }
@@ -218,6 +265,10 @@ inline panelpalette::Palette computeLightPair(const Light &l) {
          d < kInkDepthMax) {
     d += 0.005;
     inkAtDepth(d, out.ink);
+  }
+  if (const double c = underFloorContrast(l); c > 0.0) {
+    const unsigned char atFloor[3] = {out.ink[0], out.ink[1], out.ink[2]};
+    fadeToContrast(atFloor, out.paper, c, out.ink);
   }
   return out;
 }
@@ -346,6 +397,13 @@ inline Dark beamOver(const phosphormix::Result &mix, const Light &l) {
          k < kBeamMax) {
     k += 0.005;
     scaleEmission(base.ink, k, d.mix.dark.ink);
+  }
+  // Under the floor (Brightness below 0) the trace fades into the glass, and
+  // the beam, the bloom and the afterglow fade with it.
+  if (const double c = underFloorContrast(l); c > 0.0) {
+    const unsigned char atFloor[3] = {d.mix.dark.ink[0], d.mix.dark.ink[1],
+                                      d.mix.dark.ink[2]};
+    k *= fadeToContrast(atFloor, base.paper, c, d.mix.dark.ink);
   }
   d.beam = k;
   // The afterglow is the same emission dying: its tint dims and brightens with

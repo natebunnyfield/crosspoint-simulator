@@ -24,7 +24,11 @@ std::atomic<simfrontlight::ChangedHook> g_hook{nullptr};
 void publish(uint8_t brightness, uint8_t warmth, bool on, uint8_t tube) {
   if (!BoardConfig::isPicco()) return;
   // All four exchanges run, whichever changed.
-  bool changed = g_brightness.exchange(brightness) != brightness;
+  // The Picco app's byte is the Brightness STEP, not a percent
+  // (FrontlitLight.h brightnessFromStored); the page model takes the shown
+  // value.
+  const int shown = frontlitpage::brightnessFromStored(brightness);
+  bool changed = g_brightness.exchange(shown) != shown;
   if (g_warmth.exchange(warmth) != warmth) changed = true;
   if (g_on.exchange(on) != on) changed = true;
   if (g_tube.exchange(tube) != tube)
@@ -53,16 +57,26 @@ HalFrontlight &HalFrontlight::getInstance() {
   return instance;
 }
 
+// The Picco's byte is the stored Brightness step (0..80, FrontlitLight.h); the
+// X4 Pro's is still a percent.
+static uint8_t clampBrightnessByte(uint8_t b) {
+  const int top = BoardConfig::isPicco() ? frontlitpage::kMaxStoredBrightness : 100;
+  return static_cast<uint8_t>(std::min<int>(b, top));
+}
+
 void HalFrontlight::begin(uint8_t brightness, uint8_t warmth, bool on) {
   if (!present())
     return;
-  lastBrightness = std::min<uint8_t>(brightness, 100);
+  lastBrightness = clampBrightnessByte(brightness);
   lastWarmth = std::min<uint8_t>(warmth, 100);
   lit = on;
   std::cerr << "[SIM] " << (BoardConfig::isPicco() ? "Picco" : "X4 Pro")
             << " frontlight: " << (lit ? "on" : "off")
-            << ", brightness=" << static_cast<unsigned>(lastBrightness)
-            << "%, warmth=" << static_cast<unsigned>(lastWarmth) << "%"
+            << ", brightness="
+            << (BoardConfig::isPicco()
+                    ? frontlitpage::brightnessFromStored(lastBrightness)
+                    : static_cast<int>(lastBrightness))
+            << ", warmth=" << static_cast<unsigned>(lastWarmth) << "%"
             << std::endl;
   publish(lastBrightness, lastWarmth, lit, lastTube);
 }
@@ -74,7 +88,7 @@ bool HalFrontlight::present() const {
 bool HalFrontlight::hasColorTemperature() const { return present(); }
 
 void HalFrontlight::setBrightness(uint8_t percent) {
-  lastBrightness = std::min<uint8_t>(percent, 100);
+  lastBrightness = clampBrightnessByte(percent);
   publish(lastBrightness, lastWarmth, lit, lastTube);
 }
 
