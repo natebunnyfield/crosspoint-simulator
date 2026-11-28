@@ -868,9 +868,12 @@ run glass_capture \
 # WHICH LAYER OF THE TRAIL A DEPOSIT GOES INTO, AND THE COLOR EACH LAYER IS
 # DRAWN (R-38, owner ruling 2026-11-27 "Fix it"). One accumulator recolored by
 # the NEWEST deposit's age turned every older ghost back from the tail tint to
-# the ink on each new deposit, about threefold brighter on the shipped mix. The
-# burst cases fail against that single-accumulator decision; the isolated-fade
-# case pins that a lone fade is unchanged on both blend paths.
+# the ink on each new deposit, about threefold brighter on the shipped mix. Runs
+# over EVERY tailed phosphor (P7, P14, P17 and the shipped mix), whose tails
+# can be brighter than the ink in a channel, on both blend paths: no deposit
+# brighter than its source, no ghost above its own ramp, none brightened by a
+# deposit, and the ADD fallback never above the single accumulator's cap. An
+# independent review's three defects in the first version fail it.
 run trail_layers \
   c++ -std=c++17 -Isrc -Itests -o "$OUT/trail_layers" tests/trail_layers_test.cpp
 

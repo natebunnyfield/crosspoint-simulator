@@ -1,43 +1,47 @@
 #pragma once
-// WHICH LAYER OF THE TRAIL A DEPOSIT GOES INTO, AND WHAT COLOR EACH LAYER IS
-// DRAWN -- the decision half of the phosphor trail's two accumulators. Pure, so
-// tests/trail_layers_test.cpp can drive it; HalDisplay.cpp owns the textures.
+// THE PHOSPHOR TRAIL'S TWO LAYERS, AND THE COLOR EACH IS DRAWN -- the decision
+// half. Pure, so tests/trail_layers_test.cpp can drive it; HalDisplay.cpp owns
+// the textures.
 //
 // R-38 (owner report 2026-11-27, ruled "Fix it"): a cascade phosphor's trail
-// changes color as it dies, from the ink toward the tail tint. The trail was
-// ONE accumulator recolored by ONE multiply, timed by the age of the NEWEST
-// deposit. A new deposit reset that age to zero, so every older ghost still in
-// the buffer jumped from the dim tail tint back to the full ink color. On the
-// shipped mix (cfd4cc ink, 613b27 tail, 400 ms onset) a ghost brightened about
-// threefold at every key press while it should have been fading.
+// changes color as it dies, from the ink toward the tail tint, along a ramp
+// t(age) = age / rampMs. The trail was ONE accumulator recolored by ONE
+// multiply timed by the age of the NEWEST deposit, so every deposit reset the
+// color of every older ghost to the ink: on the shipped mix (cfd4cc ink, 613b27
+// tail, 400 ms onset) about threefold brighter at every key press.
 //
-// THE FIX IS TWO LAYERS, each drawn at its own point on the ramp:
-//   * YOUNG holds light still handing over from ink to tail, all of it on ONE
-//     clock (youngAtMs). It is drawn at rampT(its age).
-//   * SETTLED holds light whose handover is complete. It is drawn at the tail
-//     (t = 1), which is exact for everything in it, whatever its age.
-// Young light moves into settled the moment its ramp ends, where both layers
-// draw the same color, so the move is invisible.
+// THE MODEL NOW. Light deposited `a` ms ago is drawn, per channel, at
+//   intensity(a) * m(t(a)),   m(t) = (1 - t) * ink + t * tail.
+// A layer holding light of several ages cannot draw each at its own t. So a
+// layer is drawn at the per-channel MINIMUM of m over the span of t its light
+// covers (m is linear in t, so that is the smaller of its two ends). Nothing is
+// ever drawn brighter than its own ramp says, in any channel, whether that
+// channel falls toward the tail (the shipped mix, all three) or rises toward
+// it (P7's green, P14's red, P17's red and green, and an independent review
+// found both of the first version's shortcuts brightened those).
 //
-// THE ONE APPROXIMATION is a deposit that lands while the young layer is still
-// mid-ramp: two clocks would need three layers (settled, the young light, the
-// new light). With two, one of them is misplaced on the ramp, and the choice is
-// made so that NOTHING ALREADY ON THE GLASS EVER MOVES BACKWARD:
-//   * IntoYoung: the new light joins the young layer and starts at its t. The
-//     ghosts already there do not change at all; the new ghost starts that far
-//     along the ramp, never further back.
-//   * SettleThenNewYoung: the young light moves to settled early (its t jumps
-//     FORWARD to 1, toward the tail) and the new light starts a fresh young
-//     layer at t = 0, exactly.
-// Whichever misplaces light by less on the ramp is taken, so the error is at
-// most half the ramp, and only in that window. A deposit landing after the
-// young layer's ramp has ended (400 ms on the shipped mix), and every isolated
-// fade, is exact. Neither choice ever raises a ghost's level or moves its tint
-// back toward the ink, which is the owner's report.
+//   * SETTLED (accumTexture) is the trail exactly as it always was: EVERY
+//     deposit goes into it, so its intensity is the single accumulator's, cap
+//     and all, on both blend paths. Its span runs from the first deposit since
+//     the trail was last dead to the newest.
+//   * YOUNG (youngTexture) holds only recent light, so that light gets a span
+//     of its own. It exists only with a tail, and only once a deposit lands
+//     while older light is still visible -- an isolated fade never makes one,
+//     and is drawn exactly as before at exactly the old cost.
 //
-// WITHOUT A TAIL there is one color for the whole trail, so the young layer is
-// never used: every deposit goes into settled, and the trail is exactly the
-// single accumulator it always was.
+// Composited, a pixel shows MAX(settled, young) on Metal and settled plus the
+// young layer's EXCESS over settled's color on the ADD fallback (SDL's software
+// renderer), because there the layers would otherwise add the same light twice.
+// Either way no pixel is brighter than the single accumulator drew it, no
+// deposit is brighter than the frame it came from (its own t is 0, so every
+// span holding it ends at the ink), and no event -- a deposit, the young layer
+// starting over or being dropped -- raises any channel of any light already on
+// the glass: each only lowers a span's lower end or removes a layer whose
+// light settled draws the same.
+//
+// What this costs in accuracy: light sharing a span with younger light is drawn
+// toward the YOUNGER end in a channel that rises along the ramp, and toward the
+// OLDER end in one that falls. Always darker than exact, never brighter.
 #include <cstdint>
 
 namespace traillayers {
@@ -70,7 +74,7 @@ inline float rampT(float ageMs, const Ramp &r) {
   return t;
 }
 
-// The color multiply for a layer at ramp position t: the live ink, LERPed
+// The color multiply for light at ramp position t: the live ink, LERPed
 // toward the tail. With no tail it is the ink whatever t is. Rounded as the
 // draw always rounded it.
 inline void tintMod(const uint8_t ink[3], uint32_t tail, float t,
@@ -86,78 +90,98 @@ inline void tintMod(const uint8_t ink[3], uint32_t tail, float t,
   }
 }
 
+// The color multiply for a layer whose light was deposited between oldestMs
+// and newestMs: per channel the smaller end of the ramp over that span, so no
+// light in it is drawn brighter than its own ramp. A one-deposit span is exact.
+inline void spanMod(const uint8_t ink[3], uint32_t tail, const Ramp &r,
+                    uint64_t nowMs, uint64_t oldestMs, uint64_t newestMs,
+                    uint8_t out[3]) {
+  uint8_t older[3], newer[3];
+  tintMod(ink, tail, rampT(static_cast<float>(nowMs - oldestMs), r), older);
+  tintMod(ink, tail, rampT(static_cast<float>(nowMs - newestMs), r), newer);
+  for (int c = 0; c < 3; c++)
+    out[c] = older[c] < newer[c] ? older[c] : newer[c];
+}
+
+// What the young layer is composited with. On MAXIMUM, its own multiply: the
+// brighter of the two layers wins per channel. On the ADD fallback the young
+// layer's light is ALSO in settled, so only its excess over settled's multiply
+// is added -- settled * mS + young * (mY - mS) is young * mY where only young
+// light is, and never more than settled * max(mS, mY) anywhere.
+inline void youngCompositeMod(const uint8_t modYoung[3],
+                              const uint8_t modSettled[3], bool maxBlend,
+                              uint8_t out[3]) {
+  for (int c = 0; c < 3; c++)
+    out[c] = maxBlend ? modYoung[c]
+             : modYoung[c] > modSettled[c]
+                 ? static_cast<uint8_t>(modYoung[c] - modSettled[c])
+                 : 0;
+}
+
 struct State {
-  bool youngLive = false; // the young layer holds light
-  uint64_t youngAtMs = 0; // the young layer's clock: its oldest light's deposit
-  bool settledLive = false; // the settled layer may hold visible light
-  uint64_t newestAtMs = 0;  // the newest deposit, either layer
+  bool settledLive = false;     // the trail is live: settled holds light
+  uint64_t settledOldestMs = 0; // first deposit since the trail was last dead
+  uint64_t settledNewestMs = 0; // newest deposit
+  bool youngLive = false;       // the young layer holds light
+  uint64_t youngOldestMs = 0;   // the young layer's span
+  uint64_t youngNewestMs = 0;
 };
 
 enum class Deposit : uint8_t {
-  IntoSettled, // no tail: one layer, as it always was
-  NewYoung,    // the young layer was empty: a fresh one, exact
-  IntoYoung,   // join the mid-ramp young layer (new light starts at its t)
-  SettleThenNewYoung, // young -> settled first (its t jumps forward), then
-                      // fresh
+  SettledOnly, // no tail, or nothing older is visible: settled alone is exact
+  NewYoung,    // the young layer starts over with this deposit alone
+  IntoYoung,   // this deposit joins the young layer's span
 };
 
-inline float youngT(const State &s, uint64_t nowMs, const Ramp &r) {
-  return rampT(static_cast<float>(nowMs - s.youngAtMs), r);
-}
-
-// Settled light is past its handover, so it is drawn at the tail. With no tail
-// tintMod ignores t.
-inline float settledT(const State &, uint64_t, const Ramp &) { return 1.0f; }
-
-// The young layer's light has finished handing over (or the tail went away,
-// and both layers are one color): move it into settled now. Same color in both
-// layers at that moment, so nothing on the glass changes.
-inline bool settleDue(const State &s, uint64_t nowMs, const Ramp &r) {
+// The young layer has nothing left to add: its span has reached settled's
+// older end, so settled draws its light the same (or the tail went away).
+inline bool dropYoungDue(const State &s, uint64_t nowMs, const Ramp &r) {
   if (!s.youngLive)
     return false;
   if (!r.hasTail)
     return true;
-  return youngT(s, nowMs, r) >= 1.0f;
+  return rampT(static_cast<float>(nowMs - s.youngOldestMs), r) >=
+         rampT(static_cast<float>(nowMs - s.settledOldestMs), r);
 }
 
 inline Deposit planDeposit(const State &s, uint64_t nowMs, const Ramp &r) {
-  if (!r.hasTail)
-    return Deposit::IntoSettled;
+  if (!r.hasTail || !s.settledLive)
+    return Deposit::SettledOnly;
   if (!s.youngLive)
     return Deposit::NewYoung;
-  const float t = youngT(s, nowMs, r);
-  if (t >= 1.0f)
-    return Deposit::SettleThenNewYoung;
-  // IntoYoung misplaces the NEW light by t (it starts that far along the ramp);
-  // settling misplaces the YOUNG light by 1 - t (it jumps to the tail). Take
-  // the smaller; both move light forward only.
-  return t < 1.0f - t ? Deposit::IntoYoung : Deposit::SettleThenNewYoung;
-}
-
-inline void applySettle(State &s) {
-  s.youngLive = false;
-  s.settledLive = true;
+  // Joining moves the young layer's light already there toward the new end of
+  // its span; starting over leaves that light to settled's wider span. Take
+  // whichever moves it less along the ramp. Both only ever darken.
+  const float tYoung = rampT(static_cast<float>(nowMs - s.youngOldestMs), r);
+  const float tSettled =
+      rampT(static_cast<float>(nowMs - s.settledOldestMs), r);
+  return tYoung < tSettled - tYoung ? Deposit::IntoYoung : Deposit::NewYoung;
 }
 
 inline void applyDeposit(State &s, Deposit d, uint64_t nowMs) {
-  switch (d) {
-  case Deposit::IntoSettled:
+  if (!s.settledLive) {
     s.settledLive = true;
-    break;
-  case Deposit::SettleThenNewYoung:
-    applySettle(s);
-    s.youngLive = true;
-    s.youngAtMs = nowMs;
+    s.settledOldestMs = nowMs;
+  }
+  s.settledNewestMs = nowMs;
+  switch (d) {
+  case Deposit::SettledOnly:
     break;
   case Deposit::NewYoung:
     s.youngLive = true;
-    s.youngAtMs = nowMs;
+    s.youngOldestMs = nowMs;
+    s.youngNewestMs = nowMs;
     break;
   case Deposit::IntoYoung:
-    // The young clock stays: the light already there must not move back.
+    s.youngNewestMs = nowMs;
     break;
   }
-  s.newestAtMs = nowMs;
 }
+
+inline void applyDropYoung(State &s) { s.youngLive = false; }
+
+// The trail has died (nothing it holds can move a pixel): the next deposit
+// starts both spans afresh.
+inline void applyTrailDead(State &s) { s = State{}; }
 
 } // namespace traillayers
