@@ -865,6 +865,15 @@ run speed_read \
 run glass_capture \
   c++ -std=c++17 -Isrc -Itests -o "$OUT/glass_capture" tests/glass_capture_test.cpp
 
+# WHICH LAYER OF THE TRAIL A DEPOSIT GOES INTO, AND THE COLOR EACH LAYER IS
+# DRAWN (R-38, owner ruling 2026-11-27 "Fix it"). One accumulator recolored by
+# the NEWEST deposit's age turned every older ghost back from the tail tint to
+# the ink on each new deposit, about threefold brighter on the shipped mix. The
+# burst cases fail against that single-accumulator decision; the isolated-fade
+# case pins that a lone fade is unchanged on both blend paths.
+run trail_layers \
+  c++ -std=c++17 -Isrc -Itests -o "$OUT/trail_layers" tests/trail_layers_test.cpp
+
 # THE DIAL TABLE, and the divergence nothing could catch before it. Adding one
 # surface effect used to touch nine plumbing sites, three of which were parallel
 # lists of the same values kept in sync by hand -- and on 2026-08-23 two of them
