@@ -655,3 +655,112 @@ run.
   scancode map and the text-entry arrow keys (`src/HalGPIO.cpp` ~727), so a
   hardware keyboard's Left/Right arrows are the side pair on a Picco build, and
   the `TAP_PAD` / script names `LEFT`/`RIGHT`.
+
+### 2026-11-28: the X3's Up/Down buttons on the Picco pad (setting, off by default)
+
+Owner, asking "where is up down button group in picco app?", then verbatim:
+*"just match x3 app and make it an ios app setting (default off)"*.
+
+**What it is.** Settings > **Buttons** > **Up/Down Buttons** (Picco page only,
+straight after Zen, ships OFF; injected by `tools/gen_picco_settings_plist.py`,
+the X3 `Root.plist` unchanged). On, the Picco pad shows the X3 pad's Up|Down
+pair in the X3 pad's own place for it -- the row the rocker vacated when it
+moved up into the arrows' slot -- in every layout the X3 has one. It presses
+the X3 side pair (`HalGPIO::BTN_HOST_SIDE_UP` / `_DOWN`, slots 2/3), so a tap
+steps the font size and a hold the family in a book, and it is Up/Down
+elsewhere, exactly like the Up/Down gesture actions. Up is the LEFT half, as on
+the X3 pad (not the rocker's swapped halves). Hidden in zen with the rest of
+the pad.
+
+**Design.** `ios/CrossPointIOSShim.cpp` `layoutPad`, Picco block: the X3
+place is read from `layoutPadImpl`'s `kPadUp`/`kPadDown` rects BEFORE the
+rocker moves into the arrows' slot, and the pair goes on the two arrow slots
+the block retires (`kPadLeft`/`kPadRight`). Reusing them rather than growing
+`g_pad` keeps `kPadCount`, PadCore's slot count, `paintPad`'s pairs table
+(they already pair and paint as one capsule) and every loop over the pad as
+they are, and their buttons are already slots 2/3; in the Picco build their
+table entries are named `SIDE_UP`/`SIDE_DOWN`. Off, they stay zero rects:
+today's pad. The decision is pure in `ios/PiccoPad.h` (`sidePair`): off places
+nothing; a collision with POWER, the slide switch, the keyboard chip, Select or
+the rocker refuses the pair and names the control instead of moving anything
+(`[picco] up/down pair NOT placed: ...`); Up is the left rect.
+`tests/picco_pad_test.cpp` (failing first: it did not compile before the
+header existed). The setting is read live (`pollPiccoUpDown`, every frame,
+like `pollZenMode`); an edge releases any held pad slot, relays the pad out and
+presents.
+
+**Measured** (iOS Simulator, iPhone Air and iPad Air 11-inch, iOS 26.5, Debug;
+captures in the session scratchpad `updown/`, not kept in the repo):
+- Phone portrait, off vs on: the two glass captures differ in exactly 1186 px,
+  all inside the new capsule (x 728-1115, y 2411-2602); nothing else on the
+  glass moved. The pair sits at 728,2411 + 922,2411, 194x192 px each, the
+  bottom-right row, matching the X3 app's pair in the same place (compared
+  against an X3 build of 2026-10-11 already on a shared simulator).
+- iPad, off vs on (warm install): differ in exactly 604 px, all inside the pair
+  (1334,1556, 2 x 120x64), below the rocker in the right margin, the X3 tablet
+  pad's place.
+- Real UIKit taps (scratch XCUITest) in a book: Up, Up, Down -> three
+  repaginations, `fontSizeSlot` 3 -> 2 -> 1 -> 2 (saved 2); log `[picco]
+  finger ... at 825,2507 px: SIDE_UP`, `[harness] SIDE_UP down/up`.
+- Hold: a 1.2 s SDL finger on SIDE_UP stepped the family (Albo -> Almendra,
+  ~730 ms after the press).
+- Live: app running with it off, sent to the background, the pref flipped,
+  brought back: same process (pid 5732 before and after), `[picco] up/down
+  buttons on (setting)`, the pad relaid out and the pair placed.
+- `CROSSPOINT_SIM_TAP_PAD` and `CROSSPOINT_SIM_PAGE_FINGER` reach the pad but a
+  pad TAP they make does not reach the firmware: both push their events from the
+  per-frame hook, after `loop()`, so the press and release edges are wiped by
+  the next `beginFrame()` (the hatch's own comment says so); only a held level
+  survives. Real touches (XCUITest) are the proof of a tap.
+- Found, harmless: on each relayout one pass runs with a 960x1600 output (not
+  the 1260x2736 window); there the X3 place (470,1306..816,1474) overlaps the
+  slide switch (341,1378 149x96) by 20 px and the pair is refused for that pass,
+  logged. Every window-sized pass places it; no capture shows the refused pass.
+
+**Unverified:** the turned landscape (needs a book on a wide-table page; the
+same code path places the pair from `layoutTurnedLandscape`'s rects), device
+feel, and how the X3 pad of TODAY compares pixel for pixel (the X3 capture is
+an older build; the Picco pair's rects come from today's `layoutPadImpl`, the
+X3's own code).
+
+### 2026-11-28: "for picco, is the optical layout 1u of space above text and 2u below text?"
+
+Measured on the Picco app, iPhone Air (1260x2736 px, 3x; one unit = 24 pt =
+72 px, one circle = 32 pt = 96 px), light, English Fairy Tales spine 1 page
+17, a body page; Albo, size slot 3. Page (panel) 960x1600 px. Paper edges read
+down the page's centre line, text ink = rows with a pixel 70 levels darker than
+the paper (`measure.py`, scratchpad). Captures: scratchpad
+`updown/spacing/picco-zen-off-body.png`, `picco-zen-on-body.png`.
+
+| | zen OFF (S1/W2) | zen ON (C32) |
+|---|---|---|
+| paper top / bottom | 307 / 2123 | 294 / 2148 |
+| page top / bottom | 379 / 1979 | 382 / 1982 |
+| paper top -> page top | 72 px = **1.00 u** | 88 px = 0.92 circle |
+| page bottom -> paper bottom | 144 px = **2.00 u** | 166 px = 1.73 circle |
+| paper top -> first text ink | 95 px = 1.32 u | 111 px = 1.16 circles |
+| last text ink -> paper bottom | 179 px = 2.49 u | 201 px = 2.09 circles |
+| glass above paper / below paper | 307 / 613 px = 1 : 2.00 | 294 / 588 px = 1 : 2.00 |
+
+The pad's first row starts at y 2171 (zen off), 48 px below the paper.
+
+- **Zen off** follows S1 exactly: the paper is one unit above the PAGE and two
+  below it, and the glass bands are 1:2. S1 is defined on the page, not the
+  text, so the text has 1.32 u above and 2.49 u below.
+- **Zen on** follows C32 exactly as the code defines it: `[zen] circle 96px
+  ink=8.0/26.0 paper 294-2148` puts the paper one circle above and two below
+  the PUBLISHED text block (382 + 8 - 96 = 294; 1982 - 26 + 192 = 2148), the
+  2026-10-11 ruling (measured to the published insets, not to ink). Against
+  the actual ink it is 1.16 circles above and 2.09 below, because the first
+  line's ink starts 15 px below the published top inset (ink at 405, block top
+  at 390); at the bottom the ink ends 9 px inside the block. Whether the X3
+  shows the same 15 px was not measured here.
+- `[zen] ink insets (published): top=8.0px bottom=26.0px`, from
+  `[zen] published ink insets 8/26 fb-px`: source published.
+- **The mapping is right on the Picco.** `fbPortraitH = HalDisplay::activeWidth()`
+  assumes a landscape framebuffer whose WIDTH is the portrait height. The
+  Picco panel is 800x480 landscape-native (SSD1677), so at 2x
+  `activeWidth() = 1600` is the portrait page's height in framebuffer px, and
+  the presented page is 1600 px tall: factor 1.000, fb 8/26 -> device 8.0/26.0.
+  The transient 3.8/12.2 lines are passes with a 760 px presented height
+  (760/1600 = 0.475), consistent with the same mapping. Nothing to fix.

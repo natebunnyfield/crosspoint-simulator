@@ -52,6 +52,7 @@
 
 #include "CrossPointHarness.h"
 #include "GestureDevice.h"  // GestureBindings.h + kThisDevice
+#include "PiccoPad.h"
 #include "PadTopBand.h"
 #include "SleepTouch.h"
 #include "TapCandidate.h"
@@ -202,9 +203,19 @@ PadButton g_pad[] = {
     {HalGPIO::BTN_BACK, "BACK"},
     {HalGPIO::BTN_POWER, "POWER"},
     {HalGPIO::BTN_UP, "UP"},
+#if FREEINK_DEVICE_PICCO
+    // The Picco has no arrows; these two slots carry the X3's Up|Down pair
+    // when Settings > Buttons > Up/Down Buttons is on (layoutPad). Named here,
+    // not in layout, so CROSSPOINT_SIM_TAP_PAD (read on the first frame) and
+    // the logs say what they are from the start.
+    {HalGPIO::BTN_HOST_SIDE_UP, "SIDE_UP"},
+    {HalGPIO::BTN_CONFIRM, "CONFIRM"},
+    {HalGPIO::BTN_HOST_SIDE_DOWN, "SIDE_DOWN"},
+#else
     {HalGPIO::BTN_LEFT, "LEFT"},
     {HalGPIO::BTN_CONFIRM, "CONFIRM"},
     {HalGPIO::BTN_RIGHT, "RIGHT"},
+#endif
     {HalGPIO::BTN_DOWN, "DOWN"},
 };
 constexpr int kPadBack = 0, kPadPower = 1, kPadUp = 2, kPadLeft = 3,
@@ -228,6 +239,11 @@ SDL_FRect g_kbChip{};
 // Back left (the Picco has no Back key), half height like POWER, which reads
 // as the small control it is. Zero rect = not drawn, not hit.
 SDL_FRect g_slideSwitch{};
+// Settings > Buttons > Up/Down Buttons (owner 2026-11-27: "just match x3 app
+// and make it an ios app setting (default off)"), as last read by
+// pollPiccoUpDown(). layoutPad places the X3 pad's Up|Down pair on the two
+// retired arrow slots while it is on (ios/PiccoPad.h).
+bool g_piccoUpDown = false;
 #endif
 
 // THE PAGE-COLOR BUTTON IS GONE, 2026-08-24. Owner ruling: "remove the color
@@ -1048,6 +1064,9 @@ void layoutPad(int outW, int outH) {
   // turned landscape) puts the arrows' pair straight above the rocker's, so
   // this is the same move in all three; POWER and the keyboard chip stay
   // where they are, and the row the rocker leaves holds only them.
+  // Where the X3 pad puts its Up|Down pair in this layout, kept BEFORE the
+  // rocker moves into the arrows' slot: the optional pair below goes there.
+  const SDL_FRect x3Up = g_pad[kPadUp].rect, x3Down = g_pad[kPadDown].rect;
   if (g_pad[kPadLeft].rect.w > 0.0f && g_pad[kPadRight].rect.w > 0.0f) {
     g_pad[kPadUp].rect = g_pad[kPadLeft].rect;
     g_pad[kPadDown].rect = g_pad[kPadRight].rect;
@@ -1072,6 +1091,60 @@ void layoutPad(int outW, int outH) {
   // left is previous and right is next, as everywhere else on the screen.
   g_pad[kPadUp].button = HalGPIO::BTN_DOWN;    // left half: previous (Left)
   g_pad[kPadDown].button = HalGPIO::BTN_UP;    // right half: next (Right)
+  // THE X3'S UP|DOWN PAIR, on Settings > Buttons > Up/Down Buttons (owner
+  // 2026-11-27: "just match x3 app and make it an ios app setting (default
+  // off)"). The X3 pad's own place for it -- the row the rocker just left, in
+  // every layout that has one (phone portrait, tablet, the turned landscape) --
+  // on the two arrow slots retired above, which already pair and paint as one
+  // capsule (paintPad's pairs table) and whose buttons ARE slots 2 and 3, the
+  // side pair the app's firmware reads for Up/Down
+  // (HalGPIO::BTN_HOST_SIDE_UP/_DOWN). Reusing them rather than growing
+  // g_pad keeps kPadCount, PadCore's slot count, the pairs table and every
+  // loop over the pad as they are, and off leaves them zero rects: today's pad.
+  // Up is the LEFT half, as on the X3 pad, not the rocker's swapped halves.
+  // It never sits on another control: a collision places nothing and says so
+  // (ios/PiccoPad.h).
+  {
+    auto R = [](const SDL_FRect &f) { return piccopad::Rect{f.x, f.y, f.w, f.h}; };
+    const piccopad::Rect others[] = {R(g_pad[kPadPower].rect), R(g_slideSwitch),
+                                     R(g_kbChip), R(g_pad[kPadConfirm].rect),
+                                     R(g_pad[kPadUp].rect), R(g_pad[kPadDown].rect)};
+    static const char *const kOtherNames[] = {"POWER", "the slide switch",
+                                              "the keyboard chip", "Select",
+                                              "the rocker", "the rocker"};
+    const piccopad::Pair pair = piccopad::sidePair(
+        g_piccoUpDown, R(x3Up), R(x3Down), others,
+        static_cast<int>(sizeof(others) / sizeof(others[0])));
+    if (pair.placed) {
+      g_pad[kPadLeft].rect = {pair.up.x, pair.up.y, pair.up.w, pair.up.h};
+      g_pad[kPadRight].rect = {pair.down.x, pair.down.y, pair.down.w, pair.down.h};
+    }
+    // Logged once per change of outcome OR place: the pad moves after the
+    // first passes (the paper's spacing drops it), and a log of a superseded
+    // place is a wrong answer to "where is it".
+    static float s_lastLogged[5] = {-2.0f, 0, 0, 0, 0};
+    const float outcome[5] = {pair.placed ? 100.0f : static_cast<float>(pair.collidesWith),
+                              pair.up.x, pair.up.y, pair.down.x, pair.down.y};
+    if (g_piccoUpDown && !std::equal(outcome, outcome + 5, s_lastLogged)) {
+      std::copy(outcome, outcome + 5, s_lastLogged);
+      if (pair.placed)
+        SDL_Log("[picco] up/down pair at %.0f,%.0f %.0fx%.0f + %.0f,%.0f %.0fx%.0f px",
+                pair.up.x, pair.up.y, pair.up.w, pair.up.h, pair.down.x,
+                pair.down.y, pair.down.w, pair.down.h);
+      else if (pair.collidesWith >= 0)
+        SDL_Log("[picco] up/down pair NOT placed: the X3's place "
+                "%.0f,%.0f..%.0f,%.0f overlaps %s at %.0f,%.0f %.0fx%.0f "
+                "(window %dx%d)",
+                x3Up.x, x3Up.y, x3Down.x + x3Down.w, x3Down.y + x3Down.h,
+                kOtherNames[pair.collidesWith], others[pair.collidesWith].x,
+                others[pair.collidesWith].y, others[pair.collidesWith].w,
+                others[pair.collidesWith].h, outW, outH);
+      else
+        SDL_Log("[picco] up/down pair NOT placed: this layout has no X3 place");
+    } else if (!g_piccoUpDown) {
+      s_lastLogged[0] = -2.0f;
+    }
+  }
 #endif
 }
 static void layoutPadImpl(int outW, int outH) {
@@ -2365,6 +2438,29 @@ void pollReaderInsets() {
 // so a gesture toggle left the row wrong from that moment on, and the next
 // visit to Settings.app could silently revert a toggle the reader had
 // already made.
+#if FREEINK_DEVICE_PICCO
+// THE PICCO'S UP/DOWN BUTTONS SETTING, read live like every Settings.app row:
+// Settings.app is a separate process, so a toggle arrives while the app is
+// backgrounded with no notification, and lands on the first frame back. An
+// edge relays the pad out and presents, because an e-ink firmware may not
+// render for minutes. Any press held on the pair is released first, so a
+// slot that disappears cannot stay down.
+void pollPiccoUpDown() {
+  static int s_last = -1;
+  const int want = CrossPointPrefs_piccoUpDownButtons() != 0 ? 1 : 0;
+  if (want == s_last) return;
+  const bool first = s_last < 0;
+  s_last = want;
+  g_piccoUpDown = want != 0;
+  SDL_Log("[picco] up/down buttons %s (%s)", want ? "on" : "off",
+          first ? "seed" : "setting");
+  if (first) return;
+  applyActions(g_core.reset());
+  g_padLaidOut = false;
+  SimulatorOverlay::requestPresent();
+}
+#endif
+
 void pollZenMode() {
 #if FREEINK_DEVICE_PICCO
   // The Picco app reads the pref like the X3 (2026-11-27). Its Settings page
@@ -5488,6 +5584,9 @@ void CrossPointHarness_perFrame() {
   pollEinkMode();
   pollSpeedRead();
   pollReaderInsets();
+#if FREEINK_DEVICE_PICCO
+  pollPiccoUpDown();
+#endif
   pollZenMode();
   // AFTER pollZenMode, which may change g_zen from Settings this frame; the
   // goal's clock reads it in this same frame's present (adversarial review:

@@ -277,6 +277,16 @@ run_direct gesture_plist \
 run_direct picco_settings_plist \
   python3 tests/picco_settings_plist_test.py
 
+# ios/PiccoPad.h -- the Picco pad's optional Up/Down pair (Settings > Buttons >
+# Up/Down Buttons, 2026-11-27, owner: "just match x3 app and make it an ios app
+# setting (default off)"). Pure, so the three silent failure modes are pinned
+# here: OFF places nothing (today's pad pixel for pixel); the pair NEVER sits
+# on POWER, the slide switch, the keyboard chip, Select or the rocker -- a
+# collision refuses it and names the control instead of moving anything; and
+# Up is the LEFT half, as on the X3 pad, not the Picco rocker's swapped halves.
+run picco_pad \
+  c++ -std=c++17 -Wall -Wextra -Iios -o "$OUT/picco_pad" tests/picco_pad_test.cpp
+
 # VolumePageTurn.h -- the hardware volume rocker as the firmware's page rocker
 # (owner 2026-09-05, Settings.app toggle, OFF by default). The phone half is
 # AVAudioSession.outputVolume by KVO with the level written back through a

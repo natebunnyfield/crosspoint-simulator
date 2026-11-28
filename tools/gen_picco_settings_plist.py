@@ -22,6 +22,10 @@ So the page is the X3 one, byte for byte, except:
             on the page", which is what it does here.
             The FooterText of the groups whose prose describes the X3 (Zen,
             the two gesture groups, the three zones).
+  Added     "Buttons > Up/Down Buttons", straight after Zen, shipping OFF
+            (owner 2026-11-27: "just match x3 app and make it an ios app
+            setting (default off)"): the X3 pad's Up|Down pair on the Picco
+            pad (ios/PiccoPad.h). The X3 page never has it.
 
 The X3 page is the input and is never written, so the X3 app cannot change
 through this script.
@@ -44,6 +48,25 @@ X3_INHERIT = "Use the Gestures setting"
 PICCO_INHERIT = "Same as on the page"
 
 NL = "\n"
+# Settings > Buttons > Up/Down Buttons, inserted after the Zen group.
+BUTTONS_GROUP = {
+    "Type": "PSGroupSpecifier",
+    "Title": "Buttons",
+    "FooterText": (
+        "Adds the X3's Up and Down buttons to the pad, in the place the X3 "
+        "app puts them, below the rocker. In a book a tap on Up makes the "
+        "text smaller and on Down bigger, and holding either one changes the "
+        "reading font; elsewhere they move up and down a screenful. Hidden in "
+        "zen, like the rest of the pad."
+    ),
+}
+UPDOWN_ROW = {
+    "Type": "PSToggleSwitchSpecifier",
+    "Title": "Up/Down Buttons",
+    "Key": "piccoUpDownButtons",
+    "DefaultValue": False,
+}
+
 FOOTER = {
     "Zen": (
         "Just the page: the button pad disappears and the page fills the "
@@ -101,10 +124,14 @@ def derive(src):
     out = dict(src)
     kept = []
     skipping = False
+    in_zen = False
     for spec in src["PreferenceSpecifiers"]:
         spec = dict(spec)
         if spec.get("Type") == "PSGroupSpecifier":
             title = spec.get("Title") or ""
+            if in_zen:  # the Zen group just ended: Buttons goes here
+                kept += [dict(BUTTONS_GROUP), dict(UPDOWN_ROW)]
+            in_zen = title == "Zen"
             skipping = title in DROP_GROUPS
             if title in FOOTER:
                 spec["FooterText"] = FOOTER[title]
@@ -140,6 +167,10 @@ def main(argv):
     survived = sorted(DROPPED_KEYS & set(keys))
     if survived:
         print(f"gen_picco_settings_plist: one-finger global rows survived: {survived}",
+              file=sys.stderr)
+        return 1
+    if keys.count("piccoUpDownButtons") != 1:
+        print("gen_picco_settings_plist: the Up/Down Buttons row is missing",
               file=sys.stderr)
         return 1
     if "zenModeEnabled" not in keys:

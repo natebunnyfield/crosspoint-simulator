@@ -99,6 +99,10 @@ int CrossPointPrefs_lastSeenSystemDark(void);
 // that. 0 when never set. Host-only, not a firmware setting.
 int CrossPointPrefs_piccoSlideSwitchOn(void);
 void CrossPointPrefs_setPiccoSlideSwitchOn(int on);
+// BOOX Picco builds: Settings > Buttons > Up/Down Buttons, 1 = show the X3
+// pad's Up|Down pair (ios/PiccoPad.h). A Root.plist row on the Picco page only
+// (tools/gen_picco_settings_plist.py), shipping off. Read live.
+int CrossPointPrefs_piccoUpDownButtons(void);
 void CrossPointPrefs_setLastSeenSystemDark(int dark);
 
 // Is read-aloud TTS enabled? 1 = read the open book aloud (see

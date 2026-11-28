@@ -43,6 +43,7 @@ static NSString *const kZenModeEnabled = @"zenModeEnabled";
 // would make -integerForKey: answer 0 for both.
 static NSString *const kLastSeenSystemDark = @"lastSeenSystemDark";
 static NSString *const kPiccoSlideSwitchOn = @"piccoSlideSwitchOn";
+static NSString *const kPiccoUpDownButtons = @"piccoUpDownButtons";
 
 // Read-aloud TTS. Here the missing-key failure mode is benign — NO means the
 // feature stays off, which is also the shipped default.
@@ -469,6 +470,15 @@ int CrossPointPrefs_piccoSlideSwitchOn(void) {
 
 void CrossPointPrefs_setPiccoSlideSwitchOn(int on) {
   [[NSUserDefaults standardUserDefaults] setBool:(on != 0) forKey:kPiccoSlideSwitchOn];
+}
+
+int CrossPointPrefs_piccoUpDownButtons(void) {
+  // A Settings.app row on the Picco page only, so not checkKnown'd here: the
+  // X3 app never calls this. Read live, like every row: a toggle flipped in
+  // Settings.app while the app was backgrounded lands on the first frame after
+  // it returns. Absent (or a Root.plist that would not load) is off.
+  ensureDefaults();
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kPiccoUpDownButtons] ? 1 : 0;
 }
 
 int CrossPointPrefs_readAloudEnabled(void) {

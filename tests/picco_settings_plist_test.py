@@ -94,6 +94,21 @@ check(dropped == 6, "expected the six one-finger global rows dropped, got %d" % 
 check("zenModeEnabled" in pk, "the Zen switch is missing")
 check(pk.get("zenModeEnabled", {}).get("DefaultValue") is False, "Zen must ship OFF on the Picco")
 check("readingAllowanceMinutes" in pk, "Zen Reading Goal is missing")
+# Settings > Buttons > Up/Down Buttons (2026-11-27, owner: "just match x3 app
+# and make it an ios app setting (default off)"): on the Picco page only,
+# a toggle that ships OFF, in its own group straight after Zen.
+check("piccoUpDownButtons" not in xk, "the Up/Down Buttons row leaked onto the X3 page")
+ud = pk.get("piccoUpDownButtons", {})
+check(ud.get("Type") == "PSToggleSwitchSpecifier", "Up/Down Buttons must be a toggle")
+check(ud.get("DefaultValue") is False, "Up/Down Buttons must ship OFF")
+check(ud.get("Title") == "Up/Down Buttons", "Up/Down Buttons title")
+check(pg.get("piccoUpDownButtons") == "Buttons", "Up/Down Buttons belongs in the Buttons group")
+titles = [s.get("Title") for s in picco["PreferenceSpecifiers"]
+          if s.get("Type") == "PSGroupSpecifier"]
+check(titles[:2] == ["Zen", "Buttons"], "Buttons comes straight after Zen: %s" % titles[:2])
+grp = [s for s in picco["PreferenceSpecifiers"]
+       if s.get("Type") == "PSGroupSpecifier" and s.get("Title") == "Buttons"]
+check(bool(grp) and "font" in grp[0].get("FooterText", ""), "Buttons footer says what they do")
 for k, s in pk.items():
     check("Use the Gestures setting" not in (s.get("Titles") or []),
           "%s still says 'Use the Gestures setting'" % k)
