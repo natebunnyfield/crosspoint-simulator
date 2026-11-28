@@ -54,8 +54,11 @@ struct Inputs {
 // lands whole, or where its sweep reaches the foot of the glass -- does not
 // read back; the next present does. The readback sits before the flip, so
 // taking it here held the frame's last rows off the glass for ~35 ms (iOS
-// Simulator, iPhone 17) on every menu step. The next present composes the same
-// glass from cache, so it reads back the same picture.
+// Simulator, iPhone 17) on every menu step. The next present usually composes
+// the same glass from cache and reads back the same picture. NOT when the
+// firmware writes the next frame before that present runs (review R-33, OPEN):
+// the next present then carries the new frame and lands it whole, the frame
+// that completed is never captured or deposited, and it leaves no afterglow.
 inline bool shouldCapture(const Inputs &in) {
   if (in.beamSweeping && !in.sizeStale) return false;
   if (!in.hasPicture || in.sizeStale) return true;
