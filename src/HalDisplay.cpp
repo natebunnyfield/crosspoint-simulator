@@ -18,6 +18,7 @@
 #include "LightInkPalette.h"
 #include "PaperDefects.h"
 #include "PageFade.h"
+#include "TrailLayers.h"
 #include "TrailLifetime.h"
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
@@ -2667,11 +2668,37 @@ static uint64_t accumLastAddMs = 0;
 // the texture back. Set to full scale by every deposit, stepped by every fade
 // with the same alpha the fade used. See src/TrailLifetime.h.
 static float accumPeakBound = 0.0f;
+// THE TRAIL'S SECOND LAYER (R-38, owner ruling 2026-11-27: "Fix it"). With a
+// cascade tail, accumTexture is the SETTLED layer -- light whose ink-to-tail
+// handover is complete, drawn at the tail -- and youngTexture holds light still
+// mid-handover, drawn at its own point on the ramp. src/TrailLayers.h decides
+// which layer a deposit goes into; tests/trail_layers_test.cpp pins it. Without
+// a tail the young layer is never created and accumTexture is the one
+// accumulator it always was.
+static SDL_Texture *youngTexture = nullptr;
+static traillayers::State trailLayers;
+// The same upper bound as accumPeakBound, for the settled layer alone, so an
+// isolated fade does not pay a draw for a settled layer that holds nothing
+// visible.
+static float settledPeakBound = 0.0f;
 // It is only meaningful beside the texture it tracks, and an iOS reboot is a
 // longjmp that keeps the static and destroys nothing. Registered here rather
 // than in the display's own reset above because that block runs before this
 // declaration.
-const simreset::Registrar gAccumPeakReset{[] { accumPeakBound = 0.0f; }};
+const simreset::Registrar gAccumPeakReset{[] {
+  accumPeakBound = 0.0f;
+  settledPeakBound = 0.0f;
+  trailLayers = traillayers::State{};
+}};
+
+// Drop the young layer and both layers' bookkeeping, wherever the accumulator
+// itself is dropped: light cannot outlive the buffer it was in.
+static void dropYoungLayer() {
+  if (youngTexture) SDL_DestroyTexture(youngTexture);
+  youngTexture = nullptr;
+  trailLayers = traillayers::State{};
+  settledPeakBound = 0.0f;
+}
 
 static void destroyGlassTextures();
 // THE GLASS CAPTURE AND THE SEQ IT BELONGS TO, for the same reason. The desktop
@@ -2756,6 +2783,7 @@ static void ensureAccumTexture(int outW, int outH) {
     accumTexture = nullptr;
     accumW = accumH = 0;
     accumPeakBound = 0.0f;
+    dropYoungLayer();
   }
   if (outW <= 0 || outH <= 0 || !sdl_renderer) return;
   accumTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
@@ -2775,6 +2803,21 @@ static void ensureAccumTexture(int outW, int outH) {
   SDL_RenderClear(sdl_renderer);
   SDL_SetRenderTarget(sdl_renderer, prev);
   accumLastFadeMs = SDL_GetTicks();
+}
+
+// The young layer, created the first time a tail needs it and kept the size of
+// the accumulator (ensureAccumTexture drops it when the glass changes shape).
+// It is cleared before every fresh deposit, so it is not cleared here.
+static bool ensureYoungTexture(int outW, int outH) {
+  if (youngTexture) return true;
+  if (outW <= 0 || outH <= 0 || !sdl_renderer) return false;
+  youngTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                                   SDL_TEXTUREACCESS_TARGET, outW, outH);
+  if (!youngTexture) {
+    LOG_ERR("DISP", "glow: no young-layer texture (%s)", SDL_GetError());
+    return false;
+  }
+  return true;
 }
 
 // CAPTURE THE GLASS -- one readback per new picture, and the three rules that
@@ -4469,6 +4512,8 @@ void HalDisplay::presentIfNeeded() {
   // stayed ABOVE the scanlines, the sheet and the grain, because those are
   // COVERAGE and everything under them is light the coverage gates.
   bool accumLive = false;
+  // Whether the trail is drawn as two layers this present (src/TrailLayers.h).
+  bool trailLayered = false;
   {
     int gw = 0, gh = 0;
     const bool inGlass = wantPrevFrame && enterGlassSpace(&gw, &gh);
@@ -4480,10 +4525,50 @@ void HalDisplay::presentIfNeeded() {
           const uint64_t accumT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
           const float dt = static_cast<float>(now - accumLastFadeMs);
           SDL_Texture *restore = SDL_GetRenderTarget(sdl_renderer);
-          SDL_SetRenderTarget(sdl_renderer, accumTexture);
+          // THE TWO LAYERS (R-38; src/TrailLayers.h). Layered only with a tail
+          // and a young texture to hold it; without either, every deposit goes
+          // into accumTexture exactly as the single accumulator did.
+          trailLayered = glowTailTint.load() != kNoGlowTail &&
+                         ensureYoungTexture(gw, gh);
+          const traillayers::Ramp ramp = {trailLayered, glowTailOnsetMs.load(),
+                                          trailMs};
+          static SDL_BlendMode layerMax = SDL_ComposeCustomBlendMode(
+              SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
+              SDL_BLENDOPERATION_MAXIMUM, SDL_BLENDFACTOR_ONE,
+              SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
+          // A closed settled layer holds nothing visible but may hold stale
+          // light (it is not faded while closed, and an iOS reboot keeps the
+          // texture), so it is cleared before anything goes back into it.
+          auto openSettled = [&]() {
+            if (trailLayers.settledLive) return;
+            SDL_SetRenderTarget(sdl_renderer, accumTexture);
+            SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+            SDL_RenderClear(sdl_renderer);
+          };
+          // Young light whose handover is done moves into the settled layer,
+          // where it is drawn the same color, so the glass does not change.
+          // MAXIMUM, like a deposit; the ADD fallback moves the light whole
+          // (alpha 255), because it was already scaled once on the way in.
+          auto settleYoung = [&]() {
+            if (youngTexture && trailLayers.youngLive) {
+              SDL_SetRenderTarget(sdl_renderer, accumTexture);
+              const bool max = layerMax != SDL_BLENDMODE_INVALID &&
+                               SDL_SetTextureBlendMode(youngTexture, layerMax);
+              if (!max)
+                SDL_SetTextureBlendMode(youngTexture, SDL_BLENDMODE_ADD);
+              SDL_SetTextureAlphaMod(youngTexture, 255);
+              SDL_SetTextureColorMod(youngTexture, 255, 255, 255);
+              SDL_RenderTexture(sdl_renderer, youngTexture, nullptr, nullptr);
+              settledPeakBound = SDL_max(settledPeakBound, accumPeakBound);
+            }
+            traillayers::applySettle(trailLayers);
+          };
           // dst *= 10^(-dt/trail), expressed as a blend against black. This is
           // the SAME curve the single-ghost version used; it is just applied to
-          // a running sum instead of to one frame.
+          // a running sum instead of to one frame. Both layers take the same
+          // fill: light decays at one rate whichever layer holds it. A settled
+          // layer holding nothing is cleared (below) and skipped, so an
+          // isolated fade fills one texture, as it always did.
           if (dt > 0.0f) {
             const float keep = SDL_powf(10.0f, -dt / trailMs);
             const int drop = static_cast<int>((1.0f - keep) * 255.0f + 0.5f);
@@ -4491,12 +4576,21 @@ void HalDisplay::presentIfNeeded() {
               SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_BLEND);
               SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0,
                                      static_cast<Uint8>(SDL_min(255, drop)));
-              SDL_RenderFillRect(sdl_renderer, nullptr);
+              if (trailLayers.settledLive) {
+                SDL_SetRenderTarget(sdl_renderer, accumTexture);
+                SDL_RenderFillRect(sdl_renderer, nullptr);
+              }
+              if (trailLayers.youngLive && youngTexture) {
+                SDL_SetRenderTarget(sdl_renderer, youngTexture);
+                SDL_RenderFillRect(sdl_renderer, nullptr);
+              }
               // The scalar shadow of that fill: see src/TrailLifetime.h. It is
               // stepped with the SAME `drop` the texture just took, so it stays
               // a valid upper bound however the present cadence wanders.
               accumPeakBound = trail::fadePeakBound(accumPeakBound, drop,
                                                     trailFadeRoundBias);
+              settledPeakBound = trail::fadePeakBound(settledPeakBound, drop,
+                                                      trailFadeRoundBias);
               // THE CLOCK ADVANCES ONLY WHEN THE FADE ACTUALLY APPLIED, and
               // this used to be an unconditional `accumLastFadeMs = now` above
               // the drop computation. `drop` is a ROUNDED 8-bit alpha, so a
@@ -4516,6 +4610,19 @@ void HalDisplay::presentIfNeeded() {
               // several times.
               accumLastFadeMs = now;
             }
+          }
+          // A settled layer that can no longer move a pixel is closed, so an
+          // isolated fade does not fill and draw it for nothing. It is cleared
+          // when it next opens (openSettled), not here: that also covers the
+          // iOS reboot, which resets the bookkeeping and keeps the texture.
+          if (trailLayers.settledLive &&
+              settledPeakBound <= trailInvisibleAtOrBelow()) {
+            trailLayers.settledLive = false;
+            settledPeakBound = 0.0f;
+          }
+          if (traillayers::settleDue(trailLayers, now, ramp)) {
+            openSettled();
+            settleYoung();
           }
           // THE DEPOSIT IS THE GLASS THAT WAS THERE, as intensity. Only if a
           // capture has actually landed and is the size of the buffer it is
@@ -4587,8 +4694,37 @@ void HalDisplay::presentIfNeeded() {
               SDL_Log("[accum] deposit blend: %s",
                       gotMax ? "MAXIMUM" : "ADD fallback (no MAXIMUM here)");
             }
+            // WHICH LAYER (src/TrailLayers.h). Without a tail, always the
+            // settled one. With a tail, a fresh young layer when it is free or
+            // its light is past half its handover (that light settles first);
+            // otherwise the young layer it joins, keeping that layer's clock,
+            // so light already on the glass never moves back up the ramp.
+            const traillayers::Deposit plan =
+                traillayers::planDeposit(trailLayers, now, ramp);
+            SDL_Texture *into = accumTexture;
+            switch (plan) {
+              case traillayers::Deposit::IntoSettled:
+                openSettled();
+                settledPeakBound = 255.0f;
+                break;
+              case traillayers::Deposit::SettleThenNewYoung:
+                openSettled();
+                settleYoung();
+                [[fallthrough]];
+              case traillayers::Deposit::NewYoung:
+                SDL_SetRenderTarget(sdl_renderer, youngTexture);
+                SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+                SDL_RenderClear(sdl_renderer);
+                into = youngTexture;
+                break;
+              case traillayers::Deposit::IntoYoung:
+                into = youngTexture;
+                break;
+            }
+            SDL_SetRenderTarget(sdl_renderer, into);
             SDL_SetTextureColorMod(deposit, 255, 255, 255);
             SDL_RenderTexture(sdl_renderer, deposit, nullptr, nullptr);
+            traillayers::applyDeposit(trailLayers, plan, now);
             accumLastAddMs = now;
             depositedGlassSeq = glassSeq;
             everDeposited = true;
@@ -4636,6 +4772,7 @@ void HalDisplay::presentIfNeeded() {
         accumTexture = nullptr;
         accumW = accumH = 0;
         accumLastAddMs = 0;
+        dropYoungLayer();
       }
 
       // CAPTURE, once per new picture and never during a sweep. See
@@ -4735,15 +4872,22 @@ void HalDisplay::presentIfNeeded() {
               SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
               SDL_BLENDOPERATION_MAXIMUM, SDL_BLENDFACTOR_ONE,
               SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
-          const bool gotMax =
-              maxBlend != SDL_BLENDMODE_INVALID &&
-              SDL_SetTextureBlendMode(accumTexture, maxBlend);
-          if (!gotMax) {
-            SDL_SetTextureBlendMode(accumTexture, SDL_BLENDMODE_ADD);
-            SDL_SetTextureAlphaMod(accumTexture, 96);
-          } else {
-            SDL_SetTextureAlphaMod(accumTexture, 255);
-          }
+          // Both layers composite the same way. On MAXIMUM each layer's
+          // light is drawn at its own color and the brighter wins; on the ADD
+          // fallback the layers add, as the single accumulator's sum did.
+          auto setComposite = [&](SDL_Texture *layer) {
+            const bool max = maxBlend != SDL_BLENDMODE_INVALID &&
+                             SDL_SetTextureBlendMode(layer, maxBlend);
+            if (!max) {
+              SDL_SetTextureBlendMode(layer, SDL_BLENDMODE_ADD);
+              SDL_SetTextureAlphaMod(layer, 96);
+            } else {
+              SDL_SetTextureAlphaMod(layer, 255);
+            }
+            return max;
+          };
+          const bool gotMax = setComposite(accumTexture);
+          if (youngTexture) setComposite(youngTexture);
           trailComposedMaximum = gotMax;
           static bool saidComposite = false;
           if (!saidComposite) {
@@ -4753,14 +4897,19 @@ void HalDisplay::presentIfNeeded() {
           }
         }
 
-        // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES, and with an accumulator
-        // that is an APPROXIMATION and is marked as one: the buffer holds
-        // deposits of many ages mixed together, and one colour multiply cannot
-        // give each its own point on the ramp. It is driven by the age of the
-        // NEWEST deposit, which is the one carrying most of the brightness.
-        // Getting this exact needs two accumulators running at the two layers'
-        // decay rates -- the honest model of what a cascade physically is --
-        // and that is worth doing if this ever looks wrong.
+        // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES, and each layer of the
+        // trail is drawn at its own point on that ramp (src/TrailLayers.h).
+        // It was ONE accumulator recolored by ONE multiply, timed by the age
+        // of the NEWEST deposit and marked here as an approximation: every new
+        // deposit reset that age, so every older ghost jumped from the tail
+        // tint back to the ink, about threefold brighter on the shipped mix
+        // (R-38, owner report 2026-11-27, ruled "Fix it"). Now the young
+        // layer, light still handing over, is drawn at its own age, and the
+        // settled layer, light whose handover is complete, at the tail. Light
+        // on the glass never moves back up the ramp. The one remaining
+        // approximation is a deposit landing mid-handover, where one batch of
+        // light is placed up to half the ramp FORWARD; TrailLayers.h says
+        // which.
         //
         // ONLY ON THE ADDITIVE PATH: on pale paper the same multiply hits the
         // paper too and the whole decaying frame washes green, which is a
@@ -4774,32 +4923,36 @@ void HalDisplay::presentIfNeeded() {
         // the surviving phosphor (owner report 2026-08-21, P46+P33).
         const uint32_t tail = glowTailTint.load();
         const PanelPalette livePal = livePanelPalette(display.isInverted());
-        Uint8 mod[3] = {255, 255, 255};
+        // The handover happens when the FAST phosphors die, not at the end of
+        // the whole fade: for the reported mix that is ~17 ms into 2828, so
+        // the ramp runs over the published ONSET when one exists. Presets that
+        // never set one (onset 0) keep the old whole-trail timing.
+        const traillayers::Ramp ramp = {trailLayered, glowTailOnsetMs.load(),
+                                        trailMs};
+        const uint64_t nowMs = SDL_GetTicks();
+        Uint8 modSettled[3] = {255, 255, 255};
+        Uint8 modYoung[3] = {255, 255, 255};
         if (darkGround) {
-          for (int c = 0; c < 3; c++) mod[c] = livePal.ink[c];
-          if (tail != kNoGlowTail) {
-            const float age =
-                static_cast<float>(SDL_GetTicks() - accumLastAddMs);
-            // The handover happens when the FAST phosphors die, not at the end
-            // of the whole fade: for the reported mix that is ~17 ms into 2828,
-            // so the ramp runs over the published ONSET when one exists.
-            // Presets that never set one (onset 0) keep the old whole-trail
-            // timing.
-            const float onset = glowTailOnsetMs.load();
-            float t = onset > 0.0f
-                          ? age / onset
-                          : (trailMs > 0.0f ? age / trailMs : 1.0f);
-            if (t < 0.0f) t = 0.0f;
-            if (t > 1.0f) t = 1.0f;
-            for (int c = 0; c < 3; c++) {
-              const float target =
-                  static_cast<float>((tail >> (16 - 8 * c)) & 0xFF);
-              mod[c] = static_cast<Uint8>(
-                  (1.0f - t) * static_cast<float>(mod[c]) + t * target + 0.5f);
-            }
-          }
+          const uint32_t tint =
+              tail != kNoGlowTail ? tail : traillayers::kNoTail;
+          // Not layered with a tail only when the young texture could not be
+          // made: then the settled layer is the single accumulator again and
+          // takes the old newest-deposit timing, not a jump to the tail.
+          const float settledT =
+              trailLayered
+                  ? traillayers::settledT(trailLayers, nowMs, ramp)
+                  : traillayers::rampT(
+                        static_cast<float>(nowMs - accumLastAddMs), ramp);
+          traillayers::tintMod(livePal.ink, tint, settledT, modSettled);
+          traillayers::tintMod(livePal.ink, tint,
+                               traillayers::youngT(trailLayers, nowMs, ramp),
+                               modYoung);
         }
-        SDL_SetTextureColorMod(accumTexture, mod[0], mod[1], mod[2]);
+        SDL_SetTextureColorMod(accumTexture, modSettled[0], modSettled[1],
+                               modSettled[2]);
+        if (youngTexture)
+          SDL_SetTextureColorMod(youngTexture, modYoung[0], modYoung[1],
+                                 modYoung[2]);
         if (presentLogWanted())
           SDL_Log("[accum2] darkGround=%d drawn=%d age=%u", (int)darkGround,
                   (int)accumLive,
@@ -4824,7 +4977,10 @@ void HalDisplay::presentIfNeeded() {
                            static_cast<int>(static_cast<float>(gh) *
                                             beamProgress)};
           if (clipToBand) SDL_SetRenderClipRect(sdl_renderer, &band);
-          SDL_RenderTexture(sdl_renderer, accumTexture, nullptr, &full);
+          if (trailLayers.settledLive)
+            SDL_RenderTexture(sdl_renderer, accumTexture, nullptr, &full);
+          if (trailLayers.youngLive && youngTexture)
+            SDL_RenderTexture(sdl_renderer, youngTexture, nullptr, &full);
           if (clipToBand) SDL_SetRenderClipRect(sdl_renderer, nullptr);
           // A fade only animates if something presents while it fades, and the
           // firmware will not: an e-ink reader draws a page and stops. So the
@@ -4844,6 +5000,7 @@ void HalDisplay::presentIfNeeded() {
         accumW = accumH = 0;
         accumLastAddMs = 0;
         accumPeakBound = 0.0f;
+        dropYoungLayer();
       }
       // enterGlassSpace() DISABLES logical presentation before it can fail, so
       // a zero-sized output would otherwise leave the letterbox path off for
