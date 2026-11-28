@@ -22,6 +22,10 @@ by *f* (`src/FrontlitPage.h:100`, `:229` `reweightedMix`, gun weights
 19/88/17/36 at `src/FrozenPage.h:76`). Brightness is the beam
 (`computeDarkPage`, `:254`).
 
+## Owner rulings
+
+- **2026-11-27: "B wins".** He saw the renders first (artifact M3UADdLvnVrymEUpmK3XQC). A Tube row, app and simulator builds only, picks the phosphor; Warmth keeps its meaning. Four sub-rulings are still open: blue and red dimming, yellow and amber, the warm tilt's afterglow, and the Tube with the light off.
+
 ## 1. Today's gamut, measured
 
 Every one of the 441 settings (Warmth and Brightness 0..100 by 5, light on)
