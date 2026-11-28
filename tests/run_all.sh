@@ -918,6 +918,15 @@ run frozen_page \
 run frontlit_page \
   c++ -std=c++17 -Isrc -Iios -o "$OUT/frontlit_page" tests/frontlit_page_test.cpp
 
+# ...and the TUBE's plumbing to every host (2026-11-27): the HAL publishes it in
+# the Light, the desktop hook and the iOS palette, glow, scanline and sleep-tick
+# reads all pass simfrontlight::current() whole, and the desktop clears the
+# Mixed tube's amber tail for a tube that has none. A SOURCE GATE: the shim is
+# iOS-only. Shown failing (6) against the four files before the Tube (pass a
+# copy of the tree as the argument).
+run_direct crt_tube_wiring \
+  python3 tests/crt_tube_wiring_test.py
+
 # ...and that the light going OFF reaches the iOS page while the firmware
 # sleeps (review row R-15, 2026-11-27). The firmware draws the sleep screen,
 # then switches the light off, and the three polls that turn the light into a
