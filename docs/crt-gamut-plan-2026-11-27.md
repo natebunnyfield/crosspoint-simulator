@@ -544,3 +544,20 @@ only); scale 2 shows them.
 The probe's options live only in the probe (`gamut.cpp`: `optionA`, `optionB`,
 `optionC2`); its `blendF` is `mixBlend` with float weights and no four-component
 cap.
+
+## Review before TestFlight 19 (2026-11-27)
+
+An independent read-only review found nothing that would ship a visible bug.
+- **Byte identity, measured:** the pre-change and HEAD models were compared over light on and off × every integer Brightness and Warmth (20,402 settings). Every output is byte-identical.
+- **7:1 contrast over the full integer grid:** holds on all 8 tubes. The worst is 7.0002:1.
+- **Device leakage:** none. `crtTube` is absent from `picco/firmware.bin`, and `toJson` and `fromJson` skip it on the device.
+- **Out-of-range values:** clamped in four places.
+
+Left as they are:
+- The test's Mixed-everywhere loop compares the model with itself; section 1 pins the frozen page.
+- The 7:1 grid steps by 2, not every value.
+- The 9 Tube strings are in every device's string table. They are unreachable and cost a few hundred bytes.
+- A web API change goes live at relaunch, the same as Brightness and Warmth.
+- On the desktop, the Tube follows only in as-shipped mode, the same as Brightness and Warmth.
+
+Not built: `pio run -e default`. It needs a 1.8 GB framework install, and the disk had about 2 GB free.
