@@ -24,9 +24,10 @@ by *f* (`src/FrontlitPage.h:100`, `:229` `reweightedMix`, gun weights
 
 ## Owner rulings
 
-- **2026-11-27: "B wins".** He saw the renders first (artifact M3UADdLvnVrymEUpmK3XQC). A Tube row, app and simulator builds only, picks the phosphor; Warmth keeps its meaning. Sub-rulings follow; the ones still open are listed last. Open: blue and red dimming, and the warm tilt's afterglow.
+- **2026-11-27: "B wins".** He saw the renders first (artifact M3UADdLvnVrymEUpmK3XQC). A Tube row, app and simulator builds only, picks the phosphor; Warmth keeps its meaning. Sub-rulings follow; the ones still open are listed last. Open: the warm tilt's afterglow.
 - **2026-11-27, Yellow and Amber: "Keep both".** Six tubes: Mixed, Blue, Green, Yellow (P28), Amber (P3), Red.
 - **2026-11-27, light off: "Off = Mixed".** With the light off, the page goes back to today's frozen Mixed tube, whatever the Tube row says. The Tube follows the light the same way Warmth and Brightness do.
+- **2026-11-27, blue and red: "Both, as four tubes".** He saw q-blue-red.png first. Blue (P11), Pale Blue (P22B), Red (P22R) and Pale Red (P56), so the row has eight tubes: Mixed, Blue, Pale Blue, Green, Yellow, Amber, Red, Pale Red.
 
 ## 1. Today's gamut, measured
 
